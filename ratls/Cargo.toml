@@ -1,0 +1,10 @@
+[package]
+name = "ratls"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.88"
+bon = "2.2.1"
+rcgen = "0.13.1"
+yasna = "0.5.2"
