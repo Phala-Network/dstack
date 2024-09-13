@@ -4,3 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ra-tls = { version = "0.1.0", path = "../ra-tls" }
+rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
+yasna = "0.5.2"
+
+[features]
+default = []

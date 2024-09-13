@@ -1,7 +1,10 @@
 //! Certificate creation functions.
 
 use anyhow::Result;
-use rcgen::{Certificate, CertificateParams, CustomExtension, DistinguishedName, DnType, KeyPair};
+use rcgen::{
+    BasicConstraints, Certificate, CertificateParams, CustomExtension, DistinguishedName, DnType,
+    IsCa, KeyPair, SanType,
+};
 
 use crate::oids::{PHALA_RATLS_APP_INFO, PHALA_RATLS_EVENT_LOG, PHALA_RATLS_QUOTE};
 
@@ -10,6 +13,8 @@ use crate::oids::{PHALA_RATLS_APP_INFO, PHALA_RATLS_EVENT_LOG, PHALA_RATLS_QUOTE
 pub struct CertRequest<'a> {
     org_name: Option<&'a str>,
     subject: &'a str,
+    alt_subject: Option<&'a str>,
+    ca_level: Option<u8>,
     quote: Option<&'a [u8]>,
     event_log: Option<&'a [u8]>,
     app_info: Option<&'a [u8]>,
@@ -24,6 +29,9 @@ impl<'a> CertRequest<'a> {
         }
         dn.push(DnType::CommonName, self.subject);
         params.distinguished_name = dn;
+        if let Some(alt_subject) = self.alt_subject {
+            params.subject_alt_names.push(SanType::DnsName(alt_subject.try_into()?));
+        }
         if let Some(quote) = self.quote {
             let content = yasna::construct_der(|writer| {
                 writer.write_bytes(quote);
@@ -44,6 +52,9 @@ impl<'a> CertRequest<'a> {
             });
             let ext = CustomExtension::from_oid_content(PHALA_RATLS_APP_INFO, content);
             params.custom_extensions.push(ext);
+        }
+        if let Some(ca_level) = self.ca_level {
+            params.is_ca = IsCa::Ca(BasicConstraints::Constrained(ca_level));
         }
         Ok(params)
     }

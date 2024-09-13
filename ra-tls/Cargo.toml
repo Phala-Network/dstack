@@ -1,10 +1,11 @@
 [package]
-name = "ratls"
+name = "ra-tls"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 anyhow = "1.0.88"
 bon = "2.2.1"
+dcap-qvl = "0.1.2"
 rcgen = "0.13.1"
 yasna = "0.5.2"

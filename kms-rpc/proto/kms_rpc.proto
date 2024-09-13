@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package kms;
+
+// The kms public RPC service.
+service KMS {
+  // Request the app key given the app id and tdx quote
+  rpc GetAppKey(google.protobuf.Empty) returns (AppKeyResponse) {
+    // Retrieves the app key and certificate given the app id and tdx quote
+  }
+}
+
+message AppKeyResponse {
+    string app_key = 1;
+    string disk_crypt_key = 2;
+    string certificate_chain = 3;
+}
