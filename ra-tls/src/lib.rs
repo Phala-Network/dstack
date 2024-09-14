@@ -6,3 +6,5 @@ pub extern crate dcap_qvl as qvl;
 
 pub mod cert;
 pub mod oids;
+pub mod traits;
+pub mod attestation;

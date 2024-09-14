@@ -6,7 +6,10 @@ use rcgen::{
     IsCa, KeyPair, SanType,
 };
 
-use crate::oids::{PHALA_RATLS_APP_INFO, PHALA_RATLS_EVENT_LOG, PHALA_RATLS_QUOTE};
+use crate::{
+    oids::{PHALA_RATLS_APP_INFO, PHALA_RATLS_EVENT_LOG, PHALA_RATLS_QUOTE},
+    traits::CertExt,
+};
 
 /// Information required to create a certificate.
 #[bon::builder]
@@ -30,7 +33,9 @@ impl<'a> CertRequest<'a> {
         dn.push(DnType::CommonName, self.subject);
         params.distinguished_name = dn;
         if let Some(alt_subject) = self.alt_subject {
-            params.subject_alt_names.push(SanType::DnsName(alt_subject.try_into()?));
+            params
+                .subject_alt_names
+                .push(SanType::DnsName(alt_subject.try_into()?));
         }
         if let Some(quote) = self.quote {
             let content = yasna::construct_der(|writer| {
@@ -76,5 +81,16 @@ impl<'a> CertRequest<'a> {
             .into_cert_params()?
             .signed_by(key, issuer, issuer_key)?;
         Ok(cert)
+    }
+}
+
+impl CertExt for Certificate {
+    fn get_extension(&self, oid: &[u64]) -> Result<Option<Vec<u8>>> {
+        let found = self.params()
+            .custom_extensions
+            .iter()
+            .find(|ext| ext.oid_components().collect::<Vec<_>>() == oid)
+            .map(|ext| ext.content().to_vec());
+        Ok(found)
     }
 }

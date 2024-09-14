@@ -1,4 +1,5 @@
-use ra_tls::{oids, qvl};
+use anyhow::Context;
+use ra_tls::attestation::Attestation;
 use rocket::{
     get,
     mtls::{oid::Oid, Certificate},
@@ -15,23 +16,25 @@ use rocket::{
 // }
 
 #[get("/")]
-fn index(cert: Option<Certificate<'_>>) -> String {
+async fn index(cert: Option<Certificate<'_>>) -> String {
     if let Some(cert) = cert {
-        let quote_oid = Oid::from(oids::PHALA_RATLS_QUOTE).unwrap();
-        match cert.get_extension_unique(&quote_oid) {
-            Ok(Some(quote)) => {
-                let quote_bytes =
-                    yasna::parse_der(&quote.value, |reader| reader.read_bytes()).unwrap();
-                match qvl::quote::Quote::parse(&quote_bytes) {
-                    Ok(quote) => {
-                        format!("KMS: Got quote from client certificate:\n{quote:?}\n")
-                    }
-                    Err(err) => {
-                        format!("KMS: Failed to parse quote from client certificate: {err}\n")
-                    }
-                }
-            }
-            _ => "KMS: No TEE quote in client certificate\n".to_string(),
+        let attestation = Attestation::from_ext_getter(|oid| {
+            let oid = Oid::from(oid).ok().context("Invalid OID")?;
+            let Some(ext) = cert
+                .get_extension_unique(&oid)
+                .context("Extension not found")?
+            else {
+                return Ok(None);
+            };
+            Ok(Some(ext.value.to_vec()))
+        });
+        match attestation {
+            Ok(Some(attestation)) => match attestation.decode_quote() {
+                Ok(quote) => format!("KMS: Got quote from client certificate:\n{quote:?}\n"),
+                Err(err) => format!("KMS: Failed to decode quote from client certificate: {err}\n"),
+            },
+            Ok(None) => "KMS: No attestation in client certificate\n".to_string(),
+            _ => "KMS: Failed to get attestation from client certificate\n".to_string(),
         }
     } else {
         "KMS: Missing client certificate\n".to_string()
