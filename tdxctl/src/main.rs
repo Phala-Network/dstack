@@ -21,6 +21,7 @@ enum Commands {
     Extend(ExtendArgs),
     Show,
     Hex(HexCommand),
+    GenRaCert(GenRaCertArgs),
 }
 
 #[derive(Parser)]
@@ -53,6 +54,18 @@ struct ExtendArgs {
     #[clap(short, long)]
     /// associated data of the event
     associated_data: String,
+}
+
+#[derive(Parser)]
+/// Generate a certificate
+struct GenRaCertArgs {
+    #[arg(short, long)]
+    /// file path to store the certificate
+    cert_path: String,
+
+    #[arg(short, long)]
+    /// file path to store the private key
+    key_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -202,6 +215,29 @@ fn cmd_hex(hex_args: HexCommand) -> Result<()> {
     Ok(())
 }
 
+fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
+    use ra_tls::cert::CertRequest;
+    use ra_tls::rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
+
+    let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
+    let pubkey = key.public_key_raw();
+    let todo = "define a quote format rather than a bare pubkey";
+    let mut report_data = att::TdxReportData([0; 64]);
+    report_data.0[..pubkey.len()].copy_from_slice(&pubkey);
+    let (_, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
+    let event_log = std::fs::read(EVENT_LOG_FILE).unwrap_or_default();
+    let cert = CertRequest::builder()
+        .subject("RA-TLS TEMP Cert")
+        .quote(&quote)
+        .event_log(&event_log)
+        .build()
+        .self_signed(&key)?;
+
+    std::fs::write(&args.cert_path, &cert.pem()).context("Failed to write certificate")?;
+    std::fs::write(&args.key_path, &key.serialize_pem()).context("Failed to write private key")?;
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -214,6 +250,9 @@ fn main() -> Result<()> {
         }
         Commands::Hex(hex_args) => {
             cmd_hex(hex_args)?;
+        }
+        Commands::GenRaCert(args) => {
+            cmd_gen_ra_cert(args)?;
         }
     }
 

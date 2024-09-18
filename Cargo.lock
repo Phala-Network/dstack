@@ -3205,6 +3205,7 @@ dependencies = [
  "hex",
  "hex_fmt",
  "parity-scale-codec",
+ "ra-tls",
  "serde",
  "serde_json",
  "tdx-attest",
