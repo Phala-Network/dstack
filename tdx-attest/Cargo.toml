@@ -1,0 +1,9 @@
+[package]
+name = "tdx-attest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+num_enum = "0.7.3"
+tdx-attest-sys = { path = "../tdx-attest-sys" }
+thiserror = "1.0.63"

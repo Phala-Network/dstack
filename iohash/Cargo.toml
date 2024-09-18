@@ -1,0 +1,12 @@
+[package]
+name = "iohash"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.87"
+blake2 = "0.10.6"
+clap = { version = "4.5.17", features = ["derive"] }
+hex_fmt = "0.3.0"
+sha2 = "0.10.8"
+sha3 = "0.10.8"
