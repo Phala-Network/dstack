@@ -1,7 +1,0 @@
-[default.tls]
-key = "assets/kms-www.key"
-certs = "assets/kms-www.cert"
-
-[default.tls.mutual]
-ca_certs = "assets/ca.cert"
-mandatory = false

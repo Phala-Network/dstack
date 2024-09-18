@@ -1,5 +1,14 @@
 [workspace]
-members = ["kms", "kms-rpc", "ra-rpc", "ra-tls"]
+members = [
+    "kms",
+    "kms-rpc",
+    "ra-rpc",
+    "ra-tls",
+    "tdx-attest-sys",
+    "tdx-attest",
+    "tdxctl",
+    "iohash",
+]
 resolver = "2"
 
 [patch.crates-io]

@@ -4,3 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.88"
+prpc = "0.2.1"
+ra-tls = { version = "0.1.0", path = "../ra-tls" }
+rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", optional = true }
+serde_json = "1.0.128"
+tracing = "0.1.40"
+
+[features]
+default = ["rocket"]
+rocket = ["dep:rocket"]

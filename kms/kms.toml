@@ -1,0 +1,45 @@
+[default]
+workers = 8
+max_blocking = 64
+ident = "Phala KMS"
+temp_dir = "/tmp"
+keep_alive = 10
+log_level = "debug"
+
+[default.tls]
+key = "assets/kms-www.key"
+certs = "assets/kms-www.cert"
+
+[default.tls.mutual]
+ca_certs = "assets/ca.cert"
+mandatory = false
+
+[default.limits]
+bytes = "8KiB"
+data-form = "2MiB"
+file = "1MiB"
+form = "32KiB"
+json = "1MiB"
+msgpack = "1MiB"
+string = "8KiB"
+
+[public]
+address = "0.0.0.0"
+port = 8000
+
+[core.allowed_mr]
+mrtd = [
+    "91eb2b44d141d4ece09f0c75c2c53d247a3c68edd7fafe8a3520c942a604a407de03ae6dc5f87f27428b2538873118b7",
+]
+rtmr0 = [
+    "4edda8aee0f2c19361be87a0b5849145b7548c84cb6c774634482b8260eed5343b2c56845f48c202ecd3506d6ca4b59f",
+]
+rtmr1 = [
+    "3b026dbac4c97f6e771198b6fbd298512df74677ed6e3f0a976571baadb4c1e91f3d1d01ffc65136296f0d9c14dc6ccd",
+]
+rtmr2 = [
+    "569755c97d572d9ba2de9a655e9e786ae1cb3f73d28b6047d79678cce24036adba9fb080547e84b2ec98910032828ddd",
+]
+rtmr3 = [
+    "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+]
