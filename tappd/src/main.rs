@@ -1,7 +1,7 @@
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 
 use anyhow::{anyhow, Result};
-use main_service::AppState;
+use rpc_service::AppState;
 use rocket::{
     figment::Figment,
     listener::{Bind, DefaultListener},
@@ -9,7 +9,7 @@ use rocket::{
 
 mod config;
 mod http_routes;
-mod main_service;
+mod rpc_service;
 
 async fn run_http(state: AppState) -> Result<()> {
     let figment = Figment::from(rocket::Config::default()).merge(config::load_config_file());

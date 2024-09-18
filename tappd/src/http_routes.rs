@@ -1,4 +1,4 @@
-use crate::main_service::{AppState, RpcHandler};
+use crate::rpc_service::{AppState, RpcHandler};
 use anyhow::Result;
 use ra_rpc::rocket_helper::handle_prpc;
 use rocket::{
