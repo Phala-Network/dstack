@@ -1,0 +1,20 @@
+export INITIMG=
+export INITIMGTYPE=
+
+for x in $(cat /proc/cmdline); do
+	case $x in
+	initimg=*)
+		INITIMG=${x#*=}
+		;;
+	initimgtype=*)
+		if [ -n "${x#*=}" ]; then
+			INITIMGTYPE="-t ${x#*=}"
+		fi
+		;;
+	rootintegrity=*)
+		if [ -n "${x#*=}" ]; then
+			ROOTINTEGRITY="--integrity ${x#*=}"
+		fi
+		;;
+	esac
+done

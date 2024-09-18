@@ -1,0 +1,117 @@
+#!/bin/sh
+
+APP_COMPOSE_FILE="docker-compose.yaml"
+
+FSINIT_premount() {
+    local key_phrase initialized=0 rootfs_hash app_id
+
+    mkdir -p /config || panic "FSINIT: Failed to create /config directory"
+    mount -t 9p -o trans=virtio,version=9p2000.L config /config || panic "FSINIT: Failed to mount config"
+
+    if [ -e /config/key_phrase ]; then
+        echo "FSINIT: Key phrase found"
+        key_phrase="$(cat /config/key_phrase)" || panic "FSINIT: Failed to read key phrase"
+        initialized=1
+    else
+        key_phrase="$(head -c 128 /dev/urandom | tr -dc A-Za-z0-9)" || panic "FSINIT: Failed to generate key phrase"
+        echo "FSINIT: New key phrase: $key_phrase"
+        echo "$key_phrase" > /config/key_phrase
+    fi
+    if [ -e /config/${APP_COMPOSE_FILE} ]; then
+        cp /config/${APP_COMPOSE_FILE} /app.yaml
+    fi
+
+    if [ $initialized -eq 0 ]; then
+        [ -z "${INITIMG}" ] && panic "FSINIT: initimg not set"
+
+        echo "FSINIT: Mounting init image ${INITIMG}"
+        INITDATA_DIR=/initdata
+        mkdir -p ${INITDATA_DIR} || panic "FSINIT: Failed to create ${INITDATA_DIR}"
+
+        if [ -z "${INITIMGTYPE}" ]; then
+            case "${INITIMG}" in
+                /dev/cdrom*|/dev/sr*)
+                    INITIMGTYPE="-t iso9660"
+                    ;;
+            esac
+        fi
+        mount ${INITIMGTYPE} -o ro ${INITIMG} ${INITDATA_DIR} || panic "FSINIT: Failed to mount init image"
+
+        echo "FSINIT: Initializing"
+        echo "[$(date +%H:%M:%S)] FSINIT: Formatting rootfs"
+        echo "cmd: cryptsetup luksFormat --type luks2 --cipher aes-xts-plain64 ${ROOTINTEGRITY} --pbkdf pbkdf2 -d- ${ROOT}"
+        echo "$key_phrase" | cryptsetup luksFormat --type luks2 --cipher aes-xts-plain64 ${ROOTINTEGRITY} --pbkdf pbkdf2 -d- ${ROOT} || panic "FSINIT: Failed to format rootfs"
+        echo "[$(date +%H:%M:%S)] FSINIT: Formatting rootfs done"
+        echo "$key_phrase" | cryptsetup luksOpen --type luks2 -d- ${ROOT} rootfs_crypt || panic "FSINIT: Failed to open encrypted rootfs"
+        mkfs.ext4 -L cloudimg-rootfs /dev/mapper/rootfs_crypt || panic "FSINIT: Failed to create ext4 filesystem"
+        mount /dev/mapper/rootfs_crypt /root || panic "FSINIT: Failed to mount rootfs"
+
+        echo "[$(date +%H:%M:%S)] FSINIT: Extracting rootfs, this may take a while..."
+        extract_rootfs() {
+            iohash sha256 -t /tmp/rootfs.hash | cpio -i
+        }
+        if [ -e ${INITDATA_DIR}/rootfs.cpio ]; then
+            (cd /root && cat ${INITDATA_DIR}/rootfs.cpio | extract_rootfs) || panic "FSINIT: Failed to extract rootfs.cpio"
+        elif [ -e ${INITDATA_DIR}/rootfs.gz ]; then
+            (cd /root && gzip -dc ${INITDATA_DIR}/rootfs.gz | extract_rootfs) || panic "FSINIT: Failed to extract rootfs.gz"
+        else
+            panic "FSINIT: No rootfs found"
+        fi
+        cp /tmp/rootfs.hash /root/rootfs.hash
+        echo "TODO: check the declared hash matches the actual hash"
+
+        echo "[$(date +%H:%M:%S)] FSINIT: Done, hash=$(cat /tmp/rootfs.hash)"
+        mkdir -p /root/app
+        if [ -e /app.yaml ]; then
+            cp /app.yaml /root/app/${APP_COMPOSE_FILE}
+            echo "FSINIT: Copied app.yaml to /root/app/${APP_COMPOSE_FILE}"
+        fi
+        umount /root || panic "FSINIT: Failed to unmount /root"
+    else
+        echo "[$(date +%H:%M:%S)] FSINIT: Mounting"
+        echo "$key_phrase" | cryptsetup luksOpen --type luks2 -d- ${ROOT} rootfs_crypt || panic "FSINIT: Failed to open encrypted rootfs"
+    fi
+    umount /config || panic "FSINIT: Failed to unmount /config"
+    ROOT=/dev/mapper/rootfs_crypt
+
+    mount ${ROOT} /root || panic "FSINIT: Failed to mount rootfs"
+
+    rootfs_hash=$(cat /root/rootfs.hash)
+    echo "FSINIT: Extending rootfs hash to RTMR, hash=${rootfs_hash}"
+    tdxctl extend -i 3 --digest ${rootfs_hash} --associated-data "rootfs-hash" || panic "FSINIT: Failed to extend rootfs to RTMR"
+
+    if [ -e /root/app/${APP_COMPOSE_FILE} ]; then
+        app_id=$(iohash sha256 -i /root/app/${APP_COMPOSE_FILE} -o! -t-)
+        echo "FSINIT: Extending app id to RTMR, app_id=${app_id}"
+        tdxctl extend -i 3 --digest ${app_id} --associated-data "app-id" || panic "FSINIT: Failed to extend app id to RTMR"
+
+        echo "TODO: check app_id matches the declaration"
+    fi
+
+    umount /root || panic "FSINIT: Failed to unmount /root"
+}
+
+mountroot()
+{
+    echo "FSINIT: Mounting root"
+    local_mount_root
+}
+
+mount_top()
+{
+    echo "FSINIT: Mounting top"
+    local_top
+}
+
+mount_premount()
+{
+    echo "FSINIT: Pre-mounting"
+    FSINIT_premount
+    local_premount
+}
+
+mount_bottom()
+{
+    echo "FSINIT: Bottom mounting"
+    local_bottom
+}

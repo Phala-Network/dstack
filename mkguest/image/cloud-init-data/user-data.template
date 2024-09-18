@@ -1,0 +1,43 @@
+#cloud-config
+
+write_files:
+- content: |
+    network:
+        version: 2
+        renderer: networkd
+        ethernets:
+            en:
+                match:
+                    name: "en*"
+                dhcp4: true
+                dhcp-identifier: mac
+  path: /etc/netplan/netplan.yaml
+- content: |
+    ===========================================================================
+    Welcome to Ubuntu noble (24.04)
+    Created by Kobuk team
+    ===========================================================================
+  path: /etc/motd
+- content: |
+    SUBSYSTEM=="misc",KERNEL=="tdx-guest",MODE="0666"
+  path: /etc/udev/rules.d/90-tdx.rules
+
+packages:
+  - python3-pip
+  - golang-go
+  - golang
+  - golang-doc
+  - ntp
+
+# HACK way to set root password
+# https://github.com/vmware/photon/issues/931
+# set root password to 123456
+bootcmd:
+  - /bin/sed -E -i 's/^root:([^:]+):.*$/root:\$1\$root\$j0bp.KLPyr.u9kgQ428D10:17764:0:99999:7:::/' /etc/shadow
+
+power_state:
+  delay: now
+  mode: poweroff
+  message: Bye Bye
+  timeout: 1
+  condition: True

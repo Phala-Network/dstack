@@ -1,0 +1,27 @@
+#!/bin/sh
+
+PREREQ=""
+prereqs()
+{
+    echo "$PREREQ"
+}
+
+case $1 in
+prereqs)
+    prereqs
+    exit 0
+    ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+echo "Copying rafs script"
+copy_file ${CONFDIR}/scripts/rafs /scripts/
+
+cp ${TDX_KO} ${DESTDIR}/${MODULESDIR}/
+
+copy_exec /usr/sbin/mkfs.ext4 /usr/sbin
+copy_exec ${CMD_IOHASH} /bin/
+copy_exec ${CMD_TDXCTL} /bin/
+
+auto_add_modules base ata net

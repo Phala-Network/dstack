@@ -1,0 +1,17 @@
+# List of modules that you want to include in your initramfs.
+# They will be loaded at boot time in the order below.
+#
+# Syntax:  module_name [args ...]
+#
+# You must run update-initramfs(8) to effect this change.
+#
+# Examples:
+#
+# raid1
+# sd_mod
+9p
+9pnet
+9pnet_virtio
+dm_integrity
+dm-multipath
+br_netfilter
