@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package tappd;
+
+service Tappd {
+  // DeriveKey
+  rpc DeriveKey(DeriveKeyArgs) returns (DeriveKeyResponse) {}
+}
+
+message DeriveKeyArgs {
+  string path = 1;
+}
+
+message DeriveKeyResponse {
+  bytes key = 1;
+  bytes certificate = 2;
+}

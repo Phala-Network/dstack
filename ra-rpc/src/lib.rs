@@ -2,8 +2,9 @@
 
 use anyhow::Result;
 use prpc::{codec::encode_message_to_vec, server::Service as PrpcService};
-use ra_tls::attestation::Attestation;
 use tracing::{error, info};
+
+pub use ra_tls::attestation::Attestation;
 
 #[cfg(feature = "rocket")]
 pub mod rocket_helper;

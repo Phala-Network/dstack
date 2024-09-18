@@ -8,6 +8,8 @@ members = [
     "tdx-attest",
     "tdxctl",
     "iohash",
+    "tappd",
+    "tappd-rpc",
 ]
 resolver = "2"
 
