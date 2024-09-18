@@ -1,3 +1,5 @@
 extern crate alloc;
 
-pub mod prpc;
+pub use generated::*;
+
+mod generated;

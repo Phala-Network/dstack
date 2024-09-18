@@ -1,16 +1,15 @@
-use std::{fmt::format, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::{bail, Result};
-use kms_rpc::prpc::{
+use kms_rpc::{
     kms_server::{KmsRpc, KmsServer},
     AppKeyResponse,
 };
 use ra_rpc::RpcCall;
 use ra_tls::{
     attestation::Attestation,
-    qvl::quote::{Quote, Report, TDReport10},
+    qvl::quote::{Report, TDReport10},
 };
-use tracing::info;
 
 use crate::config::{AllowedMr, KmsConfig};
 

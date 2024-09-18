@@ -1,5 +1,5 @@
 fn main() {
-    let out_dir = "./src/prpc/generated";
+    let out_dir = "./src/generated";
 
     let mut builder = prpc_build::configure()
         .out_dir(out_dir)
