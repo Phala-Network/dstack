@@ -5,10 +5,14 @@ use rocket::figment::{
 };
 
 pub const CONFIG_FILENAME: &str = "kms.toml";
+pub const SYSTEM_CONFIG_FILENAME: &str = "/etc/kms/kms.toml";
 pub const DEFAULT_CONFIG: &str = include_str!("../kms.toml");
 
-pub fn load_config_file() -> Figment {
-    Figment::from(Toml::string(DEFAULT_CONFIG).nested()).merge(Toml::file(CONFIG_FILENAME).nested())
+pub fn load_config_figment() -> Figment {
+    Figment::from(rocket::Config::default())
+        .merge(Toml::string(DEFAULT_CONFIG).nested())
+        .merge(Toml::file(SYSTEM_CONFIG_FILENAME).nested())
+        .merge(Toml::file(CONFIG_FILENAME).nested())
 }
 
 #[derive(Debug, Clone)]
@@ -18,7 +22,7 @@ pub(crate) struct KmsConfig {
 
 impl KmsConfig {
     pub fn load() -> Result<Self> {
-        let figment = load_config_file();
+        let figment = load_config_figment();
         Self::from_figment(figment.select("core"))
     }
     pub fn from_figment(figment: Figment) -> Result<Self> {

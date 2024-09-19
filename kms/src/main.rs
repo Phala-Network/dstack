@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use rocket::figment::Figment;
 use tracing::info;
 
 mod config;
@@ -19,9 +18,7 @@ async fn main() -> Result<()> {
     let config = config::KmsConfig::load().context("Failed to read config file")?;
     let state = main_service::KmsState::new(config);
 
-    let figment = Figment::from(rocket::Config::default())
-        .merge(config::load_config_file())
-        .select("public");
+    let figment = config::load_config_figment().select("public");
     let rocket = rocket::custom(figment)
         .mount("/", web_routes::routes())
         .manage(state);

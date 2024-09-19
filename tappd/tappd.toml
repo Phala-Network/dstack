@@ -7,6 +7,8 @@ keep_alive = 10
 log_level = "debug"
 address = "unix:/var/run/tappd.sock"
 reuse = false
+cert_file = "/etc/tappd/cert.pem"
+key_file = "/etc/tappd/key.pem"
 
 [default.limits]
 bytes = "8KiB"

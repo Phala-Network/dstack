@@ -1,18 +1,17 @@
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 
-use anyhow::{anyhow, Result};
-use rpc_service::AppState;
+use anyhow::{anyhow, Context, Result};
 use rocket::{
     figment::Figment,
     listener::{Bind, DefaultListener},
 };
+use rpc_service::AppState;
 
 mod config;
 mod http_routes;
 mod rpc_service;
 
-async fn run_http(state: AppState) -> Result<()> {
-    let figment = Figment::from(rocket::Config::default()).merge(config::load_config_file());
+async fn run_http(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
         .mount("/", http_routes::routes())
         .manage(state);
@@ -38,7 +37,8 @@ async fn run_http(state: AppState) -> Result<()> {
 
 #[rocket::main]
 async fn main() -> Result<()> {
-    let state = AppState::new();
-    run_http(state).await?;
+    let figment = config::load_config_figment();
+    let state = AppState::new(figment.extract()?).context("Failed to create app state")?;
+    run_http(state, figment).await?;
     Ok(())
 }
