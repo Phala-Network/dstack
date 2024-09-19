@@ -8,3 +8,4 @@ pub mod cert;
 pub mod oids;
 pub mod traits;
 pub mod attestation;
+pub mod kdf;
