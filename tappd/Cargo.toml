@@ -13,3 +13,4 @@ anyhow = "1.0.89"
 serde = { version = "1.0.210", features = ["derive"] }
 ra-tls = { version = "0.1.0", path = "../ra-tls" }
 fs-err = "2.11.0"
+rcgen = { version = "0.13.1", features = ["x509-parser", "pem"] }

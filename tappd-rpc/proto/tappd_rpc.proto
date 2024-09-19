@@ -9,11 +9,18 @@ service Tappd {
   rpc DeriveKey(DeriveKeyArgs) returns (DeriveKeyResponse) {}
 }
 
+// The request to derive a key
 message DeriveKeyArgs {
+  // Path to the key to derive
   string path = 1;
+  // Subject of the certificate to request
+  string subject = 2;
 }
 
+// The response to a DeriveKey request
 message DeriveKeyResponse {
-  bytes key = 1;
-  bytes certificate = 2;
+  // Derived key
+  string key = 1;
+  // Certificate chain
+  repeated string certificate_chain = 2;
 }

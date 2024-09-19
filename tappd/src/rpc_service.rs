@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
-use ra_tls::{cert::CertRequest, rcgen};
-use rcgen::{Certificate, KeyPair};
+use ra_tls::{cert::CertRequest, kdf::derive_ecdsa_key_pair, rcgen};
+use rcgen::{Certificate, CertificateParams, KeyPair};
 use tappd_rpc::{
     tappd_server::{TappdRpc, TappdServer},
     DeriveKeyArgs, DeriveKeyResponse,
 };
-use fs_err as fs;
 
 use crate::config::Config;
 
@@ -19,7 +19,7 @@ pub struct AppState {
 
 struct AppStateInner {
     key: KeyPair,
-    cert: String,
+    cert: Certificate,
 }
 
 impl AppState {
@@ -27,6 +27,9 @@ impl AppState {
         let pem_key = fs::read_to_string(&config.key_file).context("Failed to read key file")?;
         let key = KeyPair::from_pem(&pem_key).context("Failed to parse key")?;
         let cert = fs::read_to_string(&config.cert_file).context("Failed to read cert file")?;
+        let cert = CertificateParams::from_ca_cert_pem(&cert).context("Failed to parse cert")?;
+        let todo = "load the cert from the file directly: blocked by https://github.com/rustls/rcgen/issues/274";
+        let cert = cert.self_signed(&key).context("Failed to self-sign cert")?;
         Ok(Self {
             inner: Arc::new(AppStateInner { key, cert }),
         })
@@ -39,9 +42,16 @@ pub struct RpcHandler {
 
 impl TappdRpc for RpcHandler {
     async fn derive_key(self, request: DeriveKeyArgs) -> Result<DeriveKeyResponse> {
+        let derived_key = derive_ecdsa_key_pair(&self.state.inner.key, &[request.path.as_bytes()])
+            .context("Failed to derive key")?;
+        let cert = CertRequest::builder()
+            .subject(&request.subject)
+            .build()
+            .signed_by(&derived_key, &self.state.inner.cert, &self.state.inner.key)
+            .context("Failed to build certificate request")?;
         Ok(DeriveKeyResponse {
-            key: vec![1; 32],
-            certificate: vec![1; 1024],
+            key: derived_key.serialize_pem(),
+            certificate_chain: vec![cert.pem(), self.state.inner.cert.pem()],
         })
     }
 }
