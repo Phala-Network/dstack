@@ -4,6 +4,7 @@ use tappd_rpc::{
     tappd_server::{TappdRpc, TappdServer},
     DeriveKeyArgs, DeriveKeyResponse,
 };
+use fs_err as fs;
 
 #[derive(Clone)]
 pub struct AppState {}

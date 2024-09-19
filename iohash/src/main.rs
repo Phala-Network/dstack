@@ -9,6 +9,7 @@ use blake2::{
 use clap::{Parser, ValueEnum};
 use sha2::{Digest, Sha224, Sha256, Sha384, Sha512, Sha512_224, Sha512_256};
 use sha3::{Keccak224, Keccak256, Keccak384, Keccak512, Sha3_224, Sha3_256, Sha3_384, Sha3_512};
+use fs_err as fs;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -76,7 +77,7 @@ impl App {
                     &mut std::io::stdin()
                 } else {
                     let file =
-                        std::fs::File::open(input_file).context("Failed to open input file")?;
+                        fs::File::open(input_file).context("Failed to open input file")?;
                     &mut { file }
                 }
             }
@@ -88,7 +89,7 @@ impl App {
                 "!" => &mut BlackHole,
                 _ => {
                     let file =
-                        std::fs::File::create(output_file).context("Failed to open output file")?;
+                        fs::File::create(output_file).context("Failed to open output file")?;
                     &mut { file }
                 }
             },
@@ -100,7 +101,7 @@ impl App {
                     &mut std::io::stdout()
                 } else {
                     let file =
-                        std::fs::File::create(to_file).context("Failed to open hash file")?;
+                        fs::File::create(to_file).context("Failed to open hash file")?;
                     &mut { file }
                 }
             }

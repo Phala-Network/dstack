@@ -4,6 +4,7 @@ use scale::Decode;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read, Write};
 use tdx_attest as att;
+use fs_err as fs;
 
 const EVENT_LOG_FILE: &str = "/run/log/tdx_mr3/tdx_events.log";
 
@@ -120,9 +121,9 @@ fn cmd_extend(extend_args: ExtendArgs) -> Result<()> {
     let logfile_dir = logfile_path
         .parent()
         .context("Failed to get event log directory")?;
-    std::fs::create_dir_all(logfile_dir).context("Failed to create event log directory")?;
+    fs::create_dir_all(logfile_dir).context("Failed to create event log directory")?;
 
-    let mut logfile = std::fs::OpenOptions::new()
+    let mut logfile = fs::OpenOptions::new()
         .append(true)
         .create(true)
         .open(logfile_path)
@@ -207,7 +208,7 @@ fn cmd_hex(hex_args: HexCommand) -> Result<()> {
     }
     if let Some(filename) = hex_args.filename {
         let mut input =
-            std::fs::File::open(&filename).context(format!("Failed to open {}", filename))?;
+            fs::File::open(&filename).context(format!("Failed to open {}", filename))?;
         hex_encode_io(&mut input)?;
     } else {
         hex_encode_io(&mut io::stdin())?;
@@ -225,7 +226,7 @@ fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
     let mut report_data = att::TdxReportData([0; 64]);
     report_data.0[..pubkey.len()].copy_from_slice(&pubkey);
     let (_, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
-    let event_log = std::fs::read(EVENT_LOG_FILE).unwrap_or_default();
+    let event_log = fs::read(EVENT_LOG_FILE).unwrap_or_default();
     let cert = CertRequest::builder()
         .subject("RA-TLS TEMP Cert")
         .quote(&quote)
@@ -233,8 +234,8 @@ fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
         .build()
         .self_signed(&key)?;
 
-    std::fs::write(&args.cert_path, &cert.pem()).context("Failed to write certificate")?;
-    std::fs::write(&args.key_path, &key.serialize_pem()).context("Failed to write private key")?;
+    fs::write(&args.cert_path, &cert.pem()).context("Failed to write certificate")?;
+    fs::write(&args.key_path, &key.serialize_pem()).context("Failed to write private key")?;
     Ok(())
 }
 

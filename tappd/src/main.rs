@@ -27,7 +27,7 @@ async fn run_http(state: AppState) -> Result<()> {
         .map_err(|err| anyhow!("Failed to bind on {endpoint}: {err}"))?;
     if let Some(path) = endpoint.unix() {
         // Allow any user to connect to the socket
-        std::fs::set_permissions(path, Permissions::from_mode(0o777))?;
+        fs_err::set_permissions(path, Permissions::from_mode(0o777))?;
     }
     ignite
         .launch_on(listener)
