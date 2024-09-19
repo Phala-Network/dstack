@@ -13,9 +13,7 @@ pub type Result<T> = std::result::Result<T, TdxAttestError>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TdxUuid(pub [u8; TDX_UUID_SIZE as usize]);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(transparent)]
-pub struct TdxReportData(pub [u8; TDX_REPORT_DATA_SIZE as usize]);
+pub type TdxReportData = [u8; TDX_REPORT_DATA_SIZE as usize];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TdxReport(pub [u8; TDX_REPORT_SIZE as usize]);

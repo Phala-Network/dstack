@@ -5,8 +5,12 @@ import "google/protobuf/empty.proto";
 package tappd;
 
 service Tappd {
-  // DeriveKey
+  // Derive a key from a key path
+  // Returns a key and a certificate chain
   rpc DeriveKey(DeriveKeyArgs) returns (DeriveKeyResponse) {}
+
+  // Get a TDX quote
+  rpc TdxQuote(TdxQuoteArgs) returns (TdxQuoteResponse) {}
 }
 
 // The request to derive a key
@@ -23,4 +27,17 @@ message DeriveKeyResponse {
   string key = 1;
   // Certificate chain
   repeated string certificate_chain = 2;
+}
+
+// The request to get a TDX quote
+message TdxQuoteArgs {
+  // Report data
+  bytes report_data = 1;
+}
+
+message TdxQuoteResponse {
+  // TDX quote
+  bytes quote = 1;
+  // Event log
+  string event_log = 2;
 }

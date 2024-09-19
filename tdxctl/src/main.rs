@@ -1,10 +1,10 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use fs_err as fs;
 use scale::Decode;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read, Write};
 use tdx_attest as att;
-use fs_err as fs;
 
 const EVENT_LOG_FILE: &str = "/run/log/tdx_mr3/tdx_events.log";
 
@@ -78,9 +78,9 @@ struct EventLog {
 }
 
 fn cmd_quote() -> Result<()> {
-    let mut report_data = att::TdxReportData([0; 64]);
+    let mut report_data = [0; 64];
     io::stdin()
-        .read_exact(&mut report_data.0)
+        .read_exact(&mut report_data)
         .context("Failed to read report data")?;
     let (_key_id, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
     io::stdout()
@@ -138,9 +138,9 @@ fn cmd_extend(extend_args: ExtendArgs) -> Result<()> {
 }
 
 fn cmd_report() -> Result<()> {
-    let mut report_data = att::TdxReportData([0; 64]);
+    let mut report_data = [0; 64];
     io::stdin()
-        .read_exact(&mut report_data.0)
+        .read_exact(&mut report_data)
         .context("Failed to read report data")?;
     let report = att::get_report(&report_data).context("Failed to get report")?;
     io::stdout()
@@ -185,7 +185,7 @@ impl core::fmt::Debug for ParsedReport {
 }
 
 fn cmd_show() -> Result<()> {
-    let report_data = att::TdxReportData([0; 64]);
+    let report_data = [0; 64];
     let report = att::get_report(&report_data).context("Failed to get report")?;
     let parsed_report =
         ParsedReport::decode(&mut report.0.get(512..).context("Failed to get report")?)
@@ -223,8 +223,8 @@ fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
     let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let pubkey = key.public_key_raw();
     let todo = "define a quote format rather than a bare pubkey";
-    let mut report_data = att::TdxReportData([0; 64]);
-    report_data.0[..pubkey.len()].copy_from_slice(&pubkey);
+    let mut report_data = [0; 64];
+    report_data[..pubkey.len()].copy_from_slice(&pubkey);
     let (_, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
     let event_log = fs::read(EVENT_LOG_FILE).unwrap_or_default();
     let cert = CertRequest::builder()
