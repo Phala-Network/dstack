@@ -86,8 +86,9 @@ mod image {
 pub(crate) mod run {
     pub use super::image::Image;
     pub use super::qemu::VmConfig;
-    use anyhow::Result;
+    use anyhow::{bail, Result};
     use shared_child::SharedChild;
+    use std::collections::BTreeMap;
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
     use std::time::Instant;
@@ -129,34 +130,38 @@ pub(crate) mod run {
 
     pub struct VmMonitor {
         qemu_bin: String,
-        vms: Vec<VmInstance>,
+        vms: BTreeMap<String, VmInstance>,
     }
 
     impl VmMonitor {
         pub fn new(qemu_bin: String) -> Self {
             Self {
                 qemu_bin,
-                vms: Vec::new(),
+                vms: BTreeMap::new(),
             }
         }
 
         pub fn run_vm(&mut self, vm: VmConfig, workdir: impl AsRef<Path>) -> Result<()> {
             let mut vm = VmInstance::new(vm, workdir.as_ref().to_path_buf());
             vm.start(&self.qemu_bin)?;
-            self.vms.push(vm);
+            self.vms.insert(vm.config.id.clone(), vm);
             Ok(())
         }
 
-        pub fn remove_vm(&mut self, index: usize) -> Option<VmInstance> {
-            if index < self.vms.len() {
-                Some(self.vms.remove(index))
-            } else {
-                None
-            }
+        pub fn remove_vm(&mut self, id: &str) -> Result<Option<VmInstance>> {
+            let Some(mut vm) = self.vms.remove(id) else {
+                bail!("VM not found: {}", id);
+            };
+            vm.stop()?;
+            Ok(Some(vm))
         }
 
-        pub fn list_vms(&self) -> &[VmInstance] {
-            &self.vms
+        pub fn stop_vm(&mut self, id: &str) -> Result<()> {
+            let Some(info) = self.vms.get_mut(id) else {
+                bail!("VM not found: {}", id);
+            };
+            info.stop()?;
+            Ok(())
         }
     }
 }
@@ -167,8 +172,9 @@ mod qemu {
 
     use super::image::Image;
     use anyhow::Result;
+    use bon::Builder;
+    use fs_err as fs;
     use shared_child::SharedChild;
-    use bon::builder;
 
     #[derive(Debug)]
     pub struct TdxConfig {
@@ -176,14 +182,14 @@ mod qemu {
         pub cid: u32,
     }
 
-    #[builder]
-    #[derive(Debug)]
+    #[derive(Debug, Builder)]
     pub struct VmConfig {
         pub id: String,
         pub process_name: String,
         pub vcpu: u32,
         /// Memory in MB
-        pub memory: u64,
+        pub memory: u32,
+        pub disk_size: u32,
         pub image: Image,
         pub tdx_config: Option<TdxConfig>,
         /// Port map from host to guest
@@ -199,7 +205,7 @@ mod qemu {
         let serial_file = workdir.join("serial.log");
         let shared_dir = workdir.join("shared");
         if !shared_dir.exists() {
-            std::fs::create_dir_all(&shared_dir)?;
+            fs::create_dir_all(&shared_dir)?;
         }
         let mut command = Command::new(qemu);
         command.arg("-accel").arg("kvm");

@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package teepod;
+// Information about a Virtual Machine (VM)
+message VmInfo {
+  // Unique identifier for the VM
+  string id = 1;
+  // Current status of the VM (e.g., running, stopped)
+  string status = 2;
+}
+
+message Id {
+  // Unique identifier for the VM
+  string id = 1;
+}
+
+// Message for creating a VM request
+message CreateVMRequest {
+  // Name of the VM
+  string name = 1;
+  // Image to be used for the VM
+  string image = 2;
+  // Docker compose file to be used for the VM
+  string compose_file = 3;
+  // Number of vCPUs
+  uint32 vcpu = 4;
+  // Memory in MB
+  uint32 memory = 5;
+  // Disk size in GB
+  uint32 disk_size = 6;
+}
+
+// Message for VM list response
+message VMListResponse {
+  // List of VMs
+  repeated VmInfo vms = 1;
+}
+
+// Service definition for Teepod
+service Teepod {
+  // RPC to create a VM
+  rpc CreateVM(CreateVMRequest) returns (VmInfo);
+  // RPC to delete a VM
+  rpc StopVM(Id) returns (VmInfo);
+  // RPC to get the status of a VM
+  rpc VMStatus(Id) returns (VmInfo);
+  // RPC to list all VMs
+  rpc ListVms(google.protobuf.Empty) returns (VMListResponse);
+}
