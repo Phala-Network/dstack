@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::{Context, Result};
 use rocket::figment::{
     providers::{Format, Toml},
@@ -19,11 +21,11 @@ pub fn load_config_figment() -> Figment {
 #[derive(Debug, Deserialize)]
 pub struct Config {
     #[serde(default)]
-    pub lib_path: String,
+    pub image_path: PathBuf,
     #[serde(default)]
-    pub run_path: String,
+    pub run_path: PathBuf,
     #[serde(default)]
-    pub qemu_path: String,
+    pub qemu_path: PathBuf,
 }
 
 impl Config {
@@ -32,17 +34,17 @@ impl Config {
         {
             let home = dirs::home_dir().context("Failed to get home directory")?;
             let app_home = home.join(".teepod");
-            if me.lib_path.is_empty() {
-                me.lib_path = app_home.join("image").to_string_lossy().to_string();
+            if me.image_path == PathBuf::default() {
+                me.image_path = app_home.join("image");
             }
-            if me.run_path.is_empty() {
-                me.run_path = app_home.join("run").to_string_lossy().to_string();
+            if me.run_path == PathBuf::default() {
+                me.run_path = app_home.join("vm");
             }
-            if me.qemu_path.is_empty() {
+            if me.qemu_path == PathBuf::default() {
                 let cpu_arch = std::env::consts::ARCH;
                 let qemu_path = which::which(format!("qemu-system-{}", cpu_arch))
                     .context("Failed to find qemu-system-x86_64")?;
-                me.qemu_path = qemu_path.to_string_lossy().to_string();
+                me.qemu_path = qemu_path;
             }
         }
         Ok(me)

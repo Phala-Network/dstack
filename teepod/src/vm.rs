@@ -1,8 +1,6 @@
 mod image {
-    use std::{
-        fs::File,
-        path::{Path, PathBuf},
-    };
+    use fs_err as fs;
+    use std::path::{Path, PathBuf};
 
     use anyhow::{bail, Context, Result};
     use serde::{Deserialize, Serialize};
@@ -19,7 +17,7 @@ mod image {
 
     impl ImageInfo {
         pub fn new(filename: PathBuf) -> Result<Self> {
-            let file = File::open(filename).context("failed to open image info")?;
+            let file = fs::File::open(filename).context("failed to open image info")?;
             let info: ImageInfo =
                 serde_json::from_reader(file).context("failed to parse image info")?;
             Ok(info)
@@ -38,7 +36,7 @@ mod image {
 
     impl Image {
         pub fn load(base_path: impl AsRef<Path>) -> Result<Self> {
-            let base_path = base_path.as_ref().canonicalize()?;
+            let base_path = fs::canonicalize(base_path.as_ref())?;
             let info = ImageInfo::new(base_path.join("info.json"))?;
             let initrd = base_path.join(&info.initrd);
             let kernel = base_path.join(&info.kernel);
@@ -86,7 +84,7 @@ mod image {
 pub(crate) mod run {
     pub use super::image::Image;
     pub use super::qemu::VmConfig;
-    use anyhow::{bail, Result};
+    use anyhow::{bail, Context, Result};
     use shared_child::SharedChild;
     use std::collections::BTreeMap;
     use std::path::{Path, PathBuf};
@@ -112,7 +110,7 @@ pub(crate) mod run {
             }
         }
 
-        pub fn start(&mut self, qemu_bin: &str) -> Result<()> {
+        pub fn start(&mut self, qemu_bin: &Path) -> Result<()> {
             let process = super::qemu::run_vm(qemu_bin, &self.config, &self.workdir)?;
             self.process = Some(process);
             self.started_at = Some(Instant::now());
@@ -126,15 +124,31 @@ pub(crate) mod run {
             }
             Ok(())
         }
+
+        pub fn info(&self) -> VmInfo {
+            VmInfo {
+                id: self.config.id.clone(),
+                is_running: self.process.is_some(),
+                started_at: self.started_at.unwrap().elapsed().as_secs().to_string(),
+                exited_at: self.exited_at.map(|t| t.elapsed().as_secs().to_string()),
+            }
+        }
+    }
+
+    pub struct VmInfo {
+        pub id: String,
+        pub is_running: bool,
+        pub started_at: String,
+        pub exited_at: Option<String>,
     }
 
     pub struct VmMonitor {
-        qemu_bin: String,
+        qemu_bin: PathBuf,
         vms: BTreeMap<String, VmInstance>,
     }
 
     impl VmMonitor {
-        pub fn new(qemu_bin: String) -> Self {
+        pub fn new(qemu_bin: PathBuf) -> Self {
             Self {
                 qemu_bin,
                 vms: BTreeMap::new(),
@@ -163,6 +177,17 @@ pub(crate) mod run {
             info.stop()?;
             Ok(())
         }
+
+        pub fn get_log(&self, id: &str) -> Result<String> {
+            let Some(info) = self.vms.get(id) else {
+                bail!("VM not found: {}", id);
+            };
+            super::qemu::get_log(&info.workdir).context("Failed to get log")
+        }
+
+        pub fn iter_vms(&self) -> impl Iterator<Item = &VmInstance> {
+            self.vms.values()
+        }
     }
 }
 
@@ -171,7 +196,7 @@ mod qemu {
     use std::{collections::HashMap, path::Path, process::Command, sync::Arc};
 
     use super::image::Image;
-    use anyhow::Result;
+    use anyhow::{Context, Result};
     use bon::Builder;
     use fs_err as fs;
     use shared_child::SharedChild;
@@ -197,7 +222,7 @@ mod qemu {
     }
 
     pub fn run_vm(
-        qemu: &str,
+        qemu: &Path,
         config: &VmConfig,
         workdir: impl AsRef<Path>,
     ) -> Result<Arc<SharedChild>> {
@@ -259,6 +284,11 @@ mod qemu {
         command.current_dir(workdir);
         let child = SharedChild::spawn(&mut command)?;
         Ok(Arc::new(child))
+    }
+
+    pub fn get_log(workdir: impl AsRef<Path>) -> Result<String> {
+        let serial_file = workdir.as_ref().join("serial.log");
+        fs::read_to_string(serial_file).context("Failed to read serial log")
     }
 
     #[test]

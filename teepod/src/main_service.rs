@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
-use teepod_rpc::{CreateVmRequest, VmInfo, VmListResponse, Id};
+use teepod_rpc::{CreateVmRequest, Id, VmInfo, VmListResponse};
 
 use crate::app::{App, Manifest};
 
@@ -14,15 +14,16 @@ fn hex_sha256(data: &str) -> String {
 }
 
 pub struct RpcHandler {
-    state: App,
+    app: App,
 }
 
 impl TeepodRpc for RpcHandler {
     async fn create_vm(self, request: CreateVmRequest) -> Result<VmInfo> {
         let address = hex_sha256(&request.compose_file);
-        let work_dir = self.state.vm_dir().join(&address);
+        let id = uuid::Uuid::new_v4().to_string();
+        let work_dir = self.app.vm_dir().join(&id);
         if work_dir.exists() {
-            anyhow::bail!("VM already exists");
+            anyhow::bail!("VM already exists at {}", work_dir.display());
         }
         let shared_dir = work_dir.join("shared");
         fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
@@ -33,7 +34,9 @@ impl TeepodRpc for RpcHandler {
         .context("Failed to write compose file")?;
 
         let manifest = Manifest::builder()
-            .name(address.clone())
+            .id(id.clone())
+            .name(request.name)
+            .address(address.clone())
             .image(request.image)
             .vcpu(request.vcpu)
             .memory(request.memory)
@@ -46,16 +49,16 @@ impl TeepodRpc for RpcHandler {
         fs::write(work_dir.join("config.json"), serialized_manifest)
             .context("Failed to write manifest")?;
 
-        self.state.load_vm(work_dir)?;
+        self.app.load_vm(work_dir).context("Failed to load VM")?;
 
         Ok(VmInfo {
-            id: address,
+            id,
             status: "created".to_string(),
         })
     }
 
     async fn stop_vm(self, request: Id) -> Result<VmInfo> {
-        self.state.stop_vm(&request.id)?;
+        self.app.stop_vm(&request.id)?;
         Ok(VmInfo {
             id: request.id,
             status: Default::default(),
@@ -67,7 +70,9 @@ impl TeepodRpc for RpcHandler {
     }
 
     async fn list_vms(self) -> Result<VmListResponse> {
-        todo!()
+        Ok(VmListResponse {
+            vms: self.app.list_vms(),
+        })
     }
 }
 
@@ -82,9 +87,7 @@ impl RpcCall<App> for RpcHandler {
     where
         Self: Sized,
     {
-        Ok(RpcHandler {
-            state: state.clone(),
-        })
+        Ok(RpcHandler { app: state.clone() })
     }
 }
 

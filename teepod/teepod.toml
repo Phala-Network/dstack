@@ -5,6 +5,7 @@ ident = "Teepod Server"
 temp_dir = "/tmp"
 keep_alive = 10
 log_level = "debug"
+port = 8080
 
 [default.limits]
 bytes = "8KiB"

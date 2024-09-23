@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teepod VM Management Console</title>
+    <script src="https://unpkg.com/vue@3.0.0/dist/vue.global.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        input,
+        button,
+        textarea {
+            margin: 5px 0;
+            padding: 5px;
+        }
+
+        #vmList {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <h2>Create VM</h2>
+        <form @submit.prevent="createVM">
+            <input v-model="vmForm.name" type="text" placeholder="VM Name" required><br>
+            <input v-model="vmForm.image" type="text" placeholder="Image" required><br>
+            <textarea v-model="vmForm.compose_file" placeholder="Docker Compose File" required></textarea><br>
+            <input type="file" @change="loadComposeFile" accept=".yml,.yaml,.txt"><br>
+            <input v-model.number="vmForm.vcpu" type="number" placeholder="vCPU" required><br>
+            <input v-model.number="vmForm.memory" type="number" placeholder="Memory (MB)" required><br>
+            <input v-model.number="vmForm.disk_size" type="number" placeholder="Disk Size (GB)" required><br>
+            <button type="submit">Create VM</button>
+        </form>
+
+        <h2>VM List</h2>
+        <div id="vmList">
+            <div v-for="vm in vms" :key="vm.id">
+                <strong>ID:</strong> {{ vm.id }}
+                <strong>Status:</strong> {{ vm.status }}
+                <button @click="stopVM(vm.id)">Stop VM</button>
+                <button @click="showLog(vm.id)">Show Log</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+
+        function rpcCall(method, params) {
+            return fetch(`/prpc/Teepod.${method}?json`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(params || {}),
+            });
+        }
+
+        createApp({
+            setup() {
+                const vms = ref([]);
+                const vmForm = ref({
+                    name: 'example',
+                    image: 'ubuntu-24.04',
+                    compose_file: '',
+                    vcpu: 1,
+                    memory: 1024,
+                    disk_size: 20
+                });
+
+                const loadVMList = async () => {
+                    try {
+                        const response = await rpcCall('ListVms');
+                        const data = await response.json();
+                        vms.value = data.vms;
+                    } catch (error) {
+                        console.error('Error loading VM list:', error);
+                    }
+                };
+
+                const createVM = async () => {
+                    try {
+                        const _response = await rpcCall('CreateVM', vmForm.value);
+                        loadVMList();
+                    } catch (error) {
+                        console.error('Error creating VM:', error);
+                        alert('Failed to create VM');
+                    }
+                };
+
+                const stopVM = async (id) => {
+                    try {
+                        const _response = await rpcCall('StopVM', { id });
+                        loadVMList();
+                    } catch (error) {
+                        console.error('Error stopping VM:', error);
+                        alert('Failed to stop VM');
+                    }
+                };
+
+                const showLog = async (id) => {
+                    window.open(`/logs?id=${id}`, '_blank');
+                };
+
+                const loadComposeFile = (event) => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            console.log('file content', e.target.result);
+                            vmForm.value.compose_file = e.target.result;
+                        };
+                        reader.readAsText(file);
+                    }
+                };
+
+                onMounted(() => {
+                    loadVMList();
+                });
+
+                return {
+                    vms,
+                    vmForm,
+                    createVM,
+                    stopVM,
+                    showLog,
+                    loadComposeFile
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

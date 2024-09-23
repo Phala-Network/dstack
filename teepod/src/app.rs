@@ -20,15 +20,18 @@ use crate::vm::run::{Image, VmConfig, VmMonitor};
 
 use anyhow::{Context, Result};
 use bon::Builder;
+use fs_err as fs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use fs_err as fs;
+use teepod_rpc::VmInfo;
 
 #[derive(Deserialize, Serialize, Builder)]
 pub struct Manifest {
+    id: String,
     name: String,
+    address: String,
     vcpu: u32,
     memory: u32,
     disk_size: u32,
@@ -48,8 +51,7 @@ struct AppState {
 
 impl App {
     pub(crate) fn vm_dir(&self) -> PathBuf {
-        let base_path: PathBuf = self.state.lock().unwrap().config.run_path.clone().into();
-        base_path.join("vm")
+        self.state.lock().unwrap().config.run_path.clone().into()
     }
 
     pub fn new(config: Config) -> Self {
@@ -66,10 +68,17 @@ impl App {
         let manifest = fs::read_to_string(manifest_path).context("Failed to read manifest")?;
         let manifest: Manifest =
             serde_json::from_str(&manifest).context("Failed to parse manifest")?;
-        let image = Image::load(&manifest.image)?;
-        let id = uuid::Uuid::new_v4().to_string();
+        let todo = "sanitize the image name";
+        let image_path = self
+            .state
+            .lock()
+            .unwrap()
+            .config
+            .image_path
+            .join(&manifest.image);
+        let image = Image::load(&image_path).context("Failed to load image")?;
         let vm_config = VmConfig {
-            id,
+            id: manifest.id.clone(),
             process_name: manifest.name,
             vcpu: manifest.vcpu,
             memory: manifest.memory,
@@ -110,5 +119,29 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    pub fn list_vms(&self) -> Vec<VmInfo> {
+        self.state
+            .lock()
+            .unwrap()
+            .monitor
+            .iter_vms()
+            .map(|vm| {
+                let info = vm.info();
+                VmInfo {
+                    id: info.id,
+                    status: if info.is_running {
+                        "running".to_string()
+                    } else {
+                        "stopped".to_string()
+                    },
+                }
+            })
+            .collect()
+    }
+
+    pub fn get_log(&self, id: &str) -> Result<String> {
+        self.state.lock().unwrap().monitor.get_log(id)
     }
 }

@@ -14,8 +14,9 @@ use rocket::{
 };
 
 #[get("/")]
-async fn index() -> String {
-    "Teepod Server is running!\n".to_string()
+async fn index() -> (ContentType, String) {
+    let html = include_str!("console.html");
+    (ContentType::HTML, html.to_string())
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]
@@ -54,9 +55,10 @@ async fn prpc_get(
         .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
-#[get("/vm/logs?<id>")]
-fn vm_logs(_app: &State<App>, id: String) -> String {
-    format!("Logs for VM {}", id)
+#[get("/logs?<id>")]
+fn vm_logs(app: &State<App>, id: String) -> String {
+    app.get_log(&id)
+        .unwrap_or_else(|e| format!("Failed to get log: {e}"))
 }
 
 pub fn routes() -> Vec<Route> {
