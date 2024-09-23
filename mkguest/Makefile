@@ -5,6 +5,9 @@ include config.mk
 DIST_DIR := $(shell pwd)/dist
 COMPONENTS := image rootfs initramfs
 
+export KERNEL_VERSION
+export QCOW_IMAGE_FILENAME
+
 .PHONY: all $(COMPONENTS) install $(addprefix dist-,$(COMPONENTS)) clean $(addprefix clean-,$(COMPONENTS))
 
 all: $(COMPONENTS)
@@ -26,6 +29,7 @@ dist-kernel:
 	cp /boot/vmlinuz-$(KERNEL_VERSION) $(DIST_DIR)
 
 dist: $(addprefix dist-,$(COMPONENTS)) dist-kernel
+	./scripts/generate_img_metadata.sh $(DIST_DIR)
 
 clean: $(addprefix clean-,$(COMPONENTS))
 
