@@ -384,7 +384,7 @@ for file in /etc/modprobe.d/*.conf /lib/modprobe.d/*.conf ; do
 	fi
 done
 
-# run_scripts_optional /usr/share/initramfs-tools/hooks
+run_scripts_optional /usr/share/initramfs-tools/hooks
 run_scripts_optional "${CONFDIR}"/hooks
 
 # cache boot run order
