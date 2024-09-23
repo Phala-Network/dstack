@@ -87,9 +87,11 @@ pub(crate) mod run {
     use anyhow::{bail, Context, Result};
     use shared_child::SharedChild;
     use std::collections::BTreeMap;
+    use std::io::Read;
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
     use std::time::Instant;
+    use tracing::{error, info};
 
     pub struct VmInstance {
         config: VmConfig,
@@ -112,6 +114,46 @@ pub(crate) mod run {
 
         pub fn start(&mut self, qemu_bin: &Path) -> Result<()> {
             let process = super::qemu::run_vm(qemu_bin, &self.config, &self.workdir)?;
+            let cloned_child = process.clone();
+            let vmid = self.config.id.clone();
+            std::thread::spawn(move || {
+                let span = tracing::info_span!("wait_on_child", id = vmid);
+                let _enter = span.enter();
+                let status = match cloned_child.wait() {
+                    Ok(status) => status,
+                    Err(e) => {
+                        error!("Failed to wait on child: {e:?}");
+                        return;
+                    }
+                };
+                if status.success() {
+                    info!("VM exited successfully");
+                } else {
+                    error!("VM exited with status: {:#?}", status);
+                    if let Some(mut output) = cloned_child.take_stderr() {
+                        let mut stderr = String::new();
+                        match output.read_to_string(&mut stderr) {
+                            Ok(_) => {
+                                if !stderr.is_empty() {
+                                    error!("VM stderr: {:#?}", stderr);
+                                }
+                            }
+                            Err(e) => error!("Failed to read VM stderr: {e:?}"),
+                        }
+                    }
+                    if let Some(mut output) = cloned_child.take_stdout() {
+                        let mut stdout = String::new();
+                        match output.read_to_string(&mut stdout) {
+                            Ok(_) => {
+                                if !stdout.is_empty() {
+                                    info!("VM stdout: {:#?}", stdout);
+                                }
+                            }
+                            Err(e) => error!("Failed to read VM stdout: {e:?}"),
+                        }
+                    }
+                }
+            });
             self.process = Some(process);
             self.started_at = Some(Instant::now());
             Ok(())
@@ -221,6 +263,18 @@ mod qemu {
         pub port_map: HashMap<u16, u16>,
     }
 
+    fn create_hd(backing_file: impl AsRef<Path>, image_file: impl AsRef<Path>) -> Result<()> {
+        let mut command = Command::new("qemu-img");
+        command.arg("create").arg("-f").arg("qcow2");
+        command
+            .arg("-o")
+            .arg(format!("backing_file={}", backing_file.as_ref().display()));
+        command.arg("-o").arg("backing_fmt=qcow2");
+        command.arg(image_file.as_ref());
+        command.spawn()?.wait()?;
+        Ok(())
+    }
+
     pub fn run_vm(
         qemu: &Path,
         config: &VmConfig,
@@ -229,6 +283,16 @@ mod qemu {
         let workdir = workdir.as_ref();
         let serial_file = workdir.join("serial.log");
         let shared_dir = workdir.join("shared");
+        let hda_path = match &config.image.hda {
+            Some(hda) => {
+                let hda_path = workdir.join("hda.img");
+                if !hda_path.exists() {
+                    create_hd(hda, &hda_path)?;
+                }
+                Some(hda_path)
+            }
+            None => None,
+        };
         if !shared_dir.exists() {
             fs::create_dir_all(&shared_dir)?;
         }
@@ -245,7 +309,7 @@ mod qemu {
             .arg(format!("file:{}", serial_file.display()));
         command.arg("-kernel").arg(&config.image.kernel);
         command.arg("-initrd").arg(&config.image.initrd);
-        if let Some(hda) = &config.image.hda {
+        if let Some(hda) = hda_path {
             command
                 .arg("-drive")
                 .arg(format!("file={},if=none,id=hd0", hda.display()))
@@ -308,6 +372,7 @@ mod qemu {
             port_map: map! {
                 10022u16: 22u16,
             },
+            disk_size: 1024,
         };
         let child = run_vm("qemu-system-x86_64", &config, &vm_dir).unwrap();
         let status = child.wait().unwrap();

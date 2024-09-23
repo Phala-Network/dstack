@@ -57,8 +57,7 @@ async fn prpc_get(
 
 #[get("/logs?<id>")]
 fn vm_logs(app: &State<App>, id: String) -> String {
-    app.get_log(&id)
-        .unwrap_or_else(|e| format!("Failed to get log: {e}"))
+    app.get_log(&id).unwrap_or_else(|e| format!("{e:?}"))
 }
 
 pub fn routes() -> Vec<Route> {
