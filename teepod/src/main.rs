@@ -10,11 +10,12 @@ mod web_routes;
 #[rocket::main]
 async fn main() -> Result<()> {
     let figment = config::load_config_figment();
-    let config = figment.extract::<Config>()?;
+    let config = Config::extract_or_default(&figment)?;
     let state = app::App::new(config);
     let rocket = rocket::custom(figment)
         .mount("/", web_routes::routes())
         .manage(state);
+    web_routes::print_endpoints();
     rocket
         .launch()
         .await

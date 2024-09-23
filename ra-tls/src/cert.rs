@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// Information required to create a certificate.
-#[bon::builder]
+#[derive(bon::Builder)]
 pub struct CertRequest<'a> {
     org_name: Option<&'a str>,
     subject: &'a str,

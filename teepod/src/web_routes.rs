@@ -1,11 +1,12 @@
 use crate::app::App;
-use crate::main_service::RpcHandler;
+use crate::main_service::{rpc_methods, RpcHandler};
 use anyhow::Result;
 use ra_rpc::rocket_helper::handle_prpc;
 use rocket::{
     data::{Data, Limits},
     get,
     http::ContentType,
+    info,
     mtls::Certificate,
     post,
     response::status::Custom,
@@ -60,4 +61,11 @@ fn vm_logs(_app: &State<App>, id: String) -> String {
 
 pub fn routes() -> Vec<Route> {
     routes![index, prpc_post, prpc_get, vm_logs]
+}
+
+pub fn print_endpoints() {
+    info!("  prpc endpoints:");
+    for m in rpc_methods() {
+        info!("    /prpc/{}", m);
+    }
 }
