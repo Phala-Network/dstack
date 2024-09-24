@@ -40,13 +40,27 @@
     <div id="app">
         <h2>Create VM</h2>
         <form @submit.prevent="createVM">
-            <input v-model="vmForm.name" type="text" placeholder="VM Name" required><br>
-            <input v-model="vmForm.image" type="text" placeholder="Image" required><br>
-            <textarea v-model="vmForm.compose_file" placeholder="Docker Compose File" required></textarea><br>
-            <input type="file" @change="loadComposeFile" accept=".yml,.yaml,.txt"><br>
-            <input v-model.number="vmForm.vcpu" type="number" placeholder="vCPU" required><br>
-            <input v-model.number="vmForm.memory" type="number" placeholder="Memory (MB)" required><br>
-            <input v-model.number="vmForm.disk_size" type="number" placeholder="Disk Size (GB)" required><br>
+            <label for="vmName">VM Name:</label>
+            <input id="vmName" v-model="vmForm.name" type="text" placeholder="VM Name" required><br>
+            
+            <label for="vmImage">Image:</label>
+            <input id="vmImage" v-model="vmForm.image" type="text" placeholder="Image" required><br>
+            
+            <label for="composeFile">Docker Compose File:</label>
+            <textarea id="composeFile" v-model="vmForm.compose_file" placeholder="Docker Compose File" required></textarea><br>
+            
+            <label for="fileInput">Upload Compose File:</label>
+            <input id="fileInput" type="file" @change="loadComposeFile" accept=".yml,.yaml,.txt"><br>
+            
+            <label for="vcpu">vCPU:</label>
+            <input id="vcpu" v-model.number="vmForm.vcpu" type="number" placeholder="vCPU" required><br>
+            
+            <label for="memory">Memory (MB):</label>
+            <input id="memory" v-model.number="vmForm.memory" type="number" placeholder="Memory (MB)" required><br>
+            
+            <label for="diskSize">Disk Size (GB):</label>
+            <input id="diskSize" v-model.number="vmForm.disk_size" type="number" placeholder="Disk Size (GB)" required><br>
+            
             <button type="submit">Create VM</button>
         </form>
 

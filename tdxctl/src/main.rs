@@ -55,6 +55,10 @@ struct ExtendArgs {
     #[clap(short, long)]
     /// associated data of the event
     associated_data: String,
+
+    #[clap(long)]
+    /// force extend RTMR
+    force: bool,
 }
 
 #[derive(Parser)]
@@ -103,7 +107,9 @@ fn cmd_extend(extend_args: ExtendArgs) -> Result<()> {
         digest: padded_digest,
         event_type: extend_args.event_type,
     };
-    att::extend_rtmr(&rtmr_event).context("Failed to extend RTMR")?;
+    if extend_args.force || std::path::Path::new("/dev/tdx_guest").exists() {
+        att::extend_rtmr(&rtmr_event).context("Failed to extend RTMR")?;
+    }
     let hexed_digest = hex::encode(&padded_digest);
 
     println!("Extended RTMR {}: {}", extend_args.index, hexed_digest);
