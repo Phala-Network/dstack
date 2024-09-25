@@ -86,6 +86,8 @@ FSINIT_premount() {
         tdxctl extend -i 3 --digest ${app_id} --associated-data "app-id" || panic "FSINIT: Failed to extend app id to RTMR"
 
         echo "TODO: check app_id matches the declaration"
+    else
+        tdxctl extend -i 3 --digest 00 --associated-data "app-id" || panic "FSINIT: Failed to extend app id to RTMR"
     fi
 
     umount /root || panic "FSINIT: Failed to unmount /root"
