@@ -15,3 +15,6 @@
 dm_integrity
 dm-multipath
 br_netfilter
+vsock
+vmw_vsock_virtio_transport_common
+vmw_vsock_virtio_transport
