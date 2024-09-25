@@ -3532,6 +3532,7 @@ dependencies = [
  "ra-tls",
  "serde",
  "serde_json",
+ "sha2",
  "tdx-attest",
 ]
 

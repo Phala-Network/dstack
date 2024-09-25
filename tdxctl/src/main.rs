@@ -214,6 +214,13 @@ fn cmd_hex(hex_args: HexCommand) -> Result<()> {
     Ok(())
 }
 
+fn sha512(data: &[u8]) -> [u8; 64] {
+    use sha2::{Digest, Sha512};
+    let mut hasher = Sha512::new();
+    hasher.update(data);
+    hasher.finalize().into()
+}
+
 fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
     use ra_tls::cert::CertRequest;
     use ra_tls::rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
@@ -221,8 +228,7 @@ fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
     let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let pubkey = key.public_key_raw();
     let todo = "define a quote format rather than a bare pubkey";
-    let mut report_data = [0; 64];
-    report_data[..pubkey.len()].copy_from_slice(&pubkey);
+    let report_data = sha512(&pubkey);
     let (_, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
     let event_log = fs::read(EVENT_LOG_FILE).unwrap_or_default();
     let cert = CertRequest::builder()
