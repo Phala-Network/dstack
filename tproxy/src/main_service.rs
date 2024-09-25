@@ -123,8 +123,9 @@ impl AppStateInner {
         let wg_config = self.generate_wg_config()?;
         fs::write(&self.config.wg.config_path, wg_config)?;
         // wg setconf <interface_name> <config_path>
-        let output = Command::new("wg-quick")
-            .arg("up")
+        let output = Command::new("wg")
+            .arg("setconf")
+            .arg(&self.config.wg.interface)
             .arg(&self.config.wg.config_path)
             .output()?;
         if !output.status.success() {
@@ -134,11 +135,10 @@ impl AppStateInner {
 
         let proxy_config = self.generate_proxy_config()?;
         fs::write(&self.config.proxy.config_path, proxy_config)?;
-        // systemctl reload rproxy
         let todo = "better way to notify rproxy to reload config";
-        let output = Command::new("systemctl")
-            .arg("reload")
+        let output = Command::new("service")
             .arg("rproxy")
+            .arg("restart")
             .output()?;
         if !output.status.success() {
             bail!("failed to restart rproxy: {}", output.status);

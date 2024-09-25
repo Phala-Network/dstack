@@ -1,10 +1,12 @@
 #!/bin/bash
 CERT_FILE=${1}
 KEY_FILE=${CERT_FILE%.*}.key
-URL=https://localhost:8010/prpc/Tproxy.RegisterCvm
+URL=https://localhost:8010/prpc/Tproxy.RegisterCvm?json
+
+D='{"wg_public_key": "4WyZldIHByffCulT674/n/ZLFH8jsfMZPkEnNOPaaW8="}'
 
 if [ -z "$CERT_FILE" ]; then
-    curl -s --cacert certs/ca.cert ${URL}
+    curl -s -d ${D} --cacert certs/ca.cert ${URL}
 else
-    curl -s --cacert certs/ca.cert --cert ${CERT_FILE} --key ${KEY_FILE} ${URL}
+    curl -s -d "${D}" --cacert certs/ca.cert --cert ${CERT_FILE} --key ${KEY_FILE} ${URL}
 fi
