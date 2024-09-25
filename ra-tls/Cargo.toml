@@ -11,7 +11,7 @@ elliptic-curve = { version = "0.13.8", features = ["pkcs8"] }
 fs-err = "2.11.0"
 hkdf = "0.12.4"
 p256 = "0.13.2"
-rcgen = "0.13.1"
+rcgen = { version = "0.13.1", features = ["x509-parser"] }
 ring = "0.17.8"
 rustls-pki-types = "1.8.0"
 serde = { version = "1.0.210", features = ["derive"] }
