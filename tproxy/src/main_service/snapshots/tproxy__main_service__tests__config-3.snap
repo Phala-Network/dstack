@@ -1,0 +1,26 @@
+---
+source: tproxy/src/main_service/tests.rs
+assertion_line: 33
+expression: proxy_config
+---
+servers:
+  - type: socket
+    listen: 0.0.0.0:8443
+    handler:
+      type: lazytls
+      certificate: /etc/rproxy/certs/cert.pem
+      key: /etc/rproxy/certs/key.pem
+      sni: 
+        - hostname: test-id-0.app.localhost
+          certificate: /etc/rproxy/certs/cert.pem
+          key: /etc/rproxy/certs/key.pem
+          handler:
+            type: tunnel
+            target: 10.0.0.1:8080
+      
+        - hostname: test-id-1.app.localhost
+          certificate: /etc/rproxy/certs/cert.pem
+          key: /etc/rproxy/certs/key.pem
+          handler:
+            type: tunnel
+            target: 10.0.0.2:8080

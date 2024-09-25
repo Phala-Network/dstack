@@ -1,0 +1,17 @@
+---
+source: tproxy/src/main_service/tests.rs
+assertion_line: 35
+expression: wg_config
+---
+[Interface]
+PrivateKey = your_private_key_here
+ListenPort = 51820
+
+
+[Peer]
+PublicKey = test-pubkey-0
+AllowedIPs = 10.0.0.1/32
+
+[Peer]
+PublicKey = test-pubkey-1
+AllowedIPs = 10.0.0.2/32

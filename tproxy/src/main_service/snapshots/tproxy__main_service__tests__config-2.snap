@@ -1,0 +1,10 @@
+---
+source: tproxy/src/main_service/tests.rs
+assertion_line: 31
+expression: info1
+---
+HostInfo {
+    id: "test-id-1",
+    ip: 10.0.0.2,
+    public_key: "test-pubkey-1",
+}

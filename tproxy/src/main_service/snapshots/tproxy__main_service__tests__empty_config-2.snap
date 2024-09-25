@@ -1,0 +1,8 @@
+---
+source: tproxy/src/main_service/tests.rs
+assertion_line: 16
+expression: wg_config
+---
+[Interface]
+PrivateKey = your_private_key_here
+ListenPort = 51820

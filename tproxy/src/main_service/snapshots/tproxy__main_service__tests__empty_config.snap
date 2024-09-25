@@ -1,0 +1,13 @@
+---
+source: tproxy/src/main_service/tests.rs
+assertion_line: 14
+expression: proxy_config
+---
+servers:
+  - type: socket
+    listen: 0.0.0.0:8443
+    handler:
+      type: lazytls
+      certificate: /etc/rproxy/certs/cert.pem
+      key: /etc/rproxy/certs/key.pem
+      sni: []
