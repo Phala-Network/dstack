@@ -12,6 +12,8 @@ members = [
     "tappd-rpc",
     "teepod",
     "teepod-rpc",
+    "tproxy",
+    "tproxy-rpc",
 ]
 resolver = "2"
 

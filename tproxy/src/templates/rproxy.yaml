@@ -1,0 +1,19 @@
+servers:
+  - type: socket
+    listen: {{ listen_addr }}:{{ listen_port }}
+    handler:
+      type: lazytls
+      certificate: {{ cert_chain }}
+      key: {{ cert_key }}
+      sni: {% if peers -%}
+      {% for peer in peers %}
+        - hostname: {{ peer.id }}.{{ base_domain }}
+          certificate: {{ cert_chain }}
+          key: {{ cert_key }}
+          handler:
+            type: tunnel
+            target: {{ peer.ip }}:{{ target_port }}
+      {% endfor %}
+      {% else -%}
+      []
+      {% endif %}

@@ -1,0 +1,19 @@
+[package]
+name = "tproxy"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ra-rpc = { version = "0.1.0", path = "../ra-rpc" }
+tproxy-rpc = { version = "0.1.0", path = "../tproxy-rpc" }
+rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+anyhow = "1.0.89"
+serde = { version = "1.0.210", features = ["derive"] }
+minijinja = "2.3.1"
+ipnet = { version = "2.10.0", features = ["serde"] }
+fs-err = "2.11.0"
+
+[dev-dependencies]
+insta = "1.40.0"

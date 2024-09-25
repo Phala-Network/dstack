@@ -1,0 +1,34 @@
+[default]
+workers = 8
+max_blocking = 64
+ident = "Tproxy Server"
+temp_dir = "/tmp"
+keep_alive = 10
+log_level = "debug"
+port = 8010
+
+[default.limits]
+bytes = "8KiB"
+data-form = "2MiB"
+file = "1MiB"
+form = "32KiB"
+json = "1MiB"
+msgpack = "1MiB"
+string = "8KiB"
+
+[default.wg]
+public_key = "your_public_key_here"
+private_key = "your_private_key_here"
+listen_port = 51820
+client_ip_range = "10.0.0.1/24"
+config_path = "/etc/wireguard/wg0.conf"
+interface_name = "wg0"
+
+[default.proxy]
+cert_chain = "/etc/rproxy/certs/cert.pem"
+cert_key = "/etc/rproxy/certs/key.pem"
+listen_addr = "0.0.0.0"
+listen_port = 8443
+base_domain = "app.localhost"
+target_port = 8080
+config_path = "/etc/rproxy/rproxy.conf"

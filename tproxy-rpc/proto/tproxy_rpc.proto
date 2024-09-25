@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package tproxy;
+
+// RegisterCvmRequest is the request for RegisterCvm.
+message RegisterCvmRequest {
+  // The public key of the WireGuard interface of the CVM.
+  string wg_public_key = 1;
+}
+
+// RegisterCvmResponse is the response for RegisterCvm.
+message RegisterCvmResponse {
+  // The public key of the WireGuard interface of the TProxy.
+  string wg_public_key = 1;
+  // The IP address of the CVM.
+  string cvm_ip = 2;
+}
+
+service Tproxy {
+  // Register a new proxied CVM.
+  rpc RegisterCvm(RegisterCvmRequest) returns (RegisterCvmResponse) {}
+}
