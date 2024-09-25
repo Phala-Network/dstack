@@ -1,31 +1,63 @@
 #!/bin/sh
-
+INITDATA_DIR=/initdata
+KMFS_WORK_DIR=/kmfs
+CFG_DIR=${KMFS_WORK_DIR}/config
+TMP_CA_CERT=${CFG_DIR}/certs/tmp-ca.cert
+TMP_CA_KEY=${CFG_DIR}/certs/tmp-ca.key
+CA_CERT=${CFG_DIR}/certs/ca.cert
+CFG_FILE=${CFG_DIR}/config.json
 APP_COMPOSE_FILE="docker-compose.yaml"
 
-FSINIT_premount() {
-    local key_phrase initialized=0 rootfs_hash app_id
+kmfs_premount() {
+    local key_phrase rootfs_hash app_id kms_url
+    local actual_rootfs_hash
 
+    # Copy config files to memory
     mkdir -p /config || panic "FSINIT: Failed to create /config directory"
     mount -t 9p -o trans=virtio,version=9p2000.L config /config || panic "FSINIT: Failed to mount config"
 
-    if [ -e /config/key_phrase ]; then
-        echo "FSINIT: Key phrase found"
-        key_phrase="$(cat /config/key_phrase)" || panic "FSINIT: Failed to read key phrase"
-        initialized=1
-    else
-        key_phrase="$(head -c 128 /dev/urandom | tr -dc A-Za-z0-9)" || panic "FSINIT: Failed to generate key phrase"
-        echo "FSINIT: New key phrase: $key_phrase"
-        echo "$key_phrase" > /config/key_phrase
-    fi
-    if [ -e /config/${APP_COMPOSE_FILE} ]; then
-        cp /config/${APP_COMPOSE_FILE} /app.yaml
-    fi
+    mkdir -p ${CFG_DIR} || panic "FSINIT: Failed to create ${CFG_DIR} directory"
+    cp /config/* ${CFG_DIR}/ || panic "FSINIT: Failed to copy config files to ${CFG_DIR}"
 
-    if [ $initialized -eq 0 ]; then
+    # Calculate rootfs and app ids and extend them to RTMR
+    rootfs_hash=$(jq -r .rootfs_hash ${CFG_FILE})
+    app_id=$(jq -r .app_id ${CFG_FILE})
+    kms_url=$(jq -r .kms_url ${CFG_FILE})
+
+    echo "FSINIT: Extending rootfs hash to RTMR, hash=${rootfs_hash}"
+    tdxctl extend -i 3 --digest ${rootfs_hash} --associated-data "rootfs-hash" || panic "FSINIT: Failed to extend rootfs to RTMR"
+    echo "FSINIT: Extending app id to RTMR, app_id=${app_id}"
+    tdxctl extend -i 3 --digest ${app_id} --associated-data "app-id" || panic "FSINIT: Failed to extend app id to RTMR"
+
+    # Show the RTMR
+    tdxctl show
+
+    # Generate temp cert for RA-TLS
+    echo "FSINIT: Generating RA-TLS cert"
+    mkdir -p ${KMFS_WORK_DIR}/certs
+    tdxctl gen-ra-cert \
+        -c ${KMFS_WORK_DIR}/certs/cert.pem \
+        -k ${KMFS_WORK_DIR}/certs/key.pem \
+        --ca-cert ${TMP_CA_CERT} \
+        --ca-key ${TMP_CA_KEY} || panic "FSINIT: Failed to generate RA-TLS cert"
+
+    # Request app keys from KMS
+    echo "FSINIT: Requesting app keys from KMS"
+    curl -s \
+        --cacert ${CA_CERT} \
+        --cert ${KMFS_WORK_DIR}/certs/cert.pem \
+        --key ${KMFS_WORK_DIR}/certs/key.pem \
+        ${kms_url}/prpc/KMS.GetAppKey \
+        -o ${KMFS_WORK_DIR}/appkey.json || panic "FSINIT: Failed to request app keys"
+
+    key_phrase=$(jq -r .disk_crypt_key ${KMFS_WORK_DIR}/appkey.json)
+
+    if [ -e /config/format-disk ]; then
+        # Set up disk encryption and format the disk
+
         [ -z "${INITIMG}" ] && panic "FSINIT: initimg not set"
 
         echo "FSINIT: Mounting init image ${INITIMG}"
-        INITDATA_DIR=/initdata
         mkdir -p ${INITDATA_DIR} || panic "FSINIT: Failed to create ${INITDATA_DIR}"
 
         if [ -z "${INITIMGTYPE}" ]; then
@@ -52,45 +84,30 @@ FSINIT_premount() {
         }
         if [ -e ${INITDATA_DIR}/rootfs.cpio ]; then
             (cd /root && cat ${INITDATA_DIR}/rootfs.cpio | extract_rootfs) || panic "FSINIT: Failed to extract rootfs.cpio"
-        elif [ -e ${INITDATA_DIR}/rootfs.gz ]; then
-            (cd /root && gzip -dc ${INITDATA_DIR}/rootfs.gz | extract_rootfs) || panic "FSINIT: Failed to extract rootfs.gz"
         else
             panic "FSINIT: No rootfs found"
         fi
-        cp /tmp/rootfs.hash /root/rootfs.hash
-        echo "TODO: check the declared hash matches the actual hash"
 
-        echo "[$(date +%H:%M:%S)] FSINIT: Done, hash=$(cat /tmp/rootfs.hash)"
-        mkdir -p /root/app
-        if [ -e /app.yaml ]; then
-            cp /app.yaml /root/app/${APP_COMPOSE_FILE}
-            echo "FSINIT: Copied app.yaml to /root/app/${APP_COMPOSE_FILE}"
+        actual_rootfs_hash=$(cat /tmp/rootfs.hash)
+        if [ -z "$actual_rootfs_hash" ]; then
+            panic "FSINIT: Rootfs hash is empty"
         fi
+        if [ $actual_rootfs_hash != $rootfs_hash ]; then
+            panic "FSINIT: Rootfs hash mismatch"
+        fi
+
+        mkdir -p /root/app
+        rm -rf /root/app/config
+        cp -r ${CFG_DIR} /root/app/config
+        echo "FSINIT: Copied config to /root/app/config"
         umount /root || panic "FSINIT: Failed to unmount /root"
+        rm -f /config/format-disk || echo "FSINIT: Failed to remove format-disk"
     else
         echo "[$(date +%H:%M:%S)] FSINIT: Mounting"
         echo "$key_phrase" | cryptsetup luksOpen --type luks2 -d- ${ROOT} rootfs_crypt || panic "FSINIT: Failed to open encrypted rootfs"
     fi
     umount /config || panic "FSINIT: Failed to unmount /config"
     ROOT=/dev/mapper/rootfs_crypt
-
-    mount ${ROOT} /root || panic "FSINIT: Failed to mount rootfs"
-
-    rootfs_hash=$(cat /root/rootfs.hash)
-    echo "FSINIT: Extending rootfs hash to RTMR, hash=${rootfs_hash}"
-    tdxctl extend -i 3 --digest ${rootfs_hash} --associated-data "rootfs-hash" || panic "FSINIT: Failed to extend rootfs to RTMR"
-
-    if [ -e /root/app/${APP_COMPOSE_FILE} ]; then
-        app_id=$(iohash sha256 -i /root/app/${APP_COMPOSE_FILE} -o! -t-)
-        echo "FSINIT: Extending app id to RTMR, app_id=${app_id}"
-        tdxctl extend -i 3 --digest ${app_id} --associated-data "app-id" || panic "FSINIT: Failed to extend app id to RTMR"
-
-        echo "TODO: check app_id matches the declaration"
-    else
-        tdxctl extend -i 3 --digest 00 --associated-data "app-id" || panic "FSINIT: Failed to extend app id to RTMR"
-    fi
-
-    umount /root || panic "FSINIT: Failed to unmount /root"
 }
 
 mountroot()
@@ -108,7 +125,7 @@ mount_top()
 mount_premount()
 {
     echo "FSINIT: Pre-mounting"
-    FSINIT_premount
+    kmfs_premount
     local_premount
 }
 

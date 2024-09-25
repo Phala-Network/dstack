@@ -87,6 +87,10 @@ impl KmsRpc for RpcHandler {
     async fn get_app_key(self) -> Result<AppKeyResponse> {
         let attest = self.ensure_attested()?;
         let app_id = attest.decode_app_id().context("Failed to decode app ID")?;
+        let rootfs_hash = attest
+            .decode_rootfs_hash()
+            .context("Failed to decode rootfs hash")?;
+
         let state = self.state.lock();
 
         let app_key = derive_ecdsa_key_pair(
@@ -97,7 +101,11 @@ impl KmsRpc for RpcHandler {
 
         let app_disk_key = derive_ecdsa_key_pair(
             &state.root_ca.key,
-            &[app_id.as_bytes(), "app-disk-key".as_bytes()],
+            &[
+                app_id.as_bytes(),
+                rootfs_hash.as_bytes(),
+                "app-disk-crypt-key".as_bytes(),
+            ],
         )
         .context("Failed to derive app disk key")?;
 
@@ -118,7 +126,7 @@ impl KmsRpc for RpcHandler {
 
         Ok(AppKeyResponse {
             app_key: app_key.serialize_pem(),
-            disk_crypt_key: app_disk_key.serialize_pem(),
+            disk_crypt_key: app_disk_key.serialize_der(),
             certificate_chain: vec![cert.pem(), state.root_ca.cert.pem()],
         })
     }

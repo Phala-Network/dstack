@@ -67,10 +67,23 @@ impl Attestation {
         for line in event_log.lines() {
             let event = serde_json::from_str::<EventLog>(line)?;
             let todo = "more restricted checks";
-            if event.imr == 3 && event.event_type == 0 && event.associated_data == "app-id" {
+            if event.imr == 3 && event.associated_data == "app-id" {
                 return Ok(event.digest);
             }
         }
         Err(anyhow!("app-id not found"))
+    }
+
+    /// Decode the rootfs hash from the event log
+    pub fn decode_rootfs_hash(&self) -> Result<String> {
+        let event_log = String::from_utf8(self.event_log.clone()).context("invalid event log")?;
+        for line in event_log.lines() {
+            let event = serde_json::from_str::<EventLog>(line)?;
+            let todo = "more restricted checks";
+            if event.imr == 3 && event.associated_data == "rootfs-hash" {
+                return Ok(event.digest);
+            }
+        }
+        Err(anyhow!("rootfs-hash not found"))
     }
 }

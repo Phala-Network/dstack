@@ -14,6 +14,6 @@ service KMS {
 
 message AppKeyResponse {
     string app_key = 1;
-    string disk_crypt_key = 2;
+    bytes disk_crypt_key = 2;
     repeated string certificate_chain = 3;
 }
