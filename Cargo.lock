@@ -1654,10 +1654,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "hex",
+ "hex_fmt",
  "kms-rpc",
  "ra-rpc",
  "ra-tls",
  "rocket",
+ "serde",
  "tracing",
  "tracing-subscriber",
  "yasna",

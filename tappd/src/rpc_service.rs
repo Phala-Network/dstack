@@ -1,14 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
 use ra_tls::{
     cert::{CaCert, CertRequest},
     kdf::derive_ecdsa_key_pair,
-    rcgen,
 };
-use rcgen::{Certificate, CertificateParams, KeyPair};
 use tappd_rpc::{
     tappd_server::{TappdRpc, TappdServer},
     DeriveKeyArgs, DeriveKeyResponse, TdxQuoteArgs, TdxQuoteResponse,

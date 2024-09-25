@@ -5,13 +5,15 @@ ident = "Phala KMS"
 temp_dir = "/tmp"
 keep_alive = 10
 log_level = "debug"
+address = "0.0.0.0"
+port = 8000
 
 [default.tls]
 key = "assets/kms-www.key"
 certs = "assets/kms-www.cert"
 
 [default.tls.mutual]
-ca_certs = "assets/ca.cert"
+ca_certs = "assets/tmp-ca.cert"
 mandatory = false
 
 [default.limits]
@@ -23,9 +25,10 @@ json = "1MiB"
 msgpack = "1MiB"
 string = "8KiB"
 
-[public]
-address = "0.0.0.0"
-port = 8000
+[core]
+root_ca_cert = "assets/ca.cert"
+root_ca_key = "assets/ca.key"
+subject_postfix = ".phala.network"
 
 [core.allowed_mr]
 mrtd = [
@@ -39,7 +42,4 @@ rtmr1 = [
 ]
 rtmr2 = [
     "569755c97d572d9ba2de9a655e9e786ae1cb3f73d28b6047d79678cce24036adba9fb080547e84b2ec98910032828ddd",
-]
-rtmr3 = [
-    "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
 ]

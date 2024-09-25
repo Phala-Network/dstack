@@ -6,10 +6,12 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.88"
 hex = "0.4.3"
+hex_fmt = "0.3.0"
 kms-rpc = { version = "0.1.0", path = "../kms-rpc" }
 ra-rpc = { version = "0.1.0", path = "../ra-rpc" }
 ra-tls = { version = "0.1.0", path = "../ra-tls" }
 rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
+serde = { version = "1.0.210", features = ["derive"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 yasna = "0.5.2"

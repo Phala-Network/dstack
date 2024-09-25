@@ -12,11 +12,11 @@ async fn main() -> Result<()> {
     info!("Starting KMS");
     info!("Supported methods:");
     for method in main_service::rpc_methods() {
-        info!("  {method}");
+        info!("  /prpc/{method}");
     }
 
     let config = config::KmsConfig::load().context("Failed to read config file")?;
-    let state = main_service::KmsState::new(config);
+    let state = main_service::KmsState::new(config).context("Failed to initialize KMS state")?;
 
     let figment = config::load_config_figment().select("public");
     let rocket = rocket::custom(figment)

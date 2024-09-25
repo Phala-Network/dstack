@@ -1,8 +1,9 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use rocket::figment::{
     providers::{Format, Toml},
     Figment,
 };
+use serde::Deserialize;
 
 pub const CONFIG_FILENAME: &str = "kms.toml";
 pub const SYSTEM_CONFIG_FILENAME: &str = "/etc/kms/kms.toml";
@@ -15,19 +16,18 @@ pub fn load_config_figment() -> Figment {
         .merge(Toml::file(CONFIG_FILENAME).nested())
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub(crate) struct KmsConfig {
     pub allowed_mr: AllowedMr,
+    pub root_ca_cert: String,
+    pub root_ca_key: String,
+    pub subject_postfix: String,
 }
 
 impl KmsConfig {
     pub fn load() -> Result<Self> {
         let figment = load_config_figment();
-        Self::from_figment(figment.select("core"))
-    }
-    pub fn from_figment(figment: Figment) -> Result<Self> {
-        let allowed_mr = AllowedMr::from_figment(figment.focus("allowed_mr"))?;
-        Ok(Self { allowed_mr })
+        Ok(figment.select("core").extract()?)
     }
 }
 
@@ -37,36 +37,41 @@ pub(crate) struct AllowedMr {
     pub rtmr0: Vec<[u8; 48]>,
     pub rtmr1: Vec<[u8; 48]>,
     pub rtmr2: Vec<[u8; 48]>,
-    pub rtmr3: Vec<[u8; 48]>,
 }
 
-impl AllowedMr {
-    pub fn from_figment(figment: Figment) -> Result<Self> {
-        fn read_mrlist(figment: &Figment, name: &str) -> Result<Vec<[u8; 48]>> {
-            let list = figment
-                .extract_inner::<Vec<String>>(name)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|s| {
-                    let bytes = hex::decode(s)?;
-                    let mr: [u8; 48] = bytes.try_into().ok().context("invalid MR config")?;
-                    Ok(mr)
-                })
-                .collect::<Result<Vec<_>>>()?;
-            Ok(list)
+impl<'de> Deserialize<'de> for AllowedMr {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct RawAllowedMr {
+            mrtd: Vec<String>,
+            rtmr0: Vec<String>,
+            rtmr1: Vec<String>,
+            rtmr2: Vec<String>,
         }
-        let mrtd = read_mrlist(&figment, "mrtd")?;
-        let rtmr0 = read_mrlist(&figment, "rtmr0")?;
-        let rtmr1 = read_mrlist(&figment, "rtmr1")?;
-        let rtmr2 = read_mrlist(&figment, "rtmr2")?;
-        let rtmr3 = read_mrlist(&figment, "rtmr3")?;
 
-        Ok(Self {
-            mrtd,
-            rtmr0,
-            rtmr1,
-            rtmr2,
-            rtmr3,
+        let raw = RawAllowedMr::deserialize(deserializer)?;
+
+        fn parse_mrlist<'d, D: serde::Deserializer<'d>>(
+            list: Vec<String>,
+        ) -> Result<Vec<[u8; 48]>, D::Error> {
+            list.into_iter()
+                .map(|s| {
+                    let bytes = hex::decode(&s).map_err(serde::de::Error::custom)?;
+                    bytes
+                        .try_into()
+                        .map_err(|_| serde::de::Error::custom("invalid MR config"))
+                })
+                .collect()
+        }
+
+        Ok(AllowedMr {
+            mrtd: parse_mrlist::<D>(raw.mrtd)?,
+            rtmr0: parse_mrlist::<D>(raw.rtmr0)?,
+            rtmr1: parse_mrlist::<D>(raw.rtmr1)?,
+            rtmr2: parse_mrlist::<D>(raw.rtmr2)?,
         })
     }
 }
