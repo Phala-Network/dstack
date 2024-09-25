@@ -85,10 +85,6 @@ impl RpcCall<AppState> for RpcHandler {
     }
 }
 
-pub fn rpc_methods() -> &'static [&'static str] {
-    <TappdServer<RpcHandler>>::supported_methods()
-}
-
 fn sha2_512(data: &[u8]) -> [u8; 64] {
     use sha2::{Digest, Sha512};
     let mut hasher = Sha512::new();

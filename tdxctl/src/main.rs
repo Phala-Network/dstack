@@ -1,8 +1,8 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use fs_err as fs;
+use ra_tls::event_log::EventLog;
 use scale::Decode;
-use serde::{Deserialize, Serialize};
 use std::io::{self, Read, Write};
 use tdx_attest as att;
 
@@ -71,14 +71,6 @@ struct GenRaCertArgs {
     #[arg(short, long)]
     /// file path to store the private key
     key_path: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct EventLog {
-    imr: u32,
-    event_type: u32,
-    digest: String,
-    associated_data: String,
 }
 
 fn cmd_quote() -> Result<()> {

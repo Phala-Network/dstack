@@ -1,9 +1,9 @@
 //! Attestation functions
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use dcap_qvl::quote::Quote;
 
-use crate::{oids, traits::CertExt};
+use crate::{event_log::EventLog, oids, traits::CertExt};
 
 /// Attestation data
 pub struct Attestation {
@@ -59,5 +59,18 @@ impl Attestation {
     /// Decode the quote
     pub fn decode_quote(&self) -> Result<Quote> {
         Quote::parse(&self.quote)
+    }
+
+    /// Decode the app-id from the event log
+    pub fn decode_app_id(&self) -> Result<String> {
+        let event_log = String::from_utf8(self.event_log.clone()).context("invalid event log")?;
+        for line in event_log.lines() {
+            let event = serde_json::from_str::<EventLog>(line)?;
+            let todo = "more restricted checks";
+            if event.imr == 3 && event.event_type == 0 && event.associated_data == "app-id" {
+                return Ok(event.digest);
+            }
+        }
+        Err(anyhow!("app-id not found"))
     }
 }
