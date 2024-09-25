@@ -36,7 +36,8 @@ fn main() -> anyhow::Result<()> {
         .build()
         .signed_by(&app_key, &ca_cert, &ca_key)?;
 
-    let output_dir = "/home/kvin/codes/dstack/kms/assets";
+    let todo = "remove this";
+    let output_dir = "/home/kvin/codes/dstack/test-scripts/certs";
     store_cert(output_dir, "ca", &ca_cert.pem(), &ca_key.serialize_pem())?;
     store_cert(
         output_dir,
