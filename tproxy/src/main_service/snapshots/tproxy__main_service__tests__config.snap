@@ -5,6 +5,6 @@ expression: info
 ---
 HostInfo {
     id: "test-id-0",
-    ip: 10.0.0.1,
+    ip: 10.0.0.2,
     public_key: "test-pubkey-0",
 }

@@ -16,11 +16,11 @@ servers:
           key: /etc/rproxy/certs/key.pem
           handler:
             type: tunnel
-            target: 10.0.0.1:8080
+            target: 10.0.0.2:8080
       
         - hostname: test-id-1.app.localhost
           certificate: /etc/rproxy/certs/cert.pem
           key: /etc/rproxy/certs/key.pem
           handler:
             type: tunnel
-            target: 10.0.0.2:8080
+            target: 10.0.0.3:8080

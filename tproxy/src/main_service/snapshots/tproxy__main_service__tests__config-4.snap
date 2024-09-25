@@ -10,8 +10,8 @@ ListenPort = 51820
 
 [Peer]
 PublicKey = test-pubkey-0
-AllowedIPs = 10.0.0.1/32
+AllowedIPs = 10.0.0.2/32
 
 [Peer]
 PublicKey = test-pubkey-1
-AllowedIPs = 10.0.0.2/32
+AllowedIPs = 10.0.0.3/32

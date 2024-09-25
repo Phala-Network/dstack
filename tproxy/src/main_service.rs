@@ -56,6 +56,9 @@ impl AppState {
 impl AppStateInner {
     fn alloc_ip(&mut self) -> Option<Ipv4Addr> {
         for ip in self.config.wg.client_ip_range.hosts() {
+            if ip == self.config.wg.ip {
+                continue;
+            }
             if self.allocated_addresses.contains(&ip) {
                 continue;
             }

@@ -11,6 +11,7 @@ pub struct WgConfig {
     pub public_key: String,
     pub private_key: String,
     pub listen_port: u16,
+    pub ip: Ipv4Addr,
     pub client_ip_range: Ipv4Net,
     pub config_path: String,
     pub interface_name: String,
