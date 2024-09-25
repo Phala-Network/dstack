@@ -97,6 +97,7 @@ impl AppStateInner {
                 peers => peers,
                 private_key => self.config.wg.private_key,
                 listen_port => self.config.wg.listen_port,
+                ip => self.config.wg.ip,
             },
         )
     }
@@ -122,9 +123,8 @@ impl AppStateInner {
         let wg_config = self.generate_wg_config()?;
         fs::write(&self.config.wg.config_path, wg_config)?;
         // wg setconf <interface_name> <config_path>
-        let output = Command::new("wg")
-            .arg("setconf")
-            .arg(&self.config.wg.interface_name)
+        let output = Command::new("wg-quick")
+            .arg("up")
             .arg(&self.config.wg.config_path)
             .output()?;
         if !output.status.success() {
@@ -199,7 +199,6 @@ impl RpcCall<AppState> for RpcHandler {
         })
     }
 }
-
 
 #[cfg(test)]
 mod tests;

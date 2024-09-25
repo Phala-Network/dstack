@@ -6,6 +6,7 @@ expression: wg_config
 [Interface]
 PrivateKey = your_private_key_here
 ListenPort = 51820
+Address = 10.0.0.1/24
 
 
 [Peer]
