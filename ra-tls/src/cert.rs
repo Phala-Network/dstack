@@ -1,6 +1,7 @@
 //! Certificate creation functions.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use fs_err as fs;
 use rcgen::{
     BasicConstraints, Certificate, CertificateParams, CustomExtension, DistinguishedName, DnType,
     IsCa, KeyPair, SanType,
@@ -11,9 +12,39 @@ use crate::{
     traits::CertExt,
 };
 
+/// A CA certificate and private key.
+pub struct CaCert {
+    /// CA certificate
+    pub cert: Certificate,
+    /// CA private key
+    pub key: KeyPair,
+}
+
+impl CaCert {
+    /// Load a CA certificate and private key from files.
+    pub fn load(cert_path: &str, key_path: &str) -> Result<Self> {
+        let pem_key = fs::read_to_string(key_path).context("Failed to read key file")?;
+        let key = KeyPair::from_pem(&pem_key).context("Failed to parse key")?;
+        let cert = fs::read_to_string(cert_path).context("Failed to read cert file")?;
+        let cert = CertificateParams::from_ca_cert_pem(&cert).context("Failed to parse cert")?;
+        let todo = "load the cert from the file directly: blocked by https://github.com/rustls/rcgen/issues/274";
+        let cert = cert.self_signed(&key).context("Failed to self-sign cert")?;
+        Ok(Self { cert, key })
+    }
+
+    /// Sign a certificate request.
+    pub fn sign(&self, req: CertRequest) -> Result<Certificate> {
+        let key = req.key;
+        let params = req.into_cert_params()?;
+        let cert = params.signed_by(&key, &self.cert, &self.key)?;
+        Ok(cert)
+    }
+}
+
 /// Information required to create a certificate.
 #[derive(bon::Builder)]
 pub struct CertRequest<'a> {
+    key: &'a KeyPair,
     org_name: Option<&'a str>,
     subject: &'a str,
     alt_subject: Option<&'a str>,
@@ -65,18 +96,19 @@ impl<'a> CertRequest<'a> {
     }
 
     /// Create a self-signed certificate.
-    pub fn self_signed(self, key_pair: &KeyPair) -> Result<Certificate> {
-        let cert = self.into_cert_params()?.self_signed(key_pair)?;
+    pub fn self_signed(self) -> Result<Certificate> {
+        let key = self.key;
+        let cert = self.into_cert_params()?.self_signed(key)?;
         Ok(cert)
     }
 
     /// Create a certificate signed by a given issuer.
     pub fn signed_by(
         self,
-        key: &KeyPair,
         issuer: &Certificate,
         issuer_key: &KeyPair,
     ) -> Result<Certificate> {
+        let key = self.key;
         let cert = self
             .into_cert_params()?
             .signed_by(key, issuer, issuer_key)?;
@@ -86,7 +118,8 @@ impl<'a> CertRequest<'a> {
 
 impl CertExt for Certificate {
     fn get_extension(&self, oid: &[u64]) -> Result<Option<Vec<u8>>> {
-        let found = self.params()
+        let found = self
+            .params()
             .custom_extensions
             .iter()
             .find(|ext| ext.oid_components().collect::<Vec<_>>() == oid)

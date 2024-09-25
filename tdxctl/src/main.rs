@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use fs_err as fs;
-use ra_tls::event_log::EventLog;
+use ra_tls::{cert::CaCert, event_log::EventLog};
 use scale::Decode;
 use std::io::{self, Read, Write};
 use tdx_attest as att;
@@ -64,6 +64,14 @@ struct ExtendArgs {
 #[derive(Parser)]
 /// Generate a certificate
 struct GenRaCertArgs {
+    /// CA certificate used to sign the RA certificate
+    #[arg(long)]
+    ca_cert: String,
+
+    /// CA private key used to sign the RA certificate
+    #[arg(long)]
+    ca_key: String,
+
     #[arg(short, long)]
     /// file path to store the certificate
     cert_path: String,
@@ -225,18 +233,21 @@ fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
     use ra_tls::cert::CertRequest;
     use ra_tls::rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
 
+    let ca = CaCert::load(&args.ca_cert, &args.ca_key).context("Failed to read CA certificate")?;
+
     let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let pubkey = key.public_key_raw();
     let todo = "define a quote format rather than a bare pubkey";
     let report_data = sha512(&pubkey);
     let (_, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
     let event_log = fs::read(EVENT_LOG_FILE).unwrap_or_default();
-    let cert = CertRequest::builder()
+    let req = CertRequest::builder()
         .subject("RA-TLS TEMP Cert")
         .quote(&quote)
         .event_log(&event_log)
-        .build()
-        .self_signed(&key)?;
+        .key(&key)
+        .build();
+    let cert = ca.sign(req).context("Failed to sign certificate")?;
 
     fs::write(&args.cert_path, &cert.pem()).context("Failed to write certificate")?;
     fs::write(&args.key_path, &key.serialize_pem()).context("Failed to write private key")?;

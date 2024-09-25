@@ -3,7 +3,11 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
-use ra_tls::{cert::CertRequest, kdf::derive_ecdsa_key_pair, rcgen};
+use ra_tls::{
+    cert::{CaCert, CertRequest},
+    kdf::derive_ecdsa_key_pair,
+    rcgen,
+};
 use rcgen::{Certificate, CertificateParams, KeyPair};
 use tappd_rpc::{
     tappd_server::{TappdRpc, TappdServer},
@@ -18,20 +22,15 @@ pub struct AppState {
 }
 
 struct AppStateInner {
-    key: KeyPair,
-    cert: Certificate,
+    ca: CaCert,
 }
 
 impl AppState {
     pub fn new(config: Config) -> Result<Self> {
-        let pem_key = fs::read_to_string(&config.key_file).context("Failed to read key file")?;
-        let key = KeyPair::from_pem(&pem_key).context("Failed to parse key")?;
-        let cert = fs::read_to_string(&config.cert_file).context("Failed to read cert file")?;
-        let cert = CertificateParams::from_ca_cert_pem(&cert).context("Failed to parse cert")?;
-        let todo = "load the cert from the file directly: blocked by https://github.com/rustls/rcgen/issues/274";
-        let cert = cert.self_signed(&key).context("Failed to self-sign cert")?;
+        let ca = CaCert::load(&config.cert_file, &config.key_file)
+            .context("Failed to load CA certificate")?;
         Ok(Self {
-            inner: Arc::new(AppStateInner { key, cert }),
+            inner: Arc::new(AppStateInner { ca }),
         })
     }
 }
@@ -42,16 +41,22 @@ pub struct RpcHandler {
 
 impl TappdRpc for RpcHandler {
     async fn derive_key(self, request: DeriveKeyArgs) -> Result<DeriveKeyResponse> {
-        let derived_key = derive_ecdsa_key_pair(&self.state.inner.key, &[request.path.as_bytes()])
-            .context("Failed to derive key")?;
-        let cert = CertRequest::builder()
+        let derived_key =
+            derive_ecdsa_key_pair(&self.state.inner.ca.key, &[request.path.as_bytes()])
+                .context("Failed to derive key")?;
+        let req = CertRequest::builder()
             .subject(&request.subject)
-            .build()
-            .signed_by(&derived_key, &self.state.inner.cert, &self.state.inner.key)
-            .context("Failed to build certificate request")?;
+            .key(&derived_key)
+            .build();
+        let cert = self
+            .state
+            .inner
+            .ca
+            .sign(req)
+            .context("Failed to sign certificate")?;
         Ok(DeriveKeyResponse {
             key: derived_key.serialize_pem(),
-            certificate_chain: vec![cert.pem(), self.state.inner.cert.pem()],
+            certificate_chain: vec![cert.pem(), self.state.inner.ca.cert.pem()],
         })
     }
 

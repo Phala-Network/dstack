@@ -13,14 +13,16 @@ fn main() -> anyhow::Result<()> {
         .org_name("Phala Network")
         .subject("Phala KMS CA")
         .ca_level(3)
+        .key(&ca_key)
         .build()
-        .self_signed(&ca_key)?;
+        .self_signed()?;
 
     // Sign WWW server cert with KMS cert
     let kms_www_cert = CertRequest::builder()
         .subject("localhost")
+        .key(&kms_www_key)
         .build()
-        .signed_by(&kms_www_key, &ca_cert, &ca_key)?;
+        .signed_by(&ca_cert, &ca_key)?;
 
     // Sign App cert with KMS cert
     let app_cert = CertRequest::builder()
@@ -28,13 +30,15 @@ fn main() -> anyhow::Result<()> {
         .quote(include_bytes!("../assets/tdx_quote"))
         .event_log(b"bar")
         .app_info(b"baz")
+        .key(&app_key)
         .build()
-        .signed_by(&app_key, &ca_cert, &ca_key)?;
+        .signed_by(&ca_cert, &ca_key)?;
 
     let app_no_quote_cert = CertRequest::builder()
         .subject("Example App")
+        .key(&app_key)
         .build()
-        .signed_by(&app_key, &ca_cert, &ca_key)?;
+        .signed_by(&ca_cert, &ca_key)?;
 
     let todo = "remove this";
     let output_dir = "/home/kvin/codes/dstack/test-scripts/certs";
