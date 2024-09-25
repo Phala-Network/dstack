@@ -427,6 +427,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "certgen"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ra-tls",
+]
+
+[[package]]
 name = "cexpr"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

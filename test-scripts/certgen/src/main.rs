@@ -4,9 +4,18 @@ use ra_tls::{
 };
 
 fn main() -> anyhow::Result<()> {
+    let tmp_ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let app_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let kms_www_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
+
+    let tmp_ca_cert = CertRequest::builder()
+        .org_name("Phala Network")
+        .subject("Phala KMS Client Temp CA")
+        .ca_level(1)
+        .key(&tmp_ca_key)
+        .build()
+        .self_signed()?;
 
     // Create self-signed KMS cert
     let ca_cert = CertRequest::builder()
@@ -24,16 +33,6 @@ fn main() -> anyhow::Result<()> {
         .build()
         .signed_by(&ca_cert, &ca_key)?;
 
-    // Sign App cert with KMS cert
-    let app_cert = CertRequest::builder()
-        .subject("Example App")
-        .quote(include_bytes!("../assets/tdx_quote"))
-        .event_log(b"bar")
-        .app_info(b"baz")
-        .key(&app_key)
-        .build()
-        .signed_by(&ca_cert, &ca_key)?;
-
     let app_no_quote_cert = CertRequest::builder()
         .subject("Example App")
         .key(&app_key)
@@ -41,7 +40,8 @@ fn main() -> anyhow::Result<()> {
         .signed_by(&ca_cert, &ca_key)?;
 
     let todo = "remove this";
-    let output_dir = "/home/kvin/codes/dstack/test-scripts/certs";
+    let output_dir = "../certs";
+    store_cert(output_dir, "tmp-ca", &tmp_ca_cert.pem(), &tmp_ca_key.serialize_pem())?;
     store_cert(output_dir, "ca", &ca_cert.pem(), &ca_key.serialize_pem())?;
     store_cert(
         output_dir,
@@ -49,7 +49,6 @@ fn main() -> anyhow::Result<()> {
         &kms_www_cert.pem(),
         &kms_www_key.serialize_pem(),
     )?;
-    store_cert(output_dir, "app", &app_cert.pem(), &app_key.serialize_pem())?;
     store_cert(
         output_dir,
         "app-no-quote",
