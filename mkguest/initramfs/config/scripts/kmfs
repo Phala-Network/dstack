@@ -115,11 +115,11 @@ kmfs_premount() {
             panic "FSINIT: Rootfs hash mismatch"
         fi
 
-        mkdir -p /root/app
-        rm -rf /root/app/config
-        cp -r ${CFG_DIR} /root/app/config
-        cp ${KMFS_WORK_DIR}/appkeys.json /root/app/appkeys.json
-        echo "FSINIT: Copied config to /root/app/config"
+        mkdir -p /root/tapp
+        rm -rf /root/tapp/config
+        cp -r ${CFG_DIR} /root/tapp/config
+        cp ${KMFS_WORK_DIR}/appkeys.json /root/tapp/appkeys.json
+        echo "FSINIT: Copied config to /root/tapp/config"
         umount /root || panic "FSINIT: Failed to unmount /root"
         touch /config/initialized || echo "FSINIT: Failed to touch initialized"
     fi

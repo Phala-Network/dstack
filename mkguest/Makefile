@@ -37,7 +37,7 @@ $(addprefix clean-,$(COMPONENTS)):
 	$(MAKE) -C $(subst clean-,,$@) clean
 
 prepare-kernel:
-	apt install --yes linux-image-$(KERNEL_VERSION)
+	apt install --yes linux-image-$(KERNEL_VERSION) linux-headers-$(KERNEL_VERSION)
 	chmod a+r /boot/vmlinuz-$(KERNEL_VERSION)
 
 .PHONY: run clean

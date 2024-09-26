@@ -6,7 +6,7 @@ After=docker.service
 [Service]
 Type=oneshot
 RemainAfterExit=true
-WorkingDirectory=/app
+WorkingDirectory=/tapp/config
 ExecStart=/usr/bin/env docker compose up -d
 ExecStop=/usr/bin/env docker compose down
 

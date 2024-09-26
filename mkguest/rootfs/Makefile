@@ -29,7 +29,9 @@ clean:
 	rm -f $(OUTPUT_IMAGE)
 	rm -rf $(ISO_ROOTDIR)
 
-install: $(OUTPUT_IMAGE)
+install: $(INSTALL_DIR)/$(OUTPUT_IMAGE)
+
+$(INSTALL_DIR)/$(OUTPUT_IMAGE): $(OUTPUT_IMAGE)
 	mkdir -p $(INSTALL_DIR)
 	cp $(OUTPUT_IMAGE) $(INSTALL_DIR)
 
