@@ -4,7 +4,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BUILD_DIR=${SCRIPT_DIR}/build
 LOGFILE=${BUILD_DIR}/tdx-guest-setup.log
 FORCE_RECREATE=false
-OFFICIAL_UBUNTU_IMAGE=${OFFICIAL_UBUNTU_IMAGE:-"https://cloud-images.ubuntu.com/releases/noble/release/"}
+OFFICIAL_UBUNTU_IMAGE=${OFFICIAL_UBUNTU_IMAGE:-"https://cloud-images.ubuntu.com/releases/noble/release-20240911/"}
 CLOUD_IMG=${CLOUD_IMG:-"ubuntu-24.04-server-cloudimg-amd64.img"}
 CLOUD_IMG_PATH="${BUILD_DIR}/${CLOUD_IMG}"
 GUEST_IMG_PATH=$(realpath "${QCOW_IMAGE_FILENAME}")
@@ -208,7 +208,7 @@ install_tools() {
     info "Installing tools"
     virt-customize -a ${TMP_GUEST_IMG_PATH} \
        --mkdir /tmp/tdx \
-       --copy-in ${SCRIPT_DIR}/tdxctl:/sbin/ \
+       --copy-in ${CMD_TDXCTL}:/sbin/ \
        --copy-in ${SCRIPT_DIR}/app-compose.service:/etc/systemd/system/ \
        --copy-in ${SCRIPT_DIR}/setup-guest.sh:/tmp/tdx/ \
        --run-command "chmod +x /tmp/tdx/setup-guest.sh" \
