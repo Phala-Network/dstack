@@ -38,9 +38,13 @@ pub const CONFIG_FILENAME: &str = "tproxy.toml";
 pub const SYSTEM_CONFIG_FILENAME: &str = "/etc/tproxy/tproxy.toml";
 pub const DEFAULT_CONFIG: &str = include_str!("../tproxy.toml");
 
-pub fn load_config_figment() -> Figment {
+pub fn load_config_figment(config_file: Option<&str>) -> Figment {
+    let leaf_config = match config_file {
+        Some(path) => Toml::file(path).nested(),
+        None => Toml::file(CONFIG_FILENAME).nested(),
+    };
     Figment::from(rocket::Config::default())
         .merge(Toml::string(DEFAULT_CONFIG).nested())
         .merge(Toml::file(SYSTEM_CONFIG_FILENAME).nested())
-        .merge(Toml::file(CONFIG_FILENAME).nested())
+        .merge(leaf_config)
 }

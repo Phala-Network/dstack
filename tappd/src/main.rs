@@ -6,10 +6,19 @@ use rocket::{
     listener::{Bind, DefaultListener},
 };
 use rpc_service::AppState;
+use clap::Parser;
 
 mod config;
 mod http_routes;
 mod rpc_service;
+
+#[derive(Parser)]
+#[command(author, version, about)]
+struct Args {
+    /// Path to the configuration file
+    #[arg(short, long)]
+    config: Option<String>,
+}
 
 async fn run_http(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
@@ -37,7 +46,8 @@ async fn run_http(state: AppState, figment: Figment) -> Result<()> {
 
 #[rocket::main]
 async fn main() -> Result<()> {
-    let figment = config::load_config_figment();
+    let args = Args::parse();
+    let figment = config::load_config_figment(args.config.as_deref());
     let state = AppState::new(figment.extract()?).context("Failed to create app state")?;
     run_http(state, figment).await?;
     Ok(())

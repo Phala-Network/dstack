@@ -5,10 +5,13 @@ use ra_tls::{
 use clap::Parser;
 
 #[derive(Parser)]
+#[command(author, version, about)]
 struct Args {
+    /// Domain name for the generated certificates
     #[arg(short, long, default_value = "local")]
     domain: String,
 
+    /// Output directory for the generated certificates
     #[arg(short, long, default_value = "certs")]
     output_dir: String,
 }

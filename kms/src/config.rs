@@ -9,11 +9,15 @@ pub const CONFIG_FILENAME: &str = "kms.toml";
 pub const SYSTEM_CONFIG_FILENAME: &str = "/etc/kms/kms.toml";
 pub const DEFAULT_CONFIG: &str = include_str!("../kms.toml");
 
-pub fn load_config_figment() -> Figment {
+pub fn load_config_figment(config_file: Option<&str>) -> Figment {
+    let leaf_config = match config_file {
+        Some(path) => Toml::file(path).nested(),
+        None => Toml::file(CONFIG_FILENAME).nested(),
+    };
     Figment::from(rocket::Config::default())
         .merge(Toml::string(DEFAULT_CONFIG).nested())
         .merge(Toml::file(SYSTEM_CONFIG_FILENAME).nested())
-        .merge(Toml::file(CONFIG_FILENAME).nested())
+        .merge(leaf_config)
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -22,13 +26,6 @@ pub(crate) struct KmsConfig {
     pub root_ca_cert: String,
     pub root_ca_key: String,
     pub subject_postfix: String,
-}
-
-impl KmsConfig {
-    pub fn load() -> Result<Self> {
-        let figment = load_config_figment();
-        Ok(figment.select("core").extract()?)
-    }
 }
 
 #[derive(Debug, Clone)]

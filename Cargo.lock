@@ -1662,6 +1662,7 @@ name = "kms"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
  "hex",
  "hex_fmt",
  "kms-rpc",
@@ -3488,6 +3489,7 @@ name = "tappd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
  "fs-err",
  "ra-rpc",
  "ra-tls",
@@ -3554,6 +3556,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bon",
+ "clap",
  "dirs",
  "fs-err",
  "hex",
@@ -3813,6 +3816,7 @@ name = "tproxy"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
  "fs-err",
  "insta",
  "ipnet",

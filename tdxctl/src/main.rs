@@ -8,8 +8,9 @@ use tdx_attest as att;
 
 const EVENT_LOG_FILE: &str = "/run/log/tdx_mr3/tdx_events.log";
 
-#[derive(Parser)]
 /// TDX control utility
+#[derive(Parser)]
+#[command(author, version, about)]
 struct Cli {
     #[clap(subcommand)]
     command: Commands,
