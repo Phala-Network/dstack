@@ -3,6 +3,12 @@ include ../config.mk
 PWD=$(shell pwd)
 BASE_IMAGE_PATH := $(PWD)/../dist/$(QCOW_IMAGE_FILENAME)
 
+ROOTFS_CPIO_PATH := $(PWD)/../rootfs/isoroot/rootfs.cpio
+CERTS_PATH := $(PWD)/../../certs
+
+CERTS_TO_COPY := ca.cert tmp-ca.cert tmp-ca.key
+CERTS_TO_COPY_PATHS := $(foreach cert, $(CERTS_TO_COPY), $(CERTS_PATH)/$(cert))
+
 IMAGE_PATH := $(PWD)/vda.img
 DEV_IMAGE_PATH := $(PWD)/dev-vda.img
 CONFIG_DIR := $(PWD)/config
@@ -23,9 +29,6 @@ export TD
 $(DEV_IMAGE_PATH) $(IMAGE_PATH): $(BASE_IMAGE_PATH)
 	qemu-img create -f qcow2 -o backing_file=$<,backing_fmt=qcow2 $@
 
-$(CONFIG_DIR):
-	mkdir -p $@
-
 $(BASE_IMAGE_PATH):
 	$(MAKE) -C ../ dist-image
 
@@ -38,11 +41,23 @@ $(INITRD_PATH):
 $(ROOTFS_PATH):
 	$(MAKE) -C ../ dist-rootfs
 
-.PHONY: run deps clean
+.PHONY: run deps clean config
 
-deps: $(CONFIG_DIR) $(KERNEL_PATH) $(INITRD_PATH) $(ROOTFS_PATH)
+deps: $(KERNEL_PATH) $(INITRD_PATH) $(ROOTFS_PATH)
 
-run: deps $(IMAGE_PATH)
+$(ROOTFS_CPIO_PATH):
+	$(MAKE) -C ../ rootfs
+
+$(CERTS_TO_COPY_PATHS):
+	$(MAKE) -C ../../ certs
+
+config: $(ROOTFS_CPIO_PATH) $(CERTS_TO_COPY_PATHS)
+	mkdir -p $(CONFIG_DIR)/certs
+	./generate-config.sh $(ROOTFS_CPIO_PATH) > $(CONFIG_DIR)/config.json
+	cp docker-compose.yaml $(CONFIG_DIR)/
+	cp $(CERTS_TO_COPY_PATHS) $(CONFIG_DIR)/certs/
+
+run: deps $(IMAGE_PATH) config
 	./run.sh
 
 dev: deps $(DEV_IMAGE_PATH)

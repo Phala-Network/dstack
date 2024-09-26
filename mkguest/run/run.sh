@@ -2,7 +2,6 @@
 
 IMG=${IMAGE_PATH:-${PWD}/vda.img}
 
-SSH_PORT=${SSH_PORT:-10086}
 PROCESS_NAME=qemu
 
 INITRD=${INITRD_PATH:-${PWD}/../dist/initrd.img}
@@ -13,7 +12,8 @@ INTEGRITY=${INTEGRITY:-}
 CONFIG_DIR=${CONFIG_DIR:-${PWD}/config}
 TD=${TD:-1}
 TDVF_FIRMWARE=/usr/share/ovmf/OVMF.fd
-RO9P=${RO9P:-on}
+RO=${RO:-on}
+CID=$(( ( RANDOM % 10000 )  + 3 ))
 
 if [ "${INTEGRITY}" == "1" ]; then
 	INTEGRITY="hmac-sha256"
@@ -32,7 +32,7 @@ echo TD=${TD}
 if [ "${TD}" == "1" ]; then
 	MACHINE_ARGS=",confidential-guest-support=tdx,hpet=off"
 	PROCESS_NAME=td
-	TDX_ARGS="-device vhost-vsock-pci,guest-cid=4 -object tdx-guest,id=tdx"
+	TDX_ARGS="-device vhost-vsock-pci,guest-cid=${CID} -object tdx-guest,id=tdx"
 	BIOS="-bios ${TDVF_FIRMWARE}"
 fi
 
@@ -49,9 +49,9 @@ qemu-system-x86_64 \
 		   -nographic \
 		   -nodefaults \
 		   -chardev stdio,id=ser0,signal=on -serial chardev:ser0 \
-		   -device virtio-net-pci,netdev=nic0_td -netdev user,id=nic0_td,hostfwd=tcp::${SSH_PORT}-:22 \
+		   -device virtio-net-pci,netdev=nic0_td -netdev user,id=nic0_td \
 		   -drive file=${IMG},if=none,id=virtio-disk0 -device virtio-blk-pci,drive=virtio-disk0 \
 		   -cdrom ${CDROM} \
-		   -virtfs local,path=${CONFIG_DIR},mount_tag=config,readonly=${RO9P},security_model=mapped,id=virtfs0 \
+		   -virtfs local,path=${CONFIG_DIR},mount_tag=config,readonly=${RO},security_model=mapped,id=virtfs0 \
 		   ${ARGS} \
 		   -append "${CMDLINE}"

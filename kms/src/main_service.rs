@@ -50,6 +50,9 @@ pub struct RpcHandler {
 
 impl AllowedMr {
     pub fn is_allowed(&self, report: &TDReport10) -> bool {
+        if self.allow_all {
+            return true;
+        }
         self.mrtd.contains(&report.mr_td)
             && self.rtmr0.contains(&report.rt_mr0)
             && self.rtmr1.contains(&report.rt_mr1)

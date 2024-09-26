@@ -1,6 +1,8 @@
 fn main() {
     let out_dir = "./src/generated";
 
+    std::fs::create_dir_all(out_dir).expect("failed to create out dir");
+
     let mut builder = prpc_build::configure()
         .out_dir(out_dir)
         .mod_prefix("super::")

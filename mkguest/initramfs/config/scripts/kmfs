@@ -9,15 +9,17 @@ CFG_FILE=${CFG_DIR}/config.json
 APP_COMPOSE_FILE=${CFG_DIR}/docker-compose.yaml
 
 kmfs_premount() {
-    local key_phrase rootfs_hash app_id kms_url
+    local key_phrase rootfs_hash app_id kms_url ca_cert_hash
     local actual_rootfs_hash
+
+    configure_networking || panic "FSINIT: Failed to configure networking"
 
     # Copy config files to memory
     mkdir -p /config || panic "FSINIT: Failed to create /config directory"
     mount -t 9p -o trans=virtio,version=9p2000.L config /config || panic "FSINIT: Failed to mount config"
 
     mkdir -p ${CFG_DIR} || panic "FSINIT: Failed to create ${CFG_DIR} directory"
-    cp /config/* ${CFG_DIR}/ || panic "FSINIT: Failed to copy config files to ${CFG_DIR}"
+    cp -r /config/* ${CFG_DIR}/ || panic "FSINIT: Failed to copy config files to ${CFG_DIR}"
 
     # Calculate rootfs and app ids and extend them to RTMR
     if [ ! -f "${CFG_FILE}" ]; then
@@ -31,11 +33,14 @@ kmfs_premount() {
     rootfs_hash=$(jq -r .rootfs_hash ${CFG_FILE})
     app_id=$(iohash sha256 -o! -t- -i ${APP_COMPOSE_FILE})
     kms_url=$(jq -r .kms_url ${CFG_FILE})
+    ca_cert_hash=$(iohash sha256 -o! -t- -i ${CA_CERT})
 
     echo "FSINIT: Extending rootfs hash to RTMR, hash=${rootfs_hash}"
     tdxctl extend -i 3 --digest ${rootfs_hash} --associated-data "rootfs-hash" || panic "FSINIT: Failed to extend rootfs to RTMR"
     echo "FSINIT: Extending app id to RTMR, app_id=${app_id}"
     tdxctl extend -i 3 --digest ${app_id} --associated-data "app-id" || panic "FSINIT: Failed to extend app id to RTMR"
+    echo "FSINIT: Extending ca cert hash to RTMR, ca_cert_hash=${ca_cert_hash}"
+    tdxctl extend -i 3 --digest ${ca_cert_hash} --associated-data "ca-cert-hash" || panic "FSINIT: Failed to extend ca cert hash to RTMR"
 
     # Show the RTMR
     tdxctl show
@@ -50,17 +55,24 @@ kmfs_premount() {
         --ca-key ${TMP_CA_KEY} || panic "FSINIT: Failed to generate RA-TLS cert"
 
     # Request app keys from KMS
-    echo "FSINIT: Requesting app keys from KMS"
-    wget --ca-certificate=${CA_CERT} \
-        --certificate=${KMFS_WORK_DIR}/certs/cert.pem \
-        --private-key=${KMFS_WORK_DIR}/certs/key.pem \
-        -O ${KMFS_WORK_DIR}/appkey.json \
+    echo "FSINIT: Requesting app keys from KMS (${kms_url})"
+    curl --cacert ${CA_CERT} \
+        --cert ${KMFS_WORK_DIR}/certs/cert.pem \
+        --key ${KMFS_WORK_DIR}/certs/key.pem \
+        -o ${KMFS_WORK_DIR}/appkeys.json \
         ${kms_url}/prpc/KMS.GetAppKey \
-        -q || panic "FSINIT: Failed to request app keys"
+        || panic "FSINIT: Failed to request app keys"
 
-    key_phrase=$(jq -r .disk_crypt_key ${KMFS_WORK_DIR}/appkey.json)
+    key_phrase=$(jq -r .disk_crypt_key ${KMFS_WORK_DIR}/appkeys.json)
+    # Check if key_phrase is empty, null, or not set
+    if [ -z "$key_phrase" ] || [ "$key_phrase" = "null" ]; then
+        panic "FSINIT: Failed to get valid key phrase from KMS"
+    fi
 
-    if [ -e /config/format-disk ]; then
+    if [ -e /config/initialized ]; then
+        echo "[$(date +%H:%M:%S)] FSINIT: Mounting"
+        echo "$key_phrase" | cryptsetup luksOpen --type luks2 -d- ${ROOT} rootfs_crypt || panic "FSINIT: Failed to open encrypted rootfs"
+    else
         # Set up disk encryption and format the disk
 
         [ -z "${INITIMG}" ] && panic "FSINIT: initimg not set"
@@ -106,12 +118,10 @@ kmfs_premount() {
         mkdir -p /root/app
         rm -rf /root/app/config
         cp -r ${CFG_DIR} /root/app/config
+        cp ${KMFS_WORK_DIR}/appkeys.json /root/app/appkeys.json
         echo "FSINIT: Copied config to /root/app/config"
         umount /root || panic "FSINIT: Failed to unmount /root"
-        rm -f /config/format-disk || echo "FSINIT: Failed to remove format-disk"
-    else
-        echo "[$(date +%H:%M:%S)] FSINIT: Mounting"
-        echo "$key_phrase" | cryptsetup luksOpen --type luks2 -d- ${ROOT} rootfs_crypt || panic "FSINIT: Failed to open encrypted rootfs"
+        touch /config/initialized || echo "FSINIT: Failed to touch initialized"
     fi
     umount /config || panic "FSINIT: Failed to unmount /config"
     ROOT=/dev/mapper/rootfs_crypt

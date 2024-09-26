@@ -33,6 +33,7 @@ impl KmsConfig {
 
 #[derive(Debug, Clone)]
 pub(crate) struct AllowedMr {
+    pub allow_all: bool,
     pub mrtd: Vec<[u8; 48]>,
     pub rtmr0: Vec<[u8; 48]>,
     pub rtmr1: Vec<[u8; 48]>,
@@ -46,9 +47,15 @@ impl<'de> Deserialize<'de> for AllowedMr {
     {
         #[derive(Deserialize)]
         struct RawAllowedMr {
+            #[serde(default)]
+            allow_all: bool,
+            #[serde(default)]
             mrtd: Vec<String>,
+            #[serde(default)]
             rtmr0: Vec<String>,
+            #[serde(default)]
             rtmr1: Vec<String>,
+            #[serde(default)]
             rtmr2: Vec<String>,
         }
 
@@ -68,6 +75,7 @@ impl<'de> Deserialize<'de> for AllowedMr {
         }
 
         Ok(AllowedMr {
+            allow_all: raw.allow_all,
             mrtd: parse_mrlist::<D>(raw.mrtd)?,
             rtmr0: parse_mrlist::<D>(raw.rtmr0)?,
             rtmr1: parse_mrlist::<D>(raw.rtmr1)?,
