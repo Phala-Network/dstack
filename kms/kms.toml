@@ -9,8 +9,8 @@ address = "0.0.0.0"
 port = 8043
 
 [default.tls]
-key = "../certs/kms-www.key"
-certs = "../certs/kms-www.cert"
+key = "../certs/kms-rpc.key"
+certs = "../certs/kms-rpc.cert"
 
 [default.tls.mutual]
 ca_certs = "../certs/tmp-ca.cert"

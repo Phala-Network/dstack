@@ -1,0 +1,12 @@
+[Unit]
+Description=Guest Boot Service
+After=network.target
+Before=app-compose.service tappd.service
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/tboot.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

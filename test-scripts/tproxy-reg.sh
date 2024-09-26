@@ -4,7 +4,7 @@ KEY_FILE=${CERT_FILE%.*}.key
 CERT_DIR=../certs
 URL=https://localhost:8010/prpc/Tproxy.RegisterCvm?json
 
-D='{"wg_public_key": "4WyZldIHByffCulT674/n/ZLFH8jsfMZPkEnNOPaaW8="}'
+D='{"client_public_key": "4WyZldIHByffCulT674/n/ZLFH8jsfMZPkEnNOPaaW8="}'
 
 if [ -z "$CERT_FILE" ]; then
     curl -s -d ${D} --cacert ${CERT_DIR}/ca.cert ${URL}

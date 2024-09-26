@@ -15,6 +15,7 @@ pub struct WgConfig {
     pub client_ip_range: Ipv4Net,
     pub interface: String,
     pub config_path: String,
+    pub endpoint: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

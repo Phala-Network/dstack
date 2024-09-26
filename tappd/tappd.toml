@@ -9,12 +9,3 @@ address = "unix:/var/run/tappd.sock"
 reuse = false
 cert_file = "/etc/tappd/cert.pem"
 key_file = "/etc/tappd/key.pem"
-
-[default.limits]
-bytes = "8KiB"
-data-form = "2MiB"
-file = "1MiB"
-form = "32KiB"
-json = "1MiB"
-msgpack = "1MiB"
-string = "8KiB"

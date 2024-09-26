@@ -16,7 +16,7 @@ all: $(OUTPUT_IMAGE)
 include ../tools.mk
 
 # Create the TDX guest image
-$(OUTPUT_IMAGE): $(SCRIPT) $(CMD_TDXCTL) app-compose.service
+$(OUTPUT_IMAGE): $(SCRIPT) $(CMD_TDXCTL) $(CMD_TAPPD) app-compose.service
 	$(SCRIPT) -o $(OUTPUT_IMAGE)
 
 # Clean up build artifacts

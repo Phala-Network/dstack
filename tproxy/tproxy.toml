@@ -17,11 +17,14 @@ msgpack = "1MiB"
 string = "8KiB"
 
 [default.wg]
-public_key = "your_public_key_here"
-private_key = "your_private_key_here"
+public_key = ""
+private_key = ""
+ip = "10.0.3.1"
 listen_port = 51820
-client_ip_range = "10.0.0.1/24"
+client_ip_range = "10.0.3.0/24"
 config_path = "/etc/wireguard/wg0.conf"
+interface = "wg0"
+endpoint = "10.0.2.2:51820"
 
 [default.proxy]
 cert_chain = "/etc/rproxy/certs/cert.pem"

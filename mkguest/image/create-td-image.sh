@@ -209,7 +209,11 @@ install_tools() {
     virt-customize -a ${TMP_GUEST_IMG_PATH} \
        --mkdir /tmp/tdx \
        --copy-in ${CMD_TDXCTL}:/sbin/ \
+       --copy-in ${CMD_TAPPD}:/bin/ \
+       --copy-in ${SCRIPT_DIR}/tboot.sh:/sbin/ \
        --copy-in ${SCRIPT_DIR}/app-compose.service:/etc/systemd/system/ \
+       --copy-in ${SCRIPT_DIR}/tappd.service:/etc/systemd/system/ \
+       --copy-in ${SCRIPT_DIR}/tboot.service:/etc/systemd/system/ \
        --copy-in ${SCRIPT_DIR}/setup-guest.sh:/tmp/tdx/ \
        --run-command "chmod +x /tmp/tdx/setup-guest.sh" \
        --run-command "/tmp/tdx/setup-guest.sh"

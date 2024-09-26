@@ -169,15 +169,16 @@ impl TproxyRpc for RpcHandler {
         let app_id = ra
             .decode_app_id()
             .context("failed to decode app-id from attestation")?;
-        let client_info = self
-            .state
-            .lock()
-            .new_client_by_id(&app_id, &request.wg_public_key)
+        let mut state = self.state.lock();
+        let client_info = state
+            .new_client_by_id(&app_id, &request.client_public_key)
             .context("failed to allocate IP address for client")?;
 
         Ok(RegisterCvmResponse {
-            wg_public_key: self.state.lock().config.wg.public_key.clone(),
-            cvm_ip: client_info.ip.to_string(),
+            server_public_key: state.config.wg.public_key.clone(),
+            client_ip: client_info.ip.to_string(),
+            server_ip: state.config.wg.ip.to_string(),
+            server_endpoint: state.config.wg.endpoint.clone(),
         })
     }
 }

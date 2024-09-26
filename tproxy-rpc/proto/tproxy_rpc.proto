@@ -7,15 +7,19 @@ package tproxy;
 // RegisterCvmRequest is the request for RegisterCvm.
 message RegisterCvmRequest {
   // The public key of the WireGuard interface of the CVM.
-  string wg_public_key = 1;
+  string client_public_key = 1;
 }
 
 // RegisterCvmResponse is the response for RegisterCvm.
 message RegisterCvmResponse {
   // The public key of the WireGuard interface of the TProxy.
-  string wg_public_key = 1;
+  string server_public_key = 1;
   // The IP address of the CVM.
-  string cvm_ip = 2;
+  string client_ip = 2;
+  // The IP address of the TProxy.
+  string server_ip = 3;
+  // The endpoint of the TProxy.
+  string server_endpoint = 4;
 }
 
 service Tproxy {
