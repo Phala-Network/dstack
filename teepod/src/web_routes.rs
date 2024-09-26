@@ -56,7 +56,7 @@ async fn prpc_get(
 }
 
 #[get("/logs?<id>")]
-fn vm_logs(app: &State<App>, id: String) -> (ContentType, String) {
+fn vm_logs(id: String) -> (ContentType, String) {
     let html = format!(
         r#"
         <!DOCTYPE html>
