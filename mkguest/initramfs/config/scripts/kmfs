@@ -6,7 +6,7 @@ TMP_CA_CERT=${CFG_DIR}/certs/tmp-ca.cert
 TMP_CA_KEY=${CFG_DIR}/certs/tmp-ca.key
 CA_CERT=${CFG_DIR}/certs/ca.cert
 CFG_FILE=${CFG_DIR}/config.json
-APP_COMPOSE_FILE="docker-compose.yaml"
+APP_COMPOSE_FILE=${CFG_DIR}/docker-compose.yaml
 
 kmfs_premount() {
     local key_phrase rootfs_hash app_id kms_url
@@ -20,8 +20,16 @@ kmfs_premount() {
     cp /config/* ${CFG_DIR}/ || panic "FSINIT: Failed to copy config files to ${CFG_DIR}"
 
     # Calculate rootfs and app ids and extend them to RTMR
+    if [ ! -f "${CFG_FILE}" ]; then
+        panic "FSINIT: Config file ${CFG_FILE} does not exist"
+    fi
+
+    if [ ! -f "${APP_COMPOSE_FILE}" ]; then
+        panic "FSINIT: Docker compose file ${APP_COMPOSE_FILE} does not exist"
+    fi
+
     rootfs_hash=$(jq -r .rootfs_hash ${CFG_FILE})
-    app_id=$(jq -r .app_id ${CFG_FILE})
+    app_id=$(iohash sha256 -o! -t- -i ${APP_COMPOSE_FILE})
     kms_url=$(jq -r .kms_url ${CFG_FILE})
 
     echo "FSINIT: Extending rootfs hash to RTMR, hash=${rootfs_hash}"
@@ -43,12 +51,12 @@ kmfs_premount() {
 
     # Request app keys from KMS
     echo "FSINIT: Requesting app keys from KMS"
-    curl -s \
-        --cacert ${CA_CERT} \
-        --cert ${KMFS_WORK_DIR}/certs/cert.pem \
-        --key ${KMFS_WORK_DIR}/certs/key.pem \
+    wget --ca-certificate=${CA_CERT} \
+        --certificate=${KMFS_WORK_DIR}/certs/cert.pem \
+        --private-key=${KMFS_WORK_DIR}/certs/key.pem \
+        -O ${KMFS_WORK_DIR}/appkey.json \
         ${kms_url}/prpc/KMS.GetAppKey \
-        -o ${KMFS_WORK_DIR}/appkey.json || panic "FSINIT: Failed to request app keys"
+        -q || panic "FSINIT: Failed to request app keys"
 
     key_phrase=$(jq -r .disk_crypt_key ${KMFS_WORK_DIR}/appkey.json)
 
@@ -71,7 +79,6 @@ kmfs_premount() {
 
         echo "FSINIT: Initializing"
         echo "[$(date +%H:%M:%S)] FSINIT: Formatting rootfs"
-        echo "cmd: cryptsetup luksFormat --type luks2 --cipher aes-xts-plain64 ${ROOTINTEGRITY} --pbkdf pbkdf2 -d- ${ROOT}"
         echo "$key_phrase" | cryptsetup luksFormat --type luks2 --cipher aes-xts-plain64 ${ROOTINTEGRITY} --pbkdf pbkdf2 -d- ${ROOT} || panic "FSINIT: Failed to format rootfs"
         echo "[$(date +%H:%M:%S)] FSINIT: Formatting rootfs done"
         echo "$key_phrase" | cryptsetup luksOpen --type luks2 -d- ${ROOT} rootfs_crypt || panic "FSINIT: Failed to open encrypted rootfs"

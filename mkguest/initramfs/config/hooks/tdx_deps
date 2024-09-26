@@ -21,7 +21,9 @@ copy_file ${CONFDIR}/scripts/kmfs /scripts/
 cp ${TDX_KO} ${DESTDIR}/${MODULESDIR}/
 
 copy_exec /usr/sbin/mkfs.ext4 /usr/sbin
-copy_exec ${CMD_IOHASH} /bin/
-copy_exec ${CMD_TDXCTL} /bin/
+copy_exec ${CMD_IOHASH} /usr/bin/
+copy_exec ${CMD_TDXCTL} /usr/bin/
+copy_exec `which wget` /usr/bin/
+copy_exec `which jq` /usr/bin/
 
 auto_add_modules base ata net

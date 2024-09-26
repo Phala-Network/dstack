@@ -60,12 +60,12 @@ impl AllowedMr {
 impl RpcHandler {
     fn ensure_attested(&self) -> Result<&Attestation> {
         let Some(attestation) = &self.attestation else {
-            return Err(anyhow::anyhow!("No attestation provided"));
+            bail!("No attestation provided");
         };
         let quote = attestation.decode_quote()?;
 
         let report = match quote.report {
-            Report::SgxEnclave(_) => bail!("SGX enclave not supported"),
+            Report::SgxEnclave(_) => bail!("SGX enclave is not supported"),
             Report::TD10(r) => r,
             Report::TD15(r) => r.base,
         };
