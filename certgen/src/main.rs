@@ -23,7 +23,6 @@ fn main() -> anyhow::Result<()> {
     let ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let app_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let kms_www_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
-    let tmp_ra_tls_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let tproxy_rpc_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
 
     let tmp_ca_cert = CertRequest::builder()
