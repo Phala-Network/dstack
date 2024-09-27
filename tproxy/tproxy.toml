@@ -27,6 +27,7 @@ interface = "wg0"
 endpoint = "10.0.2.2:51820"
 
 [default.proxy]
+bin = "/usr/bin/rproxy"
 cert_chain = "/etc/rproxy/certs/cert.pem"
 cert_key = "/etc/rproxy/certs/key.pem"
 listen_addr = "0.0.0.0"

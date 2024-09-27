@@ -15,6 +15,10 @@ minijinja = "2.3.1"
 ipnet = { version = "2.10.0", features = ["serde"] }
 fs-err = "2.11.0"
 clap = { version = "4.5.18", features = ["derive"] }
+shared_child = "1.0.1"
+rproxy = { git = "https://github.com/kvinwang/rproxy.git", branch = "tproxy", version = "0.1.0" }
+tokio = { version = "1.40.0", features = ["full"] }
+rustls = { version = "0.23.13", features = ["ring"] }
 
 [dev-dependencies]
 insta = "1.40.0"

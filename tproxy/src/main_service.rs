@@ -10,6 +10,7 @@ use fs_err as fs;
 use minijinja::context;
 use ra_rpc::{Attestation, RpcCall};
 use serde::{Deserialize, Serialize};
+use tokio::sync::broadcast::{Receiver, Sender};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
     HostInfo as PbHostInfo, ListResponse, RegisterCvmRequest, RegisterCvmResponse,
@@ -28,6 +29,7 @@ pub(crate) struct AppStateInner {
     // The mapping from the host name to the IP address.
     hosts: BTreeMap<String, HostInfo>,
     allocated_addresses: BTreeSet<Ipv4Addr>,
+    reconfigure_tx: Sender<()>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -48,6 +50,7 @@ impl AppState {
                 config,
                 hosts: BTreeMap::new(),
                 allocated_addresses: BTreeSet::new(),
+                reconfigure_tx: Sender::new(1),
             })),
         }
     }
@@ -128,23 +131,24 @@ impl AppStateInner {
             .arg(&self.config.wg.interface)
             .arg(&self.config.wg.config_path)
             .output()?;
+
         if !output.status.success() {
-            bail!("failed to set wg config: {}", output.status);
+            error!("failed to set wg config: {}", output.status);
+        } else {
+            info!("wg config updated");
         }
-        info!("wg config updated");
 
         let proxy_config = self.generate_proxy_config()?;
         fs::write(&self.config.proxy.config_path, proxy_config)?;
-        let todo = "better way to notify rproxy to reload config";
-        let output = Command::new("service")
-            .arg("rproxy")
-            .arg("restart")
-            .output()?;
-        if !output.status.success() {
-            bail!("failed to restart rproxy: {}", output.status);
+        match self.reconfigure_tx.send(()) {
+            Ok(_) => info!("rproxy config updated"),
+            Err(_) => error!("failed to reconfigure rproxy"),
         }
-        info!("rproxy config updated");
         Ok(())
+    }
+
+    pub(crate) fn subscribe_reconfigure(&self) -> Receiver<()> {
+        self.reconfigure_tx.subscribe()
     }
 }
 
