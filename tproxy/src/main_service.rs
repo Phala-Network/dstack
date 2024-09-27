@@ -119,7 +119,7 @@ impl AppStateInner {
         )
     }
 
-    fn reconfigure(&mut self) -> Result<()> {
+    pub(crate) fn reconfigure(&mut self) -> Result<()> {
         let wg_config = self.generate_wg_config()?;
         fs::write(&self.config.wg.config_path, wg_config)?;
         // wg setconf <interface_name> <config_path>
