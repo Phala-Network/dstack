@@ -22,6 +22,7 @@ pub async fn list_hosts(state: &State<AppState>) -> Html<String> {
                 a { color: #1a73e8; text-decoration: none; }
                 a:hover { text-decoration: underline; }
             </style>
+            <title>CVM Hosts - Tproxy</title>
         </head>
         <body>
             <h1>CVM Hosts</h1>

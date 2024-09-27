@@ -22,7 +22,16 @@ pub fn load_config_figment(config_file: Option<&str>) -> Figment {
         .merge(leaf_config)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+pub struct CvmConfig {
+    pub ca_cert: PathBuf,
+    pub tmp_ca_cert: PathBuf,
+    pub tmp_ca_key: PathBuf,
+    pub kms_url: String,
+    pub tproxy_url: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub image_path: PathBuf,
@@ -30,6 +39,9 @@ pub struct Config {
     pub run_path: PathBuf,
     #[serde(default)]
     pub qemu_path: PathBuf,
+
+    /// CVM configuration
+    pub cvm: CvmConfig,
 }
 
 impl Config {

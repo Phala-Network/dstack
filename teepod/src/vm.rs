@@ -1,4 +1,4 @@
-mod image {
+pub(crate) mod image {
     use fs_err as fs;
     use std::path::{Path, PathBuf};
 
@@ -13,10 +13,11 @@ mod image {
         pub hda: Option<String>,
         pub rootfs: Option<String>,
         pub bios: Option<String>,
+        pub rootfs_hash: Option<String>,
     }
 
     impl ImageInfo {
-        pub fn new(filename: PathBuf) -> Result<Self> {
+        pub fn load(filename: PathBuf) -> Result<Self> {
             let file = fs::File::open(filename).context("failed to open image info")?;
             let info: ImageInfo =
                 serde_json::from_reader(file).context("failed to parse image info")?;
@@ -37,7 +38,7 @@ mod image {
     impl Image {
         pub fn load(base_path: impl AsRef<Path>) -> Result<Self> {
             let base_path = fs::canonicalize(base_path.as_ref())?;
-            let info = ImageInfo::new(base_path.join("metadata.json"))?;
+            let info = ImageInfo::load(base_path.join("metadata.json"))?;
             let initrd = base_path.join(&info.initrd);
             let kernel = base_path.join(&info.kernel);
             let hda = info.hda.as_ref().map(|hda| base_path.join(hda));
@@ -83,14 +84,14 @@ mod image {
 
 pub(crate) mod run {
     pub use super::image::Image;
-    pub use super::qemu::VmConfig;
+    pub use super::qemu::{TdxConfig, VmConfig};
     use anyhow::{bail, Context, Result};
     use shared_child::SharedChild;
     use std::collections::BTreeMap;
     use std::io::Read;
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
-    use std::time::Instant;
+    use std::time::{Duration, Instant};
     use tracing::{error, info};
 
     pub struct VmInstance {
@@ -168,11 +169,27 @@ pub(crate) mod run {
         }
 
         pub fn info(&self) -> VmInfo {
+            let is_running = match &self.process {
+                Some(child) => match child.try_wait() {
+                    Ok(None) => true,
+                    _ => false,
+                },
+                None => false,
+            };
+            fn truncate(d: Duration) -> Duration {
+                Duration::from_secs(d.as_secs())
+            }
+            let uptime = self.started_at.map(|t| t.elapsed());
+            let uptime_ms = uptime.map(|d| d.as_millis()).unwrap_or_default();
+            let uptime = uptime
+                .map(|d| humantime::format_duration(truncate(d)).to_string())
+                .unwrap_or_default();
             VmInfo {
                 id: self.config.id.clone(),
-                is_running: self.process.is_some(),
-                started_at: self.started_at.unwrap().elapsed().as_secs().to_string(),
-                exited_at: self.exited_at.map(|t| t.elapsed().as_secs().to_string()),
+                is_running,
+                uptime_ms,
+                uptime,
+                exited_at: None,
             }
         }
     }
@@ -180,7 +197,8 @@ pub(crate) mod run {
     pub struct VmInfo {
         pub id: String,
         pub is_running: bool,
-        pub started_at: String,
+        pub uptime_ms: u128,
+        pub uptime: String,
         pub exited_at: Option<String>,
     }
 
@@ -332,7 +350,7 @@ mod qemu {
         if let Some(tdx) = &config.tdx_config {
             command
                 .arg("-machine")
-                .arg("q35,kernel-irqchip=split,confidential-guest=tdx,hpet=off");
+                .arg("q35,kernel-irqchip=split,confidential-guest-support=tdx,hpet=off");
             command.arg("-object").arg("tdx-guest,id=tdx");
             command
                 .arg("-device")

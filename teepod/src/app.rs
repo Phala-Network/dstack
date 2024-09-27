@@ -16,7 +16,7 @@
 //!             └── docker-compose.yaml
 //! ```
 use crate::config::Config;
-use crate::vm::run::{Image, VmConfig, VmMonitor};
+use crate::vm::run::{Image, TdxConfig, VmConfig, VmMonitor};
 
 use anyhow::{Context, Result};
 use bon::Builder;
@@ -24,7 +24,8 @@ use fs_err as fs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard};
 use teepod_rpc::VmInfo;
 
 #[derive(Deserialize, Serialize, Builder)]
@@ -41,25 +42,25 @@ pub struct Manifest {
 
 #[derive(Clone)]
 pub struct App {
+    pub config: Arc<Config>,
     state: Arc<Mutex<AppState>>,
 }
 
-struct AppState {
-    config: Config,
+pub(crate) struct AppState {
     monitor: VmMonitor,
 }
 
 impl App {
     pub(crate) fn vm_dir(&self) -> PathBuf {
-        self.state.lock().unwrap().config.run_path.clone().into()
+        self.config.run_path.clone().into()
     }
 
     pub fn new(config: Config) -> Self {
         Self {
             state: Arc::new(Mutex::new(AppState {
                 monitor: VmMonitor::new(config.qemu_path.clone()),
-                config,
             })),
+            config: Arc::new(config),
         }
     }
 
@@ -69,22 +70,21 @@ impl App {
         let manifest: Manifest =
             serde_json::from_str(&manifest).context("Failed to parse manifest")?;
         let todo = "sanitize the image name";
-        let image_path = self
-            .state
-            .lock()
-            .unwrap()
-            .config
-            .image_path
-            .join(&manifest.image);
+        let image_path = self.config.image_path.join(&manifest.image);
         let image = Image::load(&image_path).context("Failed to load image")?;
+
+        let todo = "CID management";
+
+        static NEXT_CID: AtomicU32 = AtomicU32::new(10000);
+        let cid = NEXT_CID.fetch_add(1, Ordering::Relaxed);
+
         let vm_config = VmConfig {
             id: manifest.id.clone(),
             process_name: manifest.name,
             vcpu: manifest.vcpu,
             memory: manifest.memory,
             image,
-            // TODO: add tdx config
-            tdx_config: None,
+            tdx_config: Some(TdxConfig { cid }),
             port_map: manifest.port_map,
             disk_size: manifest.disk_size,
         };
@@ -122,21 +122,27 @@ impl App {
     }
 
     pub fn list_vms(&self) -> Vec<VmInfo> {
-        self.state
+        let mut infos = self
+            .state
             .lock()
             .unwrap()
             .monitor
             .iter_vms()
-            .map(|vm| {
-                let info = vm.info();
-                VmInfo {
-                    id: info.id,
-                    status: if info.is_running {
-                        "running".to_string()
-                    } else {
-                        "stopped".to_string()
-                    },
-                }
+            .map(|vm| vm.info())
+            .collect::<Vec<_>>();
+
+        infos.sort_by(|a, b| b.uptime_ms.cmp(&a.uptime_ms));
+
+        infos
+            .into_iter()
+            .map(|info| VmInfo {
+                id: info.id,
+                status: if info.is_running {
+                    "running".to_string()
+                } else {
+                    "stopped".to_string()
+                },
+                uptime: info.uptime,
             })
             .collect()
     }

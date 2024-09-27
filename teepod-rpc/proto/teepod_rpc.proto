@@ -9,6 +9,8 @@ message VmInfo {
   string id = 1;
   // Current status of the VM (e.g., running, stopped)
   string status = 2;
+  // Uptime in human-readable format
+  string uptime = 3;
 }
 
 message Id {

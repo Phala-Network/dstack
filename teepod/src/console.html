@@ -69,6 +69,7 @@
             <div v-for="vm in vms" :key="vm.id">
                 <strong>ID:</strong> {{ vm.id }}
                 <strong>Status:</strong> {{ vm.status }}
+                <strong>Uptime:</strong> {{ vm.uptime }}
                 <button @click="stopVM(vm.id)">Stop VM</button>
                 <button @click="showLog(vm.id)">Show Log</button>
             </div>

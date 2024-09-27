@@ -3,6 +3,10 @@
 include config.mk
 
 DIST_DIR := $(shell pwd)/dist
+ROOTFS_CPIO_PATH := $(shell pwd)/rootfs/isoroot/rootfs.cpio
+
+DIST_LABEL := ubuntu-24.04
+
 COMPONENTS := image rootfs initramfs
 
 export KERNEL_VERSION
@@ -29,7 +33,10 @@ dist-kernel:
 	cp /boot/vmlinuz-$(KERNEL_VERSION) $(DIST_DIR)
 
 dist: $(addprefix dist-,$(COMPONENTS)) dist-kernel
-	./scripts/generate_img_metadata.sh $(DIST_DIR)
+	./scripts/generate_img_metadata.sh $(DIST_DIR) $(ROOTFS_CPIO_PATH)
+
+dist-to-teepod:
+	$(MAKE) dist DIST_DIR=~/.teepod/image/$(DIST_LABEL)
 
 clean: $(addprefix clean-,$(COMPONENTS))
 

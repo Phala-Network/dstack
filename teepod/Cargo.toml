@@ -21,3 +21,4 @@ fs-err = "2.11.0"
 dirs = "5.0.1"
 which = "6.0.3"
 clap = { version = "4.5.18", features = ["derive"] }
+humantime = "2.1.0"
