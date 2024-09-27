@@ -4,16 +4,16 @@ max_blocking = 64
 ident = "Phala KMS"
 temp_dir = "/tmp"
 keep_alive = 10
-log_level = "debug"
+log_level = "info"
 address = "0.0.0.0"
 port = 8043
 
 [default.tls]
-key = "../certs/kms-rpc.key"
-certs = "../certs/kms-rpc.cert"
+key = "/etc/kms/certs/key.pem"
+certs = "/etc/kms/certs/cert.pem"
 
 [default.tls.mutual]
-ca_certs = "../certs/tmp-ca.cert"
+ca_certs = "/etc/kms/certs/ca.cert"
 mandatory = false
 
 [default.limits]
@@ -26,12 +26,12 @@ msgpack = "1MiB"
 string = "8KiB"
 
 [core]
-root_ca_cert = "../certs/ca.cert"
-root_ca_key = "../certs/ca.key"
+root_ca_cert = "/etc/kms/certs/ca.cert"
+root_ca_key = "/etc/kms/certs/ca.key"
 subject_postfix = ".local"
 
 [core.allowed_mr]
-allow_all = true
+allow_all = false
 mrtd = []
 rtmr0 = []
 rtmr1 = []
