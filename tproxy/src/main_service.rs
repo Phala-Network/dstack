@@ -12,7 +12,7 @@ use ra_rpc::{Attestation, RpcCall};
 use serde::{Deserialize, Serialize};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
-    RegisterCvmRequest, RegisterCvmResponse,
+    HostInfo as PbHostInfo, ListResponse, RegisterCvmRequest, RegisterCvmResponse,
 };
 use tracing::{error, info};
 
@@ -180,6 +180,22 @@ impl TproxyRpc for RpcHandler {
             server_ip: state.config.wg.ip.to_string(),
             server_endpoint: state.config.wg.endpoint.clone(),
         })
+    }
+
+    async fn list(self) -> Result<ListResponse> {
+        let state = self.state.lock();
+        let listen_port = state.config.proxy.listen_port;
+        let base_domain = &state.config.proxy.base_domain;
+        let hosts = state
+            .hosts
+            .values()
+            .map(|host| PbHostInfo {
+                ip: host.ip.to_string(),
+                app_id: host.id.clone(),
+                endpoint: format!("https://{}.{}:{}", host.id, base_domain, listen_port),
+            })
+            .collect::<Vec<_>>();
+        Ok(ListResponse { hosts })
     }
 }
 

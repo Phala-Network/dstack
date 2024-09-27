@@ -22,7 +22,26 @@ message RegisterCvmResponse {
   string server_endpoint = 4;
 }
 
+// ListResponse is the response for List.
+message ListResponse {
+  // The list of proxied CVMs.
+  repeated HostInfo hosts = 1;
+}
+
+// HostInfo is the information of a host.
+message HostInfo {
+  // The IP address of the host.
+  string ip = 1;
+  // The app id of the host.
+  string app_id = 2;
+  // The HTTPS endpoint of the host.
+  string endpoint = 3;
+}
+
+
 service Tproxy {
   // Register a new proxied CVM.
   rpc RegisterCvm(RegisterCvmRequest) returns (RegisterCvmResponse) {}
+  // List all proxied CVMs.
+  rpc List(google.protobuf.Empty) returns (ListResponse) {}
 }
