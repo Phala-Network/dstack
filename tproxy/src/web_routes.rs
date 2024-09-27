@@ -7,13 +7,15 @@ use rocket::{
     http::ContentType,
     mtls::Certificate,
     post,
-    response::status::Custom,
+    response::{content::RawHtml, status::Custom},
     routes, Route, State,
 };
 
+mod list_hosts;
+
 #[get("/")]
-async fn index() -> String {
-    "Tproxy Server is running!\n".to_string()
+async fn index(state: &State<AppState>) -> RawHtml<String> {
+    list_hosts::list_hosts(state).await
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]
