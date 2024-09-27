@@ -63,12 +63,19 @@ impl Attestation {
 
     /// Decode the app-id from the event log
     pub fn decode_app_id(&self) -> Result<String> {
+        fn truncate40(s: &str) -> &str {
+            if s.len() > 40 {
+                &s[..40]
+            } else {
+                s
+            }
+        }
         let event_log = String::from_utf8(self.event_log.clone()).context("invalid event log")?;
         for line in event_log.lines() {
             let event = serde_json::from_str::<EventLog>(line)?;
             let todo = "more restricted checks";
             if event.imr == 3 && event.associated_data == "app-id" {
-                return Ok(event.digest);
+                return Ok(truncate40(&event.digest).to_string());
             }
         }
         Err(anyhow!("app-id not found"))
