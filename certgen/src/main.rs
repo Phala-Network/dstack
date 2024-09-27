@@ -21,7 +21,6 @@ fn main() -> anyhow::Result<()> {
 
     let tmp_ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
-    let app_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let kms_www_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let tproxy_rpc_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
 
@@ -55,12 +54,6 @@ fn main() -> anyhow::Result<()> {
         .build()
         .signed_by(&ca_cert, &ca_key)?;
 
-    let app_no_quote_cert = CertRequest::builder()
-        .subject("Example App")
-        .key(&app_key)
-        .build()
-        .signed_by(&ca_cert, &ca_key)?;
-
     let output_dir = &args.output_dir;
     store_cert(
         output_dir,
@@ -68,7 +61,7 @@ fn main() -> anyhow::Result<()> {
         &tmp_ca_cert.pem(),
         &tmp_ca_key.serialize_pem(),
     )?;
-    store_cert(output_dir, "ca", &ca_cert.pem(), &ca_key.serialize_pem())?;
+    store_cert(output_dir, "root-ca", &ca_cert.pem(), &ca_key.serialize_pem())?;
     store_cert(
         output_dir,
         "kms-rpc",
@@ -80,12 +73,6 @@ fn main() -> anyhow::Result<()> {
         "tproxy-rpc",
         &tproxy_rpc_cert.pem(),
         &tproxy_rpc_key.serialize_pem(),
-    )?;
-    store_cert(
-        output_dir,
-        "app-no-quote",
-        &app_no_quote_cert.pem(),
-        &app_key.serialize_pem(),
     )?;
     Ok(())
 }

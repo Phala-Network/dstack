@@ -1,15 +1,18 @@
-DOMAIN:=local
+DOMAIN := local
+TO := ./certs
 
-.PHONY: clean run all
+.PHONY: clean run all certs
 
 all:
 
-certs:
-	mkdir -p certs
-	cargo run --bin certgen -- --domain ${DOMAIN} --output-dir certs
+certs: ${TO}
+
+${TO}:
+	mkdir -p ${TO}
+	cargo run --bin certgen -- --domain ${DOMAIN} --output-dir ${TO}
 
 run:
 	$(MAKE) -C mkguest run
 
 clean:
-	rm -rf certs
+	rm -rf ${TO}
