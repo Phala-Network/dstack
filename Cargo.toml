@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "kms",
-    "kms-rpc",
+    "kms/rpc",
     "ra-rpc",
     "ra-tls",
     "tdx-attest-sys",
@@ -9,11 +9,11 @@ members = [
     "tdxctl",
     "iohash",
     "tappd",
-    "tappd-rpc",
+    "tappd/rpc",
     "teepod",
-    "teepod-rpc",
+    "teepod/rpc",
     "tproxy",
-    "tproxy-rpc",
+    "tproxy/rpc",
     "certgen",
 ]
 resolver = "2"

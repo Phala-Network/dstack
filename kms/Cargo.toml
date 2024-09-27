@@ -8,7 +8,7 @@ anyhow = "1.0.88"
 clap = { version = "4.5.18", features = ["derive"] }
 hex = "0.4.3"
 hex_fmt = "0.3.0"
-kms-rpc = { version = "0.1.0", path = "../kms-rpc" }
+kms-rpc = { version = "0.1.0", path = "./rpc" }
 ra-rpc = { version = "0.1.0", path = "../ra-rpc" }
 ra-tls = { version = "0.1.0", path = "../ra-tls" }
 rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }

@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 ra-rpc = { version = "0.1.0", path = "../ra-rpc" }
-teepod-rpc = { version = "0.1.0", path = "../teepod-rpc" }
+teepod-rpc = { version = "0.1.0", path = "./rpc" }
 rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
