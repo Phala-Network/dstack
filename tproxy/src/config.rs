@@ -3,7 +3,7 @@ use rocket::figment::{
     providers::{Format, Toml},
     Figment,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::net::Ipv4Addr;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -18,15 +18,20 @@ pub struct WgConfig {
     pub endpoint: String,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PortMap {
+    pub listen_addr: Ipv4Addr,
+    pub listen_port: u16,
+    pub target_port: u16,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProxyConfig {
     pub cert_chain: String,
     pub cert_key: String,
-    pub listen_addr: Ipv4Addr,
-    pub listen_port: u16,
     pub base_domain: String,
-    pub target_port: u16,
     pub config_path: String,
+    pub portmap: Vec<PortMap>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

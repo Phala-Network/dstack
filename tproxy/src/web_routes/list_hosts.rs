@@ -30,21 +30,31 @@ pub async fn list_hosts(state: &State<AppState>) -> Html<String> {
                 <tr>
                     <th>App ID</th>
                     <th>IP</th>
-                    <th>Endpoint</th>
+                    <th>Ports</th>
                 </tr>
     "#,
     );
 
     for host in response.hosts {
+        let app_id = &host.app_id;
+        let ip = &host.ip;
+        let endpoint = &host.endpoint;
+        let ports = host
+            .ports
+            .iter()
+            .map(|port| {
+                format!(r#"<a href="https://{endpoint}:{port}" target="_blank">{port}</a>"#)
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
         html.push_str(&format!(
             r#"
                 <tr>
-                    <td>{}</td>
-                    <td>{}</td>
-                    <td><a href="{}" target="_blank">{}</a></td>
+                    <td>{app_id}</td>
+                    <td>{ip}</td>
+                    <td>{ports}</td>
                 </tr>
-        "#,
-            host.app_id, host.ip, host.endpoint, host.endpoint
+            "#,
         ));
     }
 

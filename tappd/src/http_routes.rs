@@ -1,15 +1,16 @@
 use crate::rpc_service::{AppState, ExternalRpcHandler, InternalRpcHandler};
 use anyhow::Result;
-use ra_rpc::rocket_helper::handle_prpc;
+use ra_rpc::{rocket_helper::handle_prpc, RpcCall};
 use rocket::{
     data::{Data, Limits},
     get,
     http::ContentType,
     mtls::Certificate,
     post,
-    response::status::Custom,
+    response::{content::RawHtml, status::Custom},
     routes, Route, State,
 };
+use tappd_rpc::{worker_server::WorkerRpc, WorkerInfo};
 
 #[post("/prpc/<method>?<json>", data = "<data>")]
 async fn prpc_post(
@@ -52,8 +53,52 @@ pub fn internal_routes() -> Vec<Route> {
 }
 
 #[get("/")]
-async fn index() -> String {
-    "Tappd Server is running!\n".to_string()
+async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
+    let handler = ExternalRpcHandler::construct(state, None)
+        .map_err(|e| format!("Failed to construct RPC handler: {}", e))?;
+    let WorkerInfo {
+        app_id,
+        tcb_info,
+        app_cert,
+    } = handler
+        .info()
+        .await
+        .map_err(|e| format!("Failed to get worker info: {}", e))?;
+
+    Ok(RawHtml(format!(
+        r#"
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Worker Information</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    padding: 20px;
+                    max-width: 800px;
+                    margin: 0 auto;
+                }}
+                textarea {{
+                    width: 100%;
+                    height: 200px;
+                    margin-bottom: 20px;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>Worker Information</h1>
+            <p><strong>App ID:</strong> {app_id}</p>
+            <h2>TCB Info:</h2>
+            <textarea readonly>{tcb_info}</textarea>
+            <h2>Certificate:</h2>
+            <textarea readonly>{app_cert}</textarea>
+        </body>
+        </html>
+        "#
+    )))
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]

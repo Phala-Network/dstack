@@ -108,16 +108,15 @@ impl AppStateInner {
     fn generate_proxy_config(&self) -> Result<String> {
         let peers = self.hosts.values().cloned().collect::<Vec<_>>();
         let template = include_str!("./templates/rproxy.yaml");
+        let portmap = self.config.proxy.portmap.clone();
         render_template(
             template,
             context! {
-                listen_addr => self.config.proxy.listen_addr,
-                listen_port => self.config.proxy.listen_port,
                 cert_chain => self.config.proxy.cert_chain,
                 cert_key => self.config.proxy.cert_key,
                 base_domain => self.config.proxy.base_domain,
-                target_port => self.config.proxy.target_port,
                 peers => peers,
+                portmap => portmap,
             },
         )
     }
@@ -188,7 +187,13 @@ impl TproxyRpc for RpcHandler {
 
     async fn list(self) -> Result<ListResponse> {
         let state = self.state.lock();
-        let listen_port = state.config.proxy.listen_port;
+        let ports = state
+            .config
+            .proxy
+            .portmap
+            .iter()
+            .map(|p| p.listen_port as u32)
+            .collect::<Vec<_>>();
         let base_domain = &state.config.proxy.base_domain;
         let hosts = state
             .hosts
@@ -196,7 +201,8 @@ impl TproxyRpc for RpcHandler {
             .map(|host| PbHostInfo {
                 ip: host.ip.to_string(),
                 app_id: host.id.clone(),
-                endpoint: format!("https://{}.{}:{}", host.id, base_domain, listen_port),
+                endpoint: format!("https://{}.{}", host.id, base_domain),
+                ports: ports.clone(),
             })
             .collect::<Vec<_>>();
         Ok(ListResponse { hosts })

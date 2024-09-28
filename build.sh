@@ -15,8 +15,11 @@ TPROXY_WG_LISTEN_PORT=51821
 TPROXY_WG_IP=10.0.4.1
 TPROXY_WG_CLIENT_IP_RANGE=10.0.4.0/24
 
-TPROXY_LISTEN_PORT=9443  # The public port of tproxy
-TPROXY_TARGET_PORT=8080  # The target port of tproxy
+TPROXY_LISTEN_PORT1=9443  # The public port of tproxy
+TPROXY_LISTEN_PORT2=9090  # The public port of tproxy
+
+TPROXY_TARGET_PORT1=8080  # The target port of tproxy
+TPROXY_TARGET_PORT2=8090  # The target port of tproxy
 
 TPROXY_WG_KEY=$(wg genkey)
 TPROXY_WG_PUBKEY=$(echo $TPROXY_WG_KEY | wg pubkey)
@@ -82,7 +85,7 @@ certs = "$CERTS_DIR/tproxy-rpc.cert"
 ca_certs = "$CERTS_DIR/root-ca.cert"
 mandatory = false
 
-[default.wg]
+[wg]
 private_key = "$TPROXY_WG_KEY"
 public_key = "$TPROXY_WG_PUBKEY"
 ip = "$TPROXY_WG_IP"
@@ -92,14 +95,21 @@ config_path = "$RUN_DIR/wg.conf"
 interface = "$TPROXY_WG_INTERFACE"
 endpoint = "10.0.2.2:$TPROXY_WG_LISTEN_PORT"
 
-[default.proxy]
+[proxy]
 cert_chain = "/etc/rproxy/certs/cert.pem"
 cert_key = "/etc/rproxy/certs/key.pem"
-listen_addr = "0.0.0.0"
-listen_port = $TPROXY_LISTEN_PORT
-target_port = $TPROXY_TARGET_PORT
 base_domain = "$TPROXY_PUBLIC_DOMAIN"
 config_path = "$RUN_DIR/rproxy.yaml"
+
+[[proxy.portmap]]
+listen_addr = "0.0.0.0"
+listen_port = $TPROXY_LISTEN_PORT1
+target_port = $TPROXY_TARGET_PORT1
+
+[[proxy.portmap]]
+listen_addr = "0.0.0.0"
+listen_port = $TPROXY_LISTEN_PORT2
+target_port = $TPROXY_TARGET_PORT2
 EOF
 
 # teepod

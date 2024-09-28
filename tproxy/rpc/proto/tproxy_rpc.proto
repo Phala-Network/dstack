@@ -36,6 +36,8 @@ message HostInfo {
   string app_id = 2;
   // The HTTPS endpoint of the host.
   string endpoint = 3;
+  // The external ports of the host.
+  repeated uint32 ports = 4;
 }
 
 
