@@ -17,3 +17,6 @@ rcgen = { version = "0.13.1", features = ["x509-parser", "pem"] }
 tdx-attest = { version = "0.1.0", path = "../tdx-attest" }
 sha2 = "0.10.8"
 clap = { version = "4.5.18", features = ["derive"] }
+tokio = { version = "1.40.0", features = ["full"] }
+hex = "0.4.3"
+serde_json = "1.0.128"

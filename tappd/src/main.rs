@@ -1,12 +1,12 @@
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 
 use anyhow::{anyhow, Context, Result};
+use clap::Parser;
 use rocket::{
     figment::Figment,
     listener::{Bind, DefaultListener},
 };
 use rpc_service::AppState;
-use clap::Parser;
 
 mod config;
 mod http_routes;
@@ -20,9 +20,9 @@ struct Args {
     config: Option<String>,
 }
 
-async fn run_http(state: AppState, figment: Figment) -> Result<()> {
+async fn run_internal(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
-        .mount("/", http_routes::routes())
+        .mount("/", http_routes::internal_routes())
         .manage(state);
     let ignite = rocket
         .ignite()
@@ -44,11 +44,30 @@ async fn run_http(state: AppState, figment: Figment) -> Result<()> {
     Ok(())
 }
 
+async fn run_external(state: AppState, figment: Figment) -> Result<()> {
+    let rocket = rocket::custom(figment)
+        .mount("/", http_routes::external_routes())
+        .manage(state);
+    let _ = rocket
+        .launch()
+        .await
+        .map_err(|err| anyhow!("Failed to ignite rocket: {err}"))?;
+    Ok(())
+}
+
 #[rocket::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
     let figment = config::load_config_figment(args.config.as_deref());
-    let state = AppState::new(figment.extract()?).context("Failed to create app state")?;
-    run_http(state, figment).await?;
+    let state =
+        AppState::new(figment.clone().select("core").extract()?).context("Failed to create app state")?;
+
+    let internal_figment = figment.clone().select("internal");
+    let external_figment = figment.select("external");
+
+    tokio::select!(
+        res = run_internal(state.clone(), internal_figment) => res?,
+        res = run_external(state, external_figment) => res?
+    );
     Ok(())
 }

@@ -41,3 +41,19 @@ message TdxQuoteResponse {
   // Event log
   string event_log = 2;
 }
+
+
+service Worker {
+  // Get worker info
+  rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
+}
+
+// The request to derive a key
+message WorkerInfo {
+  // Worker ID
+  string app_id = 1;
+  // App certificate
+  string app_cert = 2;
+  // TCB info
+  string tcb_info = 3;
+}
