@@ -68,9 +68,9 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
     let containers = list_containers().await.unwrap_or_default().containers;
     let containers_str = containers
         .iter()
-        .map(|c| serde_json::to_string(&c).unwrap_or_default())
+        .map(|c| serde_json::to_string_pretty(&c).unwrap_or_default())
         .collect::<Vec<String>>()
-        .join("\n");
+        .join("\n\n");
 
     Ok(RawHtml(format!(
         r#"

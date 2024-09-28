@@ -16,7 +16,8 @@ use crate::{
 
 /// A CA certificate and private key.
 pub struct CaCert {
-    pem_cert: String,
+    /// The original PEM certificate.
+    pub pem_cert: String,
     /// CA certificate
     pub cert: Certificate,
     /// CA private key

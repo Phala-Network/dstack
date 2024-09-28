@@ -127,7 +127,7 @@ impl WorkerRpc for ExternalRpcHandler {
         let rtmr1 = hex::encode(&report.rt_mr1);
         let rtmr2 = hex::encode(&report.rt_mr2);
         let rtmr3 = hex::encode(&report.rt_mr3);
-        let tcb_info = serde_json::to_string(&json!({
+        let tcb_info = serde_json::to_string_pretty(&json!({
             "rootfs_hash": rootfs_hash,
             "mrtd": mrtd,
             "rtmr0": rtmr0,
@@ -138,7 +138,7 @@ impl WorkerRpc for ExternalRpcHandler {
         .unwrap_or_default();
         Ok(WorkerInfo {
             app_id,
-            app_cert: ca.cert.pem(),
+            app_cert: ca.pem_cert.clone(),
             tcb_info,
         })
     }

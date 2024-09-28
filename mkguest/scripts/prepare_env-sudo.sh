@@ -1,13 +1,10 @@
 #!/bin/bash
 set -e
 
-add-apt-repository -y ppa:kobuk-team/tdx-release
-add-apt-repository -y ppa:kobuk-team/tdx-attestation-release
-
 apt update
 
 # install required tools
-apt install --yes qemu-utils libguestfs-tools virtinst genisoimage libvirt-daemon-system make libtdx-attest-dev
+apt install --yes qemu-utils libguestfs-tools virtinst genisoimage libvirt-daemon-system make
 
 # rootfs tools
 apt install --yes qemu-utils nbdfuse fuse2fs

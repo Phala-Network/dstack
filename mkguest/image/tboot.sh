@@ -4,10 +4,10 @@ set -e
 CLIENT_PRIVATE_KEY=$(wg genkey)
 CLIENT_PUBLIC_KEY=$(echo $CLIENT_PRIVATE_KEY | wg pubkey)
 
-TPROXY_URL=$(jq -r '.tproxy_url' /tapp/config/config.json)
+TPROXY_URL=$(jq -r '.tproxy_url' /tapp/config.json)
 
 mkdir -p /etc/tappd
-cp /tapp/config/certs/ca.cert /etc/tappd/ca.cert
+cp /tapp/certs/ca.cert /etc/tappd/ca.cert
 jq -r '.app_key' /tapp/appkeys.json > /etc/tappd/app-ca.key
 jq -r '.certificate_chain[]' /tapp/appkeys.json | awk 'NF {print $0 > "/etc/tappd/app-ca.cert"}'
 

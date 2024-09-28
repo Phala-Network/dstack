@@ -72,6 +72,7 @@ kmfs_premount() {
     if [ -e /config/initialized ]; then
         echo "[$(date +%H:%M:%S)] FSINIT: Mounting"
         echo "$key_phrase" | cryptsetup luksOpen --type luks2 -d- ${ROOT} rootfs_crypt || panic "FSINIT: Failed to open encrypted rootfs"
+        mount /dev/mapper/rootfs_crypt /root || panic "FSINIT: Failed to mount rootfs"
     else
         # Set up disk encryption and format the disk
 
@@ -115,14 +116,14 @@ kmfs_premount() {
             panic "FSINIT: Rootfs hash mismatch"
         fi
 
-        mkdir -p /root/tapp
-        rm -rf /root/tapp/config
-        cp -r ${CFG_DIR} /root/tapp/config
-        cp ${KMFS_WORK_DIR}/appkeys.json /root/tapp/appkeys.json
-        echo "FSINIT: Copied config to /root/tapp/config"
-        umount /root || panic "FSINIT: Failed to unmount /root"
+        cp -rT ${CFG_DIR} /root/tapp || panic "FSINIT: Failed to copy config to /root/tapp"
         touch /config/initialized || echo "FSINIT: Failed to touch initialized"
     fi
+
+    cp ${KMFS_WORK_DIR}/appkeys.json /root/tapp/appkeys.json || panic "FSINIT: Failed to copy appkeys.json to /root/tapp"
+    cp ${CFG_DIR}/config.json /root/tapp/config.json || panic "FSINIT: Failed to copy config.json to /root/tapp"
+    echo "FSINIT: Copied config to /root/tapp"
+    umount /root || panic "FSINIT: Failed to unmount /root"
     umount /config || panic "FSINIT: Failed to unmount /config"
     ROOT=/dev/mapper/rootfs_crypt
 }
