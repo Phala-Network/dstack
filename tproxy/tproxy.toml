@@ -16,7 +16,7 @@ json = "1MiB"
 msgpack = "1MiB"
 string = "8KiB"
 
-[wg]
+[core.wg]
 public_key = ""
 private_key = ""
 ip = "10.0.3.1"
@@ -26,19 +26,13 @@ config_path = "/etc/wireguard/wg0.conf"
 interface = "wg0"
 endpoint = "10.0.2.2:51820"
 
-[proxy]
+[core.proxy]
 bin = "/usr/bin/rproxy"
 cert_chain = "/etc/rproxy/certs/cert.pem"
 cert_key = "/etc/rproxy/certs/key.pem"
 base_domain = "app.localhost"
 config_path = "/etc/rproxy/rproxy.conf"
-
-[[proxy.portmap]]
-listen_addr = "0.0.0.0"
-listen_port = 8443
-target_port = 8080
-
-[[proxy.portmap]]
-listen_addr = "0.0.0.0"
-listen_port = 8090
-target_port = 8090
+portmap = [
+    { listen_addr = "0.0.0.0", listen_port = 8443, target_port = 8080 },
+    { listen_addr = "0.0.0.0", listen_port = 8090, target_port = 8090 },
+]

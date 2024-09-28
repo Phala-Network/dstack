@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     let figment = config::load_config_figment(args.config.as_deref());
 
-    let config = figment.extract::<Config>()?;
+    let config = figment.clone().select("core").extract::<Config>()?;
     let proxy_config_path = config.proxy.config_path.clone();
     let state = main_service::AppState::new(config);
     state.lock().reconfigure()?;

@@ -3,7 +3,7 @@ Description=Tappd Service
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/tappd
+ExecStart=/bin/tappd
 Restart=always
 User=root
 Group=root
