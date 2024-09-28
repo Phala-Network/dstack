@@ -103,8 +103,8 @@ pub struct ExternalRpcHandler {
 
 impl WorkerRpc for ExternalRpcHandler {
     async fn info(self) -> Result<WorkerInfo> {
-        let cert = &self.state.inner.ca.cert;
-        let Some(attestation) = Attestation::from_cert(cert).ok().flatten() else {
+        let ca = &self.state.inner.ca;
+        let Some(attestation) = ca.decode_attestation().ok().flatten() else {
             return Ok(WorkerInfo::default());
         };
         let app_id = attestation
@@ -137,7 +137,7 @@ impl WorkerRpc for ExternalRpcHandler {
         .unwrap_or_default();
         Ok(WorkerInfo {
             app_id,
-            app_cert: cert.pem(),
+            app_cert: ca.cert.pem(),
             tcb_info,
         })
     }

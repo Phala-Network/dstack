@@ -3120,6 +3120,7 @@ dependencies = [
  "rustls-pki-types",
  "serde",
  "serde_json",
+ "x509-parser",
  "yasna",
 ]
 

@@ -1,19 +1,22 @@
 //! Certificate creation functions.
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use fs_err as fs;
 use rcgen::{
     BasicConstraints, Certificate, CertificateParams, CustomExtension, DistinguishedName, DnType,
     IsCa, KeyPair, SanType,
 };
+use x509_parser::der_parser::Oid;
 
 use crate::{
+    attestation::Attestation,
     oids::{PHALA_RATLS_APP_INFO, PHALA_RATLS_EVENT_LOG, PHALA_RATLS_QUOTE},
     traits::CertExt,
 };
 
 /// A CA certificate and private key.
 pub struct CaCert {
+    pem_cert: String,
     /// CA certificate
     pub cert: Certificate,
     /// CA private key
@@ -21,15 +24,25 @@ pub struct CaCert {
 }
 
 impl CaCert {
+    /// Instantiate a new CA certificate with a given private key and pem cert.
+    pub fn new(pem_cert: String, pem_key: String) -> Result<Self> {
+        let key = KeyPair::from_pem(&pem_key).context("Failed to parse key")?;
+        let cert =
+            CertificateParams::from_ca_cert_pem(&pem_cert).context("Failed to parse cert")?;
+        let todo = "load the cert from the file directly: blocked by https://github.com/rustls/rcgen/issues/274";
+        let cert = cert.self_signed(&key).context("Failed to self-sign cert")?;
+        Ok(Self {
+            pem_cert,
+            cert,
+            key,
+        })
+    }
+
     /// Load a CA certificate and private key from files.
     pub fn load(cert_path: &str, key_path: &str) -> Result<Self> {
         let pem_key = fs::read_to_string(key_path).context("Failed to read key file")?;
-        let key = KeyPair::from_pem(&pem_key).context("Failed to parse key")?;
-        let cert = fs::read_to_string(cert_path).context("Failed to read cert file")?;
-        let cert = CertificateParams::from_ca_cert_pem(&cert).context("Failed to parse cert")?;
-        let todo = "load the cert from the file directly: blocked by https://github.com/rustls/rcgen/issues/274";
-        let cert = cert.self_signed(&key).context("Failed to self-sign cert")?;
-        Ok(Self { cert, key })
+        let pem_cert = fs::read_to_string(cert_path).context("Failed to read cert file")?;
+        Self::new(pem_cert, pem_key)
     }
 
     /// Sign a certificate request.
@@ -38,6 +51,28 @@ impl CaCert {
         let params = req.into_cert_params()?;
         let cert = params.signed_by(&key, &self.cert, &self.key)?;
         Ok(cert)
+    }
+
+    /// Decode the attestation extension if present.
+    pub fn decode_attestation(&self) -> Result<Option<Attestation>> {
+        use x509_parser::pem::Pem;
+        let Some(pem) = Pem::iter_from_buffer(self.pem_cert.as_bytes())
+            .next()
+            .transpose()
+            .context("Invalid pem")?
+        else {
+            return Ok(None);
+        };
+        let cert = pem.parse_x509().context("Invalid x509 certificate")?;
+        let externsions = cert.tbs_certificate.extensions();
+        let attestation = Attestation::from_ext_getter(|oid| {
+            let oid = Oid::from(oid).or(Err(anyhow!("Invalid oid")))?;
+            let Some(ext) = externsions.iter().find(|ext| ext.oid == oid) else {
+                return Ok(None);
+            };
+            Ok(Some(ext.value.to_vec()))
+        })?;
+        Ok(attestation)
     }
 }
 
@@ -103,11 +138,7 @@ impl<'a> CertRequest<'a> {
     }
 
     /// Create a certificate signed by a given issuer.
-    pub fn signed_by(
-        self,
-        issuer: &Certificate,
-        issuer_key: &KeyPair,
-    ) -> Result<Certificate> {
+    pub fn signed_by(self, issuer: &Certificate, issuer_key: &KeyPair) -> Result<Certificate> {
         let key = self.key;
         let cert = self
             .into_cert_params()?

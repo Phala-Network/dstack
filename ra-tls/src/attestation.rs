@@ -6,6 +6,7 @@ use dcap_qvl::quote::Quote;
 use crate::{event_log::EventLog, oids, traits::CertExt};
 
 /// Attestation data
+#[derive(Debug, Clone)]
 pub struct Attestation {
     /// Quote
     pub quote: Vec<u8>,

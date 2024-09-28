@@ -16,4 +16,5 @@ ring = "0.17.8"
 rustls-pki-types = "1.8.0"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
+x509-parser = "0.16.0"
 yasna = "0.5.2"
