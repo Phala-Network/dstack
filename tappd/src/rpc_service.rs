@@ -11,7 +11,8 @@ use serde_json::json;
 use tappd_rpc::{
     tappd_server::{TappdRpc, TappdServer},
     worker_server::{WorkerRpc, WorkerServer},
-    DeriveKeyArgs, DeriveKeyResponse, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo,
+    Container, DeriveKeyArgs, DeriveKeyResponse, ListContainersResponse, TdxQuoteArgs,
+    TdxQuoteResponse, WorkerInfo,
 };
 
 use crate::config::Config;
@@ -141,6 +142,33 @@ impl WorkerRpc for ExternalRpcHandler {
             tcb_info,
         })
     }
+
+    async fn list_containers(self) -> Result<ListContainersResponse> {
+        list_containers().await
+    }
+}
+
+pub(crate) async fn list_containers() -> Result<ListContainersResponse> {
+    let docker = bollard::Docker::connect_with_defaults().context("Failed to connect to Docker")?;
+    let containers = docker
+        .list_containers::<&str>(None)
+        .await
+        .context("Failed to list containers")?;
+    Ok(ListContainersResponse {
+        containers: containers
+            .into_iter()
+            .map(|c| Container {
+                id: c.id.unwrap_or_default(),
+                names: c.names.unwrap_or_default(),
+                image: c.image.unwrap_or_default(),
+                image_id: c.image_id.unwrap_or_default(),
+                command: c.command.unwrap_or_default(),
+                created: c.created.unwrap_or_default(),
+                state: c.state.unwrap_or_default(),
+                status: c.status.unwrap_or_default(),
+            })
+            .collect(),
+    })
 }
 
 impl RpcCall<AppState> for ExternalRpcHandler {

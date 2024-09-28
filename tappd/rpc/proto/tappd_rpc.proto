@@ -46,6 +46,31 @@ message TdxQuoteResponse {
 service Worker {
   // Get worker info
   rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
+  // Get worker containers
+  rpc ListContainers(google.protobuf.Empty) returns (ListContainersResponse) {}
+}
+
+message ListContainersResponse {
+  repeated Container containers = 1;
+}
+
+message Container {
+  // The ID of this container
+  string id = 1;
+  // The names that this container has been given
+  repeated string names = 2;
+  // The name of the image used when creating this container
+  string image = 3;
+  // The ID of the image that this container was created from
+  string image_id = 4;
+  // Command to run when starting the container
+  string command = 5;
+  // When the container was created
+  int64 created = 6;
+  // The state of this container (e.g. Exited)
+  string state = 7;
+  // The status of this container (e.g. Exited)
+  string status = 8;
 }
 
 // The request to derive a key

@@ -1,4 +1,4 @@
-use crate::rpc_service::{AppState, ExternalRpcHandler, InternalRpcHandler};
+use crate::rpc_service::{list_containers, AppState, ExternalRpcHandler, InternalRpcHandler};
 use anyhow::Result;
 use ra_rpc::{rocket_helper::handle_prpc, RpcCall};
 use rocket::{
@@ -65,6 +65,13 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         .await
         .map_err(|e| format!("Failed to get worker info: {}", e))?;
 
+    let containers = list_containers().await.unwrap_or_default().containers;
+    let containers_str = containers
+        .iter()
+        .map(|c| serde_json::to_string(&c).unwrap_or_default())
+        .collect::<Vec<String>>()
+        .join("\n");
+
     Ok(RawHtml(format!(
         r#"
         <!DOCTYPE html>
@@ -95,6 +102,8 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
             <textarea readonly>{tcb_info}</textarea>
             <h2>Certificate:</h2>
             <textarea readonly>{app_cert}</textarea>
+            <h2>Containers:</h2>
+            <textarea readonly>{containers_str}</textarea>
         </body>
         </html>
         "#
