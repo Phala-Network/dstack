@@ -62,36 +62,34 @@ impl Attestation {
         Quote::parse(&self.quote)
     }
 
-    /// Decode the app-id from the event log
-    pub fn decode_app_id(&self) -> Result<String> {
-        fn truncate40(s: &str) -> &str {
-            if s.len() > 40 {
-                &s[..40]
-            } else {
-                s
-            }
-        }
+    fn find_event(&self, imr: u32, ad: &str) -> Result<EventLog> {
         let event_log = String::from_utf8(self.event_log.clone()).context("invalid event log")?;
         for line in event_log.lines() {
             let event = serde_json::from_str::<EventLog>(line)?;
-            let todo = "more restricted checks";
-            if event.imr == 3 && event.associated_data == "app-id" {
-                return Ok(truncate40(&event.digest).to_string());
+            if event.imr == imr && event.associated_data == ad {
+                return Ok(event);
             }
         }
-        Err(anyhow!("app-id not found"))
+        Err(anyhow!("event {ad} not found"))
+    }
+
+    /// Decode the app-id from the event log
+    pub fn decode_app_id(&self) -> Result<String> {
+        self.find_event(3, "app-id")
+            .map(|event| truncate(&event.digest, 40).to_string())
     }
 
     /// Decode the rootfs hash from the event log
     pub fn decode_rootfs_hash(&self) -> Result<String> {
-        let event_log = String::from_utf8(self.event_log.clone()).context("invalid event log")?;
-        for line in event_log.lines() {
-            let event = serde_json::from_str::<EventLog>(line)?;
-            let todo = "more restricted checks";
-            if event.imr == 3 && event.associated_data == "rootfs-hash" {
-                return Ok(event.digest);
-            }
-        }
-        Err(anyhow!("rootfs-hash not found"))
+        self.find_event(3, "rootfs-hash")
+            .map(|event| truncate(&event.digest, 64).to_string())
+    }
+}
+
+fn truncate(s: &str, len: usize) -> &str {
+    if s.len() > len {
+        &s[..len]
+    } else {
+        s
     }
 }
