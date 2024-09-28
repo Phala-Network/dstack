@@ -35,6 +35,8 @@ packages:
 bootcmd:
   - /bin/sed -E -i 's/^root:([^:]+):.*$/root:\$1\$root\$j0bp.KLPyr.u9kgQ428D10:17764:0:99999:7:::/' /etc/shadow
 
+ssh_pwauth: True
+
 power_state:
   delay: now
   mode: poweroff

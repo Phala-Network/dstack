@@ -9,3 +9,4 @@ systemctl enable app-compose.service
 systemctl enable tappd.service
 systemctl enable tboot.service
 echo "port=4050" > /etc/tdx-attest.conf
+rm -rf /etc/ssh/sshd_config.d/60-cloudimg-settings.conf
