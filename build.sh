@@ -105,3 +105,34 @@ portmap = [
     { listen_addr = "0.0.0.0", listen_port = $TPROXY_LISTEN_PORT2, target_port = $TPROXY_TARGET_PORT2 },
 ]
 EOF
+
+# teepod
+cat <<EOF > teepod.toml
+[default]
+log_level = "info"
+port = $TEEPOD_LISTEN_PORT
+image_path = "$IMAGES_DIR"
+run_path = "$RUN_DIR/vm"
+
+[default.cvm]
+ca_cert = "$CERTS_DIR/root-ca.cert"
+tmp_ca_cert = "$CERTS_DIR/tmp-ca.cert"
+tmp_ca_key = "$CERTS_DIR/tmp-ca.key"
+kms_url = "https://kms.$BASE_DOMAIN:$KMS_RPC_LISTEN_PORT"
+tproxy_url = "https://tproxy.$BASE_DOMAIN:$TPROXY_RPC_LISTEN_PORT"
+EOF
+
+# Step 5: prepare run dir
+mkdir -p $RUN_DIR
+
+# Step 6: setup wireguard interface
+sudo ip link add $TPROXY_WG_INTERFACE type wireguard
+sudo ip address add $TPROXY_WG_IP/24 dev $TPROXY_WG_INTERFACE
+sudo ip link set $TPROXY_WG_INTERFACE up
+# sudo ip route add $TPROXY_WG_CLIENT_IP_RANGE dev $TPROXY_WG_INTERFACE
+
+# Step 7: start services
+
+# ./kms -c kms.toml
+# sudo ./tproxy -c tproxy.toml
+# ./teepod -c teepod.toml
