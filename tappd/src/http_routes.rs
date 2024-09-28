@@ -100,9 +100,9 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
             <p><strong>App ID:</strong> {app_id}</p>
             <h2>TCB Info:</h2>
             <textarea readonly>{tcb_info}</textarea>
-            <h2>Certificate:</h2>
+            <h2>App Certificate:</h2>
             <textarea readonly>{app_cert}</textarea>
-            <h2>Containers:</h2>
+            <h2>Deployed Containers:</h2>
             <textarea readonly>{containers_str}</textarea>
         </body>
         </html>
