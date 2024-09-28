@@ -5,8 +5,9 @@ SCRIPT_DIR=$(dirname $(realpath $0))
 cd $SCRIPT_DIR
 
 sudo ./scripts/prepare_env-sudo.sh
-sudo chmod o+rx ~
-sudo usermod -aG libvirt ${USER}
+
+# Allow libvirt to access my files
+sudo usermod -aG ${USER} libvirt-qemu
 
 # install rustc if not installed
 if ! rustc --version; then
