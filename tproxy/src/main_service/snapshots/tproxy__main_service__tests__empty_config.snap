@@ -11,3 +11,10 @@ servers:
       certificate: /etc/rproxy/certs/cert.pem
       key: /etc/rproxy/certs/key.pem
       sni: []
+  - type: socket
+    listen: 0.0.0.0:8090
+    handler:
+      type: lazytls
+      certificate: /etc/rproxy/certs/cert.pem
+      key: /etc/rproxy/certs/key.pem
+      sni: []

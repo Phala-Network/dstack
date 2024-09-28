@@ -19,9 +19,9 @@ string = "8KiB"
 [core.wg]
 public_key = ""
 private_key = ""
-ip = "10.0.3.1"
+ip = "10.0.0.1"
 listen_port = 51820
-client_ip_range = "10.0.3.0/24"
+client_ip_range = "10.0.0.0/24"
 config_path = "/etc/wireguard/wg0.conf"
 interface = "wg0"
 endpoint = "10.0.2.2:51820"

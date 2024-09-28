@@ -1,5 +1,5 @@
 servers:
-  {% for p in portmap %}
+  {%- for p in portmap %}
   - type: socket
     listen: {{ p.listen_addr }}:{{ p.listen_port }}
     handler:
@@ -17,5 +17,5 @@ servers:
       {% endfor %}
       {% else -%}
       []
-      {% endif %}
-  {% endfor %}
+      {%- endif %}
+  {%- endfor %}

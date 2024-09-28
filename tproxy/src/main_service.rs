@@ -201,7 +201,7 @@ impl TproxyRpc for RpcHandler {
             .map(|host| PbHostInfo {
                 ip: host.ip.to_string(),
                 app_id: host.id.clone(),
-                endpoint: format!("https://{}.{}", host.id, base_domain),
+                endpoint: format!("{}.{}", host.id, base_domain),
                 ports: ports.clone(),
             })
             .collect::<Vec<_>>();

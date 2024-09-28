@@ -24,3 +24,25 @@ servers:
           handler:
             type: tunnel
             target: 10.0.0.3:8080
+      
+      
+  - type: socket
+    listen: 0.0.0.0:8090
+    handler:
+      type: lazytls
+      certificate: /etc/rproxy/certs/cert.pem
+      key: /etc/rproxy/certs/key.pem
+      sni: 
+        - hostname: test-id-0.app.localhost
+          certificate: /etc/rproxy/certs/cert.pem
+          key: /etc/rproxy/certs/key.pem
+          handler:
+            type: tunnel
+            target: 10.0.0.2:8090
+      
+        - hostname: test-id-1.app.localhost
+          certificate: /etc/rproxy/certs/cert.pem
+          key: /etc/rproxy/certs/key.pem
+          handler:
+            type: tunnel
+            target: 10.0.0.3:8090
