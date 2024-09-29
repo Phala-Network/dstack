@@ -8,6 +8,8 @@ sudo ./scripts/prepare_env-sudo.sh
 
 # Allow libvirt to access my files
 sudo usermod -aG ${USER} libvirt-qemu
+sudo usermod -aG libvirt ${USER}
+sudo usermod -aG kvm ${USER}
 
 # install rustc if not installed
 if ! rustc --version; then
