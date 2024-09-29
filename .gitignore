@@ -1,2 +1,4 @@
 /target
 /certs
+/build-config.sh
+/build
