@@ -1,4 +1,3 @@
-[default]
 workers = 8
 max_blocking = 64
 ident = "Phala KMS"
@@ -8,22 +7,13 @@ log_level = "info"
 address = "0.0.0.0"
 port = 8043
 
-[default.tls]
+[tls]
 key = "/etc/kms/certs/key.pem"
 certs = "/etc/kms/certs/cert.pem"
 
-[default.tls.mutual]
+[tls.mutual]
 ca_certs = "/etc/kms/certs/ca.cert"
 mandatory = false
-
-[default.limits]
-bytes = "8KiB"
-data-form = "2MiB"
-file = "1MiB"
-form = "32KiB"
-json = "1MiB"
-msgpack = "1MiB"
-string = "8KiB"
 
 [core]
 root_ca_cert = "/etc/kms/certs/ca.cert"

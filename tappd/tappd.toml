@@ -6,6 +6,10 @@ temp_dir = "/tmp"
 keep_alive = 10
 log_level = "debug"
 
+[default.core]
+cert_file = "/etc/tappd/app-ca.cert"
+key_file = "/etc/tappd/app-ca.key"
+
 [internal]
 address = "unix:/var/run/tappd.sock"
 reuse = false
@@ -13,7 +17,3 @@ reuse = false
 [external]
 address = "0.0.0.0"
 port = 8090
-
-[core]
-cert_file = "/etc/tappd/app-ca.cert"
-key_file = "/etc/tappd/app-ca.key"

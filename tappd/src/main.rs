@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     let figment = config::load_config_figment(args.config.as_deref());
     let state =
-        AppState::new(figment.clone().select("core").extract()?).context("Failed to create app state")?;
+        AppState::new(figment.focus("core").extract()?).context("Failed to create app state")?;
 
     let internal_figment = figment.clone().select("internal");
     let external_figment = figment.select("external");

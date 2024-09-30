@@ -13,12 +13,12 @@ pub const DEFAULT_CONFIG: &str = include_str!("../teepod.toml");
 
 pub fn load_config_figment(config_file: Option<&str>) -> Figment {
     let leaf_config = match config_file {
-        Some(path) => Toml::file(path).nested(),
-        None => Toml::file(CONFIG_FILENAME).nested(),
+        Some(path) => Toml::file(path),
+        None => Toml::file(CONFIG_FILENAME),
     };
     Figment::from(rocket::Config::default())
-        .merge(Toml::string(DEFAULT_CONFIG).nested())
-        .merge(Toml::file(SYSTEM_CONFIG_FILENAME).nested())
+        .merge(Toml::string(DEFAULT_CONFIG))
+        .merge(Toml::file(SYSTEM_CONFIG_FILENAME))
         .merge(leaf_config)
 }
 

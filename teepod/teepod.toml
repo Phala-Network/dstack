@@ -1,4 +1,3 @@
-[default]
 workers = 8
 max_blocking = 64
 ident = "Teepod Server"
@@ -7,18 +6,9 @@ keep_alive = 10
 log_level = "debug"
 port = 8080
 
-[default.cvm]
+[cvm]
 ca_cert = "../certs/ca.cert"
 tmp_ca_cert = "../certs/tmp-ca.cert"
 tmp_ca_key = "../certs/tmp-ca.key"
 kms_url = "http://127.0.0.1:8081"
 tproxy_url = "http://127.0.0.1:8082"
-
-[default.limits]
-bytes = "8KiB"
-data-form = "2MiB"
-file = "1MiB"
-form = "32KiB"
-json = "1MiB"
-msgpack = "1MiB"
-string = "8KiB"

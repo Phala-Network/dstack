@@ -55,16 +55,15 @@ make -C .. certs DOMAIN=$BASE_DOMAIN TO=$CERTS_DIR
 
 # kms
 cat <<EOF > kms.toml
-[default]
 log_level = "info"
 address = "0.0.0.0"
 port = $KMS_RPC_LISTEN_PORT
 
-[default.tls]
+[tls]
 key = "$CERTS_DIR/kms-rpc.key"
 certs = "$CERTS_DIR/kms-rpc.cert"
 
-[default.tls.mutual]
+[tls.mutual]
 ca_certs = "$CERTS_DIR/tmp-ca.cert"
 mandatory = false
 
@@ -83,16 +82,15 @@ EOF
 
 # tproxy
 cat <<EOF > tproxy.toml
-[default]
 log_level = "info"
 address = "0.0.0.0"
 port = $TPROXY_RPC_LISTEN_PORT
 
-[default.tls]
+[tls]
 key = "$CERTS_DIR/tproxy-rpc.key"
 certs = "$CERTS_DIR/tproxy-rpc.cert"
 
-[default.tls.mutual]
+[tls.mutual]
 ca_certs = "$CERTS_DIR/root-ca.cert"
 mandatory = false
 
@@ -119,13 +117,12 @@ EOF
 
 # teepod
 cat <<EOF > teepod.toml
-[default]
 log_level = "info"
 port = $TEEPOD_RPC_LISTEN_PORT
 image_path = "$IMAGES_DIR"
 run_path = "$RUN_DIR/vm"
 
-[default.cvm]
+[cvm]
 ca_cert = "$CERTS_DIR/root-ca.cert"
 tmp_ca_cert = "$CERTS_DIR/tmp-ca.cert"
 tmp_ca_key = "$CERTS_DIR/tmp-ca.key"
