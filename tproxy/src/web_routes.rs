@@ -14,8 +14,10 @@ use rocket::{
 mod list_hosts;
 
 #[get("/")]
-async fn index(state: &State<AppState>) -> RawHtml<String> {
-    list_hosts::list_hosts(state).await
+async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
+    list_hosts::list_hosts(state)
+        .await
+        .map_err(|e| format!("{e}"))
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]

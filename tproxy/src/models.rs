@@ -5,6 +5,7 @@ use std::{
     collections::{btree_map::Iter, BTreeMap},
     net::Ipv4Addr,
 };
+use tproxy_rpc::HostInfo as PbHostInfo;
 
 pub struct MapValues<'a, K, V>(pub &'a BTreeMap<K, V>);
 impl<'a, K, V> Copy for MapValues<'a, K, V> {}
@@ -70,4 +71,10 @@ pub struct RProxyConf<'a> {
     pub cert_chain: &'a str,
     pub cert_key: &'a str,
     pub base_domain: &'a str,
+}
+
+#[derive(Template)]
+#[template(path = "cvmlist.html", escape = "none")]
+pub struct CvmList<'a> {
+    pub hosts: &'a [PbHostInfo],
 }
