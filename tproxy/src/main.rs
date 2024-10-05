@@ -6,6 +6,7 @@ mod config;
 mod main_service;
 mod proxy;
 mod web_routes;
+mod models;
 
 #[derive(Parser)]
 #[command(author, version, about)]

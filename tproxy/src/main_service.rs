@@ -7,9 +7,8 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use fs_err as fs;
-use minijinja::context;
 use ra_rpc::{Attestation, RpcCall};
-use serde::{Deserialize, Serialize};
+use rinja::Template as _;
 use tokio::sync::broadcast::{Receiver, Sender};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
@@ -17,7 +16,10 @@ use tproxy_rpc::{
 };
 use tracing::{error, info};
 
-use crate::config::Config;
+use crate::{
+    config::Config,
+    models::{HostInfo, RProxyConf, WgConf},
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -30,13 +32,6 @@ pub(crate) struct AppStateInner {
     hosts: BTreeMap<String, HostInfo>,
     allocated_addresses: BTreeSet<Ipv4Addr>,
     reconfigure_tx: Sender<()>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct HostInfo {
-    id: String,
-    ip: Ipv4Addr,
-    public_key: String,
 }
 
 impl AppState {
@@ -92,33 +87,23 @@ impl AppStateInner {
     }
 
     fn generate_wg_config(&self) -> Result<String> {
-        let peers = self.hosts.values().cloned().collect::<Vec<_>>();
-        let template = include_str!("./templates/wg.conf");
-        render_template(
-            template,
-            context! {
-                peers => peers,
-                private_key => self.config.wg.private_key,
-                listen_port => self.config.wg.listen_port,
-                ip => self.config.wg.ip,
-            },
-        )
+        let model = WgConf {
+            private_key: &self.config.wg.private_key,
+            listen_port: self.config.wg.listen_port,
+            peers: (&self.hosts).into(),
+        };
+        Ok(model.render()?)
     }
 
     fn generate_proxy_config(&self) -> Result<String> {
-        let peers = self.hosts.values().cloned().collect::<Vec<_>>();
-        let template = include_str!("./templates/rproxy.yaml");
-        let portmap = self.config.proxy.portmap.clone();
-        render_template(
-            template,
-            context! {
-                cert_chain => self.config.proxy.cert_chain,
-                cert_key => self.config.proxy.cert_key,
-                base_domain => self.config.proxy.base_domain,
-                peers => peers,
-                portmap => portmap,
-            },
-        )
+        let model = RProxyConf {
+            cert_chain: &self.config.proxy.cert_chain,
+            cert_key: &self.config.proxy.cert_key,
+            base_domain: &self.config.proxy.base_domain,
+            peers: (&self.hosts).into(),
+            portmap: &self.config.proxy.portmap,
+        };
+        Ok(model.render()?)
     }
 
     pub(crate) fn reconfigure(&mut self) -> Result<()> {
@@ -149,14 +134,6 @@ impl AppStateInner {
     pub(crate) fn subscribe_reconfigure(&self) -> Receiver<()> {
         self.reconfigure_tx.subscribe()
     }
-}
-
-fn render_template(template: &str, data: impl Serialize) -> Result<String> {
-    use minijinja::Environment;
-    let mut env = Environment::new();
-    env.add_template("tmpl", template)?;
-    let template = env.get_template("tmpl")?;
-    Ok(template.render(data)?)
 }
 
 pub struct RpcHandler {
