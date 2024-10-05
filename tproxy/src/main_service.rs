@@ -111,7 +111,7 @@ impl AppStateInner {
         fs::write(&self.config.wg.config_path, wg_config)?;
         // wg setconf <interface_name> <config_path>
         let output = Command::new("wg")
-            .arg("setconf")
+            .arg("syncconf")
             .arg(&self.config.wg.interface)
             .arg(&self.config.wg.config_path)
             .output()?;
