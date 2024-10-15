@@ -6,8 +6,9 @@ MKINITRAMFS := ./mkinitramfs
 OUTPUT_INITRD := initrd-$(KERNEL_VERSION).img
 INSTALL_DIR := $(shell pwd)/../dist
 
-TDX_KO = $(shell pwd)/mod-tdx-guest/tdx-guest.ko
-MAKE_TDX_KO = make -C /lib/modules/$(KERNEL_VERSION)/build M=`pwd`/mod-tdx-guest
+MOD_DIR = $(shell pwd)/../../mod-tdx-guest
+TDX_KO = $(MOD_DIR)/tdx-guest.ko
+MAKE_TDX_KO = make -C /lib/modules/$(KERNEL_VERSION)/build M=$(MOD_DIR)
 
 export TDX_KO
 export CMD_IOHASH
