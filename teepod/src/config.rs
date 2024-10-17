@@ -29,6 +29,7 @@ pub struct CvmConfig {
     pub tmp_ca_key: PathBuf,
     pub kms_url: String,
     pub tproxy_url: String,
+    pub max_disk_size: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]

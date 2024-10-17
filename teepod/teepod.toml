@@ -12,3 +12,4 @@ tmp_ca_cert = "../certs/tmp-ca.cert"
 tmp_ca_key = "../certs/tmp-ca.key"
 kms_url = "http://127.0.0.1:8081"
 tproxy_url = "http://127.0.0.1:8082"
+max_disk_size = 100

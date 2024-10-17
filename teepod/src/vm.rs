@@ -281,14 +281,21 @@ mod qemu {
         pub port_map: HashMap<u16, u16>,
     }
 
-    fn create_hd(backing_file: impl AsRef<Path>, image_file: impl AsRef<Path>) -> Result<()> {
+    fn create_hd(
+        image_file: impl AsRef<Path>,
+        backing_file: Option<impl AsRef<Path>>,
+        size: &str,
+    ) -> Result<()> {
         let mut command = Command::new("qemu-img");
         command.arg("create").arg("-f").arg("qcow2");
-        command
-            .arg("-o")
-            .arg(format!("backing_file={}", backing_file.as_ref().display()));
-        command.arg("-o").arg("backing_fmt=qcow2");
+        if let Some(backing_file) = backing_file {
+            command
+                .arg("-o")
+                .arg(format!("backing_file={}", backing_file.as_ref().display()));
+            command.arg("-o").arg("backing_fmt=qcow2");
+        }
         command.arg(image_file.as_ref());
+        command.arg(size);
         command.spawn()?.wait()?;
         Ok(())
     }
@@ -301,16 +308,11 @@ mod qemu {
         let workdir = workdir.as_ref();
         let serial_file = workdir.join("serial.log");
         let shared_dir = workdir.join("shared");
-        let hda_path = match &config.image.hda {
-            Some(hda) => {
-                let hda_path = workdir.join("hda.img");
-                if !hda_path.exists() {
-                    create_hd(hda, &hda_path)?;
-                }
-                Some(hda_path)
-            }
-            None => None,
-        };
+        let disk_size = format!("{}G", config.disk_size);
+        let hda_path = workdir.join("hda.img");
+        if !hda_path.exists() {
+            create_hd(&hda_path, config.image.hda.as_ref(), &disk_size)?;
+        }
         if !shared_dir.exists() {
             fs::create_dir_all(&shared_dir)?;
         }
@@ -327,13 +329,11 @@ mod qemu {
             .arg(format!("file:{}", serial_file.display()));
         command.arg("-kernel").arg(&config.image.kernel);
         command.arg("-initrd").arg(&config.image.initrd);
-        if let Some(hda) = hda_path {
-            command
-                .arg("-drive")
-                .arg(format!("file={},if=none,id=hd0", hda.display()))
-                .arg("-device")
-                .arg(format!("virtio-blk-pci,drive=hd0"));
-        }
+        command
+            .arg("-drive")
+            .arg(format!("file={},if=none,id=hd0", hda_path.display()))
+            .arg("-device")
+            .arg(format!("virtio-blk-pci,drive=hd0"));
         if let Some(rootfs) = &config.image.rootfs {
             command.arg("-cdrom").arg(rootfs);
         }
@@ -390,7 +390,8 @@ mod qemu {
             port_map: map! {
                 10022u16: 22u16,
             },
-            disk_size: 1024,
+            disk_size: 10,
+            max_disk_size: 10,
         };
         let child = run_vm("qemu-system-x86_64", &config, &vm_dir).unwrap();
         let status = child.wait().unwrap();

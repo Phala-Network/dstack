@@ -18,7 +18,7 @@
 use crate::config::Config;
 use crate::vm::run::{Image, TdxConfig, VmConfig, VmMonitor};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use bon::Builder;
 use fs_err as fs;
 use serde::{Deserialize, Serialize};
@@ -88,6 +88,12 @@ impl App {
             port_map: manifest.port_map,
             disk_size: manifest.disk_size,
         };
+        if vm_config.disk_size > self.config.cvm.max_disk_size {
+            bail!(
+                "disk size too large, max size is {}",
+                self.config.cvm.max_disk_size
+            );
+        }
         let result = self
             .state
             .lock()

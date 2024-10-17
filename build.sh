@@ -46,7 +46,19 @@ cargo build --release
 cp ../target/release/{tproxy,kms,teepod} .
 
 # Step 2: build guest images
-make -C ../mkguest dist DIST_DIR=$IMAGES_DIR/ubuntu-24.04
+IMG_DIST_DIR=$IMAGES_DIR/ubuntu-24.04
+make -C ../../ dist DIST_DIR=$IMG_DIST_DIR
+ROOTFS_HASH=$(sha256sum "$IMG_DIST_DIR/rootfs.cpio" | awk '{print $1}')
+cat <<EOF > $IMG_DIST_DIR/metadata.json
+{
+    "bios": "ovmf.fd",
+    "kernel": "bzImage",
+    "cmdline": "console=ttyS0 init=/init dstack.fde=1 dstack.integrity=0",
+    "initrd": "initramfs.cpio.gz",
+    "rootfs": "rootfs.iso",
+    "rootfs_hash": "$ROOTFS_HASH"
+}
+EOF
 
 # Step 3: make certs
 make -C .. certs DOMAIN=$BASE_DOMAIN TO=$CERTS_DIR
