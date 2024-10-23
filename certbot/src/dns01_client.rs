@@ -41,6 +41,7 @@ pub(crate) trait Dns01Api {
     async fn get_txt_records(&self, domain: &str) -> Result<Vec<Record>>;
 }
 
+/// A DNS-01 client.
 #[derive(Debug, Serialize, Deserialize)]
 #[enum_dispatch(Dns01Api)]
 #[serde(rename_all = "lowercase")]
