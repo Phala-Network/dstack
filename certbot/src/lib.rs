@@ -41,8 +41,8 @@
 
 pub use acme_client::AcmeClient;
 pub use dns01_client::Dns01Client;
-pub use cert_bot::CertBotConfig;
+pub use bot::{CertBot, CertBotConfig};
 
 mod acme_client;
 mod dns01_client;
-mod cert_bot;
+mod bot;
