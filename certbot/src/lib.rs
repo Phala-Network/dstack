@@ -52,7 +52,7 @@ use serde::Deserialize;
 use std::{path::Path, time::Duration};
 use tokio::time::sleep;
 use tracing::{debug, error, info};
-use x509_parser::{pem::Pem, prelude::GeneralName};
+use x509_parser::prelude::{GeneralName, Pem};
 
 pub use dns01_client::Dns01Client;
 
@@ -385,14 +385,11 @@ fn need_renew(cert_pem: &str, expires_in: Duration) -> Result<bool> {
 }
 
 fn read_pem(cert_pem: &str) -> Result<Pem> {
-    let Some(pem) = Pem::iter_from_buffer(cert_pem.as_bytes())
+    Pem::iter_from_buffer(cert_pem.as_bytes())
         .next()
         .transpose()
         .context("Invalid pem")?
-    else {
-        bail!("no pem found");
-    };
-    Ok(pem)
+        .context("no certificate in pem")
 }
 
 fn extract_subject_alt_names(cert_pem: &str) -> Result<Vec<String>> {
