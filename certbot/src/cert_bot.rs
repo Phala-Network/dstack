@@ -1,0 +1,170 @@
+use std::{
+    collections::BTreeSet,
+    io::ErrorKind,
+    path::{Path, PathBuf},
+    time::Duration,
+};
+
+use anyhow::{Context, Result};
+use fs_err as fs;
+use tokio::time::sleep;
+use tracing::{error, info};
+
+use crate::acme_client::read_pem;
+
+use super::{AcmeClient, Dns01Client};
+
+#[derive(Clone, Debug, bon::Builder)]
+#[builder(on(String, into))]
+#[builder(on(PathBuf, into))]
+pub struct CertBotConfig {
+    acme_url: String,
+    credentials_file: PathBuf,
+    auto_create_account: bool,
+    cf_zone_id: String,
+    cf_api_token: String,
+    cert_file: PathBuf,
+    key_file: PathBuf,
+    cert_dir: PathBuf,
+    cert_subject_alt_names: Vec<String>,
+    renew_interval: Duration,
+    renew_expires_in: Duration,
+}
+
+impl CertBotConfig {
+    pub async fn build_bot(&self) -> Result<CertBot> {
+        CertBot::build(self.clone()).await
+    }
+}
+
+pub struct CertBot {
+    acme_client: AcmeClient,
+    config: CertBotConfig,
+}
+
+impl CertBot {
+    /// Build a new `CertBot` from a `CertBotConfig`.
+    pub async fn build(config: CertBotConfig) -> Result<Self> {
+        let dns01_client =
+            Dns01Client::new_cloudflare(config.cf_zone_id.clone(), config.cf_api_token.clone());
+        let acme_client = match fs::read_to_string(&config.credentials_file) {
+            Ok(credentials) => AcmeClient::load(dns01_client, &credentials).await?,
+            Err(e) if e.kind() == ErrorKind::NotFound => {
+                if !config.auto_create_account {
+                    return Err(e).context("credentials file not found");
+                }
+                info!("Creating new ACME account");
+                let client = AcmeClient::new_account(&config.acme_url, dns01_client)
+                    .await
+                    .context("failed to create new account")?;
+                let credentials = client
+                    .dump_credentials()
+                    .context("failed to dump credentials")?;
+                if let Some(credential_dir) = config.credentials_file.parent() {
+                    fs::create_dir_all(credential_dir)
+                        .context("failed to create credential directory")?;
+                }
+                fs::write(&config.credentials_file, credentials)
+                    .context("failed to write credentials")?;
+                client
+            }
+            Err(e) => {
+                return Err(e).context("Failed to read credentials file");
+            }
+        };
+        Ok(Self {
+            acme_client,
+            config,
+        })
+    }
+
+    /// Get the ACME account ID.
+    pub fn account_id(&self) -> String {
+        self.acme_client.account_id()
+    }
+
+    /// List all issued certificates.
+    pub fn list_certs(&self) -> Result<Vec<PathBuf>> {
+        let mut certs = vec![];
+        let cert_dir = Path::new(&self.config.cert_dir);
+        for entry in fs::read_dir(cert_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let cert_path = path.join("cert.pem");
+            if path.is_dir() && cert_path.exists() {
+                certs.push(cert_path);
+            }
+        }
+        Ok(certs)
+    }
+
+    /// List all public keys.
+    pub fn list_cert_public_keys(&self) -> Result<BTreeSet<Vec<u8>>> {
+        Ok(self
+            .list_certs()?
+            .into_iter()
+            .map(|cert_path| {
+                let cert_pem = fs::read_to_string(&cert_path).context("failed to read cert")?;
+                read_pubkey(&cert_pem).context("failed to parse cert")
+            })
+            .collect::<Result<_>>()?)
+    }
+
+    /// Run the certbot.
+    pub async fn run(&self) {
+        loop {
+            self.run_once().await.ok();
+            sleep(self.config.renew_interval).await;
+        }
+    }
+
+    /// Run the certbot once.
+    pub async fn run_once(&self) -> Result<()> {
+        self.acme_client
+            .create_cert_if_needed(
+                &self.config.cert_subject_alt_names,
+                &self.config.cert_file,
+                &self.config.key_file,
+                &self.config.cert_dir,
+            )
+            .await?;
+        info!("checking if certificate needs to be renewed");
+        let renewed = self
+            .acme_client
+            .auto_renew(
+                &self.config.cert_file,
+                &self.config.key_file,
+                &self.config.cert_dir,
+                self.config.renew_expires_in,
+            )
+            .await;
+        match renewed {
+            Ok(true) => {
+                info!(
+                    "renewed certificate for {}",
+                    self.config.cert_file.display()
+                );
+            }
+            Ok(false) => {
+                info!(
+                    "certificate {} is up to date",
+                    self.config.cert_file.display()
+                );
+            }
+            Err(e) => {
+                error!("failed to renew cert: {e:?}");
+                return Err(e);
+            }
+        }
+        Ok(())
+    }
+}
+
+fn read_pubkey(cert_pem: &str) -> Result<Vec<u8>> {
+    let cert = read_pem(cert_pem)?;
+    let public_key = cert.parse_x509().context("failed to parse x509 cert")?;
+    Ok(public_key.tbs_certificate.public_key().raw.to_vec())
+}
+
+#[cfg(test)]
+mod tests;

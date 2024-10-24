@@ -601,6 +601,7 @@ name = "certbot"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bon",
  "enum_dispatch",
  "fs-err 3.0.0",
  "hickory-resolver",
