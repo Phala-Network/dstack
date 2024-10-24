@@ -3,6 +3,7 @@ use ra_tls::{
     cert::CertRequest,
     rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256},
 };
+use fs_err as fs;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -80,7 +81,7 @@ fn main() -> anyhow::Result<()> {
 fn store_cert(path: &str, name: &str, cert: &str, key: &str) -> anyhow::Result<()> {
     let cert_path = format!("{}/{}.cert", path, name);
     let key_path = format!("{}/{}.key", path, name);
-    std::fs::write(cert_path, cert)?;
-    std::fs::write(key_path, key)?;
+    fs::write(cert_path, cert)?;
+    fs::write(key_path, key)?;
     Ok(())
 }

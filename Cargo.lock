@@ -602,6 +602,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "enum_dispatch",
+ "fs-err 3.0.0",
  "hickory-resolver",
  "instant-acme",
  "rand 0.8.5",
@@ -609,9 +610,11 @@ dependencies = [
  "reqwest 0.12.8",
  "serde",
  "serde_json",
+ "time",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "x509-parser",
 ]
 
 [[package]]
@@ -620,6 +623,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "fs-err 3.0.0",
  "ra-tls",
 ]
 
@@ -1399,6 +1403,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs-err"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bb60e7409f34ef959985bc9d9c5ee8f5db24ee46ed9775850548021710f807f"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "fs_extra"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2157,7 +2170,7 @@ dependencies = [
  "anyhow",
  "blake2",
  "clap",
- "fs-err",
+ "fs-err 2.11.0",
  "hex_fmt",
  "sha2 0.10.8",
  "sha3",
@@ -2315,6 +2328,7 @@ name = "kms-rpc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "fs-err 3.0.0",
  "parity-scale-codec",
  "prost 0.12.6",
  "prpc",
@@ -3380,7 +3394,7 @@ dependencies = [
  "bon",
  "dcap-qvl",
  "elliptic-curve",
- "fs-err",
+ "fs-err 2.11.0",
  "hkdf",
  "p256",
  "rcgen",
@@ -4766,7 +4780,7 @@ dependencies = [
  "anyhow",
  "bollard",
  "clap",
- "fs-err",
+ "fs-err 2.11.0",
  "hex",
  "ra-rpc",
  "ra-tls",
@@ -4818,7 +4832,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "fs-err",
+ "fs-err 2.11.0",
  "hex",
  "hex_fmt",
  "parity-scale-codec",
@@ -4837,7 +4851,7 @@ dependencies = [
  "bon",
  "clap",
  "dirs",
- "fs-err",
+ "fs-err 2.11.0",
  "hex",
  "humantime",
  "ra-rpc",
@@ -5116,7 +5130,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "fs-err",
+ "fs-err 2.11.0",
  "insta",
  "ipnet",
  "ra-rpc",
