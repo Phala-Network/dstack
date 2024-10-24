@@ -5,7 +5,13 @@ use std::{
     collections::{btree_map::Iter, BTreeMap},
     net::Ipv4Addr,
 };
-use tproxy_rpc::HostInfo as PbHostInfo;
+use tproxy_rpc::{AcmeInfoResponse, HostInfo as PbHostInfo};
+
+mod filters {
+    pub fn hex(data: impl AsRef<[u8]>) -> rinja::Result<String> {
+        Ok(hex::encode(data))
+    }
+}
 
 pub struct MapValues<'a, K, V>(pub &'a BTreeMap<K, V>);
 impl<'a, K, V> Copy for MapValues<'a, K, V> {}
@@ -77,4 +83,5 @@ pub struct RProxyConf<'a> {
 #[template(path = "cvmlist.html", escape = "none")]
 pub struct CvmList<'a> {
     pub hosts: &'a [PbHostInfo],
+    pub acme_info: &'a AcmeInfoResponse,
 }

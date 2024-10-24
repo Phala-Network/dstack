@@ -11,13 +11,11 @@ use rocket::{
     routes, Route, State,
 };
 
-mod list_hosts;
+mod route_index;
 
 #[get("/")]
 async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
-    list_hosts::list_hosts(state)
-        .await
-        .map_err(|e| format!("{e}"))
+    route_index::index(state).await.map_err(|e| format!("{e}"))
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]

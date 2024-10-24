@@ -6,13 +6,15 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use certbot::WorkDir;
 use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
 use rinja::Template as _;
 use tokio::sync::broadcast::{Receiver, Sender};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
-    HostInfo as PbHostInfo, ListResponse, RegisterCvmRequest, RegisterCvmResponse,
+    AcmeInfoResponse, HostInfo as PbHostInfo, ListResponse, RegisterCvmRequest,
+    RegisterCvmResponse,
 };
 use tracing::{error, info};
 
@@ -183,6 +185,17 @@ impl TproxyRpc for RpcHandler {
             })
             .collect::<Vec<_>>();
         Ok(ListResponse { hosts })
+    }
+
+    async fn acme_info(self) -> Result<AcmeInfoResponse> {
+        let state = self.state.lock();
+        let workdir = WorkDir::new(&state.config.certbot.workdir);
+        let account_uri = workdir.acme_account_uri().unwrap_or_default();
+        let keys = workdir.list_cert_public_keys().unwrap_or_default();
+        Ok(AcmeInfoResponse {
+            account_uri,
+            hist_keys: keys.into_iter().collect(),
+        })
     }
 }
 

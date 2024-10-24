@@ -10,7 +10,9 @@ ra-tls = { version = "0.1.0", path = "../ra-tls" }
 rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", optional = true }
 serde_json = "1.0.128"
 tracing = "0.1.40"
+reqwest = { version = "0.12.5", optional = true }
 
 [features]
-default = ["rocket"]
+default = ["rocket", "client"]
 rocket = ["dep:rocket"]
+client = ["reqwest"]

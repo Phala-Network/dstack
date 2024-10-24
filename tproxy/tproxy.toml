@@ -6,6 +6,9 @@ keep_alive = 10
 log_level = "debug"
 port = 8010
 
+[core.certbot]
+workdir = "/etc/certbot"
+
 [core.wg]
 public_key = ""
 private_key = ""

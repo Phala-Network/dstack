@@ -1,18 +1,24 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
+use ra_rpc::client::RaClient;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::time::Duration;
+use tproxy_rpc::tproxy_client::TproxyClient;
+use tracing::{error, info};
 use x509_parser::prelude::*;
 
 const BASE_URL: &str = "https://crt.sh";
 
 struct Monitor {
+    tproxy_uri: String,
     domain: String,
+    known_keys: BTreeSet<Vec<u8>>,
     last_checked: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct CTLog {
     id: u64,
     issuer_ca_id: u64,
@@ -27,12 +33,25 @@ struct CTLog {
 }
 
 impl Monitor {
-    fn new(domain: String) -> Result<Self> {
+    fn new(tproxy_uri: String, domain: String) -> Result<Self> {
         validate_domain(&domain)?;
         Ok(Self {
+            tproxy_uri,
             domain,
+            known_keys: BTreeSet::new(),
             last_checked: None,
         })
+    }
+
+    async fn refresh_known_keys(&mut self) -> Result<()> {
+        info!("Refreshing known keys...");
+        let todo = "Use RA-TLS";
+        let tls_no_check = true;
+        let rpc = TproxyClient::new(RaClient::no_check(self.tproxy_uri.clone(), tls_no_check));
+        let info = rpc.acme_info().await?;
+        self.known_keys = info.hist_keys.into_iter().collect();
+        info!("Got {} known keys", self.known_keys.len());
+        Ok(())
     }
 
     async fn get_logs(&self, count: u32) -> Result<Vec<CTLog>> {
@@ -56,17 +75,24 @@ impl Monitor {
         let cert = pem.parse_x509().context("invalid x509 certificate")?;
 
         let pubkey = cert.public_key().raw;
-        println!("pubkey: {:?}", hex_fmt::HexFmt(pubkey));
+        if !self.known_keys.contains(pubkey) {
+            error!("Error in {:?}", log);
+            bail!(
+                "certificate has issued to unknown pubkey: {:?}",
+                hex_fmt::HexFmt(pubkey)
+            );
+        }
+        info!("known pubkey: {:?}", hex_fmt::HexFmt(pubkey));
         Ok(())
     }
 
     async fn check_new_logs(&mut self) -> Result<()> {
         let logs = self.get_logs(10000).await?;
-        println!("num logs: {}", logs.len());
+        info!("num logs: {}", logs.len());
 
         for log in logs.iter() {
             let log_id = log.id;
-            println!("log id={}", log_id);
+            info!("log id={}", log_id);
 
             if let Some(last_checked) = self.last_checked {
                 if log_id <= last_checked {
@@ -79,7 +105,7 @@ impl Monitor {
 
         if !logs.is_empty() {
             let last_log = &logs[0];
-            println!("last checked: {}", last_log.id);
+            info!("last checked: {}", last_log.id);
             self.last_checked = Some(last_log.id);
         }
 
@@ -87,10 +113,13 @@ impl Monitor {
     }
 
     async fn run(&mut self) {
-        println!("Monitoring {}...", self.domain);
+        info!("Monitoring {}...", self.domain);
         loop {
+            if let Err(err) = self.refresh_known_keys().await {
+                error!("Error refreshing known keys: {}", err);
+            }
             if let Err(err) = self.check_new_logs().await {
-                eprintln!("Error: {}", err);
+                error!("Error: {}", err);
             }
             tokio::time::sleep(Duration::from_secs(60)).await;
         }
@@ -101,7 +130,7 @@ fn validate_domain(domain: &str) -> Result<()> {
     let domain_regex =
         Regex::new(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$").unwrap();
     if !domain_regex.is_match(domain) {
-        anyhow::bail!("Invalid domain name");
+        bail!("Invalid domain name");
     }
     Ok(())
 }
@@ -109,14 +138,20 @@ fn validate_domain(domain: &str) -> Result<()> {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// TProxy URI
+    #[arg(short, long)]
+    tproxy_uri: String,
+    /// Domain name to monitor
     #[arg(short, long)]
     domain: String,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+
     let args = Args::parse();
-    let mut monitor = Monitor::new(args.domain)?;
+    let mut monitor = Monitor::new(args.tproxy_uri, args.domain)?;
     monitor.run().await;
     Ok(())
 }

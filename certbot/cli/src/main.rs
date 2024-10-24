@@ -1,6 +1,6 @@
 use std::{path::PathBuf, time::Duration};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use certbot::{CertBotConfig, WorkDir};
 use clap::Parser;
 use documented::DocumentedFields;
@@ -24,11 +24,17 @@ enum Command {
     /// Automatically renew certificates if they are close to expiration
     Renew {
         /// Path to the configuration file
-        #[arg(long)]
+        #[arg(short, long)]
         config: PathBuf,
         /// Run only once and exit
         #[arg(long)]
         once: bool,
+    },
+    /// Initialize the configuration file
+    Init {
+        /// Path to the configuration file
+        #[arg(short, long)]
+        config: PathBuf,
     },
     /// Generate configuration template
     Cfg {
@@ -102,27 +108,7 @@ impl Config {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    tracing_subscriber::fmt::init();
-
-    let args = Args::parse();
-    match args.command {
-        Command::Renew { config, once } => {
-            renew(&config, once).await?;
-        }
-        Command::Cfg { write_to } => {
-            let toml_str = Config::default().to_commented_toml()?;
-            match write_to {
-                Some(path) => fs::write(path, toml_str)?,
-                None => println!("{}", toml_str),
-            }
-        }
-    }
-    Ok(())
-}
-
-async fn renew(config: &PathBuf, once: bool) -> Result<()> {
+fn load_config(config: &PathBuf) -> Result<CertBotConfig> {
     let config: Config = toml_edit::de::from_str(&fs::read_to_string(config)?)?;
     let workdir = WorkDir::new(&config.workdir);
     let renew_interval = Duration::from_secs(config.renew_interval);
@@ -142,11 +128,47 @@ async fn renew(config: &PathBuf, once: bool) -> Result<()> {
         .renew_expires_in(renew_expires_in)
         .credentials_file(workdir.account_credentials_path())
         .build();
-    let bot = bot_config.build_bot().await?;
+    Ok(bot_config)
+}
+
+async fn renew(config: &PathBuf, once: bool) -> Result<()> {
+    let bot_config = load_config(config).context("Failed to load configuration")?;
+    let bot = bot_config
+        .build_bot()
+        .await
+        .context("Failed to build bot")?;
     if once {
         bot.run_once().await?;
     } else {
         bot.run().await;
+    }
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install default crypto provider");
+
+    let args = Args::parse();
+    match args.command {
+        Command::Renew { config, once } => {
+            renew(&config, once).await?;
+        }
+        Command::Init { config } => {
+            let config = load_config(&config).context("Failed to load configuration")?;
+            // The build_bot() will trigger the initialization and create Account if not exists
+            let _bot = config.build_bot().await.context("Failed to build bot")?;
+        }
+        Command::Cfg { write_to } => {
+            let toml_str = Config::default().to_commented_toml()?;
+            match write_to {
+                Some(path) => fs::write(path, toml_str)?,
+                None => println!("{}", toml_str),
+            }
+        }
     }
     Ok(())
 }

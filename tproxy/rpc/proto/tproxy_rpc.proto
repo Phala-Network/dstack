@@ -41,9 +41,19 @@ message HostInfo {
 }
 
 
+// AcmeInfoResponse is the response for AcmeInfo.
+message AcmeInfoResponse {
+  // The ACME account URI.
+  string account_uri = 1;
+  // The public key history of the certificate.
+  repeated bytes hist_keys = 2;
+}
+
 service Tproxy {
   // Register a new proxied CVM.
   rpc RegisterCvm(RegisterCvmRequest) returns (RegisterCvmResponse) {}
   // List all proxied CVMs.
   rpc List(google.protobuf.Empty) returns (ListResponse) {}
+  // List all ACME account URIs and the public key history of the certificates for the Content Addressable HTTPS.
+  rpc AcmeInfo(google.protobuf.Empty) returns (AcmeInfoResponse) {}
 }

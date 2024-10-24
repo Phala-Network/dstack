@@ -9,6 +9,9 @@ pub use ra_tls::attestation::Attestation;
 #[cfg(feature = "rocket")]
 pub mod rocket_helper;
 
+#[cfg(feature = "client")]
+pub mod client;
+
 pub trait RpcCall<State> {
     type PrpcService: PrpcService + Send + 'static;
 

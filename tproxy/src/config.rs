@@ -35,9 +35,15 @@ pub struct ProxyConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct CertbotConfig {
+    pub workdir: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub wg: WgConfig,
     pub proxy: ProxyConfig,
+    pub certbot: CertbotConfig,
 }
 
 pub const CONFIG_FILENAME: &str = "tproxy.toml";

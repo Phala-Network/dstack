@@ -28,6 +28,10 @@ TPROXY_LISTEN_PORT2=9090
 TPROXY_PUBLIC_DOMAIN=app.kvin.wang
 TPROXY_CERT=/etc/rproxy/certs/cert.pem
 TPROXY_KEY=/etc/rproxy/certs/key.pem
+
+# for certbot
+CF_API_TOKEN=
+CF_ZONE_ID=
 EOF
     echo "Config file $CONFIG_FILE created, please edit it to configure the build"
     exit 1
@@ -39,11 +43,12 @@ TPROXY_WG_PUBKEY=$(echo $TPROXY_WG_KEY | wg pubkey)
 CERTS_DIR=`pwd`/certs
 IMAGES_DIR=`pwd`/images
 RUN_DIR=`pwd`/run
+CERBOT_WORKDIR=$RUN_DIR/certbot
 
 # Step 1: build binaries
 
 cargo build --release
-cp ../target/release/{tproxy,kms,teepod} .
+cp ../target/release/{tproxy,kms,teepod,certbot,ct_monitor} .
 
 # Step 2: build guest images
 IMG_DIST_DIR=$IMAGES_DIR/ubuntu-24.04
@@ -106,6 +111,9 @@ certs = "$CERTS_DIR/tproxy-rpc.cert"
 ca_certs = "$CERTS_DIR/root-ca.cert"
 mandatory = false
 
+[core.certbot]
+workdir = "$CERBOT_WORKDIR"
+
 [core.wg]
 private_key = "$TPROXY_WG_KEY"
 public_key = "$TPROXY_WG_PUBKEY"
@@ -142,8 +150,29 @@ kms_url = "https://kms.$BASE_DOMAIN:$KMS_RPC_LISTEN_PORT"
 tproxy_url = "https://tproxy.$BASE_DOMAIN:$TPROXY_RPC_LISTEN_PORT"
 EOF
 
+cat <<EOF > certbot.toml
+# Path to the working directory
+workdir = "$CERBOT_WORKDIR"
+# ACME server URL
+acme_url = "https://acme-staging-v02.api.letsencrypt.org/directory"
+# Cloudflare API token
+cf_api_token = "$CF_API_TOKEN"
+# Cloudflare zone ID
+cf_zone_id = "$CF_ZONE_ID"
+# Domain to issue certificates for
+domain = "*.$TPROXY_PUBLIC_DOMAIN"
+# Renew interval in seconds
+renew_interval = 3600
+# Number of days before expiration to trigger renewal
+renew_days_before = 10
+# Renew timeout in seconds
+renew_timeout = 120
+EOF
+
 # Step 5: prepare run dir
 mkdir -p $RUN_DIR
+mkdir -p $CERBOT_WORKDIR/backup/preinstalled
+cp $TPROXY_CERT $CERBOT_WORKDIR/backup/preinstalled/cert.pem
 
 # Step 6: setup wireguard interface
 sudo ip link add $TPROXY_WG_INTERFACE type wireguard
@@ -154,5 +183,6 @@ sudo ip link set $TPROXY_WG_INTERFACE up
 # Step 7: start services
 
 # ./kms -c kms.toml
+# ./certbot init -c certbot.toml
 # sudo ./tproxy -c tproxy.toml
 # ./teepod -c teepod.toml
