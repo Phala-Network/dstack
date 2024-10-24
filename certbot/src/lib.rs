@@ -38,10 +38,10 @@
 //!
 //! For more detailed information on the available methods and their usage, please refer
 //! to the documentation of individual structs and functions.
-use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use dns01_client::Dns01Api;
+use fs_err as fs;
 use hickory_resolver::error::ResolveErrorKind;
 use instant_acme::{
     Account, AccountCredentials, AuthorizationStatus, ChallengeType, Identifier, NewAccount,
@@ -49,8 +49,10 @@ use instant_acme::{
 };
 use rcgen::{CertificateParams, DistinguishedName, KeyPair};
 use serde::Deserialize;
+use std::{path::Path, time::Duration};
 use tokio::time::sleep;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
+use x509_parser::{pem::Pem, prelude::GeneralName};
 
 pub use dns01_client::Dns01Client;
 
@@ -67,7 +69,6 @@ pub struct CertBot {
 struct Challenge {
     id: String,
     acme_domain: String,
-    identifier: String,
     url: String,
     dns_value: String,
 }
@@ -116,13 +117,13 @@ impl CertBot {
         read_account_id(&encoded_credentials).expect("failed to read account ID")
     }
 
-    /// Request new certificates for the given domain.
+    /// Request new certificates for the given domains.
     ///
     /// Returns the new certificates encoded in PEM format.
-    pub async fn request_new_certificates(&self, key: &str, domain: &str) -> Result<String> {
+    pub async fn request_new_certificate(&self, key: &str, domains: &[String]) -> Result<String> {
         let mut challenges = Vec::new();
         let result = self
-            .request_new_certificates_inner(key, domain, &mut challenges)
+            .request_new_certificate_inner(key, domains, &mut challenges)
             .await;
         for challenge in &challenges {
             debug!("removing dns record {}", challenge.id);
@@ -131,6 +132,46 @@ impl CertBot {
             }
         }
         result
+    }
+
+    /// Auto renew given certificate
+    ///
+    /// Checks if the certificate is about to expire and renews it if necessary.
+    pub async fn renew_cert_if_needed(
+        &self,
+        expires_in: Duration,
+        cert_pem: impl AsRef<Path>,
+        key_pem: impl AsRef<Path>,
+    ) -> Result<()> {
+        if !need_renew(&fs::read_to_string(cert_pem.as_ref())?, expires_in)? {
+            info!(
+                "{} is not about to expire, skipping renewal",
+                cert_pem.as_ref().display()
+            );
+            return Ok(());
+        }
+        info!("renewing certificate {}", cert_pem.as_ref().display());
+        self.renew_cert(cert_pem, key_pem)
+            .await
+            .context("failed to renew cert")?;
+        Ok(())
+    }
+
+    /// Renew given certificate
+    pub async fn renew_cert(
+        &self,
+        cert_pem_path: impl AsRef<Path>,
+        key_pem_path: impl AsRef<Path>,
+    ) -> Result<()> {
+        let domains = extract_subject_alt_names(&fs::read_to_string(cert_pem_path.as_ref())?)
+            .context("failed to extract subject alt names")?;
+        let key = fs::read_to_string(key_pem_path.as_ref()).context("failed to read key pem")?;
+        let cert = self
+            .request_new_certificate(&key, &domains)
+            .await
+            .context("failed to request new certificates")?;
+        fs::write(cert_pem_path.as_ref(), cert).context("failed to write renewed cert file")?;
+        Ok(())
     }
 }
 
@@ -144,7 +185,7 @@ impl CertBot {
             match authz.status {
                 AuthorizationStatus::Pending => {}
                 AuthorizationStatus::Valid => continue,
-                _ => anyhow::bail!("unsupported authorization status: {:?}", authz.status),
+                _ => bail!("unsupported authorization status: {:?}", authz.status),
             }
 
             let challenge = authz
@@ -170,7 +211,6 @@ impl CertBot {
             challenges.push(Challenge {
                 id,
                 acme_domain,
-                identifier: identifier.clone(),
                 url: challenge.url.clone(),
                 dns_value,
             });
@@ -201,7 +241,7 @@ impl CertBot {
                         .is_some(),
                     Err(err) => {
                         let ResolveErrorKind::NoRecordsFound { .. } = err.kind() else {
-                            anyhow::bail!(
+                            bail!(
                                 "failed to lookup dns record {}: {err}",
                                 challenge.acme_domain
                             );
@@ -219,7 +259,7 @@ impl CertBot {
                             "challenge not found, waiting {delay:?}"
                         );
                     } else {
-                        anyhow::bail!("dns record not found");
+                        bail!("dns record not found");
                     }
                     unsettled_challenges.push(challenge);
                     continue 'outer;
@@ -230,16 +270,15 @@ impl CertBot {
         Ok(())
     }
 
-    async fn request_new_certificates_inner(
+    async fn request_new_certificate_inner(
         &self,
         key: &str,
-        domain: &str,
+        domains: &[String],
         challenges: &mut Vec<Challenge>,
     ) -> Result<String> {
-        debug!("requesting new certificates for {}", domain);
+        debug!("requesting new certificates for {}", domains.join(", "));
         debug!("creating new order");
-        let names = vec![domain.to_string()];
-        let identifiers = names
+        let identifiers = domains
             .iter()
             .map(|name| Identifier::Dns(name.clone()))
             .collect::<Vec<_>>();
@@ -281,7 +320,7 @@ impl CertBot {
                 // To upload CSR
                 OrderStatus::Ready => {
                     debug!("order is ready, uploading csr");
-                    let csr = make_csr(key, &names)?;
+                    let csr = make_csr(key, &domains)?;
                     order
                         .finalize(csr.as_ref())
                         .await
@@ -300,7 +339,7 @@ impl CertBot {
                     return extract_certificate(order).await;
                 }
                 // Something went wrong
-                OrderStatus::Invalid => anyhow::bail!("order is invalid"),
+                OrderStatus::Invalid => bail!("order is invalid"),
             }
         }
     }
@@ -322,7 +361,7 @@ async fn extract_certificate(mut order: Order) -> Result<String> {
     let cert_chain_pem = loop {
         tries += 1;
         if tries > 5 {
-            anyhow::bail!("failed to get certificate");
+            bail!("failed to get certificate");
         }
         match order
             .certificate()
@@ -334,6 +373,45 @@ async fn extract_certificate(mut order: Order) -> Result<String> {
         }
     };
     Ok(cert_chain_pem)
+}
+
+fn need_renew(cert_pem: &str, expires_in: Duration) -> Result<bool> {
+    let pem = read_pem(cert_pem)?;
+    let cert = pem.parse_x509().context("Invalid x509 certificate")?;
+    let not_after = cert.validity().not_after.to_datetime();
+    let now = time::OffsetDateTime::now_utc();
+
+    Ok(not_after < now + expires_in)
+}
+
+fn read_pem(cert_pem: &str) -> Result<Pem> {
+    let Some(pem) = Pem::iter_from_buffer(cert_pem.as_bytes())
+        .next()
+        .transpose()
+        .context("Invalid pem")?
+    else {
+        bail!("no pem found");
+    };
+    Ok(pem)
+}
+
+fn extract_subject_alt_names(cert_pem: &str) -> Result<Vec<String>> {
+    let pem = read_pem(cert_pem)?;
+    let cert = pem.parse_x509().context("Invalid x509 certificate")?;
+    let subject_alt_names = cert
+        .tbs_certificate
+        .subject_alternative_name()
+        .context("failed to parse subject alternative name")?
+        .context("no subject alternative name found")?;
+    let mut domains = Vec::new();
+    for name in &subject_alt_names.value.general_names {
+        if let GeneralName::DNSName(dns) = name {
+            domains.push(dns.to_string());
+        } else {
+            bail!("unsupported general name: {:?}", name);
+        }
+    }
+    Ok(domains)
 }
 
 /// Read the account ID from the encoded credentials. This is a workaround for

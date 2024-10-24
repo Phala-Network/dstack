@@ -6,14 +6,17 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.91"
 enum_dispatch = "0.3.13"
+fs-err = "3.0.0"
 hickory-resolver = "0.24.1"
 instant-acme = "0.7.1"
 rcgen = { version = "0.13.1", features = ["pem"] }
 reqwest = { version = "0.12.8", features = ["json"] }
 serde = { version = "1.0.213", features = ["derive"] }
 serde_json = "1.0.132"
+time = "0.3.36"
 tokio = "1.41.0"
 tracing = "0.1.40"
+x509-parser = "0.16.0"
 
 [dev-dependencies]
 rand = "0.8.5"

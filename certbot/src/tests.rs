@@ -11,16 +11,17 @@ async fn new_certbot() -> Result<CertBot> {
 }
 
 #[tokio::test]
-async fn test_request_new_certificates() {
+async fn test_request_new_certificate() {
     tracing_subscriber::fmt::try_init().ok();
 
     let test_domain = std::env::var("TEST_DOMAIN").expect("TEST_DOMAIN not set");
+    let domains = vec![test_domain.clone(), format!("*.{}", test_domain)];
     let bot = new_certbot().await.unwrap();
     println!("account credentials: {}", bot.dump_credentials().unwrap());
     let key = KeyPair::generate().unwrap();
     let key_pem = key.serialize_pem();
     let cert = bot
-        .request_new_certificates(&key_pem, &test_domain)
+        .request_new_certificate(&key_pem, &domains)
         .await
         .expect("Failed to get cert");
     println!("key:\n{}", key_pem);
