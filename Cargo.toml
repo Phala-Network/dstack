@@ -14,7 +14,10 @@ members = [
     "teepod/rpc",
     "tproxy",
     "tproxy/rpc",
-    "certgen", "certbot", "ct_monitor",
+    "certgen",
+    "certbot",
+    "certbot/cli",
+    "ct_monitor",
 ]
 resolver = "2"
 

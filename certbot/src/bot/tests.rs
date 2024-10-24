@@ -17,6 +17,7 @@ async fn new_certbot() -> Result<CertBot> {
         .key_file("./test-workdir/live/key.pem")
         .cert_subject_alt_names(domains)
         .renew_interval(Duration::from_secs(30))
+        .renew_timeout(Duration::from_secs(120))
         .renew_expires_in(Duration::from_secs(7772187))
         .build();
     config.build_bot().await

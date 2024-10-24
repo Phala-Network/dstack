@@ -6,7 +6,7 @@ use instant_acme::{
     NewOrder, Order, OrderStatus,
 };
 use rcgen::{CertificateParams, DistinguishedName, KeyPair};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
     time::Duration,
@@ -20,7 +20,7 @@ use super::dns01_client::{Dns01Api, Dns01Client};
 /// A AcmeClient instance.
 pub struct AcmeClient {
     account: Account,
-    credentials: AccountCredentials,
+    credentials: Credentials,
     dns01_client: Dns01Client,
 }
 
@@ -32,11 +32,17 @@ struct Challenge {
     dns_value: String,
 }
 
+#[derive(Serialize, Deserialize)]
+pub(crate) struct Credentials {
+    pub(crate) account_id: String,
+    credentials: AccountCredentials,
+}
+
 impl AcmeClient {
     pub async fn load(dns01_client: Dns01Client, encoded_credentials: &str) -> Result<Self> {
-        let credentials: AccountCredentials = serde_json::from_str(&encoded_credentials)?;
-        let account = Account::from_credentials(credentials).await?;
-        let credentials: AccountCredentials = serde_json::from_str(&encoded_credentials)?;
+        let credentials: Credentials = serde_json::from_str(&encoded_credentials)?;
+        let account = Account::from_credentials(credentials.credentials).await?;
+        let credentials: Credentials = serde_json::from_str(&encoded_credentials)?;
         Ok(Self {
             account,
             dns01_client,
@@ -57,6 +63,15 @@ impl AcmeClient {
         )
         .await
         .context("failed to create new account")?;
+
+        let todo = "read id from instant_acme::Account";
+        let encoded_credentials =
+            serde_json::to_string(&credentials).expect("failed to dump credentials");
+        let account_id = read_account_id(&encoded_credentials).expect("failed to read account ID");
+        let credentials = Credentials {
+            account_id,
+            credentials,
+        };
         Ok(Self {
             account,
             dns01_client,
@@ -70,10 +85,8 @@ impl AcmeClient {
     }
 
     /// Read the account ID from the encoded credentials.
-    pub fn account_id(&self) -> String {
-        let todo = "read id from instant_acme::Account";
-        let encoded_credentials = self.dump_credentials().expect("failed to dump credentials");
-        read_account_id(&encoded_credentials).expect("failed to read account ID")
+    pub fn account_id(&self) -> &str {
+        &self.credentials.account_id
     }
 
     /// Request new certificates for the given domains.
@@ -336,6 +349,9 @@ impl AcmeClient {
                     self.authorize(&mut order, challenges)
                         .await
                         .context("failed to authorize")?;
+                    if challenges.is_empty() {
+                        bail!("no challenges found");
+                    }
                     self.check_dns(challenges)
                         .await
                         .context("failed to check dns")?;
@@ -474,4 +490,5 @@ fn ln_force(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 mod tests;

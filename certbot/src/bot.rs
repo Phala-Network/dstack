@@ -28,6 +28,7 @@ pub struct CertBotConfig {
     cert_dir: PathBuf,
     cert_subject_alt_names: Vec<String>,
     renew_interval: Duration,
+    renew_timeout: Duration,
     renew_expires_in: Duration,
 }
 
@@ -79,41 +80,32 @@ impl CertBot {
     }
 
     /// Get the ACME account ID.
-    pub fn account_id(&self) -> String {
+    pub fn account_id(&self) -> &str {
         self.acme_client.account_id()
     }
 
     /// List all issued certificates.
     pub fn list_certs(&self) -> Result<Vec<PathBuf>> {
-        let mut certs = vec![];
-        let cert_dir = Path::new(&self.config.cert_dir);
-        for entry in fs::read_dir(cert_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            let cert_path = path.join("cert.pem");
-            if path.is_dir() && cert_path.exists() {
-                certs.push(cert_path);
-            }
-        }
-        Ok(certs)
+        list_certs(&self.config.cert_dir)
     }
 
     /// List all public keys.
     pub fn list_cert_public_keys(&self) -> Result<BTreeSet<Vec<u8>>> {
-        Ok(self
-            .list_certs()?
-            .into_iter()
-            .map(|cert_path| {
-                let cert_pem = fs::read_to_string(&cert_path).context("failed to read cert")?;
-                read_pubkey(&cert_pem).context("failed to parse cert")
-            })
-            .collect::<Result<_>>()?)
+        list_cert_public_keys(&self.config.cert_dir)
     }
 
     /// Run the certbot.
     pub async fn run(&self) {
         loop {
-            self.run_once().await.ok();
+            match tokio::time::timeout(self.config.renew_timeout, self.run_once()).await {
+                Ok(Ok(_)) => {}
+                Ok(Err(e)) => {
+                    error!("failed to run certbot: {e:?}");
+                }
+                Err(_) => {
+                    error!("certbot timed out");
+                }
+            }
             sleep(self.config.renew_interval).await;
         }
     }
@@ -152,7 +144,6 @@ impl CertBot {
                 );
             }
             Err(e) => {
-                error!("failed to renew cert: {e:?}");
                 return Err(e);
             }
         }
@@ -164,6 +155,30 @@ fn read_pubkey(cert_pem: &str) -> Result<Vec<u8>> {
     let cert = read_pem(cert_pem)?;
     let public_key = cert.parse_x509().context("failed to parse x509 cert")?;
     Ok(public_key.tbs_certificate.public_key().raw.to_vec())
+}
+
+pub fn list_certs(workdir: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
+    let mut certs = vec![];
+    let cert_dir = Path::new(workdir.as_ref());
+    for entry in fs::read_dir(cert_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        let cert_path = path.join("cert.pem");
+        if path.is_dir() && cert_path.exists() {
+            certs.push(cert_path);
+        }
+    }
+    Ok(certs)
+}
+
+pub fn list_cert_public_keys(workdir: impl AsRef<Path>) -> Result<BTreeSet<Vec<u8>>> {
+    Ok(list_certs(workdir)?
+        .into_iter()
+        .map(|cert_path| {
+            let cert_pem = fs::read_to_string(&cert_path).context("failed to read cert")?;
+            read_pubkey(&cert_pem).context("failed to parse cert")
+        })
+        .collect::<Result<_>>()?)
 }
 
 #[cfg(test)]
