@@ -83,13 +83,6 @@ impl Dns01Api for CloudflareClient {
         Ok(())
     }
 
-    async fn remove_txt_records(&self, challenge_domain: &str) -> Result<()> {
-        for record in self.get_txt_records(challenge_domain).await? {
-            self.remove_record(&record.id).await?;
-        }
-        Ok(())
-    }
-
     async fn add_caa_record(
         &self,
         domain: &str,
@@ -136,9 +129,7 @@ impl Dns01Api for CloudflareClient {
 
         Ok(response.result.id)
     }
-}
 
-impl CloudflareClient {
     async fn get_records(&self, domain: &str) -> Result<Vec<Record>> {
         let client = Client::new();
         let url = format!("{}/zones/{}/dns_records", CLOUDFLARE_API_URL, self.zone_id);
@@ -168,7 +159,9 @@ impl CloudflareClient {
             .collect();
         Ok(records)
     }
+}
 
+impl CloudflareClient {
     async fn get_txt_records(&self, domain: &str) -> Result<Vec<Record>> {
         Ok(self
             .get_records(domain)

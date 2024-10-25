@@ -39,10 +39,20 @@ pub(crate) trait Dns01Api {
     /// Deletes a DNS record using its unique identifier.
     async fn remove_record(&self, record_id: &str) -> Result<()>;
 
+    /// Get all records for a domain.
+    async fn get_records(&self, domain: &str) -> Result<Vec<Record>>;
+
     /// Remove TXT DNS records by domain.
     ///
     /// Deletes all TXT DNS records matching the given domain.
-    async fn remove_txt_records(&self, domain: &str) -> Result<()>;
+    async fn remove_txt_records(&self, domain: &str) -> Result<()> {
+        for record in self.get_records(domain).await? {
+            if record.r#type == "TXT" {
+                self.remove_record(&record.id).await?;
+            }
+        }
+        Ok(())
+    }
 }
 
 /// A DNS-01 client.

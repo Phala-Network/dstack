@@ -8,7 +8,9 @@ use instant_acme::{
 use rcgen::{CertificateParams, DistinguishedName, KeyPair};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeSet, path::{Path, PathBuf}, time::Duration
+    collections::BTreeSet,
+    path::{Path, PathBuf},
+    time::Duration,
 };
 use tokio::time::sleep;
 use tracing::{debug, error, info};
@@ -95,13 +97,36 @@ impl AcmeClient {
             .iter()
             .map(|name| name.strip_prefix("*.").unwrap_or(name))
             .collect::<BTreeSet<_>>();
+
         for base_name in base_names {
+            // 1. Set ";" to guard timing gap between the operations.
+            let guard0 = self
+                .dns01_client
+                .add_caa_record(base_name, 0, "issue", ";")
+                .await?;
+            let guard1 = self
+                .dns01_client
+                .add_caa_record(base_name, 0, "issuewild", ";")
+                .await?;
+            // 2. Remove the existing constraints
+            for record in self.dns01_client.get_records(base_name).await? {
+                if record.id == guard0 || record.id == guard1 {
+                    continue;
+                }
+                if record.r#type == "CAA" {
+                    self.dns01_client.remove_record(&record.id).await?;
+                }
+            }
+            // 3. Set the new constraints
             self.dns01_client
                 .add_caa_record(base_name, 0, "issue", &content)
                 .await?;
             self.dns01_client
                 .add_caa_record(base_name, 0, "issuewild", &content)
                 .await?;
+            // 4. Remove the guards
+            self.dns01_client.remove_record(&guard0).await?;
+            self.dns01_client.remove_record(&guard1).await?;
         }
         Ok(())
     }
