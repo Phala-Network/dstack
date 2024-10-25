@@ -44,13 +44,16 @@ impl Monitor {
     }
 
     async fn refresh_known_keys(&mut self) -> Result<()> {
-        info!("refreshing known keys...");
+        info!("fetching known public keys from {}", self.tproxy_uri);
         let todo = "Use RA-TLS";
         let tls_no_check = true;
         let rpc = TproxyClient::new(RaClient::no_check(self.tproxy_uri.clone(), tls_no_check));
         let info = rpc.acme_info().await?;
         self.known_keys = info.hist_keys.into_iter().collect();
-        info!("got {} known keys", self.known_keys.len());
+        info!("got {} known public keys", self.known_keys.len());
+        for key in self.known_keys.iter() {
+            debug!("    {}", hex_fmt::HexFmt(key));
+        }
         Ok(())
     }
 
@@ -100,7 +103,7 @@ impl Monitor {
                     break;
                 }
             }
-            info!("🔍 checking log id={}", log_id);
+            debug!("🔍 checking log id={}", log_id);
             self.check_one_log(log).await?;
         }
 

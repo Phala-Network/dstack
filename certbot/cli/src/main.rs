@@ -24,7 +24,7 @@ enum Command {
     /// Automatically renew certificates if they are close to expiration
     Renew {
         /// Path to the configuration file
-        #[arg(short, long)]
+        #[arg(short, long, default_value = "certbot.toml")]
         config: PathBuf,
         /// Run only once and exit
         #[arg(long)]
@@ -33,7 +33,13 @@ enum Command {
     /// Initialize the configuration file
     Init {
         /// Path to the configuration file
-        #[arg(short, long)]
+        #[arg(short, long, default_value = "certbot.toml")]
+        config: PathBuf,
+    },
+    /// Set CAA record for the domain
+    SetCaa {
+        /// Path to the configuration file
+        #[arg(short, long, default_value = "certbot.toml")]
         config: PathBuf,
     },
     /// Generate configuration template
@@ -165,6 +171,11 @@ async fn main() -> Result<()> {
             let config = load_config(&config).context("Failed to load configuration")?;
             // The build_bot() will trigger the initialization and create Account if not exists
             let _bot = config.build_bot().await.context("Failed to build bot")?;
+        }
+        Command::SetCaa { config } => {
+            let bot_config = load_config(&config).context("Failed to load configuration")?;
+            let bot = bot_config.build_bot().await.context("Failed to build bot")?;
+            bot.set_caa().await?;
         }
         Command::Cfg { write_to } => {
             let toml_str = Config::default().to_commented_toml()?;

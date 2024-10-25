@@ -100,6 +100,7 @@ impl AcmeClient {
 
         for base_name in base_names {
             // 1. Set ";" to guard timing gap between the operations.
+            debug!("setting guard CAA records for {base_name}");
             let guard0 = self
                 .dns01_client
                 .add_caa_record(base_name, 0, "issue", ";")
@@ -114,16 +115,23 @@ impl AcmeClient {
                     continue;
                 }
                 if record.r#type == "CAA" {
+                    debug!(
+                        "removing existing CAA record {} {}",
+                        record.name, record.content
+                    );
                     self.dns01_client.remove_record(&record.id).await?;
                 }
             }
             // 3. Set the new constraints
+            debug!("setting CAA records for {base_name}, 0 issue \"{content}\"");
             self.dns01_client
                 .add_caa_record(base_name, 0, "issue", &content)
                 .await?;
+            debug!("setting CAA records for {base_name}, 0 issuewild \"{content}\"");
             self.dns01_client
                 .add_caa_record(base_name, 0, "issuewild", &content)
                 .await?;
+            debug!("removing guard CAA records for {base_name}");
             // 4. Remove the guards
             self.dns01_client.remove_record(&guard0).await?;
             self.dns01_client.remove_record(&guard1).await?;

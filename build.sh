@@ -2,6 +2,11 @@
 
 SCRIPT_DIR=$(cd $(dirname $0); pwd)
 
+CERTS_DIR=`pwd`/certs
+IMAGES_DIR=`pwd`/images
+RUN_DIR=`pwd`/run
+CERBOT_WORKDIR=$RUN_DIR/certbot
+
 CONFIG_FILE=$SCRIPT_DIR/build-config.sh
 if [ -f $CONFIG_FILE ]; then
     source $CONFIG_FILE
@@ -32,6 +37,7 @@ TPROXY_KEY=/etc/rproxy/certs/key.pem
 # for certbot
 CF_API_TOKEN=
 CF_ZONE_ID=
+ACME_URL=https://acme-staging-v02.api.letsencrypt.org/directory
 EOF
     echo "Config file $CONFIG_FILE created, please edit it to configure the build"
     exit 1
@@ -39,11 +45,6 @@ fi
 
 TPROXY_WG_KEY=$(wg genkey)
 TPROXY_WG_PUBKEY=$(echo $TPROXY_WG_KEY | wg pubkey)
-
-CERTS_DIR=`pwd`/certs
-IMAGES_DIR=`pwd`/images
-RUN_DIR=`pwd`/run
-CERBOT_WORKDIR=$RUN_DIR/certbot
 
 # Step 1: build binaries
 
@@ -154,7 +155,7 @@ cat <<EOF > certbot.toml
 # Path to the working directory
 workdir = "$CERBOT_WORKDIR"
 # ACME server URL
-acme_url = "https://acme-staging-v02.api.letsencrypt.org/directory"
+acme_url = "$ACME_URL"
 # Cloudflare API token
 cf_api_token = "$CF_API_TOKEN"
 # Cloudflare zone ID

@@ -157,6 +157,13 @@ impl CertBot {
         }
         Ok(())
     }
+
+    /// Set CAA record for the domain.
+    pub async fn set_caa(&self) -> Result<()> {
+        self.acme_client
+            .set_caa_records(&self.config.cert_subject_alt_names)
+            .await
+    }
 }
 
 fn read_pubkey(cert_pem: &str) -> Result<Vec<u8>> {
