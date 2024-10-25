@@ -76,31 +76,37 @@ impl Monitor {
 
         let pubkey = cert.public_key().raw;
         if !self.known_keys.contains(pubkey) {
-            error!("Error in {:?}", log);
+            error!("❌ Error in {:?}", log);
             bail!(
-                "certificate has issued to unknown pubkey: {:?}",
+                "Certificate has issued to unknown pubkey: {:?}",
                 hex_fmt::HexFmt(pubkey)
             );
         }
-        info!("known pubkey: {:?}", hex_fmt::HexFmt(pubkey));
+        info!("✅ Checked log id={}", log.id);
         Ok(())
     }
 
     async fn check_new_logs(&mut self) -> Result<()> {
         let logs = self.get_logs(10000).await?;
         info!("num logs: {}", logs.len());
+        let mut found_last_checked = false;
 
         for log in logs.iter() {
             let log_id = log.id;
-            info!("log id={}", log_id);
+            info!("🔍 Checking log id={}", log_id);
 
             if let Some(last_checked) = self.last_checked {
-                if log_id <= last_checked {
+                if log_id == last_checked {
+                    found_last_checked = true;
                     break;
                 }
             }
 
             self.check_one_log(log).await?;
+        }
+
+        if !found_last_checked && self.last_checked.is_some() {
+            bail!("last checked log not found, something went wrong");
         }
 
         if !logs.is_empty() {
