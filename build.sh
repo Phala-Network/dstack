@@ -175,7 +175,6 @@ EOF
 # Step 5: prepare run dir
 mkdir -p $RUN_DIR
 mkdir -p $CERBOT_WORKDIR/backup/preinstalled
-cp $TPROXY_CERT $CERBOT_WORKDIR/backup/preinstalled/cert.pem
 
 # Step 6: setup wireguard interface
 # Check if the WireGuard interface exists
