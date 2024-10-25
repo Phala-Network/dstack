@@ -60,6 +60,8 @@ struct Config {
     cf_api_token: String,
     /// Cloudflare zone ID
     cf_zone_id: String,
+    /// Auto set CAA record
+    auto_set_caa: bool,
     /// Domain to issue certificates for
     domain: String,
     /// Renew interval in seconds
@@ -77,6 +79,7 @@ impl Default for Config {
             acme_url: "https://acme-staging-v02.api.letsencrypt.org/directory".into(),
             cf_api_token: "".into(),
             cf_zone_id: "".into(),
+            auto_set_caa: true,
             domain: "example.com".into(),
             renew_interval: 3600,
             renew_days_before: 10,
@@ -127,6 +130,7 @@ fn load_config(config: &PathBuf) -> Result<CertBotConfig> {
         .renew_timeout(renew_timeout)
         .renew_expires_in(renew_expires_in)
         .credentials_file(workdir.account_credentials_path())
+        .auto_set_caa(config.auto_set_caa)
         .build();
     Ok(bot_config)
 }

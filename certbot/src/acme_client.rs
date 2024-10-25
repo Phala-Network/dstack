@@ -8,8 +8,7 @@ use instant_acme::{
 use rcgen::{CertificateParams, DistinguishedName, KeyPair};
 use serde::{Deserialize, Serialize};
 use std::{
-    path::{Path, PathBuf},
-    time::Duration,
+    collections::BTreeSet, path::{Path, PathBuf}, time::Duration
 };
 use tokio::time::sleep;
 use tracing::{debug, error, info};
@@ -87,6 +86,24 @@ impl AcmeClient {
     /// Read the account ID from the encoded credentials.
     pub fn account_id(&self) -> &str {
         &self.credentials.account_id
+    }
+
+    pub async fn set_caa_records(&self, domains: &[String]) -> Result<()> {
+        let account_id = self.account_id();
+        let content = format!("letsencrypt.org;validationmethods=dns-01;accounturi={account_id}");
+        let base_names = domains
+            .iter()
+            .map(|name| name.strip_prefix("*.").unwrap_or(name))
+            .collect::<BTreeSet<_>>();
+        for base_name in base_names {
+            self.dns01_client
+                .add_caa_record(base_name, 0, "issue", &content)
+                .await?;
+            self.dns01_client
+                .add_caa_record(base_name, 0, "issuewild", &content)
+                .await?;
+        }
+        Ok(())
     }
 
     /// Request new certificates for the given domains.

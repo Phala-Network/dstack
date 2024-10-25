@@ -159,6 +159,8 @@ acme_url = "https://acme-staging-v02.api.letsencrypt.org/directory"
 cf_api_token = "$CF_API_TOKEN"
 # Cloudflare zone ID
 cf_zone_id = "$CF_ZONE_ID"
+# Auto set CAA record
+auto_set_caa = true
 # Domain to issue certificates for
 domain = "*.$TPROXY_PUBLIC_DOMAIN"
 # Renew interval in seconds

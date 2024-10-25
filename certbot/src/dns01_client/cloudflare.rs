@@ -90,7 +90,56 @@ impl Dns01Api for CloudflareClient {
         Ok(())
     }
 
-    async fn get_txt_records(&self, domain: &str) -> Result<Vec<Record>> {
+    async fn add_caa_record(
+        &self,
+        domain: &str,
+        flags: u8,
+        tag: &str,
+        value: &str,
+    ) -> Result<String> {
+        let client = Client::new();
+        let url = format!("{}/zones/{}/dns_records", CLOUDFLARE_API_URL, self.zone_id);
+        let response = client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_token))
+            .header("Content-Type", "application/json")
+            .json(&json!({
+                "type": "CAA",
+                "name": domain,
+                "ttl": 120,
+                "data": {
+                    "flags": flags,
+                    "tag": tag,
+                    "value": value
+                }
+            }))
+            .send()
+            .await?;
+        if !response.status().is_success() {
+            anyhow::bail!(
+                "failed to create acme challenge: {}",
+                response.text().await?
+            );
+        }
+
+        #[derive(Deserialize)]
+        struct Response {
+            result: ApiResult,
+        }
+
+        #[derive(Deserialize)]
+        struct ApiResult {
+            id: String,
+        }
+
+        let response: Response = response.json().await.context("failed to parse response")?;
+
+        Ok(response.result.id)
+    }
+}
+
+impl CloudflareClient {
+    async fn get_records(&self, domain: &str) -> Result<Vec<Record>> {
         let client = Client::new();
         let url = format!("{}/zones/{}/dns_records", CLOUDFLARE_API_URL, self.zone_id);
 
@@ -115,9 +164,28 @@ impl Dns01Api for CloudflareClient {
         let records = response
             .result
             .into_iter()
-            .filter(|record| record.name == domain && record.r#type == "TXT")
+            .filter(|record| record.name == domain)
             .collect();
         Ok(records)
+    }
+
+    async fn get_txt_records(&self, domain: &str) -> Result<Vec<Record>> {
+        Ok(self
+            .get_records(domain)
+            .await?
+            .into_iter()
+            .filter(|r| r.r#type == "TXT")
+            .collect())
+    }
+
+    #[cfg(test)]
+    async fn get_caa_records(&self, domain: &str) -> Result<Vec<Record>> {
+        Ok(self
+            .get_records(domain)
+            .await?
+            .into_iter()
+            .filter(|r| r.r#type == "CAA")
+            .collect())
     }
 }
 
@@ -125,10 +193,8 @@ impl Dns01Api for CloudflareClient {
 mod tests {
     use super::*;
 
-    use crate::dns01_client::Dns01Client;
-
-    fn create_client() -> Dns01Client {
-        Dns01Client::new_cloudflare(
+    fn create_client() -> CloudflareClient {
+        CloudflareClient::new(
             std::env::var("CLOUDFLARE_ZONE_ID").expect("CLOUDFLARE_ZONE_ID not set"),
             std::env::var("CLOUDFLARE_API_TOKEN").expect("CLOUDFLARE_API_TOKEN not set"),
         )
@@ -136,13 +202,14 @@ mod tests {
 
     fn random_subdomain() -> String {
         format!(
-            "_acme-challenge.{}.kvin.wang",
-            rand::random::<u64>().to_string()
+            "_acme-challenge.{}.{}",
+            rand::random::<u64>().to_string(),
+            std::env::var("TEST_DOMAIN").expect("TEST_DOMAIN not set"),
         )
     }
 
     #[tokio::test]
-    async fn it_works() {
+    async fn can_add_txt_record() {
         let client = create_client();
         let subdomain = random_subdomain();
         println!("subdomain: {}", subdomain);
@@ -159,7 +226,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn it_can_remove_by_identifier() {
+    async fn can_remove_txt_record() {
         let client = create_client();
         let subdomain = random_subdomain();
         println!("subdomain: {}", subdomain);
@@ -172,6 +239,22 @@ mod tests {
         assert_eq!(record[0].content, "1234567890");
         client.remove_txt_records(&subdomain).await.unwrap();
         let record = client.get_txt_records(&subdomain).await.unwrap();
+        assert!(record.is_empty());
+    }
+
+    #[tokio::test]
+    async fn can_add_caa_record() {
+        let client = create_client();
+        let subdomain = random_subdomain();
+        let record_id = client
+            .add_caa_record(&subdomain, 0, "issue", "letsencrypt.org;")
+            .await
+            .unwrap();
+        let record = client.get_caa_records(&subdomain).await.unwrap();
+        assert_eq!(record[0].id, record_id);
+        assert_eq!(record[0].content, "0 issue \"letsencrypt.org;\"");
+        client.remove_record(&record_id).await.unwrap();
+        let record = client.get_caa_records(&subdomain).await.unwrap();
         assert!(record.is_empty());
     }
 }

@@ -25,6 +25,15 @@ pub(crate) trait Dns01Api {
     /// Returns the ID of the created record.
     async fn add_txt_record(&self, domain: &str, content: &str) -> Result<String>;
 
+    /// Add a CAA record for the given domain.
+    async fn add_caa_record(
+        &self,
+        domain: &str,
+        flags: u8,
+        tag: &str,
+        value: &str,
+    ) -> Result<String>;
+
     /// Remove a DNS record.
     ///
     /// Deletes a DNS record using its unique identifier.
@@ -34,11 +43,6 @@ pub(crate) trait Dns01Api {
     ///
     /// Deletes all TXT DNS records matching the given domain.
     async fn remove_txt_records(&self, domain: &str) -> Result<()>;
-
-    /// Get TXT DNS records.
-    ///
-    /// Retrieves all TXT DNS records matching the given domain.
-    async fn get_txt_records(&self, domain: &str) -> Result<Vec<Record>>;
 }
 
 /// A DNS-01 client.

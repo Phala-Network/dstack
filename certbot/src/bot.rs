@@ -19,6 +19,7 @@ use super::{AcmeClient, Dns01Client};
 #[builder(on(PathBuf, into))]
 pub struct CertBotConfig {
     acme_url: String,
+    auto_set_caa: bool,
     credentials_file: PathBuf,
     auto_create_account: bool,
     cf_zone_id: String,
@@ -67,6 +68,11 @@ impl CertBot {
                 }
                 fs::write(&config.credentials_file, credentials)
                     .context("failed to write credentials")?;
+                if config.auto_set_caa {
+                    client
+                        .set_caa_records(&config.cert_subject_alt_names)
+                        .await?;
+                }
                 client
             }
             Err(e) => {
