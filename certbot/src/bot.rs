@@ -55,7 +55,7 @@ impl CertBot {
                 if !config.auto_create_account {
                     return Err(e).context("credentials file not found");
                 }
-                info!("Creating new ACME account");
+                info!("creating new ACME account");
                 let client = AcmeClient::new_account(&config.acme_url, dns01_client)
                     .await
                     .context("failed to create new account")?;
@@ -68,7 +68,9 @@ impl CertBot {
                 }
                 fs::write(&config.credentials_file, credentials)
                     .context("failed to write credentials")?;
+                info!("created new ACME account: {}", client.account_id());
                 if config.auto_set_caa {
+                    info!("setting CAA records");
                     client
                         .set_caa_records(&config.cert_subject_alt_names)
                         .await?;
@@ -76,7 +78,7 @@ impl CertBot {
                 client
             }
             Err(e) => {
-                return Err(e).context("Failed to read credentials file");
+                return Err(e).context("failed to read credentials file");
             }
         };
         Ok(Self {
