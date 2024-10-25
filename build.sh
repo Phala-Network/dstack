@@ -177,9 +177,15 @@ mkdir -p $CERBOT_WORKDIR/backup/preinstalled
 cp $TPROXY_CERT $CERBOT_WORKDIR/backup/preinstalled/cert.pem
 
 # Step 6: setup wireguard interface
-sudo ip link add $TPROXY_WG_INTERFACE type wireguard
-sudo ip address add $TPROXY_WG_IP/24 dev $TPROXY_WG_INTERFACE
-sudo ip link set $TPROXY_WG_INTERFACE up
+# Check if the WireGuard interface exists
+if ! ip link show $TPROXY_WG_INTERFACE &> /dev/null; then
+    sudo ip link add $TPROXY_WG_INTERFACE type wireguard
+    sudo ip address add $TPROXY_WG_IP/24 dev $TPROXY_WG_INTERFACE
+    sudo ip link set $TPROXY_WG_INTERFACE up
+    echo "created and configured WireGuard interface $TPROXY_WG_INTERFACE"
+else
+    echo "WireGuard interface $TPROXY_WG_INTERFACE already exists"
+fi
 # sudo ip route add $TPROXY_WG_CLIENT_IP_RANGE dev $TPROXY_WG_INTERFACE
 
 # Step 7: start services
