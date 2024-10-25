@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::time::Duration;
 use tproxy_rpc::tproxy_client::TproxyClient;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use x509_parser::prelude::*;
 
 const BASE_URL: &str = "https://crt.sh";
@@ -44,13 +44,13 @@ impl Monitor {
     }
 
     async fn refresh_known_keys(&mut self) -> Result<()> {
-        info!("Refreshing known keys...");
+        info!("refreshing known keys...");
         let todo = "Use RA-TLS";
         let tls_no_check = true;
         let rpc = TproxyClient::new(RaClient::no_check(self.tproxy_uri.clone(), tls_no_check));
         let info = rpc.acme_info().await?;
         self.known_keys = info.hist_keys.into_iter().collect();
-        info!("Got {} known keys", self.known_keys.len());
+        info!("got {} known keys", self.known_keys.len());
         Ok(())
     }
 
@@ -76,24 +76,23 @@ impl Monitor {
 
         let pubkey = cert.public_key().raw;
         if !self.known_keys.contains(pubkey) {
-            error!("❌ Error in {:?}", log);
+            error!("❌ error in {:?}", log);
             bail!(
-                "Certificate has issued to unknown pubkey: {:?}",
+                "certificate has issued to unknown pubkey: {:?}",
                 hex_fmt::HexFmt(pubkey)
             );
         }
-        info!("✅ Checked log id={}", log.id);
+        info!("✅ checked log id={}", log.id);
         Ok(())
     }
 
     async fn check_new_logs(&mut self) -> Result<()> {
         let logs = self.get_logs(10000).await?;
-        info!("num logs: {}", logs.len());
+        debug!("got {} logs", logs.len());
         let mut found_last_checked = false;
 
         for log in logs.iter() {
             let log_id = log.id;
-            info!("🔍 Checking log id={}", log_id);
 
             if let Some(last_checked) = self.last_checked {
                 if log_id == last_checked {
@@ -101,7 +100,7 @@ impl Monitor {
                     break;
                 }
             }
-
+            info!("🔍 checking log id={}", log_id);
             self.check_one_log(log).await?;
         }
 
@@ -111,7 +110,7 @@ impl Monitor {
 
         if !logs.is_empty() {
             let last_log = &logs[0];
-            info!("last checked: {}", last_log.id);
+            debug!("last checked: {}", last_log.id);
             self.last_checked = Some(last_log.id);
         }
 
@@ -119,13 +118,13 @@ impl Monitor {
     }
 
     async fn run(&mut self) {
-        info!("Monitoring {}...", self.domain);
+        info!("monitoring {}...", self.domain);
         loop {
             if let Err(err) = self.refresh_known_keys().await {
-                error!("Error refreshing known keys: {}", err);
+                error!("error refreshing known keys: {}", err);
             }
             if let Err(err) = self.check_new_logs().await {
-                error!("Error: {}", err);
+                error!("error: {}", err);
             }
             tokio::time::sleep(Duration::from_secs(60)).await;
         }
@@ -136,7 +135,7 @@ fn validate_domain(domain: &str) -> Result<()> {
     let domain_regex =
         Regex::new(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$").unwrap();
     if !domain_regex.is_match(domain) {
-        bail!("Invalid domain name");
+        bail!("invalid domain name");
     }
     Ok(())
 }
