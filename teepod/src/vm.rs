@@ -357,7 +357,7 @@ mod qemu {
                 .arg(format!("vhost-vsock-pci,guest-cid={}", tdx.cid));
         }
         command.arg("-virtfs").arg(format!(
-            "local,path={},mount_tag=config,readonly=on,security_model=mapped,id=virtfs0",
+            "local,path={},mount_tag=host-shared,readonly=off,security_model=mapped,id=virtfs0",
             shared_dir.display()
         ));
         if let Some(cmdline) = &config.image.info.cmdline {
