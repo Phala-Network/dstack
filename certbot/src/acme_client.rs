@@ -412,7 +412,7 @@ impl AcmeClient {
                 }
                 // To upload CSR
                 OrderStatus::Ready => {
-                    debug!("order is ready, uploading csr");
+                    debug!("order is ready, uploading CSR");
                     let csr = make_csr(key, &domains)?;
                     order
                         .finalize(csr.as_ref())
@@ -422,7 +422,7 @@ impl AcmeClient {
                 }
                 // Need to wait for the challenge to be accepted
                 OrderStatus::Processing => {
-                    debug!("order is processing, waiting for challenge to be accepted");
+                    debug!("order is processing, waiting for the CSR to be accepted");
                     sleep(Duration::from_secs(2)).await;
                     continue;
                 }
