@@ -1,6 +1,8 @@
 use crate::rpc_service::{list_containers, AppState, ExternalRpcHandler, InternalRpcHandler};
 use anyhow::Result;
 use ra_rpc::{rocket_helper::handle_prpc, RpcCall};
+use rocket::futures::StreamExt;
+use rocket::response::stream::TextStream;
 use rocket::{
     data::{Data, Limits},
     get,
@@ -146,6 +148,86 @@ async fn external_prpc_get(
         .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
+#[get("/logs/<container_name>?<since>&<until>&<follow>&<text>&<timestamps>")]
+fn get_logs(
+    container_name: String,
+    since: Option<i64>,
+    until: Option<i64>,
+    follow: bool,
+    text: bool,
+    timestamps: bool,
+) -> TextStream![String] {
+    TextStream! {
+        let mut stream = match docker_logs::get_logs(&container_name, since.unwrap_or(0), until.unwrap_or(0), follow, text, timestamps) {
+            Ok(stream) => stream,
+            Err(e) => {
+                yield serde_json::json!({ "error": e.to_string() }).to_string();
+                return;
+            }
+        };
+        while let Some(log) = stream.next().await {
+            match log {
+                Ok(log) => yield log,
+                Err(e) => yield serde_json::json!({ "error": e.to_string() }).to_string(),
+            }
+        }
+    }
+}
+
 pub fn external_routes() -> Vec<Route> {
-    routes![index, external_prpc_post, external_prpc_get]
+    routes![index, external_prpc_post, external_prpc_get, get_logs]
+}
+
+mod docker_logs {
+    use anyhow::Result;
+    use base64::Engine;
+    use bollard::container::{LogOutput, LogsOptions};
+    use bollard::Docker;
+    use rocket::futures::{Stream, StreamExt};
+
+    pub fn get_logs(
+        container_name: &str,
+        since: i64,
+        until: i64,
+        follow: bool,
+        text: bool,
+        timestamps: bool,
+    ) -> Result<impl Stream<Item = Result<String, bollard::errors::Error>>> {
+        let docker = Docker::connect_with_local_defaults()?;
+        let options = LogsOptions::<String> {
+            stdout: true,
+            stderr: true,
+            since,
+            until,
+            follow,
+            timestamps,
+            ..Default::default()
+        };
+
+        Ok(docker
+            .logs(container_name, Some(options))
+            .map(move |result| result.map(|m| log_to_json(m, text))))
+    }
+
+    fn log_to_json(log: LogOutput, text: bool) -> String {
+        let channel = match &log {
+            LogOutput::StdErr { .. } => "stderr",
+            LogOutput::StdOut { .. } => "stdout",
+            LogOutput::StdIn { .. } => "stdin",
+            LogOutput::Console { .. } => "console",
+        };
+
+        let message: &[u8] = log.as_ref();
+        let message = if text {
+            String::from_utf8_lossy(message).to_string()
+        } else {
+            base64::engine::general_purpose::STANDARD.encode(message)
+        };
+        let log_json = serde_json::json!({
+            "channel": channel,
+            "message": message,
+        })
+        .to_string();
+        format!("{log_json}\n")
+    }
 }
