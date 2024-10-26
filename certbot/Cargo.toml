@@ -9,7 +9,7 @@ bon = "2.3.0"
 enum_dispatch = "0.3.13"
 fs-err = "3.0.0"
 hickory-resolver = "0.24.1"
-instant-acme = "0.7.1"
+instant-acme = "0.7.2"
 rcgen = { version = "0.13.1", features = ["pem"] }
 reqwest = { version = "0.12.8", features = ["json"] }
 serde = { version = "1.0.213", features = ["derive"] }

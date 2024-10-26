@@ -64,13 +64,8 @@ impl AcmeClient {
         )
         .await
         .context("failed to create new account")?;
-
-        let todo = "read id from instant_acme::Account";
-        let encoded_credentials =
-            serde_json::to_string(&credentials).expect("failed to dump credentials");
-        let account_id = read_account_id(&encoded_credentials).expect("failed to read account ID");
         let credentials = Credentials {
-            account_id,
+            account_id: account.id().to_string(),
             credentials,
         };
         Ok(Self {
@@ -517,17 +512,6 @@ fn extract_subject_alt_names(cert_pem: &str) -> Result<Vec<String>> {
         }
     }
     Ok(domains)
-}
-
-/// Read the account ID from the encoded credentials. This is a workaround for
-/// instant_acme::AccountCredentials::id not being public.
-fn read_account_id(encoded_credentials: &str) -> Result<String> {
-    #[derive(Deserialize)]
-    struct IdInfo {
-        id: String,
-    }
-    let credentials: IdInfo = serde_json::from_str(encoded_credentials)?;
-    Ok(credentials.id)
 }
 
 fn ln_force(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {

@@ -162,6 +162,7 @@ impl Dns01Api for CloudflareClient {
 }
 
 impl CloudflareClient {
+    #[cfg(test)]
     async fn get_txt_records(&self, domain: &str) -> Result<Vec<Record>> {
         Ok(self
             .get_records(domain)
