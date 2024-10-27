@@ -57,8 +57,8 @@ async fn prpc_get(
         .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
-#[get("/logs?<id>&<follow>")]
-fn vm_logs(app: &State<App>, id: String, follow: bool) -> TextStream![String] {
+#[get("/logs?<id>&<follow>&<ansi>")]
+fn vm_logs(app: &State<App>, id: String, follow: bool, ansi: bool) -> TextStream![String] {
     let log_file = app.get_log_file(&id);
     TextStream! {
         let log_file = match log_file {
@@ -81,7 +81,12 @@ fn vm_logs(app: &State<App>, id: String, follow: bool) -> TextStream![String] {
                 return;
             }
             while let Ok(Some(line)) = lines.next_line().await {
-                yield line.line().to_string();
+                let line_str = line.line().to_string();
+                if ansi {
+                    yield line_str;
+                } else {
+                    yield strip_ansi_escapes::strip_str(&line_str);
+                }
             }
         } else {
             let content = match fs::read_to_string(&log_file) {
@@ -91,7 +96,11 @@ fn vm_logs(app: &State<App>, id: String, follow: bool) -> TextStream![String] {
                 }
                 Ok(content) => content,
             };
-            yield content;
+            if ansi {
+                yield content;
+            } else {
+                yield strip_ansi_escapes::strip_str(&content);
+            }
         }
     }
 }
