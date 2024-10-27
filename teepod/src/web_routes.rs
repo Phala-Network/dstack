@@ -1,6 +1,8 @@
 use crate::app::App;
 use crate::main_service::{rpc_methods, RpcHandler};
 use anyhow::Result;
+use fs_err as fs;
+use linemux::MuxedLines;
 use ra_rpc::rocket_helper::handle_prpc;
 use rocket::{
     data::{Data, Limits},
@@ -9,7 +11,7 @@ use rocket::{
     info,
     mtls::Certificate,
     post,
-    response::status::Custom,
+    response::{status::Custom, stream::TextStream},
     routes, Route, State,
 };
 
@@ -55,48 +57,47 @@ async fn prpc_get(
         .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
-#[get("/logs?<id>")]
-fn vm_logs(id: String) -> (ContentType, String) {
-    let html = format!(
-        r#"
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Logs</title>
-            <style>
-                body {{ font-family: monospace; white-space: pre; background-color: #121212; color: #e0e0e0; }}
-                #log-container {{ height: 90vh; overflow-y: scroll; border: 1px solid #333; padding: 10px; background-color: #1e1e1e; color: #e0e0e0; }}
-            </style>
-        </head>
-        <body>
-            <div id="log-container"></div>
-            <script>
-                async function fetchLogs() {{
-                    const response = await fetch('/logs_plain?id={id}');
-                    const logs = await response.text();
-                    const logContainer = document.getElementById('log-container');
-                    logContainer.textContent = logs;
-                    logContainer.scrollTop = logContainer.scrollHeight;
-                }}
-                setInterval(fetchLogs, 1000);
-                fetchLogs();
-            </script>
-        </body>
-        </html>
-        "#
-    );
-    (ContentType::HTML, html)
-}
-
-#[get("/logs_plain?<id>")]
-fn vm_logs_plain(app: &State<App>, id: String) -> String {
-    app.get_log(&id).unwrap_or_else(|e| format!("{e:?}"))
+#[get("/logs?<id>&<follow>")]
+fn vm_logs(app: &State<App>, id: String, follow: bool) -> TextStream![String] {
+    let log_file = app.get_log_file(&id);
+    TextStream! {
+        let log_file = match log_file {
+            Err(err) => {
+                yield format!("{err:?}");
+                return;
+            }
+            Ok(log_file) => log_file,
+        };
+        if follow {
+            let mut lines = match MuxedLines::new() {
+                Err(err) => {
+                    yield format!("{err:?}");
+                    return;
+                }
+                Ok(lines) => lines,
+            };
+            if let Err(err) = lines.add_file(log_file).await {
+                yield format!("{err:?}");
+                return;
+            }
+            while let Ok(Some(line)) = lines.next_line().await {
+                yield line.line().to_string();
+            }
+        } else {
+            let content = match fs::read_to_string(&log_file) {
+                Err(err) => {
+                    yield format!("{err:?}");
+                    return;
+                }
+                Ok(content) => content,
+            };
+            yield content;
+        }
+    }
 }
 
 pub fn routes() -> Vec<Route> {
-    routes![index, prpc_post, prpc_get, vm_logs, vm_logs_plain]
+    routes![index, prpc_post, prpc_get, vm_logs]
 }
 
 pub fn print_endpoints() {

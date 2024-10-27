@@ -153,7 +153,7 @@ impl App {
             .collect()
     }
 
-    pub fn get_log(&self, id: &str) -> Result<String> {
-        self.state.lock().unwrap().monitor.get_log(id)
+    pub fn get_log_file(&self, id: &str) -> Result<PathBuf> {
+        self.state.lock().unwrap().monitor.get_log_file(id)
     }
 }

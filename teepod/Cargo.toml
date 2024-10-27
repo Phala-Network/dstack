@@ -17,8 +17,9 @@ bon = "2.3.0"
 uuid = { version = "1.10.0", features = ["v4"] }
 sha2 = "0.10.8"
 hex = "0.4.3"
-fs-err = "2.11.0"
+fs-err = "3.0.0"
 dirs = "5.0.1"
 which = "6.0.3"
 clap = { version = "4.5.18", features = ["derive"] }
 humantime = "2.1.0"
+linemux = "0.3.0"

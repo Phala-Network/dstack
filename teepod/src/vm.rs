@@ -238,11 +238,11 @@ pub(crate) mod run {
             Ok(())
         }
 
-        pub fn get_log(&self, id: &str) -> Result<String> {
+        pub fn get_log_file(&self, id: &str) -> Result<PathBuf> {
             let Some(info) = self.vms.get(id) else {
                 bail!("VM not found: {}", id);
             };
-            super::qemu::get_log(&info.workdir).context("Failed to get log")
+            super::qemu::get_log_file(&info.workdir).context("Failed to get log")
         }
 
         pub fn iter_vms(&self) -> impl Iterator<Item = &VmInstance> {
@@ -253,10 +253,15 @@ pub(crate) mod run {
 
 mod qemu {
     //! QEMU related code
-    use std::{collections::HashMap, path::Path, process::Command, sync::Arc};
+    use std::{
+        collections::HashMap,
+        path::{Path, PathBuf},
+        process::Command,
+        sync::Arc,
+    };
 
     use super::image::Image;
-    use anyhow::{Context, Result};
+    use anyhow::Result;
     use bon::Builder;
     use fs_err as fs;
     use shared_child::SharedChild;
@@ -368,9 +373,9 @@ mod qemu {
         Ok(Arc::new(child))
     }
 
-    pub fn get_log(workdir: impl AsRef<Path>) -> Result<String> {
+    pub fn get_log_file(workdir: impl AsRef<Path>) -> Result<PathBuf> {
         let serial_file = workdir.as_ref().join("serial.log");
-        fs::read_to_string(serial_file).context("Failed to read serial log")
+        Ok(serial_file)
     }
 
     #[test]
