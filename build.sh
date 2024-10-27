@@ -5,6 +5,8 @@ SCRIPT_DIR=$(cd $(dirname $0); pwd)
 CERTS_DIR=`pwd`/certs
 IMAGES_DIR=`pwd`/images
 RUN_DIR=`pwd`/run
+IMAGE_NAME=dstack-0.1.0
+IMAGE_TMP_DIR=${IMAGES_DIR}/${IMAGE_NAME}-tmp
 CERBOT_WORKDIR=$RUN_DIR/certbot
 
 CONFIG_FILE=$SCRIPT_DIR/build-config.sh
@@ -19,6 +21,11 @@ BASE_DOMAIN=1022.kvin.wang
 
 # kms and tproxy rpc listen port
 TEEPOD_RPC_LISTEN_PORT=9080
+# CIDs allocated to VMs start from this number of type unsigned int32
+TEEPOD_CID_POOL_START=10000
+# CID pool size
+TEEPOD_CID_POOL_SIZE=1000
+
 KMS_RPC_LISTEN_PORT=9043
 TPROXY_RPC_LISTEN_PORT=9010
 
@@ -52,19 +59,35 @@ cargo build --release
 cp ../target/release/{tproxy,kms,teepod,certbot,ct_monitor} .
 
 # Step 2: build guest images
-IMG_DIST_DIR=$IMAGES_DIR/ubuntu-24.04
-make -C ../../ dist DIST_DIR=$IMG_DIST_DIR
-ROOTFS_HASH=$(sha256sum "$IMG_DIST_DIR/rootfs.cpio" | awk '{print $1}')
-cat <<EOF > $IMG_DIST_DIR/metadata.json
+make -C ../../ dist DIST_DIR=$IMAGE_TMP_DIR
+
+make_image_dist() {
+    local img_name=$1
+    local rootfs_name=$2
+    local img_dist_dir=$IMAGES_DIR/$img_name
+    local rootfs_hash
+
+    mkdir -p $img_dist_dir
+    rootfs_hash=$(sha256sum "$IMAGE_TMP_DIR/$rootfs_name.cpio" | awk '{print $1}')
+    cat <<EOF > $img_dist_dir/metadata.json
 {
     "bios": "ovmf.fd",
     "kernel": "bzImage",
     "cmdline": "console=ttyS0 init=/init dstack.fde=1 dstack.integrity=0",
     "initrd": "initramfs.cpio.gz",
     "rootfs": "rootfs.iso",
-    "rootfs_hash": "$ROOTFS_HASH"
+    "rootfs_hash": "$rootfs_hash"
 }
 EOF
+
+    cp $IMAGE_TMP_DIR/ovmf.fd $img_dist_dir/
+    cp $IMAGE_TMP_DIR/bzImage $img_dist_dir/
+    cp $IMAGE_TMP_DIR/initramfs.cpio.gz $img_dist_dir/
+    cp $IMAGE_TMP_DIR/$rootfs_name.iso $img_dist_dir/rootfs.iso
+}
+
+make_image_dist dstack-0.1.0 rootfs
+make_image_dist dstack-0.1.0-dev rootfs-dev
 
 # Step 3: make certs
 make -C .. certs DOMAIN=$BASE_DOMAIN TO=$CERTS_DIR
@@ -149,6 +172,8 @@ tmp_ca_cert = "$CERTS_DIR/tmp-ca.cert"
 tmp_ca_key = "$CERTS_DIR/tmp-ca.key"
 kms_url = "https://kms.$BASE_DOMAIN:$KMS_RPC_LISTEN_PORT"
 tproxy_url = "https://tproxy.$BASE_DOMAIN:$TPROXY_RPC_LISTEN_PORT"
+cid_start = $TEEPOD_CID_POOL_START
+cid_pool_size = $TEEPOD_CID_POOL_SIZE
 EOF
 
 cat <<EOF > certbot.toml
