@@ -21,12 +21,14 @@ use crate::vm::run::{Image, TdxConfig, VmConfig, VmMonitor};
 use anyhow::{bail, Context, Result};
 use bon::Builder;
 use fs_err as fs;
+use id_pool::IdPool;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use teepod_rpc::VmInfo;
+
+mod id_pool;
 
 #[derive(Deserialize, Serialize, Builder)]
 pub struct Manifest {
@@ -48,6 +50,7 @@ pub struct App {
 
 pub(crate) struct AppState {
     monitor: VmMonitor,
+    cid_pool: IdPool<u32>,
 }
 
 impl App {
@@ -56,8 +59,12 @@ impl App {
     }
 
     pub fn new(config: Config) -> Self {
+        let cid_start = config.cvm.cid_start;
+        let cid_end = cid_start.saturating_add(config.cvm.cid_pool_size);
+        let cid_pool = IdPool::new(cid_start, cid_end);
         Self {
             state: Arc::new(Mutex::new(AppState {
+                cid_pool,
                 monitor: VmMonitor::new(config.qemu_path.clone()),
             })),
             config: Arc::new(config),
@@ -73,10 +80,13 @@ impl App {
         let image_path = self.config.image_path.join(&manifest.image);
         let image = Image::load(&image_path).context("Failed to load image")?;
 
-        let todo = "CID management";
-
-        static NEXT_CID: AtomicU32 = AtomicU32::new(10000);
-        let cid = NEXT_CID.fetch_add(1, Ordering::Relaxed);
+        let cid = self
+            .state
+            .lock()
+            .unwrap()
+            .cid_pool
+            .allocate()
+            .context("CID pool exhausted")?;
 
         let vm_config = VmConfig {
             id: manifest.id.clone(),
@@ -85,7 +95,7 @@ impl App {
             memory: manifest.memory,
             image,
             tdx_config: Some(TdxConfig { cid }),
-            port_map: manifest.port_map,
+            port_map: Default::default(),
             disk_size: manifest.disk_size,
         };
         if vm_config.disk_size > self.config.cvm.max_disk_size {

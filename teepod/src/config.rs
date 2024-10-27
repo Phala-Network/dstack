@@ -27,9 +27,16 @@ pub struct CvmConfig {
     pub ca_cert: PathBuf,
     pub tmp_ca_cert: PathBuf,
     pub tmp_ca_key: PathBuf,
+    /// The URL of the KMS server
     pub kms_url: String,
+    /// The URL of the TProxy server
     pub tproxy_url: String,
+    /// The maximum disk size in GB
     pub max_disk_size: u32,
+    /// The start of the CID pool that allocates CIDs to VMs
+    pub cid_start: u32,
+    /// The size of the CID pool that allocates CIDs to VMs
+    pub cid_pool_size: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
