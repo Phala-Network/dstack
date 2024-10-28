@@ -33,51 +33,300 @@
             border: 1px solid #ddd;
             padding: 10px;
         }
+
+        .vm-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .vm-info {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+
+        .vm-detail {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .vm-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .start {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .stop {
+            background: #f44336;
+            color: white;
+        }
+
+        .remove {
+            background: #9e9e9e;
+            color: white;
+        }
+
+        .logs {
+            background: #2196F3;
+            color: white;
+        }
+
+        .info {
+            background: #673AB7;
+            color: white;
+        }
+
+        .status-created {
+            color: #FFC107;
+        }
+
+        .status-running {
+            color: #4CAF50;
+        }
+
+        .status-stopping {
+            color: #FF9800;
+        }
+
+        .status-stopped {
+            color: #f44336;
+        }
+
+        .status-exited {
+            color: #9E9E9E;
+        }
+    </style>
+    <style>
+        .create-vm-form {
+            max-width: 600px;
+            margin: 20px 0;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-group input[type="file"] {
+            border: none;
+            padding: 0;
+        }
+
+        .form-group input[type="number"] {
+            width: 150px;
+        }
+
+        .submit-btn {
+            background-color: #2196F3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+
+        .submit-btn:hover {
+            background-color: #1976D2;
+        }
+
+        .submit-btn:active {
+            transform: translateY(1px);
+        }
+    </style>
+    <style>
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-grid .form-group {
+            margin-bottom: 0;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-grid .form-group input {
+            /* Adjust for padding */
+            width: calc(100% - 16px);
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            /* Include padding in width calculation */
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #2196F3;
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+        }
+    </style>
+    <style>
+        #vmList table {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+
+        #vmList tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        #vmList th {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .vm-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 
 <body>
     <div id="app">
         <h2>Create VM</h2>
-        <form @submit.prevent="createVM">
-            <label for="vmName">VM Name:</label>
-            <input id="vmName" v-model="vmForm.name" type="text" placeholder="VM Name" required><br>
+        <form @submit.prevent="createVM" class="create-vm-form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="vmName">VM Name</label>
+                    <input id="vmName" v-model="vmForm.name" type="text" placeholder="Enter VM name" required>
+                </div>
 
-            <label for="vmImage">Image:</label>
-            <input id="vmImage" v-model="vmForm.image" type="text" placeholder="Image" required><br>
+                <div class="form-group">
+                    <label for="vmImage">Image</label>
+                    <input id="vmImage" v-model="vmForm.image" type="text" placeholder="Enter image name" required>
+                </div>
 
-            <label for="composeFile">Docker Compose File:</label>
-            <textarea id="composeFile" v-model="vmForm.compose_file" placeholder="Docker Compose File"
-                required></textarea><br>
+                <div class="form-group">
+                    <label for="vcpu">Number of vCPUs</label>
+                    <input id="vcpu" v-model.number="vmForm.vcpu" type="number" placeholder="vCPUs" required>
+                </div>
 
-            <label for="fileInput">Upload Compose File:</label>
-            <input id="fileInput" type="file" @change="loadComposeFile" accept=".yml,.yaml,.txt"><br>
+                <div class="form-group">
+                    <label for="memory">Memory (MB)</label>
+                    <input id="memory" v-model.number="vmForm.memory" type="number" placeholder="Memory in MB" required>
+                </div>
 
-            <label for="vcpu">vCPU:</label>
-            <input id="vcpu" v-model.number="vmForm.vcpu" type="number" placeholder="vCPU" required><br>
+                <div class="form-group">
+                    <label for="diskSize">Disk Size (GB)</label>
+                    <input id="diskSize" v-model.number="vmForm.disk_size" type="number" placeholder="Disk size in GB"
+                        required>
+                </div>
 
-            <label for="memory">Memory (MB):</label>
-            <input id="memory" v-model.number="vmForm.memory" type="number" placeholder="Memory (MB)" required><br>
+                <div class="form-group">
+                    <label for="fileInput">Upload Compose File</label>
+                    <input id="fileInput" type="file" @change="loadComposeFile" accept=".yml,.yaml,.txt">
+                </div>
+            </div>
 
-            <label for="diskSize">Disk Size (GB):</label>
-            <input id="diskSize" v-model.number="vmForm.disk_size" type="number" placeholder="Disk Size (GB)"
-                required><br>
+            <div class="form-group">
+                <label for="composeFile">Docker Compose File</label>
+                <textarea id="composeFile" v-model="vmForm.compose_file"
+                    placeholder="Paste your docker-compose.yml here" required></textarea>
+            </div>
 
-            <button type="submit">Create VM</button>
+            <button type="submit" class="submit-btn">Create VM</button>
         </form>
 
         <h2>VM List</h2>
         <div id="vmList">
-            <div v-for="vm in vms" :key="vm.id">
-                <strong>ID:</strong> {{ vm.id }}
-                <strong>Status:</strong> {{ vm.status }}
-                <strong>Uptime:</strong> {{ vm.uptime }}
-                <button @click="startVM(vm.id)">Start</button>
-                <button @click="stopVM(vm.id)">Stop</button>
-                <button @click="removeVM(vm.id)">Remove</button>
-                <button @click="showLog(vm.id)">VM Logs</button>
-                <button @click="showAppInfo(vm.app_url)">App info</button>
-            </div>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">ID</th>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Status</th>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Uptime</th>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="vm in vms" :key="vm.id" style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 12px;">{{ vm.id }}</td>
+                        <td style="padding: 12px;">
+                            <span :class="'status-' + vm.status.toLowerCase()">{{ vm.status }}</span>
+                        </td>
+                        <td style="padding: 12px;">{{ vm.uptime }}</td>
+                        <td style="padding: 12px;">
+                            <div class="vm-actions">
+                                <button class="action-btn start" @click="startVM(vm.id)" title="Start VM">
+                                    <i class="fas fa-play"></i> Start
+                                </button>
+                                <button class="action-btn stop" @click="stopVM(vm.id)" title="Stop VM">
+                                    <i class="fas fa-stop"></i> Stop
+                                </button>
+                                <button class="action-btn remove" @click="removeVM(vm.id)" title="Remove VM">
+                                    <i class="fas fa-trash"></i> Remove
+                                </button>
+                                <button class="action-btn logs" @click="showLog(vm.id)" title="View Logs">
+                                    <i class="fas fa-file-alt"></i> Logs
+                                </button>
+                                <button class="action-btn info" @click="showAppInfo(vm.app_url)" title="View App Info">
+                                    <i class="fas fa-info-circle"></i> Dashboard
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 

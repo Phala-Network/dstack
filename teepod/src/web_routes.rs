@@ -17,8 +17,12 @@ use rocket::{
 
 #[get("/")]
 async fn index() -> (ContentType, String) {
-    let html = include_str!("console.html");
-    (ContentType::HTML, html.to_string())
+    let html = std::fs::metadata("console.html")
+        .is_ok()
+        .then(|| fs::read_to_string("console.html").ok())
+        .flatten()
+        .unwrap_or_else(|| include_str!("console.html").to_string());
+    (ContentType::HTML, html)
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]
