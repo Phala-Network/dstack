@@ -4,7 +4,9 @@ use anyhow::{Context, Result};
 use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
-use teepod_rpc::{CreateVmRequest, Id, VmInfo, VmListResponse};
+use teepod_rpc::{
+    CreateVmRequest, Id, ImageInfo as RpcImageInfo, ImageListResponse, VmInfo, VmListResponse,
+};
 
 use crate::app::{App, Manifest};
 use crate::vm::image::ImageInfo;
@@ -73,8 +75,20 @@ fn app_id_of(compose_file: &str) -> String {
     truncate40(&hex_sha256(&compose_file)).to_string()
 }
 
+/// Validate the label of the VM. Valid chars are alphanumeric, dash and underscore.
+fn validate_label(label: &str) -> Result<()> {
+    if label
+        .chars()
+        .any(|c| !c.is_alphanumeric() && c != '-' && c != '_')
+    {
+        anyhow::bail!("Invalid label: {}", label);
+    }
+    Ok(())
+}
+
 impl TeepodRpc for RpcHandler {
     async fn create_vm(self, request: CreateVmRequest) -> Result<Id> {
+        validate_label(&request.name)?;
         let app_id = app_id_of(&request.compose_file);
         let id = uuid::Uuid::new_v4().to_string();
         let work_dir = self.prepare_work_dir(&id, &request.compose_file, &request.image)?;
@@ -104,13 +118,23 @@ impl TeepodRpc for RpcHandler {
         Ok(request)
     }
 
-    async fn vm_status(self, request: Id) -> Result<VmInfo> {
-        todo!()
-    }
-
     async fn list_vms(self) -> Result<VmListResponse> {
         Ok(VmListResponse {
             vms: self.app.list_vms(),
+        })
+    }
+
+    async fn list_images(self) -> Result<ImageListResponse> {
+        Ok(ImageListResponse {
+            images: self
+                .app
+                .list_image_names()?
+                .into_iter()
+                .map(|name| RpcImageInfo {
+                    name,
+                    description: "".to_string(),
+                })
+                .collect(),
         })
     }
 }

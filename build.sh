@@ -6,7 +6,7 @@ CERTS_DIR=`pwd`/certs
 IMAGES_DIR=`pwd`/images
 RUN_DIR=`pwd`/run
 IMAGE_NAME=dstack-0.1.0
-IMAGE_TMP_DIR=${IMAGES_DIR}/${IMAGE_NAME}-tmp
+IMAGE_TMP_DIR=`pwd`/tmp/images/$IMAGE_NAME
 CERBOT_WORKDIR=$RUN_DIR/certbot
 
 CONFIG_FILE=$SCRIPT_DIR/build-config.sh

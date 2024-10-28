@@ -202,6 +202,7 @@ pub(crate) mod run {
             };
             VmInfo {
                 id: self.config.id.clone(),
+                name: self.config.name.clone(),
                 app_id: self.config.app_id.clone(),
                 status,
                 uptime_ms,
@@ -213,6 +214,7 @@ pub(crate) mod run {
 
     pub struct VmInfo {
         pub id: String,
+        pub name: String,
         pub status: &'static str,
         pub uptime_ms: u128,
         pub uptime: String,
@@ -294,7 +296,7 @@ mod qemu {
     pub struct VmConfig {
         pub id: String,
         pub app_id: String,
-        pub process_name: String,
+        pub name: String,
         pub vcpu: u32,
         /// Memory in MB
         pub memory: u32,
@@ -342,7 +344,6 @@ mod qemu {
         }
         let mut command = Command::new(qemu);
         command.arg("-accel").arg("kvm");
-        command.arg("-name").arg(&config.process_name);
         command.arg("-cpu").arg("host");
         command.arg("-smp").arg(config.vcpu.to_string());
         command.arg("-m").arg(format!("{}M", config.memory));
@@ -406,7 +407,8 @@ mod qemu {
 
         let config = VmConfig {
             id: "test".to_string(),
-            process_name: "test".to_string(),
+            app_id: "test".to_string(),
+            name: "test".to_string(),
             vcpu: 1,
             memory: 1024,
             image: Image::load(&image_path).unwrap(),
@@ -415,7 +417,6 @@ mod qemu {
                 10022u16: 22u16,
             },
             disk_size: 10,
-            max_disk_size: 10,
         };
         let child = run_vm("qemu-system-x86_64", &config, &vm_dir).unwrap();
         let status = child.wait().unwrap();

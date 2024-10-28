@@ -89,9 +89,9 @@ impl App {
             .context("CID pool exhausted")?;
 
         let vm_config = VmConfig {
-            id: manifest.id.clone(),
-            app_id: manifest.app_id.clone(),
-            process_name: manifest.name,
+            id: manifest.id,
+            app_id: manifest.app_id,
+            name: manifest.name,
             vcpu: manifest.vcpu,
             memory: manifest.memory,
             image,
@@ -155,6 +155,7 @@ impl App {
             .into_iter()
             .map(|info| VmInfo {
                 id: info.id,
+                name: info.name,
                 status: info.status.to_string(),
                 uptime: info.uptime,
                 app_url: format!("https://{}.{}:{}", info.app_id, gw.base_domain, gw.port),
@@ -165,5 +166,22 @@ impl App {
 
     pub fn get_log_file(&self, id: &str) -> Result<PathBuf> {
         self.state.lock().unwrap().monitor.get_log_file(id)
+    }
+
+    pub fn list_image_names(&self) -> Result<Vec<String>> {
+        let image_path = self.config.image_path.clone();
+        let images = fs::read_dir(image_path).context("Failed to read image directory")?;
+        Ok(images
+            .flat_map(|e| {
+                Some(
+                    e.ok()?
+                        .path()
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string(),
+                )
+            })
+            .collect())
     }
 }

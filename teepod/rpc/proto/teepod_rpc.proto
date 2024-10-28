@@ -7,14 +7,16 @@ package teepod;
 message VmInfo {
   // Unique identifier for the VM
   string id = 1;
+  // Name of the VM
+  string name = 2;
   // Current status of the VM (e.g., running, stopped)
-  string status = 2;
+  string status = 3;
   // Uptime in human-readable format
-  string uptime = 3;
+  string uptime = 4;
   // URL to the Tappd console
-  string app_url = 4;
+  string app_url = 5;
   // App ID
-  string app_id = 5;
+  string app_id = 6;
 }
 
 message Id {
@@ -50,8 +52,17 @@ service Teepod {
   rpc CreateVM(CreateVMRequest) returns (Id);
   // RPC to delete a VM
   rpc StopVM(Id) returns (Id);
-  // RPC to get the status of a VM
-  rpc VMStatus(Id) returns (VmInfo);
   // RPC to list all VMs
   rpc ListVms(google.protobuf.Empty) returns (VMListResponse);
+  // RPC to list all available images
+  rpc ListImages(google.protobuf.Empty) returns (ImageListResponse);
+}
+
+message ImageListResponse {
+  repeated ImageInfo images = 1;
+}
+
+message ImageInfo {
+  string name = 1;
+  string description = 2;
 }

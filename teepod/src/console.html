@@ -253,7 +253,12 @@
 
                 <div class="form-group">
                     <label for="vmImage">Image</label>
-                    <input id="vmImage" v-model="vmForm.image" type="text" placeholder="Enter image name" required>
+                    <select id="vmImage" v-model="vmForm.image" required>
+                        <option value="" disabled>Select an image</option>
+                        <option v-for="image in images" :key="image" :value="image.name">
+                            {{ image.name }}
+                        </option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -293,6 +298,7 @@
                 <thead>
                     <tr>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">ID</th>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Name</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Status</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Uptime</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Actions</th>
@@ -301,6 +307,7 @@
                 <tbody>
                     <tr v-for="vm in vms" :key="vm.id" style="border-bottom: 1px solid #eee;">
                         <td style="padding: 12px;">{{ vm.id }}</td>
+                        <td style="padding: 12px;">{{ vm.name }}</td>
                         <td style="padding: 12px;">
                             <span :class="'status-' + vm.status.toLowerCase()">{{ vm.status }}</span>
                         </td>
@@ -354,6 +361,7 @@
                     memory: 1024,
                     disk_size: 20
                 });
+                const images = ref([]);
 
                 const loadVMList = async () => {
                     try {
@@ -429,13 +437,25 @@
                     }
                 };
 
+                const loadImages = async () => {
+                    try {
+                        const response = await rpcCall('ListImages');
+                        const data = await response.json();
+                        images.value = data.images;
+                    } catch (error) {
+                        console.error('error loading images:', error);
+                    }
+                };
+
                 onMounted(() => {
                     loadVMList();
+                    loadImages();
                 });
 
                 return {
                     vms,
                     vmForm,
+                    images,
                     createVM,
                     stopVM,
                     startVM,
