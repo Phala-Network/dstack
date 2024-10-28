@@ -98,6 +98,7 @@ pub(crate) mod run {
         config: VmConfig,
         workdir: PathBuf,
         process: Option<Arc<SharedChild>>,
+        started: bool,
         exited_at: Option<Instant>,
         started_at: Option<Instant>,
     }
@@ -108,12 +109,16 @@ pub(crate) mod run {
                 config,
                 workdir,
                 process: None,
+                started: false,
                 exited_at: None,
                 started_at: None,
             }
         }
 
         pub fn start(&mut self, qemu_bin: &Path) -> Result<()> {
+            if self.started {
+                bail!("VM already running");
+            }
             let process = super::qemu::run_vm(qemu_bin, &self.config, &self.workdir)?;
             let cloned_child = process.clone();
             let vmid = self.config.id.clone();
@@ -157,10 +162,12 @@ pub(crate) mod run {
             });
             self.process = Some(process);
             self.started_at = Some(Instant::now());
+            self.started = true;
             Ok(())
         }
 
         pub fn stop(&mut self) -> Result<()> {
+            self.started = false;
             if let Some(process) = &self.process {
                 process.kill()?;
                 self.exited_at = Some(Instant::now());
@@ -168,14 +175,17 @@ pub(crate) mod run {
             Ok(())
         }
 
-        pub fn info(&self) -> VmInfo {
-            let is_running = match &self.process {
+        pub fn is_running(&self) -> bool {
+            match &self.process {
                 Some(child) => match child.try_wait() {
                     Ok(None) => true,
                     _ => false,
                 },
                 None => false,
-            };
+            }
+        }
+
+        pub fn info(&self) -> VmInfo {
             fn truncate(d: Duration) -> Duration {
                 Duration::from_secs(d.as_secs())
             }
@@ -184,9 +194,16 @@ pub(crate) mod run {
             let uptime = uptime
                 .map(|d| humantime::format_duration(truncate(d)).to_string())
                 .unwrap_or_default();
+            let status = match (self.started, self.is_running()) {
+                (true, true) => "running",
+                (true, false) => "exited",
+                (false, true) => "stopping",
+                (false, false) => "stopped",
+            };
             VmInfo {
                 id: self.config.id.clone(),
-                is_running,
+                app_id: self.config.app_id.clone(),
+                status,
                 uptime_ms,
                 uptime,
                 exited_at: None,
@@ -196,10 +213,11 @@ pub(crate) mod run {
 
     pub struct VmInfo {
         pub id: String,
-        pub is_running: bool,
+        pub status: &'static str,
         pub uptime_ms: u128,
         pub uptime: String,
         pub exited_at: Option<String>,
+        pub app_id: String,
     }
 
     pub struct VmMonitor {
@@ -275,6 +293,7 @@ mod qemu {
     #[derive(Debug, Builder)]
     pub struct VmConfig {
         pub id: String,
+        pub app_id: String,
         pub process_name: String,
         pub vcpu: u32,
         /// Memory in MB

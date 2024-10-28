@@ -1,8 +1,10 @@
 #!/bin/bash
 
 VMDIR=$1
-IMAGE_PATH=./images/$(jq -r '.image' ${VMDIR}/config.json)
+IMAGE_PATH=./images/$(jq -r '.image' ${VMDIR}/vm-manifest.json)
 IMG_METADATA=${IMAGE_PATH}/metadata.json
+MEM=$(jq -r '.memory' ${VMDIR}/vm-manifest.json)
+VCPUS=$(jq -r '.vcpu' ${VMDIR}/vm-manifest.json)
 
 VDA=${VMDIR}/hda.img
 
@@ -38,7 +40,7 @@ sleep 2
 
 qemu-system-x86_64 \
 		   -accel kvm \
-		   -m 8G -smp 16 \
+		   -m ${MEM}M -smp ${VCPUS} \
 		   -name ${PROCESS_NAME},process=${PROCESS_NAME},debug-threads=on \
 		   -cpu host \
 		   -machine q35,kernel_irqchip=split${MACHINE_ARGS} \

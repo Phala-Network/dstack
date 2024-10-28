@@ -34,7 +34,7 @@ mod id_pool;
 pub struct Manifest {
     id: String,
     name: String,
-    address: String,
+    app_id: String,
     vcpu: u32,
     memory: u32,
     disk_size: u32,
@@ -72,7 +72,7 @@ impl App {
     }
 
     pub fn load_vm(&self, work_dir: impl AsRef<Path>) -> Result<()> {
-        let manifest_path = work_dir.as_ref().join("config.json");
+        let manifest_path = work_dir.as_ref().join("vm-manifest.json");
         let manifest = fs::read_to_string(manifest_path).context("Failed to read manifest")?;
         let manifest: Manifest =
             serde_json::from_str(&manifest).context("Failed to parse manifest")?;
@@ -90,6 +90,7 @@ impl App {
 
         let vm_config = VmConfig {
             id: manifest.id.clone(),
+            app_id: manifest.app_id.clone(),
             process_name: manifest.name,
             vcpu: manifest.vcpu,
             memory: manifest.memory,
@@ -148,17 +149,16 @@ impl App {
             .collect::<Vec<_>>();
 
         infos.sort_by(|a, b| b.uptime_ms.cmp(&a.uptime_ms));
+        let gw = &self.config.gateway;
 
         infos
             .into_iter()
             .map(|info| VmInfo {
                 id: info.id,
-                status: if info.is_running {
-                    "running".to_string()
-                } else {
-                    "stopped".to_string()
-                },
+                status: info.status.to_string(),
                 uptime: info.uptime,
+                app_url: format!("https://{}.{}:{}", info.app_id, gw.base_domain, gw.port),
+                app_id: info.app_id,
             })
             .collect()
     }

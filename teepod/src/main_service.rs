@@ -62,7 +62,7 @@ impl RpcHandler {
     }
 }
 
-fn app_address(compose_file: &str) -> String {
+fn app_id_of(compose_file: &str) -> String {
     fn truncate40(s: &str) -> &str {
         if s.len() > 40 {
             &s[..40]
@@ -74,14 +74,14 @@ fn app_address(compose_file: &str) -> String {
 }
 
 impl TeepodRpc for RpcHandler {
-    async fn create_vm(self, request: CreateVmRequest) -> Result<VmInfo> {
-        let address = app_address(&request.compose_file);
+    async fn create_vm(self, request: CreateVmRequest) -> Result<Id> {
+        let app_id = app_id_of(&request.compose_file);
         let id = uuid::Uuid::new_v4().to_string();
         let work_dir = self.prepare_work_dir(&id, &request.compose_file, &request.image)?;
         let manifest = Manifest::builder()
             .id(id.clone())
             .name(request.name)
-            .address(address.clone())
+            .app_id(app_id.clone())
             .image(request.image)
             .vcpu(request.vcpu)
             .memory(request.memory)
@@ -91,25 +91,17 @@ impl TeepodRpc for RpcHandler {
 
         let serialized_manifest =
             serde_json::to_string(&manifest).context("Failed to serialize manifest")?;
-        fs::write(work_dir.join("config.json"), serialized_manifest)
+        fs::write(work_dir.join("vm-manifest.json"), serialized_manifest)
             .context("Failed to write manifest")?;
 
         self.app.load_vm(work_dir).context("Failed to load VM")?;
 
-        Ok(VmInfo {
-            id,
-            status: "created".to_string(),
-            uptime: "0".to_string(),
-        })
+        Ok(Id { id })
     }
 
-    async fn stop_vm(self, request: Id) -> Result<VmInfo> {
+    async fn stop_vm(self, request: Id) -> Result<Id> {
         self.app.stop_vm(&request.id)?;
-        Ok(VmInfo {
-            id: request.id,
-            status: Default::default(),
-            uptime: Default::default(),
-        })
+        Ok(request)
     }
 
     async fn vm_status(self, request: Id) -> Result<VmInfo> {

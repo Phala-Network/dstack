@@ -174,6 +174,10 @@ kms_url = "https://kms.$BASE_DOMAIN:$KMS_RPC_LISTEN_PORT"
 tproxy_url = "https://tproxy.$BASE_DOMAIN:$TPROXY_RPC_LISTEN_PORT"
 cid_start = $TEEPOD_CID_POOL_START
 cid_pool_size = $TEEPOD_CID_POOL_SIZE
+
+[gateway]
+base_domain = "$TPROXY_PUBLIC_DOMAIN"
+port = $TPROXY_LISTEN_PORT2
 EOF
 
 cat <<EOF > certbot.toml

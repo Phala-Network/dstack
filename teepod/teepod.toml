@@ -15,3 +15,7 @@ tproxy_url = "http://127.0.0.1:8082"
 max_disk_size = 100
 cid_start = 1000
 cid_pool_size = 1000
+
+[gateway]
+base_domain = "localhost"
+port = 8082

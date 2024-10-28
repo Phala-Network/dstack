@@ -42,25 +42,27 @@
         <form @submit.prevent="createVM">
             <label for="vmName">VM Name:</label>
             <input id="vmName" v-model="vmForm.name" type="text" placeholder="VM Name" required><br>
-            
+
             <label for="vmImage">Image:</label>
             <input id="vmImage" v-model="vmForm.image" type="text" placeholder="Image" required><br>
-            
+
             <label for="composeFile">Docker Compose File:</label>
-            <textarea id="composeFile" v-model="vmForm.compose_file" placeholder="Docker Compose File" required></textarea><br>
-            
+            <textarea id="composeFile" v-model="vmForm.compose_file" placeholder="Docker Compose File"
+                required></textarea><br>
+
             <label for="fileInput">Upload Compose File:</label>
             <input id="fileInput" type="file" @change="loadComposeFile" accept=".yml,.yaml,.txt"><br>
-            
+
             <label for="vcpu">vCPU:</label>
             <input id="vcpu" v-model.number="vmForm.vcpu" type="number" placeholder="vCPU" required><br>
-            
+
             <label for="memory">Memory (MB):</label>
             <input id="memory" v-model.number="vmForm.memory" type="number" placeholder="Memory (MB)" required><br>
-            
+
             <label for="diskSize">Disk Size (GB):</label>
-            <input id="diskSize" v-model.number="vmForm.disk_size" type="number" placeholder="Disk Size (GB)" required><br>
-            
+            <input id="diskSize" v-model.number="vmForm.disk_size" type="number" placeholder="Disk Size (GB)"
+                required><br>
+
             <button type="submit">Create VM</button>
         </form>
 
@@ -70,8 +72,11 @@
                 <strong>ID:</strong> {{ vm.id }}
                 <strong>Status:</strong> {{ vm.status }}
                 <strong>Uptime:</strong> {{ vm.uptime }}
-                <button @click="stopVM(vm.id)">Stop VM</button>
-                <button @click="showLog(vm.id)">Show Log</button>
+                <button @click="startVM(vm.id)">Start</button>
+                <button @click="stopVM(vm.id)">Stop</button>
+                <button @click="removeVM(vm.id)">Remove</button>
+                <button @click="showLog(vm.id)">VM Logs</button>
+                <button @click="showAppInfo(vm.app_url)">App info</button>
             </div>
         </div>
     </div>
@@ -131,8 +136,36 @@
                     }
                 };
 
+                const startVM = async (id) => {
+                    try {
+                        const _response = await rpcCall('StartVM', { id });
+                        loadVMList();
+                    } catch (error) {
+                        console.error('Error starting VM:', error);
+                        alert('Failed to start VM');
+                    }
+                };
+
+                const removeVM = async (id) => {
+                    try {
+                        const _response = await rpcCall('RemoveVM', { id });
+                        loadVMList();
+                    } catch (error) {
+                        console.error('Error removing VM:', error);
+                        alert('Failed to remove VM');
+                    }
+                };
+
                 const showLog = async (id) => {
                     window.open(`/logs?id=${id}&follow=false&ansi=false`, '_blank');
+                };
+
+                const showAppInfo = async (app_url) => {
+                    if (app_url) {
+                        window.open(app_url, '_blank');
+                    } else {
+                        alert('No Tappd URL');
+                    }
                 };
 
                 const loadComposeFile = (event) => {
@@ -156,7 +189,10 @@
                     vmForm,
                     createVM,
                     stopVM,
+                    startVM,
+                    removeVM,
                     showLog,
+                    showAppInfo,
                     loadComposeFile
                 };
             }

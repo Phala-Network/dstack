@@ -11,6 +11,10 @@ message VmInfo {
   string status = 2;
   // Uptime in human-readable format
   string uptime = 3;
+  // URL to the Tappd console
+  string app_url = 4;
+  // App ID
+  string app_id = 5;
 }
 
 message Id {
@@ -43,9 +47,9 @@ message VMListResponse {
 // Service definition for Teepod
 service Teepod {
   // RPC to create a VM
-  rpc CreateVM(CreateVMRequest) returns (VmInfo);
+  rpc CreateVM(CreateVMRequest) returns (Id);
   // RPC to delete a VM
-  rpc StopVM(Id) returns (VmInfo);
+  rpc StopVM(Id) returns (Id);
   // RPC to get the status of a VM
   rpc VMStatus(Id) returns (VmInfo);
   // RPC to list all VMs

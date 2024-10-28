@@ -40,6 +40,12 @@ pub struct CvmConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct GatewayConfig {
+    pub base_domain: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub image_path: PathBuf,
@@ -50,6 +56,8 @@ pub struct Config {
 
     /// CVM configuration
     pub cvm: CvmConfig,
+    /// Gateway configuration
+    pub gateway: GatewayConfig,
 }
 
 impl Config {

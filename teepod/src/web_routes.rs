@@ -89,6 +89,7 @@ fn vm_logs(app: &State<App>, id: String, follow: bool, ansi: bool) -> TextStream
                         } else {
                             yield strip_ansi_escapes::strip_str(&line_str);
                         }
+                        yield "\n".to_string();
                     }
                     Ok(None) => {
                         break;
