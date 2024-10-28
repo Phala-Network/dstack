@@ -247,7 +247,7 @@
         <form @submit.prevent="createVM" class="create-vm-form">
             <div class="form-grid">
                 <div class="form-group">
-                    <label for="vmName">VM Name</label>
+                    <label for="vmName">Name</label>
                     <input id="vmName" v-model="vmForm.name" type="text" placeholder="Enter VM name" required>
                 </div>
 
@@ -297,7 +297,7 @@
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr>
-                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">ID</th>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">App ID</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Name</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Status</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Uptime</th>
@@ -306,7 +306,7 @@
                 </thead>
                 <tbody>
                     <tr v-for="vm in vms" :key="vm.id" style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 12px;">{{ vm.id }}</td>
+                        <td style="padding: 12px;">{{ vm.app_id }}</td>
                         <td style="padding: 12px;">{{ vm.name }}</td>
                         <td style="padding: 12px;">
                             <span :class="'status-' + vm.status.toLowerCase()">{{ vm.status }}</span>
@@ -354,7 +354,7 @@
             setup() {
                 const vms = ref([]);
                 const vmForm = ref({
-                    name: 'example',
+                    name: '',
                     image: 'dstack-0.1.0-dev',
                     compose_file: '',
                     vcpu: 1,

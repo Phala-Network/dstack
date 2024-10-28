@@ -8,6 +8,7 @@ use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
     CreateVmRequest, Id, ImageInfo as RpcImageInfo, ImageListResponse, VmInfo, VmListResponse,
 };
+use tracing::warn;
 
 use crate::app::{App, Manifest, VmWorkDir};
 use crate::vm::image::ImageInfo;
@@ -96,7 +97,7 @@ impl TeepodRpc for RpcHandler {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
-            .as_secs();
+            .as_millis() as u64;
         let manifest = Manifest::builder()
             .id(id.clone())
             .name(request.name)
@@ -106,13 +107,16 @@ impl TeepodRpc for RpcHandler {
             .memory(request.memory)
             .disk_size(request.disk_size)
             .port_map(Default::default())
-            .created_at(now)
+            .created_at_ms(now)
             .build();
 
         let vm_work_dir = VmWorkDir::new(&work_dir);
         vm_work_dir
             .put_manifest(&manifest)
             .context("Failed to write manifest")?;
+        if let Err(err) = vm_work_dir.set_started(true) {
+            warn!("Failed to set started: {}", err);
+        }
 
         self.app.load_vm(work_dir).context("Failed to load VM")?;
 

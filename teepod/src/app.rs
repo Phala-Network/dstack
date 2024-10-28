@@ -40,7 +40,7 @@ pub struct Manifest {
     disk_size: u32,
     image: String,
     port_map: HashMap<u16, u16>,
-    created_at: u64,
+    created_at_ms: u64,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -152,6 +152,7 @@ impl App {
             tdx_config: Some(TdxConfig { cid }),
             port_map: Default::default(),
             disk_size: manifest.disk_size,
+            created_at_ms: manifest.created_at_ms,
         };
         if vm_config.disk_size > self.config.cvm.max_disk_size {
             bail!(
@@ -223,7 +224,7 @@ impl App {
             .map(|vm| vm.info())
             .collect::<Vec<_>>();
 
-        infos.sort_by(|a, b| b.uptime_ms.cmp(&a.uptime_ms));
+        infos.sort_by(|a, b| a.created_at_ms.cmp(&b.created_at_ms));
         let gw = &self.config.gateway;
 
         infos

@@ -207,6 +207,7 @@ pub(crate) mod run {
                 status,
                 uptime_ms,
                 uptime,
+                created_at_ms: self.config.created_at_ms,
                 exited_at: None,
             }
         }
@@ -218,6 +219,7 @@ pub(crate) mod run {
         pub status: &'static str,
         pub uptime_ms: u128,
         pub uptime: String,
+        pub created_at_ms: u64,
         pub exited_at: Option<String>,
         pub app_id: String,
     }
@@ -323,6 +325,7 @@ mod qemu {
         pub tdx_config: Option<TdxConfig>,
         /// Port map from host to guest
         pub port_map: HashMap<u16, u16>,
+        pub created_at_ms: u64,
     }
 
     fn create_hd(
