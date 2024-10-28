@@ -40,6 +40,36 @@ pub struct Manifest {
     disk_size: u32,
     image: String,
     port_map: HashMap<u16, u16>,
+    started: bool,
+}
+
+pub struct VmWorkDir {
+    workdir: PathBuf,
+}
+impl VmWorkDir {
+    pub fn new(workdir: impl AsRef<Path>) -> Self {
+        Self {
+            workdir: workdir.as_ref().to_path_buf(),
+        }
+    }
+
+    pub fn manifest_path(&self) -> PathBuf {
+        self.workdir.join("vm-manifest.json")
+    }
+
+    pub fn manifest(&self) -> Result<Manifest> {
+        let manifest_path = self.manifest_path();
+        let manifest = fs::read_to_string(manifest_path).context("Failed to read manifest")?;
+        let manifest: Manifest =
+            serde_json::from_str(&manifest).context("Failed to parse manifest")?;
+        Ok(manifest)
+    }
+
+    pub fn put_manifest(&self, manifest: &Manifest) -> Result<()> {
+        let manifest_path = self.manifest_path();
+        fs::write(manifest_path, serde_json::to_string(manifest)?)
+            .context("Failed to write manifest")
+    }
 }
 
 #[derive(Clone)]
@@ -72,10 +102,8 @@ impl App {
     }
 
     pub fn load_vm(&self, work_dir: impl AsRef<Path>) -> Result<()> {
-        let manifest_path = work_dir.as_ref().join("vm-manifest.json");
-        let manifest = fs::read_to_string(manifest_path).context("Failed to read manifest")?;
-        let manifest: Manifest =
-            serde_json::from_str(&manifest).context("Failed to parse manifest")?;
+        let vm_work_dir = VmWorkDir::new(work_dir.as_ref());
+        let manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
         let todo = "sanitize the image name";
         let image_path = self.config.image_path.join(&manifest.image);
         let image = Image::load(&image_path).context("Failed to load image")?;
@@ -105,12 +133,11 @@ impl App {
                 self.config.cvm.max_disk_size
             );
         }
-        let result = self
-            .state
-            .lock()
-            .unwrap()
-            .monitor
-            .run_vm(vm_config, work_dir.as_ref());
+        let result = self.state.lock().unwrap().monitor.load_vm(
+            vm_config,
+            work_dir.as_ref(),
+            manifest.started,
+        );
         if let Err(err) = result {
             println!("Failed to run VM: {err}");
         }
@@ -118,6 +145,12 @@ impl App {
     }
 
     pub fn stop_vm(&self, id: &str) -> Result<()> {
+        let work_dir = VmWorkDir::new(self.vm_dir().join(id));
+        let mut manifest = work_dir.manifest().context("Failed to read manifest")?;
+        manifest.started = false;
+        work_dir
+            .put_manifest(&manifest)
+            .context("Failed to write manifest")?;
         self.state.lock().unwrap().monitor.stop_vm(id)?;
         Ok(())
     }

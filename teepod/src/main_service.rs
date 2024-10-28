@@ -8,7 +8,7 @@ use teepod_rpc::{
     CreateVmRequest, Id, ImageInfo as RpcImageInfo, ImageListResponse, VmInfo, VmListResponse,
 };
 
-use crate::app::{App, Manifest};
+use crate::app::{App, Manifest, VmWorkDir};
 use crate::vm::image::ImageInfo;
 
 fn hex_sha256(data: &str) -> String {
@@ -101,11 +101,12 @@ impl TeepodRpc for RpcHandler {
             .memory(request.memory)
             .disk_size(request.disk_size)
             .port_map(Default::default())
+            .started(true)
             .build();
 
-        let serialized_manifest =
-            serde_json::to_string(&manifest).context("Failed to serialize manifest")?;
-        fs::write(work_dir.join("vm-manifest.json"), serialized_manifest)
+        let vm_work_dir = VmWorkDir::new(&work_dir);
+        vm_work_dir
+            .put_manifest(&manifest)
             .context("Failed to write manifest")?;
 
         self.app.load_vm(work_dir).context("Failed to load VM")?;

@@ -235,9 +235,16 @@ pub(crate) mod run {
             }
         }
 
-        pub fn run_vm(&mut self, vm: VmConfig, workdir: impl AsRef<Path>) -> Result<()> {
+        pub fn load_vm(
+            &mut self,
+            vm: VmConfig,
+            workdir: impl AsRef<Path>,
+            start: bool,
+        ) -> Result<()> {
             let mut vm = VmInstance::new(vm, workdir.as_ref().to_path_buf());
-            vm.start(&self.qemu_bin)?;
+            if start {
+                vm.start(&self.qemu_bin)?;
+            }
             self.vms.insert(vm.config.id.clone(), vm);
             Ok(())
         }
