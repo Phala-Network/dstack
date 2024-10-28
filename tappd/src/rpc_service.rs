@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
+use bollard::{container::ListContainersOptions, Docker};
 use ra_rpc::{Attestation, RpcCall};
 use ra_tls::{
     cert::{CaCert, CertRequest},
@@ -149,9 +150,12 @@ impl WorkerRpc for ExternalRpcHandler {
 }
 
 pub(crate) async fn list_containers() -> Result<ListContainersResponse> {
-    let docker = bollard::Docker::connect_with_defaults().context("Failed to connect to Docker")?;
+    let docker = Docker::connect_with_defaults().context("Failed to connect to Docker")?;
     let containers = docker
-        .list_containers::<&str>(None)
+        .list_containers::<&str>(Some(ListContainersOptions {
+            all: true,
+            ..Default::default()
+        }))
         .await
         .context("Failed to list containers")?;
     Ok(ListContainersResponse {

@@ -4,9 +4,9 @@ use config::Config;
 
 mod config;
 mod main_service;
+mod models;
 mod proxy;
 mod web_routes;
-mod models;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
 
     let config = figment.focus("core").extract::<Config>()?;
     let proxy_config_path = config.proxy.config_path.clone();
-    let state = main_service::AppState::new(config);
+    let state = main_service::AppState::new(config)?;
     state.lock().reconfigure()?;
     proxy::start_proxy(proxy_config_path, state.lock().subscribe_reconfigure());
 

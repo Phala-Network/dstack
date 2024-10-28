@@ -1,6 +1,7 @@
 use crate::rpc_service::{list_containers, AppState, ExternalRpcHandler, InternalRpcHandler};
 use anyhow::Result;
 use ra_rpc::{rocket_helper::handle_prpc, RpcCall};
+use rinja::Template;
 use rocket::futures::StreamExt;
 use rocket::response::stream::TextStream;
 use rocket::{
@@ -68,48 +69,16 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         .map_err(|e| format!("Failed to get worker info: {}", e))?;
 
     let containers = list_containers().await.unwrap_or_default().containers;
-    let containers_str = containers
-        .iter()
-        .map(|c| serde_json::to_string_pretty(&c).unwrap_or_default())
-        .collect::<Vec<String>>()
-        .join("\n\n");
-
-    Ok(RawHtml(format!(
-        r#"
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Worker Information</title>
-            <style>
-                body {{
-                    font-family: Arial, sans-serif;
-                    line-height: 1.6;
-                    padding: 20px;
-                    max-width: 800px;
-                    margin: 0 auto;
-                }}
-                textarea {{
-                    width: 100%;
-                    height: 200px;
-                    margin-bottom: 20px;
-                }}
-            </style>
-        </head>
-        <body>
-            <h1>Worker Information</h1>
-            <p><strong>App ID:</strong> {app_id}</p>
-            <h2>TCB Info:</h2>
-            <textarea readonly>{tcb_info}</textarea>
-            <h2>App Certificate:</h2>
-            <textarea readonly>{app_cert}</textarea>
-            <h2>Deployed Containers:</h2>
-            <textarea readonly>{containers_str}</textarea>
-        </body>
-        </html>
-        "#
-    )))
+    let model = crate::models::Dashboard {
+        app_id,
+        app_cert,
+        tcb_info,
+        containers,
+    };
+    match model.render() {
+        Ok(html) => Ok(RawHtml(html)),
+        Err(err) => Err(format!("Failed to render template: {}", err)),
+    }
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]

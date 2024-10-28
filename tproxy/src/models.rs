@@ -80,7 +80,7 @@ pub struct RProxyConf<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "cvmlist.html", escape = "none")]
+#[template(path = "cvmlist.html")]
 pub struct CvmList<'a> {
     pub hosts: &'a [PbHostInfo],
     pub acme_info: &'a AcmeInfoResponse,

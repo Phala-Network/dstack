@@ -11,6 +11,7 @@ use rpc_service::AppState;
 mod config;
 mod http_routes;
 mod rpc_service;
+mod models;
 
 #[derive(Parser)]
 #[command(author, version, about)]

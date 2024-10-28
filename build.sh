@@ -154,8 +154,8 @@ cert_key = "$TPROXY_KEY"
 base_domain = "$TPROXY_PUBLIC_DOMAIN"
 config_path = "$RUN_DIR/rproxy.yaml"
 portmap = [
-    { listen_addr = "0.0.0.0", listen_port = $TPROXY_LISTEN_PORT1, target_port = 8080 },
-    { listen_addr = "0.0.0.0", listen_port = $TPROXY_LISTEN_PORT2, target_port = 8090 },
+    { listen_addr = "0.0.0.0", listen_port = $TPROXY_LISTEN_PORT1, target_port = 8080, label = "" },
+    { listen_addr = "0.0.0.0", listen_port = $TPROXY_LISTEN_PORT2, target_port = 8090, label = "tappd" },
 ]
 EOF
 

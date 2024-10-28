@@ -14,12 +14,12 @@ use tokio::sync::broadcast::{Receiver, Sender};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
     AcmeInfoResponse, HostInfo as PbHostInfo, ListResponse, RegisterCvmRequest,
-    RegisterCvmResponse,
+    RegisterCvmResponse, TappdConfig, WireGuardConfig,
 };
 use tracing::{error, info};
 
 use crate::{
-    config::Config,
+    config::{ComputedConfig, Config},
     models::{HostInfo, RProxyConf, WgConf},
 };
 
@@ -30,6 +30,7 @@ pub struct AppState {
 
 pub(crate) struct AppStateInner {
     config: Config,
+    computed_config: ComputedConfig,
     // The mapping from the host name to the IP address.
     hosts: BTreeMap<String, HostInfo>,
     allocated_addresses: BTreeSet<Ipv4Addr>,
@@ -41,15 +42,16 @@ impl AppState {
         self.inner.lock().expect("failed to lock AppState")
     }
 
-    pub fn new(config: Config) -> Self {
-        Self {
+    pub fn new(config: Config) -> Result<Self> {
+        Ok(Self {
             inner: Arc::new(Mutex::new(AppStateInner {
+                computed_config: config.compute()?,
                 config,
                 hosts: BTreeMap::new(),
                 allocated_addresses: BTreeSet::new(),
                 reconfigure_tx: Sender::new(1),
             })),
-        }
+        })
     }
 }
 
@@ -157,10 +159,17 @@ impl TproxyRpc for RpcHandler {
             .context("failed to allocate IP address for client")?;
 
         Ok(RegisterCvmResponse {
-            server_public_key: state.config.wg.public_key.clone(),
-            client_ip: client_info.ip.to_string(),
-            server_ip: state.config.wg.ip.to_string(),
-            server_endpoint: state.config.wg.endpoint.clone(),
+            wg: Some(WireGuardConfig {
+                server_public_key: state.config.wg.public_key.clone(),
+                client_ip: client_info.ip.to_string(),
+                server_ip: state.config.wg.ip.to_string(),
+                server_endpoint: state.config.wg.endpoint.clone(),
+            }),
+            tappd: Some(TappdConfig {
+                external_port: state.computed_config.tappd_port_map.listen_port as u32,
+                internal_port: state.computed_config.tappd_port_map.target_port as u32,
+                domain: state.config.proxy.base_domain.clone(),
+            }),
         })
     }
 

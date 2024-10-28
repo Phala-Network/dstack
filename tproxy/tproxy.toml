@@ -26,6 +26,6 @@ cert_key = "/etc/rproxy/certs/key.pem"
 base_domain = "app.localhost"
 config_path = "/etc/rproxy/rproxy.conf"
 portmap = [
-    { listen_addr = "0.0.0.0", listen_port = 8443, target_port = 8080 },
-    { listen_addr = "0.0.0.0", listen_port = 8090, target_port = 8090 },
+    { listen_addr = "0.0.0.0", listen_port = 8443, target_port = 8080, label = "" },
+    { listen_addr = "0.0.0.0", listen_port = 8090, target_port = 8090, label = "tappd" },
 ]

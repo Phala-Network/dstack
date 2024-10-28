@@ -12,6 +12,14 @@ message RegisterCvmRequest {
 
 // RegisterCvmResponse is the response for RegisterCvm.
 message RegisterCvmResponse {
+  // WireGuard configuration
+  WireGuardConfig wg = 1;
+  // Tappd configuration
+  TappdConfig tappd = 2;
+}
+
+// WireGuardConfig is the configuration of the WireGuard.
+message WireGuardConfig {
   // The public key of the WireGuard interface of the TProxy.
   string server_public_key = 1;
   // The IP address of the CVM.
@@ -20,6 +28,16 @@ message RegisterCvmResponse {
   string server_ip = 3;
   // The endpoint of the TProxy.
   string server_endpoint = 4;
+}
+
+// TappdConfig is the configuration of the Tappd.
+message TappdConfig {
+  // The external port of the Tappd.
+  uint32 external_port = 1;
+  // The in CVM port of the Tappd.
+  uint32 internal_port = 2;
+  // The domain of the Tappd.
+  string domain = 3;
 }
 
 // ListResponse is the response for List.

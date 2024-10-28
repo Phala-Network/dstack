@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use ipnet::Ipv4Net;
 use rocket::figment::{
     providers::{Format, Toml},
@@ -23,6 +24,7 @@ pub struct PortMap {
     pub listen_addr: Ipv4Addr,
     pub listen_port: u16,
     pub target_port: u16,
+    pub label: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -44,6 +46,24 @@ pub struct Config {
     pub wg: WgConfig,
     pub proxy: ProxyConfig,
     pub certbot: CertbotConfig,
+}
+
+impl Config {
+    pub fn compute(&self) -> Result<ComputedConfig> {
+        let tappd_port_map = self
+            .proxy
+            .portmap
+            .iter()
+            .find(|p| p.label.as_deref() == Some("tappd"))
+            .context("tappd port map not found")?
+            .clone();
+        Ok(ComputedConfig { tappd_port_map })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ComputedConfig {
+    pub tappd_port_map: PortMap,
 }
 
 pub const CONFIG_FILENAME: &str = "tproxy.toml";

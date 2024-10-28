@@ -6,7 +6,7 @@ use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
-    CreateVmRequest, Id, ImageInfo as RpcImageInfo, ImageListResponse, VmInfo, VmListResponse,
+    CreateVmRequest, Id, ImageInfo as RpcImageInfo, ImageListResponse, VmListResponse,
 };
 use tracing::warn;
 
