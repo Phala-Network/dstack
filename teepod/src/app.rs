@@ -40,6 +40,11 @@ pub struct Manifest {
     disk_size: u32,
     image: String,
     port_map: HashMap<u16, u16>,
+    created_at: u64,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct State {
     started: bool,
 }
 
@@ -57,6 +62,10 @@ impl VmWorkDir {
         self.workdir.join("vm-manifest.json")
     }
 
+    pub fn state_path(&self) -> PathBuf {
+        self.workdir.join("vm-state.json")
+    }
+
     pub fn manifest(&self) -> Result<Manifest> {
         let manifest_path = self.manifest_path();
         let manifest = fs::read_to_string(manifest_path).context("Failed to read manifest")?;
@@ -69,6 +78,23 @@ impl VmWorkDir {
         let manifest_path = self.manifest_path();
         fs::write(manifest_path, serde_json::to_string(manifest)?)
             .context("Failed to write manifest")
+    }
+
+    pub fn started(&self) -> Result<bool> {
+        let state_path = self.state_path();
+        if !state_path.exists() {
+            return Ok(false);
+        }
+        let state: State =
+            serde_json::from_str(&fs::read_to_string(state_path).context("Failed to read state")?)
+                .context("Failed to parse state")?;
+        Ok(state.started)
+    }
+
+    pub fn set_started(&self, started: bool) -> Result<()> {
+        let state_path = self.state_path();
+        fs::write(state_path, serde_json::to_string(&State { started })?)
+            .context("Failed to write state")
     }
 }
 
@@ -133,11 +159,13 @@ impl App {
                 self.config.cvm.max_disk_size
             );
         }
-        let result = self.state.lock().unwrap().monitor.load_vm(
-            vm_config,
-            work_dir.as_ref(),
-            manifest.started,
-        );
+        let started = vm_work_dir.started().context("Failed to read VM state")?;
+        let result =
+            self.state
+                .lock()
+                .unwrap()
+                .monitor
+                .load_vm(vm_config, work_dir.as_ref(), started);
         if let Err(err) = result {
             println!("Failed to run VM: {err}");
         }
@@ -146,11 +174,9 @@ impl App {
 
     pub fn stop_vm(&self, id: &str) -> Result<()> {
         let work_dir = VmWorkDir::new(self.vm_dir().join(id));
-        let mut manifest = work_dir.manifest().context("Failed to read manifest")?;
-        manifest.started = false;
         work_dir
-            .put_manifest(&manifest)
-            .context("Failed to write manifest")?;
+            .set_started(false)
+            .context("Failed to set started")?;
         self.state.lock().unwrap().monitor.stop_vm(id)?;
         Ok(())
     }

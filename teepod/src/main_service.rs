@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use fs_err as fs;
@@ -92,6 +93,10 @@ impl TeepodRpc for RpcHandler {
         let app_id = app_id_of(&request.compose_file);
         let id = uuid::Uuid::new_v4().to_string();
         let work_dir = self.prepare_work_dir(&id, &request.compose_file, &request.image)?;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
         let manifest = Manifest::builder()
             .id(id.clone())
             .name(request.name)
@@ -101,7 +106,7 @@ impl TeepodRpc for RpcHandler {
             .memory(request.memory)
             .disk_size(request.disk_size)
             .port_map(Default::default())
-            .started(true)
+            .created_at(now)
             .build();
 
         let vm_work_dir = VmWorkDir::new(&work_dir);
