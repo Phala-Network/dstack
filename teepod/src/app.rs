@@ -172,12 +172,28 @@ impl App {
         Ok(())
     }
 
+    pub fn start_vm(&self, id: &str) -> Result<()> {
+        self.state.lock().unwrap().monitor.start_vm(id)?;
+        let work_dir = VmWorkDir::new(self.vm_dir().join(id));
+        work_dir
+            .set_started(true)
+            .context("Failed to set started")?;
+        Ok(())
+    }
+
     pub fn stop_vm(&self, id: &str) -> Result<()> {
         let work_dir = VmWorkDir::new(self.vm_dir().join(id));
         work_dir
             .set_started(false)
             .context("Failed to set started")?;
         self.state.lock().unwrap().monitor.stop_vm(id)?;
+        Ok(())
+    }
+
+    pub fn remove_vm(&self, id: &str) -> Result<()> {
+        self.state.lock().unwrap().monitor.remove_vm(id)?;
+        let vm_path = self.vm_dir().join(id);
+        fs::remove_dir_all(vm_path).context("Failed to remove VM directory")?;
         Ok(())
     }
 

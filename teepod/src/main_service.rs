@@ -119,9 +119,19 @@ impl TeepodRpc for RpcHandler {
         Ok(Id { id })
     }
 
-    async fn stop_vm(self, request: Id) -> Result<Id> {
+    async fn start_vm(self, request: Id) -> Result<()> {
+        self.app.start_vm(&request.id)?;
+        Ok(())
+    }
+
+    async fn stop_vm(self, request: Id) -> Result<()> {
         self.app.stop_vm(&request.id)?;
-        Ok(request)
+        Ok(())
+    }
+
+    async fn remove_vm(self, request: Id) -> Result<()> {
+        self.app.remove_vm(&request.id)?;
+        Ok(())
     }
 
     async fn list_vms(self) -> Result<VmListResponse> {

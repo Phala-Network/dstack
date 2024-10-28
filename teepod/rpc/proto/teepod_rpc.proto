@@ -50,8 +50,13 @@ message VMListResponse {
 service Teepod {
   // RPC to create a VM
   rpc CreateVM(CreateVMRequest) returns (Id);
-  // RPC to delete a VM
-  rpc StopVM(Id) returns (Id);
+  // RPC to start a VM
+  rpc StartVM(Id) returns (google.protobuf.Empty);
+  // RPC to stop a VM
+  rpc StopVM(Id) returns (google.protobuf.Empty);
+  // RPC to remove a VM
+  rpc RemoveVM(Id) returns (google.protobuf.Empty);
+
   // RPC to list all VMs
   rpc ListVms(google.protobuf.Empty) returns (VMListResponse);
   // RPC to list all available images

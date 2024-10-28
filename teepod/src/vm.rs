@@ -249,19 +249,30 @@ pub(crate) mod run {
             Ok(())
         }
 
-        pub fn remove_vm(&mut self, id: &str) -> Result<Option<VmInstance>> {
-            let Some(mut vm) = self.vms.remove(id) else {
+        pub fn start_vm(&mut self, id: &str) -> Result<()> {
+            let Some(vm) = self.vms.get_mut(id) else {
                 bail!("VM not found: {}", id);
             };
-            vm.stop()?;
-            Ok(Some(vm))
+            vm.start(&self.qemu_bin)?;
+            Ok(())
         }
 
         pub fn stop_vm(&mut self, id: &str) -> Result<()> {
-            let Some(info) = self.vms.get_mut(id) else {
+            let Some(vm) = self.vms.get_mut(id) else {
                 bail!("VM not found: {}", id);
             };
-            info.stop()?;
+            vm.stop()?;
+            Ok(())
+        }
+
+        pub fn remove_vm(&mut self, id: &str) -> Result<()> {
+            {
+                let vm = self.vms.get(id).context("VM not found")?;
+                if vm.is_running() || vm.started {
+                    bail!("VM is running");
+                }
+            }
+            self.vms.remove(id);
             Ok(())
         }
 
