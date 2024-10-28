@@ -148,17 +148,26 @@ async fn external_prpc_get(
         .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
-#[get("/logs/<container_name>?<since>&<until>&<follow>&<text>&<timestamps>")]
+#[get("/logs/<container_name>?<since>&<until>&<follow>&<text>&<timestamps>&<bare>")]
 fn get_logs(
     container_name: String,
     since: Option<i64>,
     until: Option<i64>,
     follow: bool,
     text: bool,
+    bare: bool,
     timestamps: bool,
 ) -> TextStream![String] {
     TextStream! {
-        let mut stream = match docker_logs::get_logs(&container_name, since.unwrap_or(0), until.unwrap_or(0), follow, text, timestamps) {
+        let config = docker_logs::LogConfig {
+            since: since.unwrap_or(0),
+            until: until.unwrap_or(0),
+            follow,
+            text,
+            bare,
+            timestamps,
+        };
+        let mut stream = match docker_logs::get_logs(&container_name, config) {
             Ok(stream) => stream,
             Err(e) => {
                 yield serde_json::json!({ "error": e.to_string() }).to_string();
@@ -185,14 +194,27 @@ mod docker_logs {
     use bollard::Docker;
     use rocket::futures::{Stream, StreamExt};
 
+    pub(crate) struct LogConfig {
+        pub since: i64,
+        pub until: i64,
+        pub follow: bool,
+        pub text: bool,
+        pub bare: bool,
+        pub timestamps: bool,
+    }
+
     pub fn get_logs(
         container_name: &str,
-        since: i64,
-        until: i64,
-        follow: bool,
-        text: bool,
-        timestamps: bool,
+        config: LogConfig,
     ) -> Result<impl Stream<Item = Result<String, bollard::errors::Error>>> {
+        let LogConfig {
+            since,
+            until,
+            follow,
+            text,
+            bare,
+            timestamps,
+        } = config;
         let docker = Docker::connect_with_local_defaults()?;
         let options = LogsOptions::<String> {
             stdout: true,
@@ -206,10 +228,10 @@ mod docker_logs {
 
         Ok(docker
             .logs(container_name, Some(options))
-            .map(move |result| result.map(|m| log_to_json(m, text))))
+            .map(move |result| result.map(|m| log_to_json(m, text, bare))))
     }
 
-    fn log_to_json(log: LogOutput, text: bool) -> String {
+    fn log_to_json(log: LogOutput, text: bool, bare: bool) -> String {
         let channel = match &log {
             LogOutput::StdErr { .. } => "stderr",
             LogOutput::StdOut { .. } => "stdout",
@@ -223,11 +245,14 @@ mod docker_logs {
         } else {
             base64::engine::general_purpose::STANDARD.encode(message)
         };
-        let log_json = serde_json::json!({
+        if bare {
+            return message;
+        }
+        let log_line = serde_json::json!({
             "channel": channel,
             "message": message,
         })
         .to_string();
-        format!("{log_json}\n")
+        format!("{log_line}\n")
     }
 }
