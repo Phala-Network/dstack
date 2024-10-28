@@ -76,16 +76,28 @@ fn vm_logs(app: &State<App>, id: String, follow: bool, ansi: bool) -> TextStream
                 }
                 Ok(lines) => lines,
             };
-            if let Err(err) = lines.add_file(log_file).await {
+            if let Err(err) = lines.add_file_from_start(log_file).await {
                 yield format!("{err:?}");
                 return;
             }
-            while let Ok(Some(line)) = lines.next_line().await {
-                let line_str = line.line().to_string();
-                if ansi {
-                    yield line_str;
-                } else {
-                    yield strip_ansi_escapes::strip_str(&line_str);
+            loop {
+                match lines.next_line().await {
+                    Ok(Some(line)) => {
+                        let line_str = line.line().to_string();
+                        if ansi {
+                            yield line_str;
+                        } else {
+                            yield strip_ansi_escapes::strip_str(&line_str);
+                        }
+                    }
+                    Ok(None) => {
+                        break;
+                    }
+                    Err(err) => {
+                        // TODO: yield the with String::from_utf8_lossy(), see https://github.com/jmagnuson/linemux/issues/70
+                        yield format!("<failed to read line: {err}>");
+                        continue;
+                    }
                 }
             }
         } else {
