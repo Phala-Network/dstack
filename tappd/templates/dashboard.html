@@ -113,13 +113,6 @@
     <div class="info-section">
         <p><strong>App ID:</strong> {{app_id}}</p>
     </div>
-
-    <h2>TCB Info</h2>
-    <textarea readonly>{{tcb_info}}</textarea>
-
-    <h2>App Certificate</h2>
-    <textarea readonly>{{app_cert}}</textarea>
-
     <h2>Deployed Containers</h2>
     <table>
         <thead>
@@ -142,6 +135,12 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <h2>TCB Info</h2>
+    <textarea readonly>{{tcb_info}}</textarea>
+
+    <h2>App Certificate</h2>
+    <textarea readonly>{{app_cert}}</textarea>
 </body>
 
 </html>
