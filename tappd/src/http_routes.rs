@@ -127,9 +127,11 @@ fn get_logs(
     bare: bool,
     timestamps: bool,
 ) -> TextStream![String] {
+    // default to 1 hour ago
+    let since = since.unwrap_or_else(|| chrono::Utc::now().timestamp().saturating_sub(3600).max(0));
     TextStream! {
         let config = docker_logs::LogConfig {
-            since: since.unwrap_or(0),
+            since,
             until: until.unwrap_or(0),
             follow,
             text,
