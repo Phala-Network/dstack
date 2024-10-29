@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use config::Config;
 
@@ -6,6 +6,7 @@ mod config;
 mod main_service;
 mod models;
 mod proxy;
+mod tls_passthough;
 mod web_routes;
 
 #[derive(Parser)]
@@ -18,6 +19,8 @@ struct Args {
 
 #[rocket::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
+
     let _ = rustls::crypto::ring::default_provider().install_default();
 
     let args = Args::parse();
@@ -25,9 +28,12 @@ async fn main() -> Result<()> {
 
     let config = figment.focus("core").extract::<Config>()?;
     let proxy_config_path = config.proxy.config_path.clone();
+    let tls_passthrough_config = config.proxy.tls_passthrough.clone();
     let state = main_service::AppState::new(config)?;
     state.lock().reconfigure()?;
     proxy::start_proxy(proxy_config_path, state.lock().subscribe_reconfigure());
+    tls_passthough::start(tls_passthrough_config, state.clone())
+        .context("failed to start tls passthrough service")?;
 
     let rocket = rocket::custom(figment)
         .mount("/", web_routes::routes())

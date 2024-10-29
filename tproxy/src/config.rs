@@ -34,6 +34,13 @@ pub struct ProxyConfig {
     pub base_domain: String,
     pub config_path: String,
     pub portmap: Vec<PortMap>,
+    pub tls_passthrough: TlsPassthroughConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TlsPassthroughConfig {
+    pub listen_addr: Ipv4Addr,
+    pub listen_ports: Vec<u16>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

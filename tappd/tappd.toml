@@ -17,3 +17,11 @@ reuse = false
 [external]
 address = "0.0.0.0"
 port = 8090
+
+[external-https]
+address = "0.0.0.0"
+port = 8043
+
+[external-https.tls]
+key = "/etc/tappd/tls.key"
+certs = "/etc/tappd/tls.cert"

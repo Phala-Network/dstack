@@ -4,7 +4,7 @@ use crate::config::{load_config_figment, Config};
 fn create_test_state() -> AppState {
     let figment = load_config_figment(None);
     let config = figment.focus("core").extract::<Config>().unwrap();
-    AppState::new(config)
+    AppState::new(config).expect("failed to create app state")
 }
 
 #[test]

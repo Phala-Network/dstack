@@ -10,10 +10,14 @@ IMAGE_TMP_DIR=`pwd`/tmp/images/$IMAGE_NAME
 CERBOT_WORKDIR=$RUN_DIR/certbot
 
 CONFIG_FILE=$SCRIPT_DIR/build-config.sh
-if [ -f $CONFIG_FILE ]; then
-    source $CONFIG_FILE
+if [ -f build-config.sh ]; then
+    source build-config.sh
 else
-    cat <<EOF > $CONFIG_FILE
+
+    if [ -f $CONFIG_FILE ]; then
+        source $CONFIG_FILE
+    else
+        cat <<EOF > $CONFIG_FILE
 # base domain of kms rpc and tproxy rpc
 # 1022.kvin.wang resolves to 10.0.2.2 which is host ip at the
 # cvm point of view
@@ -36,6 +40,7 @@ TPROXY_WG_CLIENT_IP_RANGE=10.0.3.0/24
 
 TPROXY_LISTEN_PORT1=9443
 TPROXY_LISTEN_PORT2=9090
+TPROXY_LISTEN_PORT_PASSTHROUGH=9543
 
 TPROXY_PUBLIC_DOMAIN=app.kvin.wang
 TPROXY_CERT=/etc/rproxy/certs/cert.pem
@@ -46,8 +51,9 @@ CF_API_TOKEN=
 CF_ZONE_ID=
 ACME_URL=https://acme-staging-v02.api.letsencrypt.org/directory
 EOF
-    echo "Config file $CONFIG_FILE created, please edit it to configure the build"
-    exit 1
+        echo "Config file $CONFIG_FILE created, please edit it to configure the build"
+        exit 1
+    fi
 fi
 
 TPROXY_WG_KEY=$(wg genkey)
@@ -157,6 +163,9 @@ portmap = [
     { listen_addr = "0.0.0.0", listen_port = $TPROXY_LISTEN_PORT1, target_port = 8080, label = "" },
     { listen_addr = "0.0.0.0", listen_port = $TPROXY_LISTEN_PORT2, target_port = 8090, label = "tappd" },
 ]
+[core.proxy.tls_passthrough]
+listen_addr = "0.0.0.0"
+listen_ports = [$TPROXY_LISTEN_PORT_PASSTHROUGH]
 EOF
 
 # teepod

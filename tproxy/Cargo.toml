@@ -21,6 +21,8 @@ rustls = { version = "0.23.13", features = ["ring"] }
 rinja = "0.3.4"
 certbot = { version = "0.1.0", path = "../certbot" }
 hex = "0.4.3"
+parcelona = "0.4.3"
+hickory-resolver = "0.24.1"
 
 [dev-dependencies]
 insta = "1.40.0"

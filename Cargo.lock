@@ -555,6 +555,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bstr"
+version = "1.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40723b8fb387abc38f4f4a37c09073622e41dd12327033091ef8950659e6dc0c"
+dependencies = [
+ "memchr",
+ "regex-automata 0.4.8",
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2955,6 +2966,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "parcelona"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "faa7b44ed28561e1d3964bfcb8771c97c6bf85962e87493ebef22218ede304a8"
+dependencies = [
+ "bstr",
+ "byteorder",
+ "parcelona_macros_derive",
+]
+
+[[package]]
+name = "parcelona_macros_derive"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89ec0a2252bc3809594c903cc8c1b83cbccaba85b11d4728a43a681263f6c132"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.82",
+]
+
+[[package]]
 name = "parity-scale-codec"
 version = "3.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5294,8 +5327,10 @@ dependencies = [
  "clap",
  "fs-err 2.11.0",
  "hex",
+ "hickory-resolver",
  "insta",
  "ipnet",
+ "parcelona",
  "ra-rpc",
  "rinja",
  "rocket",

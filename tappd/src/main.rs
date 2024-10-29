@@ -64,11 +64,12 @@ async fn main() -> Result<()> {
         AppState::new(figment.focus("core").extract()?).context("Failed to create app state")?;
 
     let internal_figment = figment.clone().select("internal");
-    let external_figment = figment.select("external");
-
+    let external_figment = figment.clone().select("external");
+    let external_https_figment = figment.select("external-https");
     tokio::select!(
         res = run_internal(state.clone(), internal_figment) => res?,
-        res = run_external(state, external_figment) => res?
+        res = run_external(state.clone(), external_figment) => res?,
+        res = run_external(state, external_https_figment) => res?
     );
     Ok(())
 }

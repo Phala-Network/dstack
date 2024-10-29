@@ -9,6 +9,7 @@ use tracing::{error, info};
 
 pub fn start_proxy(config_file: String, mut reconfigure_rx: Receiver<()>) {
     tokio::spawn(async move {
+        info!("starting proxy");
         loop {
             let todo = "better config hot reloading";
             let mut proxy = pin!(rproxy::run(&config_file));
@@ -27,6 +28,7 @@ pub fn start_proxy(config_file: String, mut reconfigure_rx: Receiver<()>) {
                         error!("proxy failed: {}", e);
                         time::sleep(Duration::from_secs(5)).await;
                     }
+                    info!("proxy restarted");
                 }
             }
         }

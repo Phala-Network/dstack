@@ -138,6 +138,10 @@ impl AppStateInner {
     pub(crate) fn subscribe_reconfigure(&self) -> Receiver<()> {
         self.reconfigure_tx.subscribe()
     }
+
+    pub(crate) fn get_host(&self, id: &str) -> Option<HostInfo> {
+        self.hosts.get(id).cloned()
+    }
 }
 
 pub struct RpcHandler {
