@@ -106,12 +106,12 @@ fn vm_logs(app: &State<App>, id: String, follow: bool, ansi: bool) -> TextStream
                 }
             }
         } else {
-            let content = match fs::read_to_string(&log_file) {
+            let content = match fs::read(&log_file) {
                 Err(err) => {
                     yield format!("{err:?}");
                     return;
                 }
-                Ok(content) => content,
+                Ok(content) => String::from_utf8_lossy(&content).to_string(),
             };
             if ansi {
                 yield content;
