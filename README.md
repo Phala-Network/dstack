@@ -1,6 +1,6 @@
 # Dstack
 
-This project is Phala's opinionated implementation of Andrew's design of [Dstack]([https://collective.flashbots.net/t/dstack-speedrunning-a-p2p-confidential-vm]. It's highly experimental and evolving fast. We aim to merge it into a production ready project eventually.
+This project is Phala's opinionated implementation of Andrew's design of [Dstack](https://collective.flashbots.net/t/dstack-speedrunning-a-p2p-confidential-vm). It's highly experimental and evolving fast. We aim to merge it into a production ready project eventually.
 
 # Overview
 
@@ -121,7 +121,8 @@ Now you can open 3 terminals to start the components:
 2. Run `sudo ./tproxy`
 3. Run `./teepod`
 
-## Open the teepod webpage [http://localhost:9080](http://localhost:9080)(change the port according to your configuration) on your local machine to deploy a `docker-compose.yaml` file:
+## Deploy an App
+Open the teepod webpage [http://localhost:9080](http://localhost:9080)(change the port according to your configuration) on your local machine to deploy a `docker-compose.yaml` file:
 
 ![teepod](./docs/assets/teepod.png)
 
