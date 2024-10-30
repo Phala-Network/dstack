@@ -12,17 +12,18 @@ tracing-subscriber = "0.3.18"
 anyhow = "1.0.89"
 serde = { version = "1.0.210", features = ["derive"] }
 ipnet = { version = "2.10.0", features = ["serde"] }
-fs-err = "2.11.0"
+fs-err = "3.0.0"
 clap = { version = "4.5.18", features = ["derive"] }
 shared_child = "1.0.1"
-rproxy = { git = "https://github.com/kvinwang/rproxy.git", branch = "tproxy", version = "0.1.0" }
 tokio = { version = "1.40.0", features = ["full"] }
 rustls = { version = "0.23.13", features = ["ring"] }
+tokio-rustls = { version = "0.26.0", features = ["ring"] }
 rinja = "0.3.4"
 certbot = { version = "0.1.0", path = "../certbot" }
 hex = "0.4.3"
 parcelona = "0.4.3"
 hickory-resolver = "0.24.1"
+pin-project = "1.1.7"
 
 [dev-dependencies]
 insta = "1.40.0"

@@ -1,4 +1,3 @@
-use crate::config::PortMap;
 use rinja::Template;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -67,16 +66,6 @@ pub struct WgConf<'a> {
     pub private_key: &'a str,
     pub listen_port: u16,
     pub peers: MapValues<'a, String, HostInfo>,
-}
-
-#[derive(Template)]
-#[template(path = "rproxy.yaml", escape = "none")]
-pub struct RProxyConf<'a> {
-    pub portmap: &'a [PortMap],
-    pub peers: MapValues<'a, String, HostInfo>,
-    pub cert_chain: &'a str,
-    pub cert_key: &'a str,
-    pub base_domain: &'a str,
 }
 
 #[derive(Template)]

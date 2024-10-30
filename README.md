@@ -63,6 +63,9 @@ Now edit the config file. The following configurations values must be changed pr
 ```bash
 # The internal port for teepod to listen to requests from you
 TEEPOD_RPC_LISTEN_PORT=9080
+# The start CID for teepod to allocate to CVMs
+TEEPOD_CID_POOL_START=20000
+
 # The internal port for kms to listen to requests from CVMs
 KMS_RPC_LISTEN_PORT=9043
 # The internal port for tproxy to listen to requests from CVMs
@@ -77,11 +80,7 @@ TPROXY_WG_IP=10.0.3.1
 # WireGuard client IP range
 TPROXY_WG_CLIENT_IP_RANGE=10.0.3.0/24
 # The public port for tproxy to listen to requests that would be forwarded to app in CVMs
-TPROXY_LISTEN_PORT1=9443
-# The public port for tproxy to listen to requests that would be forwarded to tappd in CVMs
-TPROXY_LISTEN_PORT2=9090
-# The public port for tproxy to listen to requests that would be forwarded to CVMs without TLS termination
-TPROXY_LISTEN_PORT_PASSTHROUGH=9008
+TPROXY_SERVE_PORT=9443
 
 # The public domain name for tproxy. Please set a wildacard DNS record (e.g. *.app.kvin.wang in this example)
 # for this domain that points the IP address of your TDX host.
@@ -90,9 +89,6 @@ TPROXY_PUBLIC_DOMAIN=app.kvin.wang
 TPROXY_CERT=/etc/rproxy/certs/cert.pem
 # The path to the TLS key for tproxy's public endpoint
 TPROXY_KEY=/etc/rproxy/certs/key.pem
-
-# The start CID for teepod to allocate to CVMs
-TEEPOD_CID_POOL_START=20000
 ```
 
 Run build.sh again to build the artifacts.
@@ -131,18 +127,12 @@ After the container deployed, it should need some time to start the CVM and the 
 - Click the [Logs] button to see the logs of the CVM, you can see if the container is finished starting there.
 
 - Once the container is running, you can click the [Dashboard] button to see some information of the container. And the logs of the containers can be seen in the [Dashboard] page.
+
+    ![tappd](./docs/assets/tappd.png)
+
 - You can open tproxy's dashboard at [https://localhost:9070](https://localhost:9070) to see the CVM's wireguard ip address, as shown below:
 
 ![tproxy](./docs/assets/tproxy.png)
-
-There are two ports:
-
-- `9443` for the containers web
-- `9090` for the CVM’s `tappd` service
-
-Click the `9090` to see some basic information of the CVM:
-
-![tappd](./docs/assets/tappd.png)
 
 You can also ssh into the CVM to inspect more information, if your deployment uses the image `dstack-x.x.x-dev`:
 

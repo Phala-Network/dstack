@@ -10,7 +10,6 @@ use certbot::WorkDir;
 use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
 use rinja::Template as _;
-use tokio::sync::broadcast::{Receiver, Sender};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
     AcmeInfoResponse, HostInfo as PbHostInfo, ListResponse, RegisterCvmRequest,
@@ -19,8 +18,8 @@ use tproxy_rpc::{
 use tracing::{error, info};
 
 use crate::{
-    config::{ComputedConfig, Config},
-    models::{HostInfo, RProxyConf, WgConf},
+    config::Config,
+    models::{HostInfo, WgConf},
 };
 
 #[derive(Clone)]
@@ -30,11 +29,9 @@ pub struct AppState {
 
 pub(crate) struct AppStateInner {
     config: Config,
-    computed_config: ComputedConfig,
     // The mapping from the host name to the IP address.
     hosts: BTreeMap<String, HostInfo>,
     allocated_addresses: BTreeSet<Ipv4Addr>,
-    reconfigure_tx: Sender<()>,
 }
 
 impl AppState {
@@ -45,11 +42,9 @@ impl AppState {
     pub fn new(config: Config) -> Result<Self> {
         Ok(Self {
             inner: Arc::new(Mutex::new(AppStateInner {
-                computed_config: config.compute()?,
                 config,
                 hosts: BTreeMap::new(),
                 allocated_addresses: BTreeSet::new(),
-                reconfigure_tx: Sender::new(1),
             })),
         })
     }
@@ -99,17 +94,6 @@ impl AppStateInner {
         Ok(model.render()?)
     }
 
-    fn generate_proxy_config(&self) -> Result<String> {
-        let model = RProxyConf {
-            cert_chain: &self.config.proxy.cert_chain,
-            cert_key: &self.config.proxy.cert_key,
-            base_domain: &self.config.proxy.base_domain,
-            peers: (&self.hosts).into(),
-            portmap: &self.config.proxy.portmap,
-        };
-        Ok(model.render()?)
-    }
-
     pub(crate) fn reconfigure(&mut self) -> Result<()> {
         let wg_config = self.generate_wg_config()?;
         fs::write(&self.config.wg.config_path, wg_config)?;
@@ -125,18 +109,7 @@ impl AppStateInner {
         } else {
             info!("wg config updated");
         }
-
-        let proxy_config = self.generate_proxy_config()?;
-        fs::write(&self.config.proxy.config_path, proxy_config)?;
-        match self.reconfigure_tx.send(()) {
-            Ok(_) => info!("rproxy config updated"),
-            Err(_) => error!("failed to reconfigure rproxy"),
-        }
         Ok(())
-    }
-
-    pub(crate) fn subscribe_reconfigure(&self) -> Receiver<()> {
-        self.reconfigure_tx.subscribe()
     }
 
     pub(crate) fn get_host(&self, id: &str) -> Option<HostInfo> {
@@ -170,8 +143,8 @@ impl TproxyRpc for RpcHandler {
                 server_endpoint: state.config.wg.endpoint.clone(),
             }),
             tappd: Some(TappdConfig {
-                external_port: state.computed_config.tappd_port_map.listen_port as u32,
-                internal_port: state.computed_config.tappd_port_map.target_port as u32,
+                external_port: state.config.proxy.listen_port as u32,
+                internal_port: state.config.proxy.tappd_port as u32,
                 domain: state.config.proxy.base_domain.clone(),
             }),
         })
@@ -179,14 +152,8 @@ impl TproxyRpc for RpcHandler {
 
     async fn list(self) -> Result<ListResponse> {
         let state = self.state.lock();
-        let ports = state
-            .config
-            .proxy
-            .portmap
-            .iter()
-            .map(|p| p.listen_port as u32)
-            .collect::<Vec<_>>();
         let base_domain = &state.config.proxy.base_domain;
+        let ports = vec![state.config.proxy.listen_port as u32];
         let hosts = state
             .hosts
             .values()

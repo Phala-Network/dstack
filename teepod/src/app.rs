@@ -234,7 +234,10 @@ impl App {
                 name: info.name,
                 status: info.status.to_string(),
                 uptime: info.uptime,
-                app_url: format!("https://{}.{}:{}", info.app_id, gw.base_domain, gw.port),
+                app_url: format!(
+                    "https://{}-{}.{}:{}",
+                    info.app_id, gw.tappd_port, gw.base_domain, gw.port
+                ),
                 app_id: info.app_id,
             })
             .collect()

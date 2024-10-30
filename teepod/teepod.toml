@@ -19,3 +19,4 @@ cid_pool_size = 1000
 [gateway]
 base_domain = "localhost"
 port = 8082
+tappd_port = 8083

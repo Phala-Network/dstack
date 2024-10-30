@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use clap::Parser;
 use config::Config;
 
@@ -6,7 +6,6 @@ mod config;
 mod main_service;
 mod models;
 mod proxy;
-mod tls_passthough;
 mod web_routes;
 
 #[derive(Parser)]
@@ -27,13 +26,10 @@ async fn main() -> Result<()> {
     let figment = config::load_config_figment(args.config.as_deref());
 
     let config = figment.focus("core").extract::<Config>()?;
-    let proxy_config_path = config.proxy.config_path.clone();
-    let tls_passthrough_config = config.proxy.tls_passthrough.clone();
+    let proxy_config = config.proxy.clone();
     let state = main_service::AppState::new(config)?;
     state.lock().reconfigure()?;
-    proxy::start_proxy(proxy_config_path, state.lock().subscribe_reconfigure());
-    tls_passthough::start(tls_passthrough_config, state.clone())
-        .context("failed to start tls passthrough service")?;
+    proxy::start(proxy_config, state.clone());
 
     let rocket = rocket::custom(figment)
         .mount("/", web_routes::routes())

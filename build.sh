@@ -13,7 +13,6 @@ CONFIG_FILE=$SCRIPT_DIR/build-config.sh
 if [ -f build-config.sh ]; then
     source build-config.sh
 else
-
     if [ -f $CONFIG_FILE ]; then
         source $CONFIG_FILE
     else
@@ -37,10 +36,7 @@ TPROXY_WG_INTERFACE=tproxy-$USER
 TPROXY_WG_LISTEN_PORT=9182
 TPROXY_WG_IP=10.0.3.1
 TPROXY_WG_CLIENT_IP_RANGE=10.0.3.0/24
-
-TPROXY_LISTEN_PORT1=9443
-TPROXY_LISTEN_PORT2=9090
-TPROXY_LISTEN_PORT_PASSTHROUGH=9543
+TPROXY_SERVE_PORT=9443
 
 TPROXY_PUBLIC_DOMAIN=app.kvin.wang
 TPROXY_CERT=/etc/rproxy/certs/cert.pem
@@ -55,6 +51,11 @@ EOF
         exit 1
     fi
 fi
+
+if [ -z "$TPROXY_SERVE_PORT" ]; then
+    TPROXY_SERVE_PORT=${TPROXY_LISTEN_PORT1}
+fi
+TAPPD_PORT=8090
 
 TPROXY_WG_KEY=$(wg genkey)
 TPROXY_WG_PUBKEY=$(echo $TPROXY_WG_KEY | wg pubkey)
@@ -158,14 +159,9 @@ endpoint = "10.0.2.2:$TPROXY_WG_LISTEN_PORT"
 cert_chain = "$TPROXY_CERT"
 cert_key = "$TPROXY_KEY"
 base_domain = "$TPROXY_PUBLIC_DOMAIN"
-config_path = "$RUN_DIR/rproxy.yaml"
-portmap = [
-    { listen_addr = "0.0.0.0", listen_port = $TPROXY_LISTEN_PORT1, target_port = 8080, label = "" },
-    { listen_addr = "0.0.0.0", listen_port = $TPROXY_LISTEN_PORT2, target_port = 8090, label = "tappd" },
-]
-[core.proxy.tls_passthrough]
 listen_addr = "0.0.0.0"
-listen_ports = [$TPROXY_LISTEN_PORT_PASSTHROUGH]
+listen_port = $TPROXY_SERVE_PORT
+tappd_port = $TAPPD_PORT
 EOF
 
 # teepod
@@ -186,7 +182,8 @@ cid_pool_size = $TEEPOD_CID_POOL_SIZE
 
 [gateway]
 base_domain = "$TPROXY_PUBLIC_DOMAIN"
-port = $TPROXY_LISTEN_PORT2
+port = $TPROXY_SERVE_PORT
+tappd_port = $TAPPD_PORT
 EOF
 
 cat <<EOF > certbot.toml

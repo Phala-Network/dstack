@@ -43,6 +43,7 @@ pub struct CvmConfig {
 pub struct GatewayConfig {
     pub base_domain: String,
     pub port: u16,
+    pub tappd_port: u16,
 }
 
 #[derive(Debug, Clone, Deserialize)]

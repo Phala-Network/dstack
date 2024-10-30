@@ -23,12 +23,6 @@ endpoint = "10.0.2.2:51820"
 cert_chain = "/etc/rproxy/certs/cert.pem"
 cert_key = "/etc/rproxy/certs/key.pem"
 base_domain = "app.localhost"
-config_path = "/etc/rproxy/rproxy.conf"
-portmap = [
-    { listen_addr = "0.0.0.0", listen_port = 8443, target_port = 8080, label = "" },
-    { listen_addr = "0.0.0.0", listen_port = 8090, target_port = 8090, label = "tappd" },
-]
-
-[core.proxy.tls_passthrough]
 listen_addr = "0.0.0.0"
-listen_ports = [8543]
+listen_port = 8443
+tappd_port = 8090
