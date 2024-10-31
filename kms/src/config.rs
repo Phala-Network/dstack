@@ -26,6 +26,7 @@ pub(crate) struct KmsConfig {
     pub root_ca_cert: String,
     pub root_ca_key: String,
     pub subject_postfix: String,
+    pub cert_log_dir: String,
 }
 
 #[derive(Debug, Clone)]

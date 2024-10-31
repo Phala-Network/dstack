@@ -14,7 +14,10 @@ use ra_tls::{
 };
 use tracing::info;
 
-use crate::config::{AllowedMr, KmsConfig};
+use crate::{
+    config::{AllowedMr, KmsConfig},
+    ct_log::ct_log_write_cert,
+};
 
 #[derive(Clone)]
 pub struct KmsState {
@@ -125,12 +128,16 @@ impl KmsRpc for RpcHandler {
         let cert = state
             .root_ca
             .sign(req)
-            .context("Failed to sign certificate")?;
+            .context("Failed to sign certificate")?
+            .pem();
+
+        ct_log_write_cert(&app_id, &cert, &state.config.cert_log_dir)
+            .context("failed to log certificate")?;
 
         Ok(AppKeyResponse {
             app_key: app_key.serialize_pem(),
             disk_crypt_key: app_disk_key.serialize_der(),
-            certificate_chain: vec![cert.pem(), state.root_ca.cert.pem()],
+            certificate_chain: vec![cert, state.root_ca.cert.pem()],
         })
     }
 }
