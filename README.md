@@ -37,6 +37,15 @@ dstack/
 - A TDX host machine with Ubuntu 24.04 installed and has public IPv4 address
 - A domain name you can modify DNS records
 
+## Install dependencies
+
+```bash
+# for Ubuntu 24.04
+sudo apt install -y build-essential chrpath diffstat lz4 wireguard-tools
+# install rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
 ## Build and run
 
 ```bash
@@ -133,6 +142,15 @@ After the container deployed, it should need some time to start the CVM and the 
 - You can open tproxy's dashboard at [https://localhost:9070](https://localhost:9070) to see the CVM's wireguard ip address, as shown below:
 
 ![tproxy](./docs/assets/tproxy.png)
+
+## Access the App
+
+Once the app is deployed and listening on an HTTP port, you can access the HTTP service via tproxy's public domain. The ingress mapping rules are:
+
+- `<app_id>.<base_domain>` maps to port `80` in the CVM.
+- `<app_id>-<port>.<base_domain>` maps to port `<port>` in the CVM.
+
+For example, `3327603e03f5bd1f830812ca4a789277fc31f577-8080.app.kvin.wang` maps to port `8080` in the CVM.
 
 You can also ssh into the CVM to inspect more information, if your deployment uses the image `dstack-x.x.x-dev`:
 
