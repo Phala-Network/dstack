@@ -20,6 +20,7 @@ root_ca_cert = "/etc/kms/certs/ca.cert"
 root_ca_key = "/etc/kms/certs/ca.key"
 subject_postfix = ".local"
 cert_log_dir = "/var/log/kms"
+allow_any_upgrade = true
 
 [core.allowed_mr]
 allow_all = false
@@ -27,3 +28,5 @@ mrtd = []
 rtmr0 = []
 rtmr1 = []
 rtmr2 = []
+
+[core.app_upgrade_registry]

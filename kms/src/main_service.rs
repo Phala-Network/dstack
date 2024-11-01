@@ -18,6 +18,7 @@ use crate::{
     config::{AllowedMr, KmsConfig},
     ct_log::ct_log_write_cert,
 };
+use fs_err as fs;
 
 #[derive(Clone)]
 pub struct KmsState {
@@ -87,12 +88,32 @@ impl RpcHandler {
         }
         Ok(attestation)
     }
+
+    fn ensure_upgrade_allowed(&self, app_id: &str, upgraded_app_id: &str) -> Result<()> {
+        if app_id == upgraded_app_id {
+            return Ok(());
+        }
+        if self.state.inner.config.allow_any_upgrade {
+            return Ok(());
+        }
+        let registry_file_path = &self.state.inner.config.app_upgrade_registry;
+        let flag_file_path = format!("{registry_file_path}/{app_id}/{upgraded_app_id}");
+        if fs::metadata(&flag_file_path).is_ok() {
+            return Ok(());
+        }
+        bail!("Upgrade denied");
+    }
 }
 
 impl KmsRpc for RpcHandler {
     async fn get_app_key(self) -> Result<AppKeyResponse> {
         let attest = self.ensure_attested()?;
         let app_id = attest.decode_app_id().context("Failed to decode app ID")?;
+        let upgraded_app_id = attest
+            .decode_upgraded_app_id()
+            .context("Failed to decode upgraded app ID")?;
+        self.ensure_upgrade_allowed(&app_id, &upgraded_app_id)
+            .context("Upgrade not allowed")?;
         let rootfs_hash = attest
             .decode_rootfs_hash()
             .context("Failed to decode rootfs hash")?;
