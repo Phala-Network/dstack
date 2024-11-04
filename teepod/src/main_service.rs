@@ -39,7 +39,7 @@ impl RpcHandler {
         let cfg = self.app.config.clone();
         let work_dir = cfg.run_path.join(&id);
         if work_dir.exists() {
-            anyhow::bail!("VM already exists at {}", work_dir.display());
+            anyhow::bail!("The instance is already exists at {}", work_dir.display());
         }
         let shared_dir = work_dir.join("shared");
         fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
@@ -170,7 +170,7 @@ impl TeepodRpc for RpcHandler {
     async fn upgrade_app(self, request: UpgradeAppRequest) -> Result<Id> {
         let compose_file_path = self.compose_file_path(&request.id);
         if !compose_file_path.exists() {
-            anyhow::bail!("VM {} not found", request.id);
+            anyhow::bail!("The instance {} not found", request.id);
         }
         fs::write(compose_file_path, &request.compose_file)
             .context("Failed to write compose file")?;
