@@ -12,7 +12,7 @@ use ra_tls::{
     kdf::derive_ecdsa_key_pair,
     qvl::quote::{Report, TDReport10},
 };
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{
     config::{AllowedMr, KmsConfig},
@@ -96,11 +96,12 @@ impl RpcHandler {
         if self.state.inner.config.allow_any_upgrade {
             return Ok(());
         }
-        let registry_file_path = &self.state.inner.config.app_upgrade_registry;
-        let flag_file_path = format!("{registry_file_path}/{app_id}/{upgraded_app_id}");
+        let registry_dir = &self.state.inner.config.upgrade_registry_dir;
+        let flag_file_path = format!("{registry_dir}/{app_id}/{upgraded_app_id}");
         if fs::metadata(&flag_file_path).is_ok() {
             return Ok(());
         }
+        warn!("Denied upgrade from {app_id} to {upgraded_app_id}");
         bail!("Upgrade denied");
     }
 }
