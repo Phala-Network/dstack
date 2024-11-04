@@ -363,6 +363,12 @@
             margin-bottom: 5px;
         }
     </style>
+    <style>
+        .app-id-preview {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
 </head>
 
 <body>
@@ -372,6 +378,10 @@
         <div v-if="showCreateDialog" class="dialog-overlay">
             <div class="dialog">
                 <h2>Deploy a new instance</h2>
+                <div>
+                    <label>App ID:</label>
+                    <div class="app-id-preview">{{ appIdPreview() }}</div>
+                </div>
                 <form @submit.prevent="createVM" class="create-vm-form">
                     <div class="form-grid">
                         <div class="form-group">
@@ -396,13 +406,14 @@
 
                         <div class="form-group">
                             <label for="memory">Memory (MB)</label>
-                            <input id="memory" v-model.number="vmForm.memory" type="number" placeholder="Memory in MB" required>
+                            <input id="memory" v-model.number="vmForm.memory" type="number" placeholder="Memory in MB"
+                                required>
                         </div>
 
                         <div class="form-group">
                             <label for="diskSize">Disk Size (GB)</label>
-                            <input id="diskSize" v-model.number="vmForm.disk_size" type="number" placeholder="Disk size in GB"
-                                required>
+                            <input id="diskSize" v-model.number="vmForm.disk_size" type="number"
+                                placeholder="Disk size in GB" required>
                         </div>
 
                         <div class="form-group">
@@ -419,7 +430,8 @@
 
                     <div class="vm-actions">
                         <button type="submit" class="action-btn primary">Deploy</button>
-                        <button type="button" class="action-btn remove" @click="showCreateDialog = false">Cancel</button>
+                        <button type="button" class="action-btn remove"
+                            @click="showCreateDialog = false">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -559,9 +571,42 @@
                     }
                 };
 
+                const makeAppComposeFile = () => {
+                    const app_compose = {
+                        "manifest_version": 1,
+                        "name": vmForm.value.name,
+                        "version": "1.0.0",
+                        "features": ["migration", "tproxy-net"],
+                        "runner": "docker-compose",
+                        "docker_compose_file": vmForm.value.compose_file
+                    };
+                    return JSON.stringify(app_compose);
+                };
+
+                const appIdPreview = () => {
+                    const compose_file = makeAppComposeFile();
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(compose_file);
+                    
+                    return crypto.subtle.digest('SHA-256', data)
+                        .then(hashBuffer => {
+                            const hashArray = Array.from(new Uint8Array(hashBuffer));
+                            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                            return hashHex.substring(0, 40);
+                        })
+                        .catch(error => {
+                            console.error('Error generating hash:', error);
+                            return '';
+                        });
+                };
+
                 const createVM = async () => {
                     try {
-                        const _response = await rpcCall('CreateVM', vmForm.value);
+                        const form = {
+                            ...vmForm.value,
+                            compose_file: makeAppComposeFile()
+                        };
+                        const _response = await rpcCall('CreateVM', form);
                         loadVMList();
                         showCreateDialog.value = false;
                     } catch (error) {
@@ -714,7 +759,8 @@
                     showUpgradeDialog,
                     loadUpgradeFile,
                     upgradeVM,
-                    showCreateDialog
+                    showCreateDialog,
+                    appIdPreview
                 };
             }
         }).mount('#app');

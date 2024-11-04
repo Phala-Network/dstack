@@ -32,7 +32,7 @@ impl RpcHandler {
             .run_path
             .join(id)
             .join("shared")
-            .join("docker-compose.yaml")
+            .join("app-compose.json")
     }
 
     fn prepare_work_dir(&self, id: &str, compose_file: &str, image_name: &str) -> Result<PathBuf> {
@@ -43,7 +43,7 @@ impl RpcHandler {
         }
         let shared_dir = work_dir.join("shared");
         fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
-        fs::write(shared_dir.join("docker-compose.yaml"), compose_file)
+        fs::write(shared_dir.join("app-compose.json"), compose_file)
             .context("Failed to write compose file")?;
         let certs_dir = shared_dir.join("certs");
         fs::create_dir_all(&certs_dir).context("Failed to create certs directory")?;
