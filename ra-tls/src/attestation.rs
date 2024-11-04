@@ -12,17 +12,14 @@ pub struct Attestation {
     pub quote: Vec<u8>,
     /// Event log
     pub event_log: Vec<u8>,
-    /// Application info
-    pub app_info: Vec<u8>,
 }
 
 impl Attestation {
     /// Create a new attestation
-    pub fn new(quote: Vec<u8>, event_log: Vec<u8>, app_info: Vec<u8>) -> Self {
+    pub fn new(quote: Vec<u8>, event_log: Vec<u8>) -> Self {
         Self {
             quote,
             event_log,
-            app_info,
         }
     }
 
@@ -48,12 +45,10 @@ impl Attestation {
             None => return Ok(None),
         };
         let event_log = read_ext_bytes!(oids::PHALA_RATLS_EVENT_LOG).unwrap_or_default();
-        let app_info = read_ext_bytes!(oids::PHALA_RATLS_APP_INFO).unwrap_or_default();
 
         Ok(Some(Self {
             quote,
             event_log,
-            app_info,
         }))
     }
 
