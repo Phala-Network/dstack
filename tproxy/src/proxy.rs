@@ -52,10 +52,9 @@ struct DstInfo {
 
 fn parse_destination(sni: &str, dotted_base_domain: &str) -> Result<DstInfo> {
     // format: <app_id>[-<port>][s].<base_domain>
-    if !sni.ends_with(dotted_base_domain) {
-        bail!("sni is not a subdomain of {dotted_base_domain}");
-    }
-    let mut subdomain = sni[..sni.len() - dotted_base_domain.len()].to_string();
+    let mut subdomain = sni
+        .strip_suffix(dotted_base_domain)
+        .context("invalid sni format")?;
     if subdomain.contains('.') {
         bail!("only one level of subdomain is supported");
     }
