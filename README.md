@@ -49,7 +49,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ## Build and run
 
 ```bash
-git clone https://github.com/Phala-Network/meta-dstack.git --recursive
+git clone https://github.com/Dstack-TEE/meta-dstack.git --recursive
 cd meta-dstack/
 source dev-setup
 cd dstack/
