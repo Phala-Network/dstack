@@ -834,8 +834,9 @@ checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 
 [[package]]
 name = "dcap-qvl"
-version = "0.1.2"
-source = "git+https://github.com/Phala-Network/dcap-qvl.git#c46b80199fe8960a99b7cb90666e8ea8257e6169"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "150f17a7bb594ac16726c307fa53bcf2b40b1cd47d348df65a4c34de86ebd0d6"
 dependencies = [
  "anyhow",
  "asn1_der",
@@ -850,10 +851,11 @@ dependencies = [
  "parity-scale-codec",
  "pem",
  "reqwest 0.11.27",
- "ring 0.16.20",
+ "ring",
  "rustls-webpki 0.102.8",
  "scale-info",
  "serde",
+ "serde_bytes",
  "serde_json",
  "tracing",
  "urlencoding",
@@ -1930,7 +1932,7 @@ dependencies = [
  "hyper 1.4.1",
  "hyper-rustls 0.27.3",
  "hyper-util",
- "ring 0.17.8",
+ "ring",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -2325,7 +2327,7 @@ dependencies = [
  "log",
  "memchr",
  "mime",
- "spin 0.9.8",
+ "spin",
  "tokio",
  "tokio-util",
  "version_check",
@@ -3049,7 +3051,7 @@ checksum = "fadfaed2cd7f389d0161bb73eeb07b7b78f8691047a6f3e73caaeae55310a4a6"
 dependencies = [
  "bytes",
  "rand 0.8.5",
- "ring 0.17.8",
+ "ring",
  "rustc-hash 2.0.0",
  "rustls 0.23.16",
  "slab",
@@ -3106,7 +3108,7 @@ dependencies = [
  "hkdf",
  "p256",
  "rcgen",
- "ring 0.17.8",
+ "ring",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -3199,7 +3201,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54077e1872c46788540de1ea3d7f4ccb1983d12f9aa909b234468676c1a36779"
 dependencies = [
  "pem",
- "ring 0.17.8",
+ "ring",
  "rustls-pki-types",
  "time",
  "x509-parser",
@@ -3404,21 +3406,6 @@ dependencies = [
 
 [[package]]
 name = "ring"
-version = "0.16.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3053cf52e236a3ed746dfc745aa9cacf1b791d846bdaf412f60a8d7d6e17c8fc"
-dependencies = [
- "cc",
- "libc",
- "once_cell",
- "spin 0.5.2",
- "untrusted 0.7.1",
- "web-sys",
- "winapi",
-]
-
-[[package]]
-name = "ring"
 version = "0.17.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c17fa4cb658e3583423e915b9f3acc01cceaee1860e33d59ebae66adc3a2dc0d"
@@ -3427,7 +3414,7 @@ dependencies = [
  "cfg-if",
  "getrandom 0.2.15",
  "libc",
- "spin 0.9.8",
+ "spin",
  "untrusted 0.9.0",
  "windows-sys 0.52.0",
 ]
@@ -3614,7 +3601,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f56a14d1f48b391359b22f731fd4bd7e43c97f3c50eee276f3aa09c94784d3e"
 dependencies = [
  "log",
- "ring 0.17.8",
+ "ring",
  "rustls-webpki 0.101.7",
  "sct",
 ]
@@ -3628,7 +3615,7 @@ dependencies = [
  "aws-lc-rs",
  "log",
  "once_cell",
- "ring 0.17.8",
+ "ring",
  "rustls-pki-types",
  "rustls-webpki 0.102.8",
  "subtle",
@@ -3679,7 +3666,7 @@ version = "0.101.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b6275d1ee7a1cd780b64aca7726599a1dbc893b1e64144529e55c3c2f745765"
 dependencies = [
- "ring 0.17.8",
+ "ring",
  "untrusted 0.9.0",
 ]
 
@@ -3690,7 +3677,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64ca1bc8749bd4cf37b5ce386cc146580777b4e8572c7b97baf22c83f444bee9"
 dependencies = [
  "aws-lc-rs",
- "ring 0.17.8",
+ "ring",
  "rustls-pki-types",
  "untrusted 0.9.0",
 ]
@@ -3800,7 +3787,7 @@ dependencies = [
  "aws-lc-rs",
  "cfg-if",
  "lazy_static",
- "ring 0.17.8",
+ "ring",
  "s2n-codec 0.46.0",
  "s2n-quic-core 0.46.0",
  "zeroize",
@@ -3927,7 +3914,7 @@ version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da046153aa2352493d6cb7da4b6e5c0c057d8a1d0a9aa8560baffdd945acd414"
 dependencies = [
- "ring 0.17.8",
+ "ring",
  "untrusted 0.9.0",
 ]
 
@@ -3981,6 +3968,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f55c3193aca71c12ad7890f1785d2b73e1b9f63a0bbc353c08ef26fe03fc56b5"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde_bytes"
+version = "0.11.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "387cc504cb06bb40a96c8e04e951fe01854cf6bc921053c954e4a606d9675c6a"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -4163,12 +4159,6 @@ dependencies = [
  "libc",
  "windows-sys 0.52.0",
 ]
-
-[[package]]
-name = "spin"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "spin"
@@ -5435,7 +5425,7 @@ dependencies = [
  "lazy_static",
  "nom",
  "oid-registry",
- "ring 0.17.8",
+ "ring",
  "rusticata-macros",
  "thiserror",
  "time",
@@ -5499,3 +5489,8 @@ dependencies = [
  "quote",
  "syn 2.0.85",
 ]
+
+[[patch.unused]]
+name = "dcap-qvl"
+version = "0.1.2"
+source = "git+https://github.com/Phala-Network/dcap-qvl.git#c46b80199fe8960a99b7cb90666e8ea8257e6169"
