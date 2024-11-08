@@ -1,6 +1,8 @@
 # Dstack
 
-This project is Phala's opinionated implementation of Andrew's design of [Dstack](https://collective.flashbots.net/t/dstack-speedrunning-a-p2p-confidential-vm). It's highly experimental and evolving fast. We aim to merge it into a production ready project eventually.
+Dstack is an highly experimental and evolving-fast SDK to deploy Docker-based TEE applications.
+
+It was inspired by [Andrew's](https://github.com/amiller) (Flashbots team) design of [Dstack](https://collective.flashbots.net/t/dstack-speedrunning-a-p2p-confidential-vm). It was originally built as Phala's opinionated implementation. We aim to merge it into a production ready project eventually.
 
 # Overview
 
@@ -365,10 +367,33 @@ When building the dstack from scratch, you should change the CID configs in `bui
 
 You may encounter this problem when upgrading from an older version of dstack, because CID was introduced in `build-config.sh` in later versions. In such case, please follow the docs to add the missing entries in `build-config.sh` and rebuild dstack.
 
+# Contributors
+
+The inspiration for this work stems from [Andrew Miller](https://github.com/amiller)’s pioneering concept of a [Docker-based P2P TEE SDK](https://collective.flashbots.net/t/dstack-speedrunning-a-p2p-confidential-vm/3876).
+
+Special acknowledgment to [Flashbots](https://github.com/flashbots) for building a community around TEE. The TEE Hacker House initiative, organized by [Flashbots](https://github.com/flashbots) and led by [Tina](https://github.com/CarboClanC), has brought together TEE builders to develop tools for TEE-Web3 integration. This collaborative journey has generated invaluable insights for advancing secure, confidential environments within Web3.
+
+Special recognition goes to the Pi-rateship builders who contributed their expertise:
+
+- Teleport: [Sxy Sun](https://github.com/sxysun)
+- Flashbots: [Tina](https://github.com/CarboClanC), [Mateusz](https://github.com/Ruteri), [Dmarz](https://github.com/dmarzzz), [Moe](https://github.com/MoeMahhouk)
+- Ithaca: [Georgios](https://github.com/gakonst)
+- Fabric: [@gaoist](https://x.com/gaoist)
+- Phala Network: [Kevin Wang](https://github.com/kvinwang), [Shelven Zhou](https://github.com/shelvenzhou)
+- And many more...
+
+This project cannot be built without standing on the shoulders of giants:
+
+- [konvera/meta-confidential-compute](https://github.com/konvera/meta-confidential-compute)
+
+Together, we’re shaping the future of TEE in Web3, paving the way for more secure and developer-accessible confidential computing!
+
+For a full list of the direct contributors to this repo, see [Contributors](https://github.com/Dstack-TEE/dstack/contributors) on GitHub.
+
 
 # License
 
-Copyright 2024 Phala Network.
+Copyright 2024 Phala Network and Contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 
