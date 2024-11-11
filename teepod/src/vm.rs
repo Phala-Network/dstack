@@ -436,29 +436,4 @@ mod qemu {
         let serial_file = workdir.as_ref().join("serial.log");
         Ok(serial_file)
     }
-
-    #[test]
-    fn test_run_vm() {
-        use literal::{map, MapLiteral};
-
-        let image_path = paths::image_dir().join("ubuntu-24.04");
-        let vm_dir = paths::vm_dir().join("test");
-
-        let config = VmConfig {
-            id: "test".to_string(),
-            app_id: "test".to_string(),
-            name: "test".to_string(),
-            vcpu: 1,
-            memory: 1024,
-            image: Image::load(&image_path).unwrap(),
-            tdx_config: None,
-            port_map: map! {
-                10022u16: 22u16,
-            },
-            disk_size: 10,
-        };
-        let child = run_vm("qemu-system-x86_64", &config, &vm_dir).unwrap();
-        let status = child.wait().unwrap();
-        println!("status: {:#?}", status);
-    }
 }

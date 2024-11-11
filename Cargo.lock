@@ -3105,6 +3105,7 @@ dependencies = [
  "dcap-qvl",
  "elliptic-curve",
  "fs-err 3.0.0",
+ "hex",
  "hkdf",
  "p256",
  "rcgen",

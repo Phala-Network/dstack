@@ -2,12 +2,10 @@ use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use fs_err as fs;
 use getrandom::getrandom;
-use ra_tls::{attestation::QuoteContentType, cert::CaCert, event_log::EventLog};
+use ra_tls::{attestation::QuoteContentType, cert::CaCert};
 use scale::Decode;
 use std::io::{self, Read, Write};
 use tdx_attest as att;
-
-const EVENT_LOG_FILE: &str = "/run/log/tdx_mr3/tdx_events.log";
 
 /// TDX control utility
 #[derive(Parser)]
@@ -58,10 +56,6 @@ struct ExtendArgs {
     #[clap(short, long)]
     /// associated data of the event
     associated_data: String,
-
-    #[clap(long)]
-    /// force extend RTMR
-    force: bool,
 }
 
 #[derive(Parser)]
@@ -125,40 +119,12 @@ fn cmd_extend(extend_args: ExtendArgs) -> Result<()> {
         rtmr_index: extend_args.index as u64,
         digest: padded_digest,
         event_type: extend_args.event_type,
+        event: extend_args.associated_data.into_bytes(),
     };
-    if extend_args.force || std::path::Path::new("/dev/tdx_guest").exists() {
-        att::extend_rtmr(&rtmr_event).context("Failed to extend RTMR")?;
-    }
+    att::extend_rtmr(&rtmr_event).context("Failed to extend RTMR")?;
     let hexed_digest = hex::encode(&padded_digest);
-
     println!("Extended RTMR {}: {}", extend_args.index, hexed_digest);
-
-    // Append to event log
-    let event_log = EventLog {
-        imr: extend_args.index,
-        event_type: extend_args.event_type,
-        digest: hexed_digest,
-        associated_data: extend_args.associated_data,
-    };
-    let logline = serde_json::to_string(&event_log).context("Failed to serialize event log")?;
-
-    let logfile_path = std::path::Path::new(EVENT_LOG_FILE);
-    let logfile_dir = logfile_path
-        .parent()
-        .context("Failed to get event log directory")?;
-    fs::create_dir_all(logfile_dir).context("Failed to create event log directory")?;
-
-    let mut logfile = fs::OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(logfile_path)
-        .context("Failed to open event log file")?;
-    logfile
-        .write_all(logline.as_bytes())
-        .context("Failed to write to event log file")?;
-    logfile
-        .write_all(b"\n")
-        .context("Failed to write to event log file")?;
+    att::log_rtmr_event(&rtmr_event).context("Failed to log RTMR extending event")?;
     Ok(())
 }
 
@@ -263,7 +229,8 @@ fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
     let pubkey = key.public_key_der();
     let report_data = QuoteContentType::RaTlsCert.to_report_data(&pubkey);
     let (_, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
-    let event_log = fs::read(EVENT_LOG_FILE).unwrap_or_default();
+    let event_logs = att::eventlog::read_event_logs().context("Failed to read event logs")?;
+    let event_log = serde_json::to_vec(&event_logs).context("Failed to serialize event logs")?;
     let req = CertRequest::builder()
         .subject("RA-TLS TEMP Cert")
         .quote(&quote)

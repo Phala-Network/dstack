@@ -1,15 +1,18 @@
+use anyhow::Context;
 pub use tdx_attest_sys as sys;
 
+use std::io::Write;
 use std::ptr;
 use std::slice;
 
 use sys::*;
 
+use fs_err as fs;
 use num_enum::FromPrimitive;
 use thiserror::Error;
 
-pub mod eventlog;
 mod codecs;
+pub mod eventlog;
 
 pub type Result<T> = std::result::Result<T, TdxAttestError>;
 
@@ -27,6 +30,7 @@ pub struct TdxRtmrEvent {
     pub rtmr_index: u64,
     pub digest: [u8; 48usize],
     pub event_type: u32,
+    pub event: Vec<u8>,
 }
 
 #[repr(u32)]
@@ -112,6 +116,36 @@ pub fn get_report(report_data: &TdxReportData) -> Result<TdxReport> {
     }
 
     Ok(report)
+}
+
+pub fn log_rtmr_event(rtmr_event: &TdxRtmrEvent) -> anyhow::Result<()> {
+    // Append to event log
+    let event_log = eventlog::TdxEventLog {
+        imr: rtmr_event.rtmr_index as u32,
+        event_type: rtmr_event.event_type,
+        digest: rtmr_event.digest,
+        event: rtmr_event.event.clone(),
+    };
+    let logline = serde_json::to_string(&event_log).context("Failed to serialize event log")?;
+
+    let logfile_path = std::path::Path::new(eventlog::RUNTIME_EVENT_LOG_FILE);
+    let logfile_dir = logfile_path
+        .parent()
+        .context("Failed to get event log directory")?;
+    fs::create_dir_all(logfile_dir).context("Failed to create event log directory")?;
+
+    let mut logfile = fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(logfile_path)
+        .context("Failed to open event log file")?;
+    logfile
+        .write_all(logline.as_bytes())
+        .context("Failed to write to event log file")?;
+    logfile
+        .write_all(b"\n")
+        .context("Failed to write to event log file")?;
+    Ok(())
 }
 
 pub fn extend_rtmr(rtmr_event: &TdxRtmrEvent) -> Result<()> {

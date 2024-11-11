@@ -9,6 +9,7 @@ bon = "2.2.1"
 dcap-qvl = "0.1.5"
 elliptic-curve = { version = "0.13.8", features = ["pkcs8"] }
 fs-err = "3.0.0"
+hex = "0.4.3"
 hkdf = "0.12.4"
 p256 = "0.13.2"
 rcgen = { version = "0.13.1", features = ["x509-parser"] }

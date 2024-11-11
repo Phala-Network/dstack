@@ -6,6 +6,11 @@ use tcg::{TcgDigest, TcgEfiSpecIdEvent};
 
 mod tcg;
 
+/// The path to the userspace TDX event log file.
+pub(crate) const RUNTIME_EVENT_LOG_FILE: &str = "/run/log/tdx_mr3/tdx_events.log";
+/// The path to boottime ccel file.
+const CCEL_FILE: &str = "/sys/firmware/acpi/tables/data/CCEL";
+
 /// This is the common struct for tcg event logs to be delivered in different formats.
 /// Currently TCG supports several event log formats defined in TCG_PCClient Spec,
 /// Canonical Eventlog Spec, etc.
@@ -146,8 +151,6 @@ impl EventLogs {
     }
 
     pub fn decode_from_ccel_file() -> Result<Self> {
-        const CCEL_FILE: &str = "/sys/firmware/acpi/tables/data/CCEL";
-
         let data = fs_err::read(CCEL_FILE).context("Failed to read CCEL")?;
         Self::decode(&mut data.as_slice())
     }
@@ -196,6 +199,28 @@ fn parse_spec_id_event_log<I: scale::Input>(
         event: decoded_header.header_event,
     };
     Ok((spec_id_header, spec_id_event))
+}
+
+fn read_runtime_event_logs() -> Result<Vec<TdxEventLog>> {
+    let data =
+        fs_err::read_to_string(RUNTIME_EVENT_LOG_FILE).context("Failed to read user event log")?;
+    let mut event_logs = vec![];
+    for line in data.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let event_log =
+            serde_json::from_str::<TdxEventLog>(line).context("Failed to decode user event log")?;
+        event_logs.push(event_log);
+    }
+    Ok(event_logs)
+}
+
+/// Read both boottime and runtime event logs.
+pub fn read_event_logs() -> Result<Vec<TdxEventLog>> {
+    let mut event_logs = EventLogs::decode_from_ccel_file()?.to_tdx_event_logs()?;
+    event_logs.extend(read_runtime_event_logs()?);
+    Ok(event_logs)
 }
 
 #[cfg(test)]
