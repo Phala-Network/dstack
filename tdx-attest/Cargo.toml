@@ -4,6 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.93"
+hex = "0.4.3"
 num_enum = "0.7.3"
+scale = { version = "3.6.12", package = "parity-scale-codec", features = ["derive"] }
+serde = { version = "1.0.214", features = ["derive"] }
+serde-human-bytes = "0.1.0"
 tdx-attest-sys = { path = "../tdx-attest-sys" }
-thiserror = "1.0.63"
+thiserror = "2.0.3"
+fs-err = "3.0.0"
+
+[dev-dependencies]
+insta = "1.41.1"
+serde_json = "1.0.132"

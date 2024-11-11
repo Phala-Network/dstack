@@ -8,6 +8,9 @@ use sys::*;
 use num_enum::FromPrimitive;
 use thiserror::Error;
 
+pub mod eventlog;
+mod codecs;
+
 pub type Result<T> = std::result::Result<T, TdxAttestError>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
