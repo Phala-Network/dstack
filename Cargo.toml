@@ -20,6 +20,3 @@ members = [
     "ct_monitor",
 ]
 resolver = "2"
-
-[patch.crates-io]
-dcap-qvl = { git = "https://github.com/Phala-Network/dcap-qvl.git" }

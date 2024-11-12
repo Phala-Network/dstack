@@ -4,6 +4,7 @@ use anyhow::{bail, Context, Result};
 use bollard::{container::ListContainersOptions, Docker};
 use ra_rpc::{Attestation, RpcCall};
 use ra_tls::{
+    attestation::QuoteContentType,
     cert::{CaCert, CertRequest},
     kdf::derive_ecdsa_key_pair,
     qvl::quote::Report,
@@ -15,6 +16,7 @@ use tappd_rpc::{
     Container, DeriveKeyArgs, DeriveKeyResponse, ListContainersResponse, TdxQuoteArgs,
     TdxQuoteResponse, WorkerInfo,
 };
+use tdx_attest::eventlog::read_event_logs;
 
 use crate::config::Config;
 
@@ -63,15 +65,13 @@ impl TappdRpc for InternalRpcHandler {
     }
 
     async fn tdx_quote(self, request: TdxQuoteArgs) -> Result<TdxQuoteResponse> {
-        let todo = "add the event log to the response";
-        let todo = "define the report data format";
-        let report_data = sha2_512(&request.report_data);
+        let report_data = QuoteContentType::KmsRootCa.to_report_data(&request.report_data);
+        let event_log = read_event_logs().context("Failed to decode event log")?;
+        let event_log =
+            serde_json::to_string(&event_log).context("Failed to serialize event log")?;
         let (_, quote) =
             tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
-        Ok(TdxQuoteResponse {
-            quote,
-            event_log: Default::default(),
-        })
+        Ok(TdxQuoteResponse { quote, event_log })
     }
 }
 
@@ -90,13 +90,6 @@ impl RpcCall<AppState> for InternalRpcHandler {
             state: state.clone(),
         })
     }
-}
-
-fn sha2_512(data: &[u8]) -> [u8; 64] {
-    use sha2::{Digest, Sha512};
-    let mut hasher = Sha512::new();
-    hasher.update(data);
-    hasher.finalize().into()
 }
 
 pub struct ExternalRpcHandler {

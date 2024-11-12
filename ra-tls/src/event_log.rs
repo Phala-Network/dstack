@@ -12,5 +12,5 @@ pub struct EventLog {
     /// the hash of the event
     pub digest: String,
     /// the associated data
-    pub associated_data: String,
+    pub event: String,
 }

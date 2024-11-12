@@ -13,6 +13,8 @@ pub enum QuoteContentType {
     KmsRootCa,
     /// The public key of the RA-TLS certificate
     RaTlsCert,
+    /// App defined data
+    AppData,
 }
 
 impl QuoteContentType {
@@ -21,6 +23,7 @@ impl QuoteContentType {
         match self {
             Self::KmsRootCa => "kms-root-ca",
             Self::RaTlsCert => "ratls-cert",
+            Self::AppData => "app-data",
         }
     }
 
@@ -95,9 +98,11 @@ impl Attestation {
 
     fn find_event(&self, imr: u32, ad: &str) -> Result<EventLog> {
         let event_log = String::from_utf8(self.event_log.clone()).context("invalid event log")?;
-        for line in event_log.lines() {
-            let event = serde_json::from_str::<EventLog>(line)?;
-            if event.imr == imr && event.associated_data == ad {
+        let hexed_ad = hex::encode(ad);
+        for event in
+            serde_json::from_str::<Vec<EventLog>>(&event_log).context("invalid event log")?
+        {
+            if event.imr == imr && event.event == hexed_ad {
                 return Ok(event);
             }
         }
