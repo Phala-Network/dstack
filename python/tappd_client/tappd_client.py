@@ -50,6 +50,23 @@ class QuoteResponse:
         return rtmrs
 
 
+class DerivedKey:
+    """
+    A class to hold the derived key and certificate.
+    """
+    key: str
+    """
+    The derived key in pem format.
+    """
+    certs: list[str]
+    """
+    The derived certificate chain in pem format.
+    """
+    def __init__(self, key, certs):
+        self.key = key
+        self.certs = certs
+
+
 class TappdClient:
     def __init__(self, socket_path='/var/run/tappd.sock'):
         self.socket_path = socket_path
@@ -76,7 +93,7 @@ class TappdClient:
             print(f"Error: {e}")
             return None
 
-    def tdx_quote(self, report_data) -> QuoteResponse:
+    def tdx_quote(self, report_data: bytes | str) -> QuoteResponse:
         """
         Get TDX quote for the given report data.
         
@@ -103,3 +120,14 @@ class TappdClient:
         data = {"report_data": hex_data}
         response = self._rpc_call(data, 'Tappd.TdxQuote')
         return QuoteResponse(response['quote'], response['event_log'])
+
+    def derive_key(self, path: str, subject: str | None = None, alt_names: list[str] | None = None) -> DerivedKey:
+        """
+        Derive the key and certificate from the given path.
+        """
+        data = {"path": path}
+        data["subject"] = subject or path
+        if alt_names:
+            data["alt_names"] = alt_names
+        response = self._rpc_call(data, 'Tappd.DeriveKey')
+        return DerivedKey(response['key'], response['certificate_chain'])
