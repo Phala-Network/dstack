@@ -19,6 +19,8 @@ message DeriveKeyArgs {
   string path = 1;
   // Subject of the certificate to request
   string subject = 2;
+  // DNS alternative names for the certificate
+  repeated string alt_names = 3;
 }
 
 // The response to a DeriveKey request
