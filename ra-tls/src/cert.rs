@@ -83,7 +83,7 @@ pub struct CertRequest<'a> {
     key: &'a KeyPair,
     org_name: Option<&'a str>,
     subject: &'a str,
-    alt_subject: Option<&'a str>,
+    alt_names: Option<&'a [String]>,
     ca_level: Option<u8>,
     quote: Option<&'a [u8]>,
     event_log: Option<&'a [u8]>,
@@ -98,10 +98,12 @@ impl<'a> CertRequest<'a> {
         }
         dn.push(DnType::CommonName, self.subject);
         params.distinguished_name = dn;
-        if let Some(alt_subject) = self.alt_subject {
-            params
-                .subject_alt_names
-                .push(SanType::DnsName(alt_subject.try_into()?));
+        if let Some(alt_names) = self.alt_names {
+            for alt_name in alt_names {
+                params
+                    .subject_alt_names
+                    .push(SanType::DnsName(alt_name.clone().try_into()?));
+            }
         }
         if let Some(quote) = self.quote {
             let content = yasna::construct_der(|writer| {

@@ -50,6 +50,7 @@ impl TappdRpc for InternalRpcHandler {
                 .context("Failed to derive key")?;
         let req = CertRequest::builder()
             .subject(&request.subject)
+            .alt_names(&request.alt_names)
             .key(&derived_key)
             .build();
         let cert = self
