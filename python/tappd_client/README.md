@@ -26,6 +26,19 @@ response = client.tdx_quote(binary_data)
 # Using string data
 string_data = "Hello World"
 response = client.tdx_quote(string_data)
+
+# Get the quote
+quote = response.quote
+
+# Get event log
+event_log = response.event_log
+
+# Replay RTMRS from the event log
+rtmrs = response.replay_rtmrs()
+RTMR0 = rtmrs[0]
+RTMR1 = rtmrs[1]
+RTMR2 = rtmrs[2]
+RTMR3 = rtmrs[3]
 ```
 
 ## License
