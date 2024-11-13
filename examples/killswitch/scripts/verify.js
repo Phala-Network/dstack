@@ -17,7 +17,7 @@ async function verify(address, constructorArguments = []) {
 async function main() {
   // Get the contract address from command line arguments
   const contractAddress = process.env.ADDRESS;
-  
+
   if (!contractAddress) {
     throw new Error("Please provide the contract address using the ADDRESS environment variable");
   }
@@ -31,4 +31,4 @@ main()
   .catch((error) => {
     console.error(error);
     process.exit(1);
-  }); 
+  });
