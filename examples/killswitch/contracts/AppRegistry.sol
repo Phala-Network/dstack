@@ -47,6 +47,15 @@ contract AppRegistry {
         _;
     }
 
+    // Modifier for admin or owner
+    modifier onlyAdminOrOwner(bytes32 appId) {
+        require(
+            msg.sender == admin || msg.sender == apps[appId].owner,
+            "Only admin or owner can perform this action"
+        );
+        _;
+    }
+
     // Function to verify TDX quote
     // Note: This is a placeholder - implement actual TDX verification logic
     function verifyTDXQuote(
@@ -94,7 +103,7 @@ contract AppRegistry {
     }
 
     // Function to ban an app
-    function banApp(bytes32 appId) external onlyAdmin {
+    function banApp(bytes32 appId) external onlyAdminOrOwner(appId) {
         require(apps[appId].exists, "App does not exist");
         require(!apps[appId].isBanned, "App is already banned");
 
