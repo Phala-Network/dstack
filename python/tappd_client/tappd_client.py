@@ -131,3 +131,9 @@ class TappdClient:
             data["alt_names"] = alt_names
         response = self._rpc_call(data, 'Tappd.DeriveKey')
         return DerivedKey(response['key'], response['certificate_chain'])
+
+    def info(self) -> dict:
+        """
+        Get the worker info.
+        """
+        return self._rpc_call({}, 'Tappd.Info')
