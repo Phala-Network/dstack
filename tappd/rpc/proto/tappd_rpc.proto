@@ -11,6 +11,9 @@ service Tappd {
 
   // Get a TDX quote
   rpc TdxQuote(TdxQuoteArgs) returns (TdxQuoteResponse) {}
+
+  // Get worker info
+  rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
 }
 
 // The request to derive a key

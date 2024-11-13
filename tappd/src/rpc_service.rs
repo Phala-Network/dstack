@@ -75,6 +75,10 @@ impl TappdRpc for InternalRpcHandler {
             tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
         Ok(TdxQuoteResponse { quote, event_log })
     }
+
+    async fn info(self) -> Result<WorkerInfo> {
+        ExternalRpcHandler { state: self.state }.info().await
+    }
 }
 
 impl RpcCall<AppState> for InternalRpcHandler {
