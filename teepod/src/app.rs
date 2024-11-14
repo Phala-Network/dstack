@@ -15,7 +15,7 @@
 //!         └── shared
 //!             └── app-compose.json
 //! ```
-use crate::config::Config;
+use crate::config::{Config, Protocol};
 use crate::vm::run::{Image, TdxConfig, VmConfig, VmMonitor};
 
 use anyhow::{bail, Context, Result};
@@ -23,12 +23,21 @@ use bon::Builder;
 use fs_err as fs;
 use id_pool::IdPool;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use tracing::error;
+use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use teepod_rpc::VmInfo;
 
 mod id_pool;
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct PortMapping {
+    pub address: IpAddr,
+    pub protocol: Protocol,
+    pub from: u16,
+    pub to: u16,
+}
 
 #[derive(Deserialize, Serialize, Builder)]
 pub struct Manifest {
@@ -39,7 +48,7 @@ pub struct Manifest {
     memory: u32,
     disk_size: u32,
     image: String,
-    port_map: HashMap<u16, u16>,
+    port_map: Vec<PortMapping>,
     created_at_ms: u64,
 }
 
@@ -150,7 +159,7 @@ impl App {
             memory: manifest.memory,
             image,
             tdx_config: Some(TdxConfig { cid }),
-            port_map: Default::default(),
+            port_map: manifest.port_map,
             disk_size: manifest.disk_size,
             created_at_ms: manifest.created_at_ms,
         };
@@ -206,7 +215,7 @@ impl App {
                 let vm_path = entry.path();
                 if vm_path.is_dir() {
                     if let Err(err) = self.load_vm(vm_path) {
-                        println!("Failed to load VM: {err}");
+                        error!("Failed to load VM: {err}");
                     }
                 }
             }

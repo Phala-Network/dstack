@@ -40,6 +40,18 @@ message CreateVMRequest {
   uint32 memory = 5;
   // Disk size in GB
   uint32 disk_size = 6;
+  // Port mapping
+  repeated PortMapping ports = 7;
+}
+
+// Message for port mapping
+message PortMapping {
+  // Protocol
+  string protocol = 1;
+  // Host port
+  uint32 host_port = 2;
+  // VM port
+  uint32 vm_port = 3;
 }
 
 // Message for upgrading an app request
@@ -51,9 +63,11 @@ message UpgradeAppRequest {
 }
 
 // Message for VM list response
-message VMListResponse {
+message StatusResponse {
   // List of VMs
   repeated VmInfo vms = 1;
+  // Port mapping enabled
+  bool port_mapping_enabled = 2;
 }
 
 // Service definition for Teepod
@@ -70,7 +84,7 @@ service Teepod {
   rpc UpgradeApp(UpgradeAppRequest) returns (Id);
 
   // RPC to list all VMs
-  rpc ListVms(google.protobuf.Empty) returns (VMListResponse);
+  rpc Status(google.protobuf.Empty) returns (StatusResponse);
   // RPC to list all available images
   rpc ListImages(google.protobuf.Empty) returns (ImageListResponse);
 }

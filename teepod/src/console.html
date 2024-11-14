@@ -241,8 +241,10 @@
             background: rgba(0, 0, 0, 0.5);
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
         }
 
         .dialog {
@@ -251,6 +253,7 @@
             border-radius: 8px;
             width: 500px;
             max-width: 90%;
+            margin: 20px auto;
         }
 
         .upgrade {
@@ -424,6 +427,20 @@
                             placeholder="Paste your docker-compose.yml here" required></textarea>
                     </div>
 
+                    <div class="form-group full-width" v-if="config.portMappingEnabled">
+                        <label>Port Mappings</label>
+                        <div v-for="(port, index) in vmForm.ports" :key="index" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <select v-model="port.protocol" style="width: 100px;">
+                                <option value="tcp">TCP</option>
+                                <option value="udp">UDP</option>
+                            </select>
+                            <input type="number" v-model.number="port.host_port" placeholder="Host Port" style="width: 120px;">
+                            <input type="number" v-model.number="port.vm_port" placeholder="VM Port" style="width: 120px;">
+                            <button type="button" class="action-btn danger" @click="removePort(index)">Remove</button>
+                        </div>
+                        <button type="button" class="action-btn" @click="addPort">Add Port Mapping</button>
+                    </div>
+
                     <div class="vm-actions">
                         <button type="submit" class="action-btn primary">Deploy</button>
                         <button type="button" class="action-btn remove"
@@ -528,7 +545,8 @@
                     compose_file: '',
                     vcpu: 1,
                     memory: 1024,
-                    disk_size: 20
+                    disk_size: 20,
+                    ports: []
                 });
                 const images = ref([]);
 
@@ -541,6 +559,9 @@
                 const errorMessage = ref('');
 
                 const showCreateDialog = ref(false);
+                const config = ref({
+                    portMappingEnabled: false
+                });
 
                 const rpcCall = async (method, params) => {
                     const response = await fetch(`/prpc/Teepod.${method}?json`, {
@@ -559,9 +580,12 @@
 
                 const loadVMList = async () => {
                     try {
-                        const response = await rpcCall('ListVms');
+                        const response = await rpcCall('Status');
                         const data = await response.json();
                         vms.value = data.vms;
+                        config.value = {
+                            portMappingEnabled: data.port_mapping_enabled
+                        };
                     } catch (error) {
                         console.error('Error loading VM list:', error);
                     }
@@ -699,12 +723,6 @@
         Run: 
         <div class="command-container">
             <code class="command-code">./kms-allow-upgrade.sh ${upgradeDialog.value.vm.app_id} ${data.id}</code>
-            <button 
-                @click="navigator.clipboard.writeText('./kms-allow-upgrade.sh ' + upgradeDialog.value.vm.app_id + ' ' + data.id)"
-                class="copy-button"
-                title="Copy command">
-                📋
-            </button>
         </div>
     </li>
     <li>Restart the instance</li>
@@ -714,6 +732,18 @@
                         console.error('error upgrading VM:', error);
                         alert('failed to upgrade VM');
                     }
+                };
+
+                const addPort = () => {
+                    vmForm.value.ports.push({
+                        protocol: 'tcp',
+                        host_port: null,
+                        vm_port: null
+                    });
+                };
+
+                const removePort = (index) => {
+                    vmForm.value.ports.splice(index, 1);
                 };
 
                 onMounted(() => {
@@ -748,6 +778,9 @@
                     loadUpgradeFile,
                     upgradeVM,
                     showCreateDialog,
+                    addPort,
+                    removePort,
+                    config,
                 };
             }
         }).mount('#app');

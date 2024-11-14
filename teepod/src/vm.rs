@@ -312,11 +312,12 @@ pub(crate) mod run {
 mod qemu {
     //! QEMU related code
     use std::{
-        collections::HashMap,
         path::{Path, PathBuf},
         process::Command,
         sync::Arc,
     };
+
+    use crate::app::PortMapping;
 
     use super::image::Image;
     use anyhow::Result;
@@ -342,7 +343,7 @@ mod qemu {
         pub image: Image,
         pub tdx_config: Option<TdxConfig>,
         /// Port map from host to guest
-        pub port_map: HashMap<u16, u16>,
+        pub port_map: Vec<PortMapping>,
         pub created_at_ms: u64,
     }
 
@@ -405,9 +406,12 @@ mod qemu {
             command.arg("-bios").arg(bios);
         }
         let mut netdev = "user,id=net0,".to_string();
-        for (host, guest) in &config.port_map {
+        for pm in &config.port_map {
             let todo = "rm portmap";
-            netdev.push_str(&format!("hostfwd=tcp::{}-:{}", host, guest));
+            netdev.push_str(&format!(
+                "hostfwd={}:{}:{}-:{}",
+                pm.protocol.as_str(), pm.address, pm.from, pm.to
+            ));
         }
         command.arg("-netdev").arg(netdev);
         command.arg("-device").arg("virtio-net-pci,netdev=net0");
