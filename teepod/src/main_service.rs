@@ -6,12 +6,12 @@ use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
-    CreateVmRequest, Id, ImageInfo as RpcImageInfo, ImageListResponse, UpgradeAppRequest,
-    VmListResponse,
+    CreateVmRequest, Id, ImageInfo as RpcImageInfo, ImageListResponse, StatusResponse,
+    UpgradeAppRequest,
 };
 use tracing::warn;
 
-use crate::app::{App, Manifest, VmWorkDir};
+use crate::app::{App, Manifest, PortMapping, VmWorkDir};
 use crate::vm::image::ImageInfo;
 
 fn hex_sha256(data: &str) -> String {
@@ -92,7 +92,7 @@ fn validate_label(label: &str) -> Result<()> {
         .chars()
         .any(|c| !c.is_alphanumeric() && c != '-' && c != '_')
     {
-        anyhow::bail!("Invalid label: {}", label);
+        anyhow::bail!("Invalid name: {}", label);
     }
     Ok(())
 }
@@ -100,6 +100,30 @@ fn validate_label(label: &str) -> Result<()> {
 impl TeepodRpc for RpcHandler {
     async fn create_vm(self, request: CreateVmRequest) -> Result<Id> {
         validate_label(&request.name)?;
+
+        let pm_cfg = &self.app.config.cvm.port_mapping;
+        if !(request.ports.is_empty() || pm_cfg.enabled) {
+            anyhow::bail!("Port mapping is disabled");
+        }
+        let port_map = request
+            .ports
+            .iter()
+            .map(|p| {
+                let from = p.host_port.try_into().context("Invalid host port")?;
+                let to = p.vm_port.try_into().context("Invalid vm port")?;
+                if !pm_cfg.is_allowed(&p.protocol, from) {
+                    anyhow::bail!("Port mapping is not allowed for {}:{}", p.protocol, from);
+                }
+                let protocol = p.protocol.parse().context("Invalid protocol")?;
+                Ok(PortMapping {
+                    address: pm_cfg.address,
+                    protocol,
+                    from,
+                    to,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+
         let app_id = app_id_of(&request.compose_file);
         let id = uuid::Uuid::new_v4().to_string();
         let work_dir = self.prepare_work_dir(&id, &request.compose_file, &request.image)?;
@@ -115,7 +139,7 @@ impl TeepodRpc for RpcHandler {
             .vcpu(request.vcpu)
             .memory(request.memory)
             .disk_size(request.disk_size)
-            .port_map(Default::default())
+            .port_map(port_map)
             .created_at_ms(now)
             .build();
 
@@ -147,9 +171,10 @@ impl TeepodRpc for RpcHandler {
         Ok(())
     }
 
-    async fn list_vms(self) -> Result<VmListResponse> {
-        Ok(VmListResponse {
+    async fn status(self) -> Result<StatusResponse> {
+        Ok(StatusResponse {
             vms: self.app.list_vms(),
+            port_mapping_enabled: self.app.config.cvm.port_mapping.enabled,
         })
     }
 

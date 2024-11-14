@@ -1,11 +1,11 @@
-use std::path::PathBuf;
+use std::{net::IpAddr, path::PathBuf, str::FromStr};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use rocket::figment::{
     providers::{Format, Toml},
     Figment,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub const CONFIG_FILENAME: &str = "teepod.toml";
 pub const SYSTEM_CONFIG_FILENAME: &str = "/etc/teepod/teepod.toml";
@@ -20,6 +20,63 @@ pub fn load_config_figment(config_file: Option<&str>) -> Figment {
         .merge(Toml::string(DEFAULT_CONFIG))
         .merge(Toml::file(SYSTEM_CONFIG_FILENAME))
         .merge(leaf_config)
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Protocol {
+    Tcp,
+    Udp,
+}
+
+impl FromStr for Protocol {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "tcp" => Protocol::Tcp,
+            "udp" => Protocol::Udp,
+            _ => bail!("Invalid protocol: {s}"),
+        })
+    }
+}
+
+impl Protocol {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Protocol::Tcp => "tcp",
+            Protocol::Udp => "udp",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PortRange {
+    pub protocol: Protocol,
+    pub from: u16,
+    pub to: u16,
+}
+
+impl PortRange {
+    pub fn contains(&self, protocol: &str, port: u16) -> bool {
+        self.protocol.as_str() == protocol && port >= self.from && port <= self.to
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PortMappingConfig {
+    pub enabled: bool,
+    pub address: IpAddr,
+    pub range: Vec<PortRange>,
+}
+
+impl PortMappingConfig {
+    pub fn is_allowed(&self, protocol: &str, port: u16) -> bool {
+        if !self.enabled {
+            return false;
+        }
+        self.range.iter().any(|r| r.contains(protocol, port))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -37,6 +94,8 @@ pub struct CvmConfig {
     pub cid_start: u32,
     /// The size of the CID pool that allocates CIDs to VMs
     pub cid_pool_size: u32,
+    /// Port mapping configuration
+    pub port_mapping: PortMappingConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]

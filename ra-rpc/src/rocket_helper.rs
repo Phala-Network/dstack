@@ -96,6 +96,7 @@ pub async fn handle_prpc<S, Call: RpcCall<S>>(
     let call = Call::construct(state, attestation).context("failed to construct call")?;
     let data = data.to_vec();
     let (status_code, output) = call.call(method.to_string(), data, json).await;
+    let todo = "log for errors";
     Ok(Custom(Status::new(status_code), output))
 }
 

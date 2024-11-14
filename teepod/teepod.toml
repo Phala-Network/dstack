@@ -16,6 +16,13 @@ max_disk_size = 100
 cid_start = 1000
 cid_pool_size = 1000
 
+[cvm.port_mapping]
+enabled = false
+address = "127.0.0.1"
+range = [
+    { protocol = "tcp", from = 1, to = 20000 },
+]
+
 [gateway]
 base_domain = "localhost"
 port = 8082

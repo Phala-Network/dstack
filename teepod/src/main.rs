@@ -18,6 +18,8 @@ struct Args {
 
 #[rocket::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
+
     let args = Args::parse();
     let figment = config::load_config_figment(args.config.as_deref());
     let config = Config::extract_or_default(&figment)?;

@@ -29,6 +29,8 @@ TEEPOD_RPC_LISTEN_PORT=9080
 TEEPOD_CID_POOL_START=10000
 # CID pool size
 TEEPOD_CID_POOL_SIZE=1000
+# Whether port mapping is enabled
+TEEPOD_PORT_MAPPING_ENABLED=false
 
 KMS_RPC_LISTEN_PORT=9043
 TPROXY_RPC_LISTEN_PORT=9010
@@ -218,6 +220,12 @@ kms_url = "https://kms.$BASE_DOMAIN:$KMS_RPC_LISTEN_PORT"
 tproxy_url = "https://tproxy.$BASE_DOMAIN:$TPROXY_RPC_LISTEN_PORT"
 cid_start = $TEEPOD_CID_POOL_START
 cid_pool_size = $TEEPOD_CID_POOL_SIZE
+[cvm.port_mapping]
+enabled = $TEEPOD_PORT_MAPPING_ENABLED
+address = "127.0.0.1"
+range = [
+    { protocol = "tcp", from = 1, to = 20000 },
+]
 
 [gateway]
 base_domain = "$TPROXY_PUBLIC_DOMAIN"
