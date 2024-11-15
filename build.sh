@@ -5,7 +5,7 @@ SCRIPT_DIR=$(cd $(dirname $0); pwd)
 CERTS_DIR=`pwd`/certs
 IMAGES_DIR=`pwd`/images
 RUN_DIR=`pwd`/run
-IMAGE_NAME=dstack-0.1.0
+IMAGE_NAME=dstack-0.2.0
 IMAGE_TMP_DIR=`pwd`/tmp/images/$IMAGE_NAME
 CERBOT_WORKDIR=$RUN_DIR/certbot
 KMS_UPGRADE_REGISTRY_DIR=$RUN_DIR/kms/upgrade_registry
@@ -118,7 +118,7 @@ make_image_dist() {
 {
     "bios": "ovmf.fd",
     "kernel": "bzImage",
-    "cmdline": "console=ttyS0 init=/init dstack.fde=1 dstack.integrity=0",
+    "cmdline": "console=ttyS0 init=/init dstack.integrity=0",
     "initrd": "initramfs.cpio.gz",
     "rootfs": "rootfs.iso",
     "rootfs_hash": "$rootfs_hash"
@@ -131,8 +131,8 @@ EOF
     cp $IMAGE_TMP_DIR/$rootfs_name.iso $img_dist_dir/rootfs.iso
 }
 
-make_image_dist dstack-0.1.0 rootfs
-make_image_dist dstack-0.1.0-dev rootfs-dev
+make_image_dist $IMAGE_NAME rootfs
+make_image_dist $IMAGE_NAME-dev rootfs-dev
 
 # Step 3: make certs
 make -C .. certs DOMAIN=$BASE_DOMAIN TO=$CERTS_DIR
