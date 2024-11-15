@@ -1,5 +1,7 @@
 //! Certificate creation functions.
 
+use std::path::Path;
+
 use anyhow::{anyhow, Context, Result};
 use fs_err as fs;
 use rcgen::{
@@ -40,7 +42,7 @@ impl CaCert {
     }
 
     /// Load a CA certificate and private key from files.
-    pub fn load(cert_path: &str, key_path: &str) -> Result<Self> {
+    pub fn load(cert_path: impl AsRef<Path>, key_path: impl AsRef<Path>) -> Result<Self> {
         let pem_key = fs::read_to_string(key_path).context("Failed to read key file")?;
         let pem_cert = fs::read_to_string(cert_path).context("Failed to read cert file")?;
         Self::new(pem_cert, pem_key)
@@ -120,7 +122,9 @@ impl<'a> CertRequest<'a> {
             params.custom_extensions.push(ext);
         }
         if let Some(ca_level) = self.ca_level {
-            params.is_ca = IsCa::Ca(BasicConstraints::Constrained(ca_level));
+            if ca_level > 0 {
+                params.is_ca = IsCa::Ca(BasicConstraints::Constrained(ca_level));
+            }
         }
         Ok(params)
     }
