@@ -372,6 +372,45 @@
             color: #666;
         }
     </style>
+    <style>
+        .vm-details {
+            font-size: 14px;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .detail-value {
+            color: #333;
+        }
+
+        .port-mappings {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .port-item {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
 </head>
 
 <body>
@@ -381,7 +420,7 @@
         <div v-if="showCreateDialog" class="dialog-overlay">
             <div class="dialog">
                 <h2>Deploy a new instance</h2>
-                <form @submit.prevent="createVM" class="create-vm-form">
+                <form @submit.prevent="createVm" class="create-vm-form">
                     <div class="form-grid">
                         <div class="form-group">
                             <label for="vmName">Name</label>
@@ -429,13 +468,16 @@
 
                     <div class="form-group full-width" v-if="config.portMappingEnabled">
                         <label>Port Mappings</label>
-                        <div v-for="(port, index) in vmForm.ports" :key="index" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <div v-for="(port, index) in vmForm.ports" :key="index"
+                            style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <select v-model="port.protocol" style="width: 100px;">
                                 <option value="tcp">TCP</option>
                                 <option value="udp">UDP</option>
                             </select>
-                            <input type="number" v-model.number="port.host_port" placeholder="Host Port" style="width: 120px;">
-                            <input type="number" v-model.number="port.vm_port" placeholder="VM Port" style="width: 120px;">
+                            <input type="number" v-model.number="port.host_port" placeholder="Host Port"
+                                style="width: 120px;">
+                            <input type="number" v-model.number="port.vm_port" placeholder="VM Port"
+                                style="width: 120px;">
                             <button type="button" class="action-btn danger" @click="removePort(index)">Remove</button>
                         </div>
                         <button type="button" class="action-btn" @click="addPort">Add Port Mapping</button>
@@ -477,36 +519,114 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="vm in vms" :key="vm.id" style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 12px;">{{ vm.app_id }}</td>
-                        <td style="padding: 12px;">{{ vm.name }}</td>
-                        <td style="padding: 12px;">
-                            <span :class="'status-' + vm.status.toLowerCase()">{{ vm.status }}</span>
-                        </td>
-                        <td style="padding: 12px;">{{ vm.uptime }}</td>
-                        <td style="padding: 12px;">
-                            <div class="vm-actions">
-                                <button class="action-btn primary" @click="startVM(vm.id)" title="Start VM">
-                                    <i class="fas fa-play"></i> Start
-                                </button>
-                                <button class="action-btn danger" @click="stopVM(vm.id)" title="Stop VM">
-                                    <i class="fas fa-stop"></i> Stop
-                                </button>
-                                <button class="action-btn warning" @click="removeVM(vm.id)" title="Remove VM">
-                                    <i class="fas fa-trash"></i> Remove
-                                </button>
-                                <button class="action-btn" @click="showLog(vm.id)" title="View Logs">
-                                    <i class="fas fa-file-alt"></i> Logs
-                                </button>
-                                <button v-if="vm.app_url" class="action-btn" @click="showAppInfo(vm.app_url)" title="View App Info">
-                                    <i class="fas fa-info-circle"></i> Dashboard
-                                </button>
-                                <button class="action-btn" @click="showUpgradeDialog(vm)" title="Upgrade VM">
-                                    <i class="fas fa-arrow-up"></i> Upgrade
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                    <template v-for="vm in vms" :key="vm.id">
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 12px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <button @click="toggleDetails(vm.id)" class="action-btn"
+                                        style="padding: 2px 6px; min-width: 24px;">
+                                        {{ expandedVMs.has(vm.id) ? '−' : '+' }}
+                                    </button>
+                                    {{ vm.app_id }}
+                                </div>
+                            </td>
+                            <td style="padding: 12px;">{{ vm.name }}</td>
+                            <td style="padding: 12px;">
+                                <span :class="'status-' + vm.status.toLowerCase()">{{ vm.status }}</span>
+                            </td>
+                            <td style="padding: 12px;">{{ vm.uptime }}</td>
+                            <td style="padding: 12px;">
+                                <div class="vm-actions">
+                                    <button class="action-btn primary" @click="startVm(vm.id)" title="Start VM">
+                                        <i class="fas fa-play"></i> Start
+                                    </button>
+                                    <button class="action-btn danger" @click="stopVm(vm.id)" title="Stop VM">
+                                        <i class="fas fa-stop"></i> Stop
+                                    </button>
+                                    <button class="action-btn warning" @click="removeVm(vm.id)" title="Remove VM">
+                                        <i class="fas fa-trash"></i> Remove
+                                    </button>
+                                    <button class="action-btn" @click="showLog(vm.id)" title="View Logs">
+                                        <i class="fas fa-file-alt"></i> Logs
+                                    </button>
+                                    <button v-if="dashboardAvailable(vm)" class="action-btn" @click="showDashboard(vm)"
+                                        title="View App Info">
+                                        <i class="fas fa-info-circle"></i> Dashboard
+                                    </button>
+                                    <button class="action-btn" @click="showUpgradeDialog(vm)" title="Upgrade VM">
+                                        <i class="fas fa-arrow-up"></i> Upgrade
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr v-if="expandedVMs.has(vm.id)" style="background-color: #f8f9fa;">
+                            <td colspan="5" style="padding: 16px;">
+                                <div class="vm-details">
+                                    <h4 style="margin: 0 0 12px 0;">VM Configuration</h4>
+                                    <div class="details-grid">
+                                        <div class="detail-item">
+                                            <span class="detail-label">Image:</span>
+                                            <span class="detail-value">{{ vm.configuration?.image }}</span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <span class="detail-label">vCPUs:</span>
+                                            <span class="detail-value">{{ vm.configuration?.vcpu }}</span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <span class="detail-label">Memory:</span>
+                                            <span class="detail-value">{{ vm.configuration?.memory }} MB</span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <span class="detail-label">Disk Size:</span>
+                                            <span class="detail-value">{{ vm.configuration?.disk_size }} GB</span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <span class="detail-label">VM ID:</span>
+                                            <span class="detail-value">{{ vm.id }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="vm.configuration?.ports?.length" style="margin-top: 16px;">
+                                        <h4 style="margin: 0 0 12px 0;">Port Mappings</h4>
+                                        <div class="port-mappings">
+                                            <div v-for="(port, index) in vm.configuration.ports" :key="index"
+                                                class="port-item">
+                                                {{ port.protocol.toUpperCase() }}: {{ port.host_port }} → {{
+                                                port.vm_port }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style="margin-top: 16px;">
+                                        <h4 style="margin: 0 0 12px 0;">App Information</h4>
+                                        <div class="details-grid" style="margin-bottom: 16px;">
+                                            <div class="detail-item">
+                                                <span class="detail-label">App Name:</span>
+                                                <span class="detail-value">{{ vm.appConfig?.name }}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="detail-label">Runner:</span>
+                                                <span class="detail-value">{{ vm.appConfig?.runner }}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="detail-label">Features:</span>
+                                                <span class="detail-value">{{ vm.appConfig?.features?.join(', ') ||
+                                                    'None' }}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="detail-label">Instance ID:</span>
+                                                <span class="detail-value">{{ vm.instance_id }}</span>
+                                            </div>
+                                        </div>
+
+                                        <h4 style="margin: 0 0 12px 0;">Docker Compose File</h4>
+                                        <pre
+                                            style="background: #f1f1f1; padding: 12px; border-radius: 4px; overflow-x: auto;">{{ vm.appConfig?.docker_compose_file }}</pre>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
                 </tbody>
             </table>
         </div>
@@ -553,6 +673,7 @@
         createApp({
             setup() {
                 const vms = ref([]);
+                const expandedVMs = ref(new Set());
                 const vmForm = ref({
                     name: '',
                     image: 'dstack-0.1.0-dev',
@@ -600,7 +721,17 @@
                     try {
                         const response = await rpcCall('Status');
                         const data = await response.json();
-                        vms.value = data.vms;
+                        vms.value = data.vms.map(vm => ({
+                            ...vm,
+                            appConfig: (() => {
+                                try {
+                                    return JSON.parse(vm.configuration?.compose_file || '{}');
+                                } catch (e) {
+                                    console.error('Error parsing app config:', e);
+                                    return {};
+                                }
+                            })()
+                        }));
                         config.value = {
                             portMappingEnabled: data.port_mapping_enabled
                         };
@@ -613,7 +744,7 @@
                     const features = [];
                     if (vmForm.value.features.kms) features.push("kms");
                     if (vmForm.value.features.tproxy) features.push("tproxy-net");
-                    
+
                     const app_compose = {
                         "manifest_version": 1,
                         "name": vmForm.value.name,
@@ -625,13 +756,13 @@
                     return JSON.stringify(app_compose);
                 };
 
-                const createVM = async () => {
+                const createVm = async () => {
                     try {
                         const form = {
                             ...vmForm.value,
                             compose_file: makeAppComposeFile()
                         };
-                        const _response = await rpcCall('CreateVM', form);
+                        const _response = await rpcCall('CreateVm', form);
                         loadVMList();
                         showCreateDialog.value = false;
                     } catch (error) {
@@ -640,9 +771,9 @@
                     }
                 };
 
-                const stopVM = async (id) => {
+                const stopVm = async (id) => {
                     try {
-                        const _response = await rpcCall('StopVM', {
+                        const _response = await rpcCall('StopVm', {
                             id
                         });
                         loadVMList();
@@ -652,9 +783,9 @@
                     }
                 };
 
-                const startVM = async (id) => {
+                const startVm = async (id) => {
                     try {
-                        const _response = await rpcCall('StartVM', {
+                        const _response = await rpcCall('StartVm', {
                             id
                         });
                         loadVMList();
@@ -664,9 +795,9 @@
                     }
                 };
 
-                const removeVM = async (id) => {
+                const removeVm = async (id) => {
                     try {
-                        const _response = await rpcCall('RemoveVM', {
+                        const _response = await rpcCall('RemoveVm', {
                             id
                         });
                         loadVMList();
@@ -680,12 +811,17 @@
                     window.open(`/logs?id=${id}&follow=false&ansi=false`, '_blank');
                 };
 
-                const showAppInfo = async (app_url) => {
-                    if (app_url) {
-                        window.open(app_url, '_blank');
+                const showDashboard = async (vm) => {
+                    if (vm.app_url) {
+                        window.open(vm.app_url, '_blank');
                     } else {
                         alert('No Tappd URL');
                     }
+                };
+
+                const dashboardAvailable = (vm) => {
+                    if (!vm.appConfig.features.includes('tproxy-net')) return false;
+                    return vm.app_url
                 };
 
                 const loadComposeFile = (event) => {
@@ -768,6 +904,14 @@
                     vmForm.value.ports.splice(index, 1);
                 };
 
+                const toggleDetails = (vmId) => {
+                    if (expandedVMs.value.has(vmId)) {
+                        expandedVMs.value.delete(vmId);
+                    } else {
+                        expandedVMs.value.add(vmId);
+                    }
+                };
+
                 onMounted(() => {
                     (async () => {
                         while (true) {
@@ -786,12 +930,12 @@
                     vms,
                     vmForm,
                     images,
-                    createVM,
-                    stopVM,
-                    startVM,
-                    removeVM,
+                    createVm,
+                    stopVm,
+                    startVm,
+                    removeVm,
                     showLog,
-                    showAppInfo,
+                    showDashboard,
                     loadComposeFile,
                     upgradeDialog,
                     upgradeMessage,
@@ -803,6 +947,9 @@
                     addPort,
                     removePort,
                     config,
+                    toggleDetails,
+                    expandedVMs,
+                    dashboardAvailable
                 };
             }
         }).mount('#app');

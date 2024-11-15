@@ -6,8 +6,8 @@ use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
-    CreateVmRequest, Id, ImageInfo as RpcImageInfo, ImageListResponse, StatusResponse,
-    UpgradeAppRequest,
+    Id, ImageInfo as RpcImageInfo, ImageListResponse, StatusResponse, UpgradeAppRequest,
+    VmConfiguration,
 };
 use tracing::warn;
 
@@ -98,7 +98,7 @@ fn validate_label(label: &str) -> Result<()> {
 }
 
 impl TeepodRpc for RpcHandler {
-    async fn create_vm(self, request: CreateVmRequest) -> Result<Id> {
+    async fn create_vm(self, request: VmConfiguration) -> Result<Id> {
         validate_label(&request.name)?;
 
         let pm_cfg = &self.app.config.cvm.port_mapping;
