@@ -1,0 +1,12 @@
+[Unit]
+Description=Tappd Service
+After=network.target
+
+[Service]
+ExecStart=/bin/tappd
+Restart=always
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target
