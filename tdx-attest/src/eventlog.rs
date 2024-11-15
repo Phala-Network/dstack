@@ -202,8 +202,15 @@ fn parse_spec_id_event_log<I: scale::Input>(
 }
 
 fn read_runtime_event_logs() -> Result<Vec<TdxEventLog>> {
-    let data =
-        fs_err::read_to_string(RUNTIME_EVENT_LOG_FILE).context("Failed to read user event log")?;
+    let data = match fs_err::read_to_string(RUNTIME_EVENT_LOG_FILE) {
+        Ok(data) => data,
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                return Ok(vec![]);
+            }
+            return Err(e).context("Failed to read user event log");
+        }
+    };
     let mut event_logs = vec![];
     for line in data.lines() {
         if line.trim().is_empty() {

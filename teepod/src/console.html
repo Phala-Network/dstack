@@ -441,6 +441,20 @@
                         <button type="button" class="action-btn" @click="addPort">Add Port Mapping</button>
                     </div>
 
+                    <div class="form-group full-width">
+                        <label>Features</label>
+                        <div style="display: flex; gap: 20px;">
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" v-model="vmForm.features.kms">
+                                KMS
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" v-model="vmForm.features.tproxy">
+                                TProxy
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="vm-actions">
                         <button type="submit" class="action-btn primary">Deploy</button>
                         <button type="button" class="action-btn remove"
@@ -546,7 +560,11 @@
                     vcpu: 1,
                     memory: 1024,
                     disk_size: 20,
-                    ports: []
+                    ports: [],
+                    features: {
+                        kms: true,
+                        tproxy: true
+                    }
                 });
                 const images = ref([]);
 
@@ -592,11 +610,15 @@
                 };
 
                 const makeAppComposeFile = () => {
+                    const features = [];
+                    if (vmForm.value.features.kms) features.push("kms");
+                    if (vmForm.value.features.tproxy) features.push("tproxy-net");
+                    
                     const app_compose = {
                         "manifest_version": 1,
                         "name": vmForm.value.name,
                         "version": "1.0.0",
-                        "features": ["migration", "tproxy-net"],
+                        "features": features,
                         "runner": "docker-compose",
                         "docker_compose_file": vmForm.value.compose_file
                     };

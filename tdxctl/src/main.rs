@@ -1,11 +1,19 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use fde_setup::{cmd_setup_fde, AppCompose, SetupFdeArgs};
 use fs_err as fs;
 use getrandom::getrandom;
 use ra_tls::{attestation::QuoteContentType, cert::CaCert};
 use scale::Decode;
-use std::io::{self, Read, Write};
+use std::{
+    io::{self, Read, Write},
+    path::PathBuf,
+};
 use tdx_attest as att;
+use utils::deserialize_json_file;
+
+mod fde_setup;
+mod utils;
 
 /// TDX control utility
 #[derive(Parser)]
@@ -23,7 +31,11 @@ enum Commands {
     Show,
     Hex(HexCommand),
     GenRaCert(GenRaCertArgs),
+    GenCaCert(GenCaCertArgs),
+    GenAppKeys(GenAppKeysArgs),
     Rand(RandArgs),
+    TestAppFeature(TestAppFeatureArgs),
+    SetupFde(SetupFdeArgs),
 }
 
 #[derive(Parser)]
@@ -63,19 +75,53 @@ struct ExtendArgs {
 struct GenRaCertArgs {
     /// CA certificate used to sign the RA certificate
     #[arg(long)]
-    ca_cert: String,
+    ca_cert: PathBuf,
 
     /// CA private key used to sign the RA certificate
     #[arg(long)]
-    ca_key: String,
+    ca_key: PathBuf,
 
     #[arg(short, long)]
     /// file path to store the certificate
-    cert_path: String,
+    cert_path: PathBuf,
 
     #[arg(short, long)]
     /// file path to store the private key
-    key_path: String,
+    key_path: PathBuf,
+}
+
+#[derive(Parser)]
+/// Generate CA certificate
+struct GenCaCertArgs {
+    /// path to store the certificate
+    #[arg(long)]
+    cert: PathBuf,
+    /// path to store the private key
+    #[arg(long)]
+    key: PathBuf,
+    /// CA level
+    #[arg(long, default_value_t = 1)]
+    ca_level: u8,
+}
+
+#[derive(Parser)]
+/// Generate app keys
+struct GenAppKeysArgs {
+    /// CA certificate used to sign the RA certificate
+    #[arg(long)]
+    ca_cert: PathBuf,
+
+    /// CA private key used to sign the RA certificate
+    #[arg(long)]
+    ca_key: PathBuf,
+
+    /// CA level
+    #[arg(long, default_value_t = 1)]
+    ca_level: u8,
+
+    /// path to store the app keys
+    #[arg(short, long)]
+    output: PathBuf,
 }
 
 #[derive(Parser)]
@@ -92,6 +138,18 @@ struct RandArgs {
     /// hex encode output
     #[arg(short = 'x', long)]
     hex: bool,
+}
+
+#[derive(Parser)]
+/// Test app feature. Print "true" if the feature is supported, otherwise print "false".
+struct TestAppFeatureArgs {
+    /// path to the app keys
+    #[arg(short, long)]
+    feature: String,
+
+    /// path to the app compose file
+    #[arg(short, long)]
+    compose: String,
 }
 
 fn cmd_quote() -> Result<()> {
@@ -244,7 +302,80 @@ fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
     Ok(())
 }
 
+fn cmd_gen_ca_cert(args: GenCaCertArgs) -> Result<()> {
+    use ra_tls::cert::CertRequest;
+    use ra_tls::rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
+
+    let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
+    let pubkey = key.public_key_der();
+    let report_data = QuoteContentType::KmsRootCa.to_report_data(&pubkey);
+    let (_, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
+    let event_logs = att::eventlog::read_event_logs().context("Failed to read event logs")?;
+    let event_log = serde_json::to_vec(&event_logs).context("Failed to serialize event logs")?;
+
+    let req = CertRequest::builder()
+        .subject("App Root CA")
+        .quote(&quote)
+        .event_log(&event_log)
+        .key(&key)
+        .ca_level(args.ca_level)
+        .build();
+
+    let cert = req
+        .self_signed()
+        .context("Failed to self-sign certificate")?;
+    fs::write(&args.cert, cert.pem()).context("Failed to write certificate")?;
+    fs::write(&args.key, key.serialize_pem()).context("Failed to write private key")?;
+    Ok(())
+}
+
+fn cmd_gen_app_keys(args: GenAppKeysArgs) -> Result<()> {
+    use ra_tls::cert::CertRequest;
+    use ra_tls::rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
+
+    let ca = CaCert::load(&args.ca_cert, &args.ca_key).context("Failed to read CA certificate")?;
+    let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
+    let disk_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
+    let pubkey = key.public_key_der();
+    let report_data = QuoteContentType::RaTlsCert.to_report_data(&pubkey);
+    let (_, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
+    let event_logs = att::eventlog::read_event_logs().context("Failed to read event logs")?;
+    let event_log = serde_json::to_vec(&event_logs).context("Failed to serialize event logs")?;
+    let req = CertRequest::builder()
+        .subject("App Root Cert")
+        .quote(&quote)
+        .event_log(&event_log)
+        .key(&key)
+        .ca_level(args.ca_level)
+        .build();
+    let cert = ca.sign(req).context("Failed to sign certificate")?;
+
+    let app_keys = serde_json::json!({
+        "app_key": key.serialize_pem(),
+        "disk_crypt_key": sha256(&disk_key.serialize_der()),
+        "certificate_chain": vec![cert.pem(), ca.pem_cert],
+    });
+    let app_keys = serde_json::to_string(&app_keys).context("Failed to serialize app keys")?;
+    fs::write(&args.output, app_keys).context("Failed to write app keys")?;
+    Ok(())
+}
+
+fn cmd_test_app_feature(args: TestAppFeatureArgs) -> Result<()> {
+    let app_compose: AppCompose = deserialize_json_file(&args.compose)?;
+    println!("{}", app_compose.feature_enabled(&args.feature));
+    Ok(())
+}
+
+fn sha256(data: &[u8]) -> String {
+    use sha2::Digest;
+    let mut sha256 = sha2::Sha256::new();
+    sha256.update(data);
+    hex::encode(sha256.finalize())
+}
+
 fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
+
     let cli = Cli::parse();
 
     match cli.command {
@@ -262,6 +393,18 @@ fn main() -> Result<()> {
         }
         Commands::Rand(rand_args) => {
             cmd_rand(rand_args)?;
+        }
+        Commands::GenCaCert(args) => {
+            cmd_gen_ca_cert(args)?;
+        }
+        Commands::GenAppKeys(args) => {
+            cmd_gen_app_keys(args)?;
+        }
+        Commands::TestAppFeature(args) => {
+            cmd_test_app_feature(args)?;
+        }
+        Commands::SetupFde(args) => {
+            cmd_setup_fde(args)?;
         }
     }
 
