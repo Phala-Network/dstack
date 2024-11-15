@@ -2,7 +2,6 @@ use crate::app::App;
 use crate::main_service::{rpc_methods, RpcHandler};
 use anyhow::Result;
 use fs_err as fs;
-use linemux::MuxedLines;
 use ra_rpc::rocket_helper::handle_prpc;
 use rocket::{
     data::{Data, Limits},
@@ -82,33 +81,27 @@ fn vm_logs(app: &State<App>, id: String, follow: bool, ansi: bool) -> TextStream
             Ok(log_file) => log_file,
         };
         if follow {
-            let mut lines = match MuxedLines::new() {
+            let mut tailer = match tailf::tailf(log_file, None) {
                 Err(err) => {
                     yield format!("{err:?}");
                     return;
                 }
-                Ok(lines) => lines,
+                Ok(tailer) => tailer,
             };
-            if let Err(err) = lines.add_file_from_start(log_file).await {
-                yield format!("{err:?}");
-                return;
-            }
             loop {
-                match lines.next_line().await {
+                match tailer.next().await {
                     Ok(Some(line)) => {
-                        let line_str = line.line().to_string();
+                        let line_str = String::from_utf8_lossy(&line);
                         if ansi {
-                            yield line_str;
+                            yield line_str.to_string();
                         } else {
                             yield strip_ansi_escapes::strip_str(&line_str);
                         }
-                        yield "\n".to_string();
                     }
                     Ok(None) => {
                         break;
                     }
                     Err(err) => {
-                        // TODO: yield the with String::from_utf8_lossy(), see https://github.com/jmagnuson/linemux/issues/70
                         yield format!("<failed to read line: {err}>");
                         continue;
                     }

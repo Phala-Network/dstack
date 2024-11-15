@@ -22,5 +22,5 @@ dirs = "5.0.1"
 which = "6.0.3"
 clap = { version = "4.5.18", features = ["derive"] }
 humantime = "2.1.0"
-linemux = "0.3.0"
 strip-ansi-escapes = "0.2.0"
+tailf = "0.1.1"
