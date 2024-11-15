@@ -23,15 +23,15 @@ use bon::Builder;
 use fs_err as fs;
 use id_pool::IdPool;
 use serde::{Deserialize, Serialize};
-use tracing::error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use teepod_rpc::VmInfo;
+use teepod_rpc as pb;
+use tracing::error;
 
 mod id_pool;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct PortMapping {
     pub address: IpAddr,
     pub protocol: Protocol,
@@ -39,17 +39,17 @@ pub struct PortMapping {
     pub to: u16,
 }
 
-#[derive(Deserialize, Serialize, Builder)]
+#[derive(Deserialize, Serialize, Clone, Builder, Debug)]
 pub struct Manifest {
-    id: String,
-    name: String,
-    app_id: String,
-    vcpu: u32,
-    memory: u32,
-    disk_size: u32,
-    image: String,
-    port_map: Vec<PortMapping>,
-    created_at_ms: u64,
+    pub id: String,
+    pub name: String,
+    pub app_id: String,
+    pub vcpu: u32,
+    pub memory: u32,
+    pub disk_size: u32,
+    pub image: String,
+    pub port_map: Vec<PortMapping>,
+    pub created_at_ms: u64,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -105,6 +105,10 @@ impl VmWorkDir {
         fs::write(state_path, serde_json::to_string(&State { started })?)
             .context("Failed to write state")
     }
+
+    pub fn app_compose_path(&self) -> PathBuf {
+        self.workdir.join("shared").join("app-compose.json")
+    }
 }
 
 #[derive(Clone)]
@@ -152,18 +156,11 @@ impl App {
             .context("CID pool exhausted")?;
 
         let vm_config = VmConfig {
-            id: manifest.id,
-            app_id: manifest.app_id,
-            name: manifest.name,
-            vcpu: manifest.vcpu,
-            memory: manifest.memory,
+            manifest,
             image,
             tdx_config: Some(TdxConfig { cid }),
-            port_map: manifest.port_map,
-            disk_size: manifest.disk_size,
-            created_at_ms: manifest.created_at_ms,
         };
-        if vm_config.disk_size > self.config.cvm.max_disk_size {
+        if vm_config.manifest.disk_size > self.config.cvm.max_disk_size {
             bail!(
                 "disk size too large, max size is {}",
                 self.config.cvm.max_disk_size
@@ -223,7 +220,7 @@ impl App {
         Ok(())
     }
 
-    pub fn list_vms(&self) -> Vec<VmInfo> {
+    pub fn list_vms(&self) -> Vec<pb::VmInfo> {
         let mut infos = self
             .state
             .lock()
@@ -233,23 +230,44 @@ impl App {
             .map(|vm| vm.info())
             .collect::<Vec<_>>();
 
-        infos.sort_by(|a, b| a.created_at_ms.cmp(&b.created_at_ms));
+        infos.sort_by(|a, b| a.manifest.created_at_ms.cmp(&b.manifest.created_at_ms));
         let gw = &self.config.gateway;
 
         infos
             .into_iter()
-            .map(|info| VmInfo {
-                id: info.id,
-                name: info.name,
+            .map(|info| pb::VmInfo {
+                id: info.manifest.id,
+                name: info.manifest.name.clone(),
                 status: info.status.to_string(),
                 uptime: info.uptime,
+                configuration: Some(pb::VmConfiguration {
+                    name: info.manifest.name,
+                    image: info.manifest.image,
+                    compose_file: {
+                        let workdir = VmWorkDir::new(info.workdir);
+                        fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
+                    },
+                    vcpu: info.manifest.vcpu,
+                    memory: info.manifest.memory,
+                    disk_size: info.manifest.disk_size,
+                    ports: info
+                        .manifest
+                        .port_map
+                        .into_iter()
+                        .map(|pm| pb::PortMapping {
+                            protocol: pm.protocol.as_str().into(),
+                            host_port: pm.from as u32,
+                            vm_port: pm.to as u32,
+                        })
+                        .collect(),
+                }),
                 app_url: info.instance_id.as_ref().map(|id| {
                     format!(
                         "https://{id}-{}.{}:{}",
                         gw.tappd_port, gw.base_domain, gw.port
                     )
                 }),
-                app_id: info.app_id,
+                app_id: info.manifest.app_id,
                 instance_id: info.instance_id,
             })
             .collect()

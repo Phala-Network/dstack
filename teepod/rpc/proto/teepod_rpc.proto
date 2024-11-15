@@ -19,6 +19,8 @@ message VmInfo {
   string app_id = 6;
   // Instance ID
   optional string instance_id = 7;
+  // Configuration of the VM
+  VmConfiguration configuration = 8;
 }
 
 message Id {
@@ -27,7 +29,7 @@ message Id {
 }
 
 // Message for creating a VM request
-message CreateVMRequest {
+message VmConfiguration {
   // Name of the VM
   string name = 1;
   // Image to be used for the VM
@@ -73,13 +75,13 @@ message StatusResponse {
 // Service definition for Teepod
 service Teepod {
   // RPC to create a VM
-  rpc CreateVM(CreateVMRequest) returns (Id);
+  rpc CreateVm(VmConfiguration) returns (Id);
   // RPC to start a VM
-  rpc StartVM(Id) returns (google.protobuf.Empty);
+  rpc StartVm(Id) returns (google.protobuf.Empty);
   // RPC to stop a VM
-  rpc StopVM(Id) returns (google.protobuf.Empty);
+  rpc StopVm(Id) returns (google.protobuf.Empty);
   // RPC to remove a VM
-  rpc RemoveVM(Id) returns (google.protobuf.Empty);
+  rpc RemoveVm(Id) returns (google.protobuf.Empty);
   // RPC to upgrade an app
   rpc UpgradeApp(UpgradeAppRequest) returns (Id);
 

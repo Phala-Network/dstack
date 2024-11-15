@@ -83,6 +83,8 @@ pub(crate) mod image {
 }
 
 pub(crate) mod run {
+    use crate::app::Manifest;
+
     pub use super::image::Image;
     pub use super::qemu::{TdxConfig, VmConfig};
     use anyhow::{bail, Context, Result};
@@ -135,7 +137,7 @@ pub(crate) mod run {
             }
             let process = super::qemu::run_vm(qemu_bin, &self.config, &self.workdir)?;
             let cloned_child = process.clone();
-            let vmid = self.config.id.clone();
+            let vmid = self.config.manifest.id.clone();
             std::thread::spawn(move || {
                 let span = tracing::info_span!("wait_on_child", id = vmid);
                 let _enter = span.enter();
@@ -217,28 +219,24 @@ pub(crate) mod run {
             };
             let instance_id = self.instance_info().ok().map(|info| info.instance_id);
             VmInfo {
-                id: self.config.id.clone(),
-                name: self.config.name.clone(),
-                app_id: self.config.app_id.clone(),
+                manifest: self.config.manifest.clone(),
+                workdir: self.workdir.clone(),
                 instance_id,
                 status,
                 uptime_ms,
                 uptime,
-                created_at_ms: self.config.created_at_ms,
                 exited_at: None,
             }
         }
     }
 
     pub struct VmInfo {
-        pub id: String,
-        pub name: String,
+        pub manifest: Manifest,
+        pub workdir: PathBuf,
         pub status: &'static str,
         pub uptime_ms: u128,
         pub uptime: String,
-        pub created_at_ms: u64,
         pub exited_at: Option<String>,
-        pub app_id: String,
         pub instance_id: Option<String>,
     }
 
@@ -265,7 +263,7 @@ pub(crate) mod run {
             if start {
                 vm.start(&self.qemu_bin)?;
             }
-            self.vms.insert(vm.config.id.clone(), vm);
+            self.vms.insert(vm.config.manifest.id.clone(), vm);
             Ok(())
         }
 
@@ -317,7 +315,7 @@ mod qemu {
         sync::Arc,
     };
 
-    use crate::app::PortMapping;
+    use crate::app::Manifest;
 
     use super::image::Image;
     use anyhow::Result;
@@ -333,18 +331,9 @@ mod qemu {
 
     #[derive(Debug, Builder)]
     pub struct VmConfig {
-        pub id: String,
-        pub app_id: String,
-        pub name: String,
-        pub vcpu: u32,
-        /// Memory in MB
-        pub memory: u32,
-        pub disk_size: u32,
+        pub manifest: Manifest,
         pub image: Image,
         pub tdx_config: Option<TdxConfig>,
-        /// Port map from host to guest
-        pub port_map: Vec<PortMapping>,
-        pub created_at_ms: u64,
     }
 
     fn create_hd(
@@ -374,7 +363,7 @@ mod qemu {
         let workdir = workdir.as_ref();
         let serial_file = workdir.join("serial.log");
         let shared_dir = workdir.join("shared");
-        let disk_size = format!("{}G", config.disk_size);
+        let disk_size = format!("{}G", config.manifest.disk_size);
         let hda_path = workdir.join("hda.img");
         if !hda_path.exists() {
             create_hd(&hda_path, config.image.hda.as_ref(), &disk_size)?;
@@ -385,8 +374,10 @@ mod qemu {
         let mut command = Command::new(qemu);
         command.arg("-accel").arg("kvm");
         command.arg("-cpu").arg("host");
-        command.arg("-smp").arg(config.vcpu.to_string());
-        command.arg("-m").arg(format!("{}M", config.memory));
+        command.arg("-smp").arg(config.manifest.vcpu.to_string());
+        command
+            .arg("-m")
+            .arg(format!("{}M", config.manifest.memory));
         command.arg("-nographic");
         command.arg("-nodefaults");
         command
@@ -406,11 +397,14 @@ mod qemu {
             command.arg("-bios").arg(bios);
         }
         let mut netdev = "user,id=net0,".to_string();
-        for pm in &config.port_map {
+        for pm in &config.manifest.port_map {
             let todo = "rm portmap";
             netdev.push_str(&format!(
                 "hostfwd={}:{}:{}-:{}",
-                pm.protocol.as_str(), pm.address, pm.from, pm.to
+                pm.protocol.as_str(),
+                pm.address,
+                pm.from,
+                pm.to
             ));
         }
         command.arg("-netdev").arg(netdev);
