@@ -168,7 +168,7 @@ fn vm_logs(
                 }
                 Err(err) => {
                     yield format!("<failed to read line: {err}>");
-                    continue;
+                    break;
                 }
             }
         }
