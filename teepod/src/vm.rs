@@ -207,7 +207,6 @@ pub(crate) mod run {
                 Duration::from_secs(d.as_secs())
             }
             let uptime = self.started_at.map(|t| t.elapsed());
-            let uptime_ms = uptime.map(|d| d.as_millis()).unwrap_or_default();
             let uptime = uptime
                 .map(|d| humantime::format_duration(truncate(d)).to_string())
                 .unwrap_or_default();
@@ -223,7 +222,6 @@ pub(crate) mod run {
                 workdir: self.workdir.clone(),
                 instance_id,
                 status,
-                uptime_ms,
                 uptime,
                 exited_at: None,
             }
@@ -234,7 +232,6 @@ pub(crate) mod run {
         pub manifest: Manifest,
         pub workdir: PathBuf,
         pub status: &'static str,
-        pub uptime_ms: u128,
         pub uptime: String,
         pub exited_at: Option<String>,
         pub instance_id: Option<String>,

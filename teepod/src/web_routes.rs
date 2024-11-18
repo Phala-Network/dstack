@@ -2,18 +2,20 @@ use crate::app::App;
 use crate::main_service::{rpc_methods, RpcHandler};
 use anyhow::Result;
 use fs_err as fs;
-use linemux::MuxedLines;
 use ra_rpc::rocket_helper::handle_prpc;
 use rocket::{
     data::{Data, Limits},
     get,
     http::ContentType,
-    info,
     mtls::Certificate,
     post,
     response::{status::Custom, stream::TextStream},
     routes, Route, State,
 };
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
+use tokio::time::timeout;
+use tracing::{debug, info};
 
 #[get("/")]
 async fn index() -> (ContentType, String) {
@@ -70,8 +72,45 @@ async fn prpc_get(
     .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
-#[get("/logs?<id>&<follow>&<ansi>")]
-fn vm_logs(app: &State<App>, id: String, follow: bool, ansi: bool) -> TextStream![String] {
+static STREAM_CREATED_COUNTER: AtomicUsize = AtomicUsize::new(0);
+static STREAM_DROPPED_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+struct StreamCounter {
+    id: usize,
+}
+
+impl StreamCounter {
+    fn new() -> Self {
+        let id = STREAM_CREATED_COUNTER.fetch_add(1, Ordering::Relaxed);
+        info!(
+            "Stream {id} created, created: {}, dropped: {}",
+            STREAM_CREATED_COUNTER.load(Ordering::Relaxed),
+            STREAM_DROPPED_COUNTER.load(Ordering::Relaxed)
+        );
+        Self { id }
+    }
+}
+
+impl Drop for StreamCounter {
+    fn drop(&mut self) {
+        STREAM_DROPPED_COUNTER.fetch_add(1, Ordering::Relaxed);
+        info!(
+            "Stream {} dropped, created: {}, dropped: {}",
+            self.id,
+            STREAM_CREATED_COUNTER.load(Ordering::Relaxed),
+            STREAM_DROPPED_COUNTER.load(Ordering::Relaxed)
+        );
+    }
+}
+
+#[get("/logs?<id>&<follow>&<ansi>&<lines>")]
+fn vm_logs(
+    app: &State<App>,
+    id: String,
+    follow: bool,
+    ansi: bool,
+    lines: Option<usize>,
+) -> TextStream![String] {
     let log_file = app.get_log_file(&id);
     TextStream! {
         let log_file = match log_file {
@@ -81,51 +120,56 @@ fn vm_logs(app: &State<App>, id: String, follow: bool, ansi: bool) -> TextStream
             }
             Ok(log_file) => log_file,
         };
-        if follow {
-            let mut lines = match MuxedLines::new() {
-                Err(err) => {
-                    yield format!("{err:?}");
-                    return;
-                }
-                Ok(lines) => lines,
-            };
-            if let Err(err) = lines.add_file_from_start(log_file).await {
+        let counter = StreamCounter::new();
+
+        const DEFAULT_TAIL_LINES: usize = 10000;
+        let tailer_result = tailf::Options::builder()
+            .num_lines(lines.or(Some(DEFAULT_TAIL_LINES)))
+            .follow(follow)
+            .build()
+            .tail(log_file);
+        let mut tailer = match tailer_result {
+            Err(err) => {
                 yield format!("{err:?}");
                 return;
             }
-            loop {
-                match lines.next_line().await {
-                    Ok(Some(line)) => {
-                        let line_str = line.line().to_string();
-                        if ansi {
-                            yield line_str;
-                        } else {
-                            yield strip_ansi_escapes::strip_str(&line_str);
-                        }
-                        yield "\n".to_string();
-                    }
-                    Ok(None) => {
-                        break;
-                    }
-                    Err(err) => {
-                        // TODO: yield the with String::from_utf8_lossy(), see https://github.com/jmagnuson/linemux/issues/70
-                        yield format!("<failed to read line: {err}>");
-                        continue;
-                    }
+            Ok(tailer) => tailer,
+        };
+
+        loop {
+            // This is a workaround for https://github.com/rwf2/Rocket/issues/2888
+            // However, If is is accessed via vscode's port forwarding, it will still get trouble:
+            // https://github.com/microsoft/vscode-remote-release/issues/3561
+            let next = match timeout(Duration::from_secs(60), tailer.next()).await {
+                Ok(next) => next,
+                Err(_) => {
+                    yield format!("[teepod heartbeat]\n");
+                    let created = STREAM_CREATED_COUNTER.load(Ordering::Relaxed);
+                    let dropped = STREAM_DROPPED_COUNTER.load(Ordering::Relaxed);
+                    let diff = created.saturating_sub(dropped);
+                    debug!(
+                        "Stream {} heartbeat, created: {created}, dropped: {dropped}, diff: {diff}",
+                        counter.id,
+                    );
+                    continue;
                 }
-            }
-        } else {
-            let content = match fs::read(&log_file) {
-                Err(err) => {
-                    yield format!("{err:?}");
-                    return;
-                }
-                Ok(content) => String::from_utf8_lossy(&content).to_string(),
             };
-            if ansi {
-                yield content;
-            } else {
-                yield strip_ansi_escapes::strip_str(&content);
+            match next {
+                Ok(Some(line)) => {
+                    let line_str = String::from_utf8_lossy(&line);
+                    if ansi {
+                        yield line_str.to_string();
+                    } else {
+                        yield strip_ansi_escapes::strip_str(&line_str);
+                    }
+                }
+                Ok(None) => {
+                    break;
+                }
+                Err(err) => {
+                    yield format!("<failed to read line: {err}>");
+                    continue;
+                }
             }
         }
     }
