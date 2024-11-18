@@ -36,7 +36,8 @@ dstack/
 
 ## Prerequisites
 
-- A TDX host machine with Ubuntu 24.04 installed and has public IPv4 address
+- A TDX host machine setup following [canonical/tdx](https://github.com/canonical/tdx)
+- Public IPv4 address assigned to the machine
 - A domain name you can modify DNS records
 
 ## Install dependencies
@@ -54,11 +55,6 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 git clone https://github.com/Dstack-TEE/meta-dstack.git --recursive
 cd meta-dstack/
 source dev-setup
-cd dstack/
-
-# !!! When using Yocto, you need to ensure to run "build.sh" within the same
-# !!! bash environment. Otherwise, you should always "source dev-setup" before
-# !!! running "build.sh".
 
 mkdir build
 cd build
