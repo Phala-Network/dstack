@@ -436,7 +436,17 @@ version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97493a391b4b18ee918675fb8663e53646fd09321c58b46afa04e8ce2499c869"
 dependencies = [
- "bon-macros",
+ "bon-macros 2.3.0",
+ "rustversion",
+]
+
+[[package]]
+name = "bon"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65b4408cb90c75f462c2428254f2a687c399d1feb22ebdc7511889d07be6cab0"
+dependencies = [
+ "bon-macros 3.0.1",
  "rustversion",
 ]
 
@@ -450,6 +460,21 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
+ "syn 2.0.87",
+]
+
+[[package]]
+name = "bon-macros"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfc5494814aa273050386f95a7d1fa36dcc677fc796bffe54f34659678335bc0"
+dependencies = [
+ "darling",
+ "ident_case",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "rustversion",
  "syn 2.0.87",
 ]
 
@@ -510,7 +535,7 @@ name = "certbot"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bon",
+ "bon 2.3.0",
  "enum_dispatch",
  "fs-err 3.0.0",
  "hickory-resolver",
@@ -2998,7 +3023,7 @@ name = "ra-tls"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bon",
+ "bon 2.3.0",
  "dcap-qvl",
  "elliptic-curve",
  "fs-err 3.0.0",
@@ -4207,10 +4232,11 @@ dependencies = [
 
 [[package]]
 name = "tailf"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f91e86fcff757f87d176bb61e0bfc70633273bab580d4e42d5d84709fbadeed"
+checksum = "4d8fddaad13d98a99b3579b0a3684708e5cb448a98a850755b4becb1c034e274"
 dependencies = [
+ "bon 3.0.1",
  "tokio",
 ]
 
@@ -4310,7 +4336,7 @@ name = "teepod"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bon",
+ "bon 3.0.1",
  "clap",
  "dirs",
  "fs-err 3.0.0",
@@ -4325,10 +4351,11 @@ dependencies = [
  "strip-ansi-escapes",
  "tailf",
  "teepod-rpc",
+ "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
- "which 6.0.3",
+ "which 7.0.0",
 ]
 
 [[package]]
@@ -4477,9 +4504,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.41.0"
+version = "1.41.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "145f3413504347a2be84393cc8a7d2fb4d863b375909ea59f2158261aa258bbb"
+checksum = "22cfb5bee7a6a52939ca9224d6ac897bb669134078daa8735560897f69de4d33"
 dependencies = [
  "backtrace",
  "bytes",
@@ -4988,9 +5015,9 @@ dependencies = [
 
 [[package]]
 name = "which"
-version = "6.0.3"
+version = "7.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ee928febd44d98f2f459a4a79bd4d928591333a494a10a868418ac1b39cf1f"
+checksum = "c9cad3279ade7346b96e38731a641d7343dd6a53d55083dd54eadfa5a1b38c6b"
 dependencies = [
  "either",
  "home",
