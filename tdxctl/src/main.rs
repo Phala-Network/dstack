@@ -25,16 +25,27 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Get TDX report given report data from stdin
     Report,
+    /// Generate a TDX quote given report data from stdin
     Quote,
+    /// Extend RTMRs
     Extend(ExtendArgs),
+    /// Show the current RTMR state
     Show,
+    /// Hex encode data
     Hex(HexCommand),
+    /// Generate a RA-TLS certificate
     GenRaCert(GenRaCertArgs),
+    /// Generate a CA certificate
     GenCaCert(GenCaCertArgs),
+    /// Generate app keys for an Tapp
     GenAppKeys(GenAppKeysArgs),
+    /// Generate random data
     Rand(RandArgs),
+    /// Test if an tapp feature is enabled given an app compose file
     TestAppFeature(TestAppFeatureArgs),
+    /// Setup Disk Encryption
     SetupFde(SetupFdeArgs),
 }
 
