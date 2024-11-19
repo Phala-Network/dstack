@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{bail, Context, Result};
 use kms_rpc::{
     kms_server::{KmsRpc, KmsServer},
-    AppKeyResponse,
+    AppId, AppKeyResponse, PublicKeyResponse,
 };
 use ra_rpc::RpcCall;
 use ra_tls::{
@@ -144,6 +144,12 @@ impl KmsRpc for RpcHandler {
         )
         .context("Failed to derive app disk key")?;
 
+        let env_crypt_key = derive_ecdsa_key_pair(
+            &state.root_ca.key,
+            &[app_id.as_bytes(), "env-crypt-key".as_bytes()],
+        )
+        .context("Failed to derive env crypt key")?;
+
         let subject = format!("{app_id}{}", state.config.subject_postfix);
         let req = CertRequest::builder()
             .subject(&subject)
@@ -165,7 +171,19 @@ impl KmsRpc for RpcHandler {
         Ok(AppKeyResponse {
             app_key: app_key.serialize_pem(),
             disk_crypt_key: app_disk_key.serialize_der(),
+            env_crypt_key: env_crypt_key.serialize_pem(),
             certificate_chain: vec![cert, state.root_ca.cert.pem()],
+        })
+    }
+
+    async fn get_app_env_encrypt_pub_key(self, request: AppId) -> Result<PublicKeyResponse> {
+        let key_pair = derive_ecdsa_key_pair(
+            &self.state.lock().root_ca.key,
+            &[request.app_id.as_bytes(), "env-encrypt-key".as_bytes()],
+        )
+        .context("Failed to derive env encrypt key")?;
+        Ok(PublicKeyResponse {
+            public_key: key_pair.public_key_pem(),
         })
     }
 }
