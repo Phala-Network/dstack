@@ -3,11 +3,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use fs_err as fs;
+use kms_rpc::kms_client::KmsClient;
+use ra_rpc::client::RaClient;
 use ra_rpc::{Attestation, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
-    Id, ImageInfo as RpcImageInfo, ImageListResponse, StatusResponse, UpgradeAppRequest,
-    VmConfiguration,
+    AppId, Id, ImageInfo as RpcImageInfo, ImageListResponse, PublicKeyResponse, StatusResponse,
+    UpgradeAppRequest, VmConfiguration,
 };
 use tracing::warn;
 
@@ -35,7 +37,13 @@ impl RpcHandler {
             .join("app-compose.json")
     }
 
-    fn prepare_work_dir(&self, id: &str, compose_file: &str, image_name: &str) -> Result<PathBuf> {
+    fn prepare_work_dir(
+        &self,
+        id: &str,
+        compose_file: &str,
+        image_name: &str,
+        encrypted_env: &[u8],
+    ) -> Result<PathBuf> {
         let cfg = self.app.config.clone();
         let work_dir = cfg.run_path.join(&id);
         if work_dir.exists() {
@@ -45,6 +53,10 @@ impl RpcHandler {
         fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
         fs::write(shared_dir.join("app-compose.json"), compose_file)
             .context("Failed to write compose file")?;
+        if !encrypted_env.is_empty() {
+            fs::write(shared_dir.join("encrypted-env"), encrypted_env)
+                .context("Failed to write encrypted env")?;
+        }
         let certs_dir = shared_dir.join("certs");
         fs::create_dir_all(&certs_dir).context("Failed to create certs directory")?;
 
@@ -72,6 +84,15 @@ impl RpcHandler {
             .context("Failed to write vm config")?;
 
         Ok(work_dir)
+    }
+
+    fn kms_client(&self) -> Result<KmsClient<RaClient>> {
+        if self.app.config.kms_url.is_empty() {
+            anyhow::bail!("KMS is not configured");
+        }
+        let url = format!("{}/prpc", self.app.config.kms_url);
+        let prpc_client = RaClient::new(url, true);
+        Ok(KmsClient::new(prpc_client))
     }
 }
 
@@ -126,7 +147,12 @@ impl TeepodRpc for RpcHandler {
 
         let app_id = app_id_of(&request.compose_file);
         let id = uuid::Uuid::new_v4().to_string();
-        let work_dir = self.prepare_work_dir(&id, &request.compose_file, &request.image)?;
+        let work_dir = self.prepare_work_dir(
+            &id,
+            &request.compose_file,
+            &request.image,
+            &request.encrypted_env,
+        )?;
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -201,6 +227,18 @@ impl TeepodRpc for RpcHandler {
             .context("Failed to write compose file")?;
         let new_app_id = app_id_of(&request.compose_file);
         Ok(Id { id: new_app_id })
+    }
+
+    async fn get_app_env_encrypt_pub_key(self, request: AppId) -> Result<PublicKeyResponse> {
+        let kms = self.kms_client()?;
+        let response = kms
+            .get_app_env_encrypt_pub_key(kms_rpc::AppId {
+                app_id: request.app_id,
+            })
+            .await?;
+        Ok(PublicKeyResponse {
+            public_key: response.public_key,
+        })
     }
 }
 

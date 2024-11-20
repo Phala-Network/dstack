@@ -5,6 +5,7 @@ temp_dir = "/tmp"
 keep_alive = 10
 log_level = "debug"
 port = 8080
+kms_url = "http://127.0.0.1:8081"
 
 [cvm]
 ca_cert = "../certs/ca.cert"

@@ -9,7 +9,7 @@ pub struct RaClient {
 }
 
 impl RaClient {
-    pub fn no_check(remote_uri: String, tls_no_check: bool) -> Self {
+    pub fn new(remote_uri: String, tls_no_check: bool) -> Self {
         let client = Client::builder()
             .tls_sni(true)
             .danger_accept_invalid_certs(tls_no_check)

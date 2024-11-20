@@ -109,6 +109,10 @@ impl VmWorkDir {
     pub fn app_compose_path(&self) -> PathBuf {
         self.workdir.join("shared").join("app-compose.json")
     }
+
+    pub fn encrypted_env_path(&self) -> PathBuf {
+        self.workdir.join("shared").join("encrypted-env")
+    }
 }
 
 #[derive(Clone)]
@@ -244,8 +248,12 @@ impl App {
                     name: info.manifest.name,
                     image: info.manifest.image,
                     compose_file: {
-                        let workdir = VmWorkDir::new(info.workdir);
+                        let workdir = VmWorkDir::new(&info.workdir);
                         fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
+                    },
+                    encrypted_env: {
+                        let workdir = VmWorkDir::new(&info.workdir);
+                        fs::read(workdir.encrypted_env_path()).unwrap_or_default()
                     },
                     vcpu: info.manifest.vcpu,
                     memory: info.manifest.memory,

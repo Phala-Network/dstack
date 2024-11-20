@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use anyhow::Result;
 use rocket::figment::{
     providers::{Format, Toml},
@@ -32,11 +30,6 @@ pub(crate) struct KmsConfig {
     pub allow_any_upgrade: bool,
     pub upgrade_registry_dir: String,
     pub pccs_url: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct AppUpgradeRegistry {
-    pub registry: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Clone)]

@@ -9,7 +9,7 @@ use ra_rpc::RpcCall;
 use ra_tls::{
     attestation::Attestation,
     cert::{CaCert, CertRequest},
-    kdf::derive_ecdsa_key_pair,
+    kdf::{derive_dh_secret, derive_ecdsa_key_pair},
     qvl::quote::{Report, TDReport10},
 };
 use tracing::{info, warn};
@@ -144,12 +144,15 @@ impl KmsRpc for RpcHandler {
         )
         .context("Failed to derive app disk key")?;
 
-        let env_crypt_key = derive_ecdsa_key_pair(
-            &state.root_ca.key,
-            &[app_id.as_bytes(), "env-crypt-key".as_bytes()],
-        )
-        .context("Failed to derive env crypt key")?;
-
+        let env_crypt_key = {
+            let secret = derive_dh_secret(
+                &state.root_ca.key,
+                &[app_id.as_bytes(), "env-encrypt-key".as_bytes()],
+            )
+            .context("Failed to derive env encrypt key")?;
+            let secret = x25519_dalek::StaticSecret::from(secret);
+            secret.to_bytes()
+        };
         let subject = format!("{app_id}{}", state.config.subject_postfix);
         let req = CertRequest::builder()
             .subject(&subject)
@@ -171,19 +174,21 @@ impl KmsRpc for RpcHandler {
         Ok(AppKeyResponse {
             app_key: app_key.serialize_pem(),
             disk_crypt_key: app_disk_key.serialize_der(),
-            env_crypt_key: env_crypt_key.serialize_pem(),
+            env_crypt_key: env_crypt_key.to_vec(),
             certificate_chain: vec![cert, state.root_ca.cert.pem()],
         })
     }
 
     async fn get_app_env_encrypt_pub_key(self, request: AppId) -> Result<PublicKeyResponse> {
-        let key_pair = derive_ecdsa_key_pair(
+        let secret = derive_dh_secret(
             &self.state.lock().root_ca.key,
             &[request.app_id.as_bytes(), "env-encrypt-key".as_bytes()],
         )
         .context("Failed to derive env encrypt key")?;
+        let secret = x25519_dalek::StaticSecret::from(secret);
+        let pubkey = x25519_dalek::PublicKey::from(&secret);
         Ok(PublicKeyResponse {
-            public_key: key_pair.public_key_pem(),
+            public_key: pubkey.to_bytes().to_vec(),
         })
     }
 }

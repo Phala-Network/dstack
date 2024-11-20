@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use env_process::convert_env_to_str;
 use fs_err as fs;
 use serde::{Deserialize, Serialize};
 use tdx_attest as att;
@@ -12,10 +13,13 @@ use tracing::info;
 
 use crate::{
     cmd_gen_app_keys, cmd_gen_ra_cert, cmd_show,
+    crypto::dh_decrypt,
     utils::{copy_dir_all, deserialize_json_file, sha256_file, HashingFile},
     GenAppKeysArgs, GenRaCertArgs,
 };
 use serde_human_bytes as hex_bytes;
+
+mod env_process;
 
 #[derive(clap::Parser)]
 /// Prepare full disk encryption
@@ -135,6 +139,8 @@ struct InstanceInfo {
 #[derive(Deserialize)]
 struct AppKeys {
     disk_crypt_key: String,
+    #[serde(with = "hex_bytes", default)]
+    env_crypt_key: Vec<u8>,
 }
 
 struct HostShareDir {
@@ -150,6 +156,10 @@ impl HostShareDir {
 
     fn app_compose_file(&self) -> PathBuf {
         self.base_dir.join("app-compose.json")
+    }
+
+    fn encrypted_env_file(&self) -> PathBuf {
+        self.base_dir.join("encrypted-env")
     }
 
     fn vm_config_file(&self) -> PathBuf {
@@ -176,6 +186,7 @@ impl HostShareDir {
 struct HostShared {
     vm_config: VmConfig,
     app_compose: AppCompose,
+    encrypted_env: Vec<u8>,
     instance_info: Option<InstanceInfo>,
 }
 
@@ -189,9 +200,11 @@ impl HostShared {
         } else {
             None
         };
+        let encrypted_env = fs::read(host_shared_dir.encrypted_env_file()).unwrap_or_default();
         Ok(Self {
             vm_config,
             app_compose,
+            encrypted_env,
             instance_info,
         })
     }
@@ -299,6 +312,22 @@ pub fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
     }
     let app_keys: AppKeys =
         deserialize_json_file(&app_keys_file).context("Failed to decode app keys")?;
+    // Decrypt env file
+    let decrypted_env =
+        if (!app_keys.env_crypt_key.is_empty()) && !host_shared.encrypted_env.is_empty() {
+            info!("Processing encrypted env");
+            let env_crypt_key: [u8; 32] = app_keys
+                .env_crypt_key
+                .try_into()
+                .ok()
+                .context("Invalid env crypt key length")?;
+            let decrypted_json = dh_decrypt(env_crypt_key, &host_shared.encrypted_env)
+                .context("Failed to decrypt env file")?;
+            convert_env_to_str(&decrypted_json)?
+        } else {
+            info!("No encrypted env, using default");
+            Default::default()
+        };
     if app_keys.disk_crypt_key.is_empty() {
         bail!("Failed to get valid key phrase from KMS");
     }
@@ -399,7 +428,9 @@ pub fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
             let mut stdin = status.stdin.take().context("Failed to get stdin")?;
             let mut buf = [0u8; 1024];
             loop {
-                let n = hashing_rootfs_cpio.read(&mut buf).context("Failed to read from rootfs cpio")?;
+                let n = hashing_rootfs_cpio
+                    .read(&mut buf)
+                    .context("Failed to read from rootfs cpio")?;
                 if n == 0 {
                     break;
                 }
@@ -432,13 +463,16 @@ pub fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
             .context("Failed to touch bootstraped")?;
         info!("Rootfs is ready");
     }
+    info!("Copying appkeys.json");
     fs::copy(&app_keys_file, &tapp_dir.join("appkeys.json"))
         .context("Failed to copy appkeys.json")?;
+    info!("Copying config.json");
     fs::copy(
         &args.host_shared_copy.join("config.json"),
         &tapp_dir.join("config.json"),
     )
     .context("Failed to copy config.json")?;
-
+    fs::write(&tapp_dir.join("env"), &decrypted_env)
+        .context("Failed to write decrypted env file")?;
     Ok(())
 }

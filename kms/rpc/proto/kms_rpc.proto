@@ -21,12 +21,12 @@ message AppId {
 }
 
 message PublicKeyResponse {
-  string public_key = 1;
+  bytes public_key = 1;
 }
 
 message AppKeyResponse {
   string app_key = 1;
   bytes disk_crypt_key = 2;
-  string env_crypt_key = 3;
+  bytes env_crypt_key = 3;
   repeated string certificate_chain = 4;
 }

@@ -17,14 +17,30 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tracing::{debug, info};
 
+macro_rules! file_or_include_str {
+    ($path:literal) => {
+        fs::metadata($path)
+            .is_ok()
+            .then(|| fs::read_to_string($path).ok())
+            .flatten()
+            .unwrap_or_else(|| include_str!($path).to_string())
+    };
+}
+
 #[get("/")]
 async fn index() -> (ContentType, String) {
-    let html = std::fs::metadata("console.html")
-        .is_ok()
-        .then(|| fs::read_to_string("console.html").ok())
-        .flatten()
-        .unwrap_or_else(|| include_str!("console.html").to_string());
-    (ContentType::HTML, html)
+    (ContentType::HTML, file_or_include_str!("console.html"))
+}
+
+#[get("/res/<path>")]
+async fn res(path: &str) -> Result<(ContentType, String), Custom<String>> {
+    match path {
+        "x25519.js" => Ok((ContentType::JavaScript, file_or_include_str!("x25519.js"))),
+        _ => Err(Custom(
+            rocket::http::Status::NotFound,
+            "Not found".to_string(),
+        )),
+    }
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]
@@ -176,7 +192,7 @@ fn vm_logs(
 }
 
 pub fn routes() -> Vec<Route> {
-    routes![index, prpc_post, prpc_get, vm_logs]
+    routes![index, res, prpc_post, prpc_get, vm_logs]
 }
 
 pub fn print_endpoints() {

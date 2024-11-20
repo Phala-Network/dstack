@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teepod VM Management Console</title>
     <script src="https://unpkg.com/vue@3.0.0/dist/vue.global.js"></script>
+    <script src="/res/x25519.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -475,9 +476,9 @@
                                 <option value="udp">UDP</option>
                             </select>
                             <input type="number" v-model.number="port.host_port" placeholder="Host Port"
-                                style="width: 120px;">
+                                style="width: 120px;" required>
                             <input type="number" v-model.number="port.vm_port" placeholder="VM Port"
-                                style="width: 120px;">
+                                style="width: 120px;" required>
                             <button type="button" class="action-btn danger" @click="removePort(index)">Remove</button>
                         </div>
                         <button type="button" class="action-btn" @click="addPort">Add Port Mapping</button>
@@ -495,6 +496,19 @@
                                 TProxy
                             </label>
                         </div>
+                    </div>
+
+                    <div class="form-group full-width" v-if="vmForm.features.kms">
+                        <label>Encrypted Environment Variables</label>
+                        <div v-for="(env, index) in vmForm.encrypted_envs" :key="index"
+                            style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <input type="text" v-model="env.key" placeholder="Variable name" style="width: 200px;" required>
+                            <input type="text" v-model="env.value" placeholder="Value" style="flex-grow: 1;" required>
+                            <button type="button" class="action-btn danger" @click="removeEncryptedEnv(index)">
+                                Remove
+                            </button>
+                        </div>
+                        <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
                     </div>
 
                     <div class="vm-actions">
@@ -676,12 +690,13 @@
                 const expandedVMs = ref(new Set());
                 const vmForm = ref({
                     name: '',
-                    image: 'dstack-0.1.0-dev',
+                    image: '',
                     compose_file: '',
                     vcpu: 1,
                     memory: 1024,
                     disk_size: 20,
                     ports: [],
+                    encrypted_envs: [],
                     features: {
                         kms: true,
                         tproxy: true
@@ -713,6 +728,7 @@
                     if (!response.ok) {
                         const error = await response.text();
                         errorMessage.value = error;
+                        throw new Error(error);
                     }
                     return response;
                 };
@@ -756,11 +772,65 @@
                     return JSON.stringify(app_compose);
                 };
 
+                const appIdOf = async (composeFile) => {
+                    const app_compose = makeAppComposeFile();
+                    const sha256Hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(app_compose));
+                    console.log('sha256Hash', sha256Hash);
+                    return Array.from(new Uint8Array(sha256Hash)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
+                };
+
+                const encryptEnv = async (envs, hexPublicKey) => {
+                    const envsJson = JSON.stringify({ env: envs });
+                    if (hexPublicKey.startsWith('0x')) {
+                        hexPublicKey = hexPublicKey.slice(2);
+                    }
+                    const remotePubkey = new Uint8Array(hexPublicKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+
+                    const seed = crypto.getRandomValues(new Uint8Array(32));
+                    const ephemeralKeyPair = x25519.generateKeyPair(seed);
+                    const shared = x25519.sharedKey(ephemeralKeyPair.private, remotePubkey);
+
+                    const importedShared = await crypto.subtle.importKey(
+                        "raw",
+                        shared,
+                        { name: "AES-GCM", length: 256 },
+                        true,
+                        ["encrypt"]
+                    );
+
+                    const iv = crypto.getRandomValues(new Uint8Array(12));
+                    const encrypted = await crypto.subtle.encrypt(
+                        { name: "AES-GCM", iv },
+                        importedShared,
+                        new TextEncoder().encode(envsJson)
+                    );
+
+                    const result = new Uint8Array(ephemeralKeyPair.public.byteLength + iv.length + encrypted.byteLength);
+                    result.set(new Uint8Array(ephemeralKeyPair.public));
+                    result.set(iv, ephemeralKeyPair.public.byteLength);
+                    result.set(new Uint8Array(encrypted), ephemeralKeyPair.public.byteLength + iv.length);
+
+                    return Array.from(result).map(b => b.toString(16).padStart(2, '0')).join('');
+                };
+
+                const makeEncryptedEnv = async () => {
+                    if ((!vmForm.value.features.kms) || vmForm.value.encrypted_envs.length === 0) return '';
+                    const appId = await appIdOf(vmForm.value.compose_file);
+                    console.log('appId', appId);
+                    const response = await rpcCall('GetAppEnvEncryptPubKey', {
+                        app_id: appId
+                    });
+                    const encryptPubkey = await response.json();
+                    console.log('encryptPubkey', encryptPubkey);
+                    return await encryptEnv(vmForm.value.encrypted_envs, encryptPubkey.public_key);
+                };
+
                 const createVm = async () => {
                     try {
                         const form = {
                             ...vmForm.value,
-                            compose_file: makeAppComposeFile()
+                            compose_file: makeAppComposeFile(),
+                            encrypted_env: await makeEncryptedEnv()
                         };
                         const _response = await rpcCall('CreateVm', form);
                         loadVMList();
@@ -912,6 +982,17 @@
                     }
                 };
 
+                const addEncryptedEnv = () => {
+                    vmForm.value.encrypted_envs.push({
+                        key: '',
+                        value: ''
+                    });
+                };
+
+                const removeEncryptedEnv = (index) => {
+                    vmForm.value.encrypted_envs.splice(index, 1);
+                };
+
                 onMounted(() => {
                     (async () => {
                         while (true) {
@@ -949,7 +1030,9 @@
                     config,
                     toggleDetails,
                     expandedVMs,
-                    dashboardAvailable
+                    dashboardAvailable,
+                    addEncryptedEnv,
+                    removeEncryptedEnv,
                 };
             }
         }).mount('#app');

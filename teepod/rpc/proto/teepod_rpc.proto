@@ -44,6 +44,8 @@ message VmConfiguration {
   uint32 disk_size = 6;
   // Port mapping
   repeated PortMapping ports = 7;
+  // Encrypted environment variables
+  bytes encrypted_env = 8;
 }
 
 // Message for port mapping
@@ -72,6 +74,23 @@ message StatusResponse {
   bool port_mapping_enabled = 2;
 }
 
+message ImageListResponse {
+  repeated ImageInfo images = 1;
+}
+
+message ImageInfo {
+  string name = 1;
+  string description = 2;
+}
+
+message AppId {
+  string app_id = 1;
+}
+
+message PublicKeyResponse {
+  bytes public_key = 1;
+}
+
 // Service definition for Teepod
 service Teepod {
   // RPC to create a VM
@@ -89,13 +108,7 @@ service Teepod {
   rpc Status(google.protobuf.Empty) returns (StatusResponse);
   // RPC to list all available images
   rpc ListImages(google.protobuf.Empty) returns (ImageListResponse);
-}
 
-message ImageListResponse {
-  repeated ImageInfo images = 1;
-}
-
-message ImageInfo {
-  string name = 1;
-  string description = 2;
+  // Get Env encrypt public key
+  rpc GetAppEnvEncryptPubKey(AppId) returns (PublicKeyResponse);
 }
