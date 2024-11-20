@@ -29,3 +29,8 @@ base_domain = "app.localhost"
 listen_addr = "0.0.0.0"
 listen_port = 8443
 tappd_port = 8090
+
+[core.recycle]
+enabled = true
+interval = "5m"
+timeout = "10h"
