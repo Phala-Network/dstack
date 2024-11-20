@@ -25,6 +25,7 @@ parcelona = "0.4.3"
 hickory-resolver = "0.24.1"
 pin-project = "1.1.7"
 serde_json = "1.0.133"
+rand = "0.8.5"
 
 [dev-dependencies]
 insta = "1.40.0"

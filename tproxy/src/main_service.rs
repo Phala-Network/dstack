@@ -10,6 +10,7 @@ use anyhow::{bail, Context, Result};
 use certbot::WorkDir;
 use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
+use rand::seq::IteratorRandom;
 use rinja::Template as _;
 use serde::{Deserialize, Serialize};
 use tproxy_rpc::{
@@ -163,12 +164,30 @@ impl AppStateInner {
     }
 
     pub(crate) fn select_a_host(&self, id: &str) -> Option<InstanceInfo> {
+        // Direct instance lookup first
         if let Some(info) = self.state.instances.get(id).cloned() {
             return Some(info);
         }
+
         let app_instances = self.state.apps.get(id)?;
-        let todo = "load balance";
-        let selected = app_instances.iter().next()?;
+
+        // Get latest handshakes to check instance health
+        let handshakes = self.latest_handshakes(None).ok()?;
+
+        // Filter healthy instances and choose randomly among them
+        let healthy_instances = app_instances.iter().filter(|instance_id| {
+            if let Some(instance) = self.state.instances.get(*instance_id) {
+                // Consider instance healthy if it had a recent handshake
+                handshakes
+                    .get(&instance.public_key)
+                    .map(|(_, elapsed)| *elapsed < Duration::from_secs(300))
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        });
+
+        let selected = healthy_instances.choose(&mut rand::thread_rng())?;
         self.state.instances.get(selected).cloned()
     }
 
