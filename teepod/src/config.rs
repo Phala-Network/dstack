@@ -120,6 +120,28 @@ pub struct Config {
     pub cvm: CvmConfig,
     /// Gateway configuration
     pub gateway: GatewayConfig,
+
+    /// Networking configuration
+    pub networking: Networking,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(tag = "mode", rename_all = "lowercase")]
+pub enum Networking {
+    User(UserNetworking),
+    Custom(CustomNetworking),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct UserNetworking {
+    pub net: String,
+    pub dhcp_start: String,
+    pub restrict: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CustomNetworking {
+    pub netdev: String,
 }
 
 impl Config {
