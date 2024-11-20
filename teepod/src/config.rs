@@ -113,6 +113,8 @@ pub struct Config {
     pub run_path: PathBuf,
     #[serde(default)]
     pub qemu_path: PathBuf,
+    /// The URL of the KMS server
+    pub kms_url: String,
 
     /// CVM configuration
     pub cvm: CvmConfig,

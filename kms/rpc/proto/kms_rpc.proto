@@ -10,10 +10,23 @@ service KMS {
   rpc GetAppKey(google.protobuf.Empty) returns (AppKeyResponse) {
     // Retrieves the app key and certificate given the app id and tdx quote
   }
+  // Request the app environment encryption public key given the app id
+  rpc GetAppEnvEncryptPubKey(AppId) returns (PublicKeyResponse) {
+    // Retrieves the app environment encryption public key given the app id
+  }
+}
+
+message AppId {
+  string app_id = 1;
+}
+
+message PublicKeyResponse {
+  bytes public_key = 1;
 }
 
 message AppKeyResponse {
-    string app_key = 1;
-    bytes disk_crypt_key = 2;
-    repeated string certificate_chain = 3;
+  string app_key = 1;
+  bytes disk_crypt_key = 2;
+  bytes env_crypt_key = 3;
+  repeated string certificate_chain = 4;
 }

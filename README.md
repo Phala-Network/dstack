@@ -141,6 +141,13 @@ After the container deployed, it should need some time to start the CVM and the 
 
 ![tproxy](./docs/assets/tproxy.png)
 
+## Pass Secrets to Apps
+When deploying a new App, you can pass private data via Encrypted Environment Variables. These variables can be referenced in the docker-compose.yaml file as shown below:
+
+![secret](./docs/assets/secret.png)
+
+The environment variables will be encrypted in the client-side and decrypted in the CVM before being passed to the containers.
+
 ## Access the App
 
 Once the app is deployed and listening on an HTTP port, you can access the HTTP service via tproxy's public domain. The ingress mapping rules are:

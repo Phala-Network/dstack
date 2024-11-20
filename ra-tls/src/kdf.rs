@@ -37,8 +37,8 @@ pub fn derive_ecdsa_key_pair(from: &KeyPair, context_data: &[&[u8]]) -> Result<K
     let sk_bytes = sk.as_scalar_primitive().to_bytes();
     let derived_sk_bytes =
         derive_ecdsa_key(&sk_bytes, context_data, 32).or(Err(anyhow!("failed to derive key")))?;
-    let derived_sk =
-        p256::SecretKey::from_slice(&derived_sk_bytes).context("failed to decode derived secret key")?;
+    let derived_sk = p256::SecretKey::from_slice(&derived_sk_bytes)
+        .context("failed to decode derived secret key")?;
     let derived_sk_der = derived_sk
         .to_pkcs8_der()
         .context("failed to encode derived secret key")?;
@@ -47,6 +47,20 @@ pub fn derive_ecdsa_key_pair(from: &KeyPair, context_data: &[&[u8]]) -> Result<K
     let key = KeyPair::from_der_and_sign_algo(&der, &PKCS_ECDSA_P256_SHA256)
         .context("failed to create derived key pair")?;
     Ok(key)
+}
+
+fn sha256(data: &[u8]) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    hasher.finalize().into()
+}
+
+/// Derives a X25519 secret from a given key pair.
+pub fn derive_dh_secret(from: &KeyPair, context_data: &[&[u8]]) -> Result<[u8; 32]> {
+    let key_pair = derive_ecdsa_key_pair(from, context_data)?;
+    let derived_secret = sha256(key_pair.serialized_der());
+    Ok(derived_secret)
 }
 
 #[cfg(test)]

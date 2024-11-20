@@ -14,6 +14,7 @@ use utils::deserialize_json_file;
 
 mod fde_setup;
 mod utils;
+mod crypto;
 
 /// TDX control utility
 #[derive(Parser)]
