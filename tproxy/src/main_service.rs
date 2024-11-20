@@ -11,6 +11,7 @@ use certbot::WorkDir;
 use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
 use rinja::Template as _;
+use serde::{Deserialize, Serialize};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
     AcmeInfoResponse, HostInfo as PbHostInfo, ListResponse, RegisterCvmRequest,
@@ -28,25 +29,38 @@ pub struct AppState {
     inner: Arc<Mutex<AppStateInner>>,
 }
 
-pub(crate) struct AppStateInner {
-    config: Config,
-    // The mapping from the host name to the IP address.
+#[derive(Debug, Serialize, Deserialize)]
+struct State {
     apps: BTreeMap<String, BTreeSet<String>>,
     instances: BTreeMap<String, InstanceInfo>,
     allocated_addresses: BTreeSet<Ipv4Addr>,
 }
 
+pub(crate) struct AppStateInner {
+    config: Config,
+    state: State,
+}
+
 impl AppState {
     pub(crate) fn lock(&self) -> MutexGuard<AppStateInner> {
-        self.inner.lock().expect("failed to lock AppState")
+        self.inner.lock().expect("Failed to lock AppState")
     }
 
     pub fn new(config: Config) -> Result<Self> {
+        let state_path = &config.state_path;
+        let state = if fs::metadata(state_path).is_ok() {
+            let state_str = fs::read_to_string(state_path).context("Failed to read state")?;
+            serde_json::from_str(&state_str).context("Failed to load state")?
+        } else {
+            State {
+                apps: BTreeMap::new(),
+                instances: BTreeMap::new(),
+                allocated_addresses: BTreeSet::new(),
+            }
+        };
         let inner = Arc::new(Mutex::new(AppStateInner {
             config: config.clone(),
-            apps: BTreeMap::new(),
-            instances: BTreeMap::new(),
-            allocated_addresses: BTreeSet::new(),
+            state,
         }));
         start_recycle_thread(Arc::downgrade(&inner), config);
         Ok(Self { inner })
@@ -77,10 +91,10 @@ impl AppStateInner {
             if ip == self.config.wg.ip {
                 continue;
             }
-            if self.allocated_addresses.contains(&ip) {
+            if self.state.allocated_addresses.contains(&ip) {
                 continue;
             }
-            self.allocated_addresses.insert(ip);
+            self.state.allocated_addresses.insert(ip);
             return Some(ip);
         }
         None
@@ -93,7 +107,7 @@ impl AppStateInner {
         public_key: &str,
     ) -> Option<InstanceInfo> {
         let ip = self.alloc_ip()?;
-        if let Some(existing) = self.instances.get(id) {
+        if let Some(existing) = self.state.instances.get(id) {
             if existing.public_key == public_key {
                 return Some(existing.clone());
             }
@@ -106,8 +120,11 @@ impl AppStateInner {
             reg_time: SystemTime::now(),
         };
         let todo = "support for multiple clients per app";
-        self.instances.insert(id.to_string(), host_info.clone());
-        self.apps
+        self.state
+            .instances
+            .insert(id.to_string(), host_info.clone());
+        self.state
+            .apps
             .entry(app_id.to_string())
             .or_default()
             .insert(id.to_string());
@@ -121,14 +138,14 @@ impl AppStateInner {
         let model = WgConf {
             private_key: &self.config.wg.private_key,
             listen_port: self.config.wg.listen_port,
-            peers: (&self.instances).into(),
+            peers: (&self.state.instances).into(),
         };
         Ok(model.render()?)
     }
 
     pub(crate) fn reconfigure(&mut self) -> Result<()> {
         let wg_config = self.generate_wg_config()?;
-        fs::write(&self.config.wg.config_path, wg_config)?;
+        fs::write(&self.config.wg.config_path, wg_config).context("Failed to write wg config")?;
         // wg setconf <interface_name> <config_path>
         let output = Command::new("wg")
             .arg("syncconf")
@@ -141,17 +158,19 @@ impl AppStateInner {
         } else {
             info!("wg config updated");
         }
+        let state_str = serde_json::to_string(&self.state).context("Failed to serialize state")?;
+        fs::write(&self.config.state_path, state_str).context("Failed to write state")?;
         Ok(())
     }
 
     pub(crate) fn select_a_host(&self, id: &str) -> Option<InstanceInfo> {
-        if let Some(info) = self.instances.get(id).cloned() {
+        if let Some(info) = self.state.instances.get(id).cloned() {
             return Some(info);
         }
-        let app_instances = self.apps.get(id)?;
+        let app_instances = self.state.apps.get(id)?;
         let todo = "load balance";
         let selected = app_instances.iter().next()?;
-        self.instances.get(selected).cloned()
+        self.state.instances.get(selected).cloned()
     }
 
     fn latest_handshakes(
@@ -217,12 +236,16 @@ impl AppStateInner {
     }
 
     fn remove_instance(&mut self, id: &str) -> Result<()> {
-        let info = self.instances.remove(id).context("instance not found")?;
-        self.allocated_addresses.remove(&info.ip);
-        if let Some(app_instances) = self.apps.get_mut(&info.app_id) {
+        let info = self
+            .state
+            .instances
+            .remove(id)
+            .context("instance not found")?;
+        self.state.allocated_addresses.remove(&info.ip);
+        if let Some(app_instances) = self.state.apps.get_mut(&info.app_id) {
             app_instances.remove(id);
             if app_instances.is_empty() {
-                self.apps.remove(&info.app_id);
+                self.state.apps.remove(&info.app_id);
             }
         }
         Ok(())
@@ -237,6 +260,7 @@ impl AppStateInner {
         debug!("stale handshakes: {:#?}", stale_handshakes);
         // Find and remove instances with matching public keys
         let stale_instances: Vec<_> = self
+            .state
             .instances
             .iter()
             .filter(|(_, info)| {
@@ -300,6 +324,7 @@ impl TproxyRpc for RpcHandler {
         let state = self.state.lock();
         let base_domain = &state.config.proxy.base_domain;
         let hosts = state
+            .state
             .instances
             .values()
             .map(|instance| PbHostInfo {

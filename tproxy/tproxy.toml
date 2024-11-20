@@ -8,6 +8,7 @@ port = 8010
 
 [core]
 pccs_url = "https://api.trustedservices.intel.com/tdx/certification/v4"
+state_path = "./tproxy-state.json"
 
 [core.certbot]
 workdir = "/etc/certbot"
