@@ -119,7 +119,6 @@ impl AppStateInner {
             public_key: public_key.to_string(),
             reg_time: SystemTime::now(),
         };
-        let todo = "support for multiple clients per app";
         self.state
             .instances
             .insert(id.to_string(), host_info.clone());
@@ -176,7 +175,7 @@ impl AppStateInner {
     fn latest_handshakes(
         &self,
         stale_timeout: Option<Duration>,
-    ) -> Result<Vec<(String, Duration)>> {
+    ) -> Result<BTreeMap<String, (u64, Duration)>> {
         /*
         $wg show tproxy-kvin1 latest-handshakes
         eHBq6OjihPy1IZ2cFDomSesjeD+new7KNdWn9MHdQC8=    1730190589
@@ -205,7 +204,7 @@ impl AppStateInner {
             .context("system time before Unix epoch")?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        let mut handshakes = Vec::new();
+        let mut handshakes = BTreeMap::new();
 
         for line in output_str.lines() {
             let parts: Vec<&str> = line.split_whitespace().collect();
@@ -221,14 +220,14 @@ impl AppStateInner {
             let timestamp_duration = Duration::from_secs(timestamp);
 
             if timestamp == 0 {
-                handshakes.push((pubkey, Duration::MAX));
+                handshakes.insert(pubkey, (0, Duration::MAX));
             } else {
                 let elapsed = now.checked_sub(timestamp_duration).unwrap_or_default();
                 match stale_timeout {
                     Some(min_duration) if elapsed < min_duration => continue,
                     _ => (),
                 }
-                handshakes.push((pubkey, elapsed));
+                handshakes.insert(pubkey, (timestamp, elapsed));
             }
         }
 
@@ -253,10 +252,7 @@ impl AppStateInner {
 
     fn recycle(&mut self) -> Result<()> {
         let stale_timeout = self.config.recycle.timeout;
-        let stale_handshakes: BTreeMap<_, _> = self
-            .latest_handshakes(Some(stale_timeout))?
-            .into_iter()
-            .collect();
+        let stale_handshakes = self.latest_handshakes(Some(stale_timeout))?;
         debug!("stale handshakes: {:#?}", stale_handshakes);
         // Find and remove instances with matching public keys
         let stale_instances: Vec<_> = self
@@ -323,6 +319,7 @@ impl TproxyRpc for RpcHandler {
     async fn list(self) -> Result<ListResponse> {
         let state = self.state.lock();
         let base_domain = &state.config.proxy.base_domain;
+        let handshakes = state.latest_handshakes(None)?;
         let hosts = state
             .state
             .instances
@@ -333,6 +330,13 @@ impl TproxyRpc for RpcHandler {
                 app_id: instance.app_id.clone(),
                 base_domain: base_domain.clone(),
                 port: state.config.proxy.listen_port as u32,
+                latest_handshake: {
+                    let (ts, _) = handshakes
+                        .get(&instance.public_key)
+                        .copied()
+                        .unwrap_or_default();
+                    ts
+                },
             })
             .collect::<Vec<_>>();
         Ok(ListResponse { hosts })
