@@ -1,20 +1,22 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use fde_setup::{cmd_setup_fde, AppCompose, SetupFdeArgs};
+use fde_setup::{cmd_setup_fde, SetupFdeArgs};
 use fs_err as fs;
 use getrandom::getrandom;
 use ra_tls::{attestation::QuoteContentType, cert::CaCert};
 use scale::Decode;
+use tracing::error;
 use std::{
     io::{self, Read, Write},
     path::PathBuf,
 };
 use tdx_attest as att;
-use utils::deserialize_json_file;
+use utils::{deserialize_json_file, run_command, AppCompose};
 
-mod fde_setup;
-mod utils;
 mod crypto;
+mod fde_setup;
+mod tboot;
+mod utils;
 
 /// TDX control utility
 #[derive(Parser)]
@@ -48,6 +50,8 @@ enum Commands {
     TestAppFeature(TestAppFeatureArgs),
     /// Setup Disk Encryption
     SetupFde(SetupFdeArgs),
+    /// Boot the Tapp
+    Tboot(TbootArgs),
 }
 
 #[derive(Parser)]
@@ -162,6 +166,14 @@ struct TestAppFeatureArgs {
     /// path to the app compose file
     #[arg(short, long)]
     compose: String,
+}
+
+#[derive(Parser)]
+/// Boot the Tapp
+struct TbootArgs {
+    /// shutdown if the tboot fails
+    #[arg(short, long)]
+    shutdown_on_fail: bool,
 }
 
 fn cmd_quote() -> Result<()> {
@@ -417,6 +429,15 @@ fn main() -> Result<()> {
         }
         Commands::SetupFde(args) => {
             cmd_setup_fde(args)?;
+        }
+        Commands::Tboot(args) => {
+            if let Err(err) = tboot::tboot() {
+                error!("{:?}", err);
+                if args.shutdown_on_fail {
+                    let _ = run_command("shutdown", &["-h", "now"]);
+                }
+                bail!("Failed to boot the Tapp");
+            }
         }
     }
 

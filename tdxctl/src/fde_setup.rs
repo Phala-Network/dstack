@@ -8,13 +8,15 @@ use anyhow::{bail, Context, Result};
 use env_process::convert_env_to_str;
 use fs_err as fs;
 use serde::{Deserialize, Serialize};
-use tdx_attest as att;
 use tracing::info;
 
 use crate::{
     cmd_gen_app_keys, cmd_gen_ra_cert, cmd_show,
     crypto::dh_decrypt,
-    utils::{copy_dir_all, deserialize_json_file, sha256_file, HashingFile},
+    utils::{
+        copy_dir_all, deserialize_json_file, extend_rtmr3, run_command, run_command_with_stdin,
+        sha256_file, AppCompose, AppKeys, HashingFile, VmConfig,
+    },
     GenAppKeysArgs, GenRaCertArgs,
 };
 use serde_human_bytes as hex_bytes;
@@ -50,56 +52,6 @@ pub struct SetupFdeArgs {
     rootfs_integrity: bool,
 }
 
-fn extend_rtmr3(associated_data: &str, digest: &[u8]) -> Result<()> {
-    if digest.len() > 48 {
-        bail!("Digest too long");
-    }
-    let mut padded_digest: [u8; 48] = [0; 48];
-    padded_digest[..digest.len()].copy_from_slice(&digest);
-    let rtmr_event = att::TdxRtmrEvent {
-        version: 1,
-        rtmr_index: 3,
-        digest: padded_digest,
-        event_type: 1,
-        event: associated_data.as_bytes().to_vec(),
-    };
-    att::extend_rtmr(&rtmr_event).context("Failed to extend RTMR")?;
-    let hexed_digest = hex::encode(&padded_digest);
-    println!("Extended RTMR3: {}", hexed_digest);
-    att::log_rtmr_event(&rtmr_event).context("Failed to log RTMR extending event")?;
-    Ok(())
-}
-
-fn run_command_with_stdin(command: &str, args: &[&str], stdin: &str) -> Result<()> {
-    let mut child = Command::new("/usr/bin/env")
-        .args(&[command])
-        .args(args)
-        .stdin(Stdio::piped())
-        .spawn()
-        .context(format!("Failed to run {}", command))?;
-    let mut child_stdin = child.stdin.take().context("Failed to get stdin")?;
-    child_stdin
-        .write_all(stdin.as_bytes())
-        .context("Failed to write to stdin")?;
-    drop(child_stdin);
-    child
-        .wait()
-        .context(format!("Failed to wait for {}", command))?;
-    Ok(())
-}
-
-fn run_command(command: &str, args: &[&str]) -> Result<()> {
-    let output = Command::new("/usr/bin/env")
-        .arg(command)
-        .args(args)
-        .status()
-        .context(format!("Failed to run {}", command))?;
-    if !output.success() {
-        bail!("Command {} failed", command);
-    }
-    Ok(())
-}
-
 fn mount_9p(share_name: &str, mount_point: &str) -> Result<()> {
     run_command(
         "mount",
@@ -112,6 +64,7 @@ fn mount_9p(share_name: &str, mount_point: &str) -> Result<()> {
             mount_point,
         ],
     )
+    .map(|_| ())
 }
 
 fn mount_cdrom(cdrom_device: &str, mount_point: &str) -> Result<()> {
@@ -119,13 +72,7 @@ fn mount_cdrom(cdrom_device: &str, mount_point: &str) -> Result<()> {
         "mount",
         &["-t", "iso9660", "-o", "ro", cdrom_device, mount_point],
     )
-}
-
-#[derive(Deserialize)]
-struct VmConfig {
-    #[serde(with = "hex_bytes")]
-    rootfs_hash: Vec<u8>,
-    kms_url: Option<String>,
+    .map(|_| ())
 }
 
 #[derive(Deserialize, Serialize)]
@@ -136,14 +83,7 @@ struct InstanceInfo {
     app_id: Vec<u8>,
 }
 
-#[derive(Deserialize)]
-struct AppKeys {
-    disk_crypt_key: String,
-    #[serde(with = "hex_bytes", default)]
-    env_crypt_key: Vec<u8>,
-}
-
-struct HostShareDir {
+pub struct HostShareDir {
     base_dir: PathBuf,
 }
 
@@ -207,17 +147,6 @@ impl HostShared {
             encrypted_env,
             instance_info,
         })
-    }
-}
-
-#[derive(Deserialize)]
-pub struct AppCompose {
-    features: Vec<String>,
-}
-
-impl AppCompose {
-    pub fn feature_enabled(&self, feature: &str) -> bool {
-        self.features.contains(&feature.to_string())
     }
 }
 

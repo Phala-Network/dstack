@@ -4505,6 +4505,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tdx-attest",
+ "tproxy-rpc",
  "tracing",
  "tracing-subscriber",
  "x25519-dalek",
