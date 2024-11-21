@@ -7,6 +7,13 @@ log_level = "debug"
 port = 8080
 kms_url = "http://127.0.0.1:8081"
 
+
+[networking]
+mode = "user"
+net = "10.0.2.0/24"
+dhcp_start = "10.0.2.10"
+restrict = false
+
 [cvm]
 ca_cert = "../certs/ca.cert"
 tmp_ca_cert = "../certs/tmp-ca.cert"

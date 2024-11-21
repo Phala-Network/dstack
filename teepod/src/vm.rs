@@ -312,7 +312,7 @@ mod qemu {
         sync::Arc,
     };
 
-    use crate::app::Manifest;
+    use crate::{app::Manifest, config::Networking};
 
     use super::image::Image;
     use anyhow::Result;
@@ -331,6 +331,7 @@ mod qemu {
         pub manifest: Manifest,
         pub image: Image,
         pub tdx_config: Option<TdxConfig>,
+        pub networking: Networking,
     }
 
     fn create_hd(
@@ -393,17 +394,27 @@ mod qemu {
         if let Some(bios) = &config.image.bios {
             command.arg("-bios").arg(bios);
         }
-        let mut netdev = "user,id=net0,".to_string();
-        for pm in &config.manifest.port_map {
-            let todo = "rm portmap";
-            netdev.push_str(&format!(
-                "hostfwd={}:{}:{}-:{}",
-                pm.protocol.as_str(),
-                pm.address,
-                pm.from,
-                pm.to
-            ));
-        }
+        let netdev = match &config.networking {
+            Networking::User(netcfg) => {
+                let mut netdev = format!(
+                    "user,id=net0,net={},dhcp-start={},restrict={}",
+                    netcfg.net,
+                    netcfg.dhcp_start,
+                    if netcfg.restrict { "yes" } else { "no" }
+                );
+                for pm in &config.manifest.port_map {
+                    netdev.push_str(&format!(
+                        ",hostfwd={}:{}:{}-:{}",
+                        pm.protocol.as_str(),
+                        pm.address,
+                        pm.from,
+                        pm.to
+                    ));
+                }
+                netdev
+            }
+            Networking::Custom(netcfg) => netcfg.netdev.clone(),
+        };
         command.arg("-netdev").arg(netdev);
         command.arg("-device").arg("virtio-net-pci,netdev=net0");
         if let Some(tdx) = &config.tdx_config {

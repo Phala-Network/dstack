@@ -163,6 +163,7 @@ impl App {
             manifest,
             image,
             tdx_config: Some(TdxConfig { cid }),
+            networking: self.config.networking.clone(),
         };
         if vm_config.manifest.disk_size > self.config.cvm.max_disk_size {
             bail!(
