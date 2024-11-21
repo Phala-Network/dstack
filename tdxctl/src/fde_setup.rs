@@ -223,7 +223,10 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
             fs::read_to_string(gen_certs_dir.join("key.pem"))?,
         )?;
         let kms_client = kms_rpc::kms_client::KmsClient::new(ra_client);
-        let response = kms_client.get_app_key().await.context("Failed to get app key")?;
+        let response = kms_client
+            .get_app_key()
+            .await
+            .context("Failed to get app key")?;
         let keys_json = serde_json::to_string(&response).context("Failed to serialize app keys")?;
         fs::write(&app_keys_file, keys_json).context("Failed to write app keys")?;
     } else {
