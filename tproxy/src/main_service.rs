@@ -107,12 +107,13 @@ impl AppStateInner {
         app_id: &str,
         public_key: &str,
     ) -> Option<InstanceInfo> {
-        let ip = self.alloc_ip()?;
-        if let Some(existing) = self.state.instances.get(id) {
-            if existing.public_key == public_key {
-                return Some(existing.clone());
+        if let Some(existing) = self.state.instances.get_mut(id) {
+            if existing.public_key != public_key {
+                existing.public_key = public_key.to_string();
             }
+            return Some(existing.clone());
         }
+        let ip = self.alloc_ip()?;
         let host_info = InstanceInfo {
             id: id.to_string(),
             app_id: app_id.to_string(),
