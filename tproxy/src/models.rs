@@ -4,6 +4,7 @@ use std::{
     collections::{btree_map::Iter, BTreeMap},
     net::Ipv4Addr,
 };
+use std::time::SystemTime;
 use tproxy_rpc::{AcmeInfoResponse, HostInfo as PbHostInfo};
 
 mod filters {
@@ -59,6 +60,7 @@ pub struct InstanceInfo {
     pub app_id: String,
     pub ip: Ipv4Addr,
     pub public_key: String,
+    pub reg_time: SystemTime,
 }
 
 #[derive(Template)]

@@ -5,6 +5,7 @@ use rocket::figment::{
 };
 use serde::Deserialize;
 use std::net::Ipv4Addr;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct WgConfig {
@@ -34,11 +35,68 @@ pub struct CertbotConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct RecycleConfig {
+    pub enabled: bool,
+    #[serde(with = "serde_duration")]
+    pub interval: Duration,
+    #[serde(with = "serde_duration")]
+    pub timeout: Duration,
+}
+
+mod serde_duration {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use std::time::Duration;
+
+    pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let (value, unit) = if duration.as_secs() % (24 * 3600) == 0 {
+            (duration.as_secs() / (24 * 3600), "d")
+        } else if duration.as_secs() % 3600 == 0 {
+            (duration.as_secs() / 3600, "h")
+        } else if duration.as_secs() % 60 == 0 {
+            (duration.as_secs() / 60, "m")
+        } else {
+            (duration.as_secs(), "s")
+        };
+        serializer.serialize_str(&format!("{}{}", value, unit))
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        if s.is_empty() {
+            return Err(serde::de::Error::custom("Duration string cannot be empty"));
+        }
+        let (value, unit) = s.split_at(s.len() - 1);
+        let value = value.parse::<u64>().map_err(serde::de::Error::custom)?;
+
+        let seconds = match unit {
+            "s" => value,
+            "m" => value * 60,
+            "h" => value * 3600,
+            "d" => value * 24 * 3600,
+            _ => {
+                return Err(serde::de::Error::custom(
+                    "Invalid time unit. Use s, m, h, or d",
+                ))
+            }
+        };
+
+        Ok(Duration::from_secs(seconds))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub wg: WgConfig,
     pub proxy: ProxyConfig,
     pub certbot: CertbotConfig,
     pub pccs_url: String,
+    pub recycle: RecycleConfig,
 }
 
 pub const CONFIG_FILENAME: &str = "tproxy.toml";
