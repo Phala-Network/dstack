@@ -12,5 +12,5 @@ anyhow = "1"
 scale = { version = "3.6.12", package = "parity-scale-codec", features = ["derive"] }
 
 [build-dependencies]
-prpc-build = "0.3.0"
+prpc-build = "0.3.1"
 fs-err = "3.0.0"

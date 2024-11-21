@@ -5,12 +5,12 @@ use fs_err as fs;
 use getrandom::getrandom;
 use ra_tls::{attestation::QuoteContentType, cert::CaCert};
 use scale::Decode;
-use tracing::error;
 use std::{
     io::{self, Read, Write},
     path::PathBuf,
 };
 use tdx_attest as att;
+use tracing::error;
 use utils::{deserialize_json_file, run_command, AppCompose};
 
 mod crypto;
@@ -397,7 +397,8 @@ fn sha256(data: &[u8]) -> String {
     hex::encode(sha256.finalize())
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let cli = Cli::parse();
@@ -428,10 +429,10 @@ fn main() -> Result<()> {
             cmd_test_app_feature(args)?;
         }
         Commands::SetupFde(args) => {
-            cmd_setup_fde(args)?;
+            cmd_setup_fde(args).await?;
         }
         Commands::Tboot(args) => {
-            if let Err(err) = tboot::tboot() {
+            if let Err(err) = tboot::tboot().await {
                 error!("{:?}", err);
                 if args.shutdown_on_fail {
                     let _ = run_command("shutdown", &["-h", "now"]);

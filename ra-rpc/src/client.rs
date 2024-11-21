@@ -1,7 +1,8 @@
 use std::time::Duration;
 
+use anyhow::{Context, Result};
 use prpc::client::{Error, RequestClient};
-use reqwest::Client;
+use reqwest::{Certificate, Client, Identity};
 
 pub struct RaClient {
     remote_uri: String,
@@ -19,6 +20,27 @@ impl RaClient {
             .expect("failed to create client");
         Self { remote_uri, client }
     }
+    pub fn new_mtls(
+        remote_uri: String,
+        ca_cert: String,
+        cert_pem: String,
+        key_pem: String,
+    ) -> Result<Self> {
+        let root_ca =
+            Certificate::from_pem(ca_cert.as_bytes()).context("Failed to parse CA cert")?;
+        let identity_pem = format!("{cert_pem}\n{key_pem}");
+        let identity =
+            Identity::from_pem(identity_pem.as_bytes()).context("Failed to parse identity")?;
+        let client = Client::builder()
+            .tls_sni(true)
+            .add_root_certificate(root_ca)
+            .identity(identity)
+            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(60))
+            .build()
+            .context("failed to create client")?;
+        Ok(Self { remote_uri, client })
+    }
 }
 
 impl RequestClient for RaClient {
@@ -30,11 +52,18 @@ impl RequestClient for RaClient {
             .body(body)
             .send()
             .await
-            .map_err(|err| Error::RpcError(format!("failed to send request: {}", err)))?;
-        response
+            .map_err(|err| Error::RpcError(format!("failed to send request: {:?}", err)))?;
+        if !response.status().is_success() {
+            return Err(Error::RpcError(format!(
+                "request failed with status: {}",
+                response.status()
+            )));
+        }
+        let body = response
             .bytes()
             .await
-            .map_err(|err| Error::RpcError(format!("failed to read response: {}", err)))
-            .map(|bytes| bytes.to_vec())
+            .map_err(|err| Error::RpcError(format!("failed to read response: {:?}", err)))?
+            .to_vec();
+        Ok(body)
     }
 }

@@ -1,7 +1,8 @@
 use anyhow::{bail, Context, Result};
 use fs_err as fs;
+use ra_rpc::client::RaClient;
 use std::io::Write;
-use tproxy_rpc::RegisterCvmResponse;
+use tproxy_rpc::RegisterCvmRequest;
 use tracing::info;
 
 use crate::{
@@ -26,7 +27,7 @@ fn prepare_docker_compose(compose: &AppCompose) -> Result<()> {
     Ok(())
 }
 
-fn setup_tproxy_net(compose: &AppCompose) -> Result<()> {
+async fn setup_tproxy_net(compose: &AppCompose) -> Result<()> {
     if !compose.feature_enabled("tproxy-net") {
         info!("tproxy is not enabled");
         return Ok(());
@@ -46,28 +47,20 @@ fn setup_tproxy_net(compose: &AppCompose) -> Result<()> {
     let config: VmConfig = deserialize_json_file("/tapp/config.json")?;
     let tproxy_url = config.tproxy_url.as_ref().context("Missing tproxy_url")?;
 
-    let url = format!("{}/prpc/Tproxy.RegisterCvm?json", tproxy_url);
-    let body = serde_json::to_string(&serde_json::json!({
-        "client_public_key": client_public_key
-    }))?;
-    let todo = "Use rust library";
-    let output = run_command(
-        "curl",
-        &[
-            "--cacert",
-            "/etc/tappd/ca.cert",
-            "--cert",
-            "/etc/tappd/tls.cert",
-            "--key",
-            "/etc/tappd/tls.key",
-            "-d",
-            &body,
-            &url,
-        ],
+    let url = format!("{}/prpc", tproxy_url);
+    let client = RaClient::new_mtls(
+        url,
+        fs::read_to_string("/etc/tappd/ca.cert")?,
+        fs::read_to_string("/etc/tappd/tls.cert")?,
+        fs::read_to_string("/etc/tappd/tls.key")?,
     )?;
-    let response: RegisterCvmResponse =
-        serde_json::from_slice(&output).context("Failed to parse response")?;
-
+    let tproxy_client = tproxy_rpc::tproxy_client::TproxyClient::new(client);
+    let response = tproxy_client
+        .register_cvm(RegisterCvmRequest {
+            client_public_key: client_public_key.to_string(),
+        })
+        .await
+        .context("Failed to register CVM")?;
     let wg_info = response.wg.context("Missing wg info")?;
     let _tappd_info = response.tappd.context("Missing tappd info")?;
 
@@ -131,11 +124,11 @@ fn prepare_certs() -> Result<()> {
     Ok(())
 }
 
-pub fn tboot() -> Result<()> {
+pub async fn tboot() -> Result<()> {
     let compose: AppCompose =
         deserialize_json_file("/tapp/app-compose.json").context("Failed to read compose file")?;
     prepare_certs()?;
-    setup_tproxy_net(&compose)?;
+    setup_tproxy_net(&compose).await?;
     prepare_docker_compose(&compose)?;
     Ok(())
 }
