@@ -3,7 +3,7 @@ use rocket::figment::{
     providers::{Format, Toml},
     Figment,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
@@ -34,7 +34,7 @@ pub struct CertbotConfig {
     pub workdir: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RecycleConfig {
     pub enabled: bool,
     #[serde(with = "serde_duration")]
@@ -97,6 +97,7 @@ pub struct Config {
     pub certbot: CertbotConfig,
     pub pccs_url: String,
     pub recycle: RecycleConfig,
+    pub state_path: String,
 }
 
 pub const CONFIG_FILENAME: &str = "tproxy.toml";

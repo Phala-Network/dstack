@@ -58,6 +58,8 @@ message HostInfo {
   string base_domain = 4;
   // The external port of the host.
   uint32 port = 5;
+  // The latest handshake time of the host.
+  uint64 latest_handshake = 6;
 }
 
 
