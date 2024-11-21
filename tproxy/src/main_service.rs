@@ -107,6 +107,9 @@ impl AppStateInner {
         app_id: &str,
         public_key: &str,
     ) -> Option<InstanceInfo> {
+        if id.is_empty() || public_key.is_empty() || app_id.is_empty() {
+            return None;
+        }
         if let Some(existing) = self.state.instances.get_mut(id) {
             if existing.public_key != public_key {
                 existing.public_key = public_key.to_string();
@@ -317,6 +320,9 @@ impl TproxyRpc for RpcHandler {
             .decode_instance_id()
             .context("failed to decode instance-id from attestation")?;
         let mut state = self.state.lock();
+        if request.client_public_key.is_empty() {
+            bail!("[{instance_id}] client public key is empty");
+        }
         let client_info = state
             .new_client_by_id(&instance_id, &app_id, &request.client_public_key)
             .context("failed to allocate IP address for client")?;
