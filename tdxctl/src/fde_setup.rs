@@ -7,6 +7,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use env_process::convert_env_to_str;
 use fs_err as fs;
+use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
@@ -150,7 +151,7 @@ impl HostShared {
     }
 }
 
-pub fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
+pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
     fs::create_dir_all(&args.host_shared).context("Failed to create host-sharing mount point")?;
     mount_9p("host-shared", &args.host_shared.display().to_string())
         .context("Failed to mount host-sharing")?;
@@ -215,21 +216,19 @@ pub fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
             key_path: gen_certs_dir.join("key.pem"),
         })?;
         info!("Requesting app keys from KMS: {kms_url}");
-        let todo = "use rust library";
-        run_command(
-            "curl",
-            &[
-                "--cacert",
-                &host_shared_dir.kms_ca_cert_file().display().to_string(),
-                "--cert",
-                &gen_certs_dir.join("cert.pem").display().to_string(),
-                "--key",
-                &gen_certs_dir.join("key.pem").display().to_string(),
-                "-o",
-                &app_keys_file.display().to_string(),
-                &format!("{kms_url}/prpc/KMS.GetAppKey"),
-            ],
+        let ra_client = RaClient::new_mtls(
+            format!("{kms_url}/prpc"),
+            fs::read_to_string(host_shared_dir.kms_ca_cert_file())?,
+            fs::read_to_string(gen_certs_dir.join("cert.pem"))?,
+            fs::read_to_string(gen_certs_dir.join("key.pem"))?,
         )?;
+        let kms_client = kms_rpc::kms_client::KmsClient::new(ra_client);
+        let response = kms_client
+            .get_app_key()
+            .await
+            .context("Failed to get app key")?;
+        let keys_json = serde_json::to_string(&response).context("Failed to serialize app keys")?;
+        fs::write(&app_keys_file, keys_json).context("Failed to write app keys")?;
     } else {
         info!("KMS is not enabled, generating local app keys");
         cmd_gen_app_keys(GenAppKeysArgs {

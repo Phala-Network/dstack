@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.88"
-prpc = "0.2.2"
+prpc = "0.3.0"
 ra-tls = { version = "0.1.0", path = "../ra-tls" }
 rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"], optional = true }
 serde_json = "1.0.128"

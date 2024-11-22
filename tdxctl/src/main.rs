@@ -5,12 +5,13 @@ use fs_err as fs;
 use getrandom::getrandom;
 use ra_tls::{attestation::QuoteContentType, cert::CaCert};
 use scale::Decode;
-use tracing::error;
 use std::{
     io::{self, Read, Write},
     path::PathBuf,
 };
+use tboot::TbootArgs;
 use tdx_attest as att;
+use tracing::error;
 use utils::{deserialize_json_file, run_command, AppCompose};
 
 mod crypto;
@@ -166,14 +167,6 @@ struct TestAppFeatureArgs {
     /// path to the app compose file
     #[arg(short, long)]
     compose: String,
-}
-
-#[derive(Parser)]
-/// Boot the Tapp
-struct TbootArgs {
-    /// shutdown if the tboot fails
-    #[arg(short, long)]
-    shutdown_on_fail: bool,
 }
 
 fn cmd_quote() -> Result<()> {
@@ -397,7 +390,8 @@ fn sha256(data: &[u8]) -> String {
     hex::encode(sha256.finalize())
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let cli = Cli::parse();
@@ -428,10 +422,10 @@ fn main() -> Result<()> {
             cmd_test_app_feature(args)?;
         }
         Commands::SetupFde(args) => {
-            cmd_setup_fde(args)?;
+            cmd_setup_fde(args).await?;
         }
         Commands::Tboot(args) => {
-            if let Err(err) = tboot::tboot() {
+            if let Err(err) = tboot::tboot(&args).await {
                 error!("{:?}", err);
                 if args.shutdown_on_fail {
                     let _ = run_command("shutdown", &["-h", "now"]);
