@@ -22,7 +22,7 @@ fn main() -> anyhow::Result<()> {
 
     let tmp_ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
-    let kms_www_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
+    let kms_rpc_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let tproxy_rpc_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
 
     let tmp_ca_cert = CertRequest::builder()
@@ -42,15 +42,19 @@ fn main() -> anyhow::Result<()> {
         .build()
         .self_signed()?;
 
+    let kms_domain = format!("kms.{}", args.domain);
     // Sign WWW server cert with KMS cert
-    let kms_www_cert = CertRequest::builder()
-        .subject(&format!("kms.{}", args.domain))
-        .key(&kms_www_key)
+    let kms_rpc_cert = CertRequest::builder()
+        .subject(&kms_domain)
+        .alt_names(&[kms_domain.clone()])
+        .key(&kms_rpc_key)
         .build()
         .signed_by(&ca_cert, &ca_key)?;
 
+    let tproxy_domain = format!("tproxy.{}", args.domain);
     let tproxy_rpc_cert = CertRequest::builder()
-        .subject(&format!("tproxy.{}", args.domain))
+        .subject(&tproxy_domain)
+        .alt_names(&[tproxy_domain.clone()])
         .key(&tproxy_rpc_key)
         .build()
         .signed_by(&ca_cert, &ca_key)?;
@@ -66,8 +70,8 @@ fn main() -> anyhow::Result<()> {
     store_cert(
         output_dir,
         "kms-rpc",
-        &kms_www_cert.pem(),
-        &kms_www_key.serialize_pem(),
+        &kms_rpc_cert.pem(),
+        &kms_rpc_key.serialize_pem(),
     )?;
     store_cert(
         output_dir,
