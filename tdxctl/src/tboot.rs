@@ -52,14 +52,12 @@ async fn setup_tproxy_net(args: &TbootArgs, compose: &AppCompose) -> Result<()> 
     }
     info!("Setting up tproxy network");
     // Generate WireGuard keys
-    let client_private_key = run_command("wg", &["genkey"])?;
-    let client_private_key =
-        String::from_utf8(client_private_key).context("Failed to parse client private key")?;
-    let client_private_key = client_private_key.trim();
-    let client_public_key = run_command_with_stdin("wg", &["pubkey"], &client_private_key)?;
-    let client_public_key =
-        String::from_utf8(client_public_key).context("Failed to parse client public key")?;
-    let client_public_key = client_public_key.trim();
+    let sk = run_command("wg", &["genkey"])?;
+    let sk = String::from_utf8(sk).context("Failed to parse client private key")?;
+    let sk = sk.trim();
+    let pk = run_command_with_stdin("wg", &["pubkey"], &sk)?;
+    let pk = String::from_utf8(pk).context("Failed to parse client public key")?;
+    let pk = pk.trim();
 
     // Read config and make API call
     let config: VmConfig = deserialize_json_file(args.resolve("/tapp/config.json"))?;
@@ -75,7 +73,7 @@ async fn setup_tproxy_net(args: &TbootArgs, compose: &AppCompose) -> Result<()> 
     let tproxy_client = tproxy_rpc::tproxy_client::TproxyClient::new(client);
     let response = tproxy_client
         .register_cvm(RegisterCvmRequest {
-            client_public_key: client_public_key.to_string(),
+            client_public_key: pk.to_string(),
         })
         .await
         .context("Failed to register CVM")?;
@@ -96,7 +94,7 @@ async fn setup_tproxy_net(args: &TbootArgs, compose: &AppCompose) -> Result<()> 
     fs::create_dir_all(args.resolve("/etc/wireguard"))?;
     let config = format!(
         "[Interface]\n\
-        PrivateKey = {client_private_key}\n\
+        PrivateKey = {sk}\n\
         Address = {client_ip}/24\n\n\
         [Peer]\n\
         PublicKey = {server_public_key}\n\
