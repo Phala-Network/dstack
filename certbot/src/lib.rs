@@ -40,11 +40,11 @@
 //! to the documentation of individual structs and functions.
 
 pub use acme_client::AcmeClient;
-pub use dns01_client::Dns01Client;
 pub use bot::{CertBot, CertBotConfig};
+pub use dns01_client::Dns01Client;
 pub use workdir::WorkDir;
 
 mod acme_client;
-mod dns01_client;
 mod bot;
+mod dns01_client;
 mod workdir;

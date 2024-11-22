@@ -8,16 +8,6 @@ use fs_err as fs;
 use serde::{Deserialize, Serialize};
 use toml_edit::ser::to_document;
 
-/// A test struct
-#[derive(Default, DocumentedFields, Serialize)]
-struct TestMe {
-    /// First field
-    ///
-    /// Second line
-    field1: u32,
-    /// Second field
-    field2: String,
-}
 
 #[derive(Parser)]
 enum Command {
@@ -174,7 +164,10 @@ async fn main() -> Result<()> {
         }
         Command::SetCaa { config } => {
             let bot_config = load_config(&config).context("Failed to load configuration")?;
-            let bot = bot_config.build_bot().await.context("Failed to build bot")?;
+            let bot = bot_config
+                .build_bot()
+                .await
+                .context("Failed to build bot")?;
             bot.set_caa().await?;
         }
         Command::Cfg { write_to } => {
