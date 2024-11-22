@@ -112,6 +112,7 @@ impl AppStateInner {
         }
         if let Some(existing) = self.state.instances.get_mut(id) {
             if existing.public_key != public_key {
+                info!("public key changed for instance {id}, new key: {public_key}");
                 existing.public_key = public_key.to_string();
             }
             return Some(existing.clone());
@@ -132,9 +133,6 @@ impl AppStateInner {
             .entry(app_id.to_string())
             .or_default()
             .insert(id.to_string());
-        if let Err(err) = self.reconfigure() {
-            error!("failed to reconfigure: {}", err);
-        }
         Some(host_info)
     }
 
@@ -326,7 +324,9 @@ impl TproxyRpc for RpcHandler {
         let client_info = state
             .new_client_by_id(&instance_id, &app_id, &request.client_public_key)
             .context("failed to allocate IP address for client")?;
-
+        if let Err(err) = state.reconfigure() {
+            error!("failed to reconfigure: {}", err);
+        }
         Ok(RegisterCvmResponse {
             wg: Some(WireGuardConfig {
                 server_public_key: state.config.wg.public_key.clone(),
