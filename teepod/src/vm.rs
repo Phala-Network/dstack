@@ -397,7 +397,7 @@ mod qemu {
         let netdev = match &config.networking {
             Networking::User(netcfg) => {
                 let mut netdev = format!(
-                    "user,id=net0,net={},dhcp-start={},restrict={}",
+                    "user,id=net0,net={},dhcpstart={},restrict={}",
                     netcfg.net,
                     netcfg.dhcp_start,
                     if netcfg.restrict { "yes" } else { "no" }
