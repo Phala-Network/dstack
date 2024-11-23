@@ -12,7 +12,7 @@ use ra_tls::{
     kdf::{derive_dh_secret, derive_ecdsa_key_pair},
     qvl::quote::{Report, TDReport10},
 };
-use tracing::{info, warn};
+use tracing::warn;
 
 use crate::{
     config::{AllowedMr, KmsConfig},

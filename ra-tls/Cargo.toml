@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.88"
-bon = "2.2.1"
-dcap-qvl = "0.1.5"
+bon = "3.0.2"
+dcap-qvl = "0.1.6"
 elliptic-curve = { version = "0.13.8", features = ["pkcs8"] }
 fs-err = "3.0.0"
 hex = "0.4.3"

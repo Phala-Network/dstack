@@ -351,7 +351,7 @@ dependencies = [
  "bitflags 2.6.0",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.10.5",
  "lazy_static",
  "lazycell",
  "log",
@@ -483,11 +483,11 @@ dependencies = [
 
 [[package]]
 name = "bon"
-version = "3.0.1"
+version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65b4408cb90c75f462c2428254f2a687c399d1feb22ebdc7511889d07be6cab0"
+checksum = "a636f83af97c6946f3f5cf5c268ec02375bf5efd371110292dfd57961f57a509"
 dependencies = [
- "bon-macros 3.0.1",
+ "bon-macros 3.0.2",
  "rustversion",
 ]
 
@@ -506,9 +506,9 @@ dependencies = [
 
 [[package]]
 name = "bon-macros"
-version = "3.0.1"
+version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfc5494814aa273050386f95a7d1fa36dcc677fc796bffe54f34659678335bc0"
+checksum = "a7eaf1bfaa5b8d512abfd36d0c432591fef139d3de9ee54f1f839ea109d70d33"
 dependencies = [
  "darling",
  "ident_case",
@@ -932,7 +932,9 @@ checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 
 [[package]]
 name = "dcap-qvl"
-version = "0.1.5"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03e024d399632fb2e97a9501e79779ae9f150118a17ad06333de3bbd42834b84"
 dependencies = [
  "anyhow",
  "asn1_der",
@@ -2129,15 +2131,6 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
@@ -3159,7 +3152,7 @@ name = "ra-tls"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bon 2.3.0",
+ "bon 3.0.2",
  "dcap-qvl",
  "elliptic-curve",
  "fs-err 3.0.0",
@@ -4392,7 +4385,7 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d8fddaad13d98a99b3579b0a3684708e5cb448a98a850755b4becb1c034e274"
 dependencies = [
- "bon 3.0.1",
+ "bon 3.0.2",
  "tokio",
 ]
 
@@ -4503,7 +4496,7 @@ name = "teepod"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bon 3.0.1",
+ "bon 3.0.2",
  "clap",
  "dirs",
  "fs-err 3.0.0",
