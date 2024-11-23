@@ -32,6 +32,8 @@ pub struct TcgEventLog {
 /// It is a simplified version of the TCG event log format, containing only a single digest
 /// and the raw event data. The IMR index is zero-based, unlike the TCG event log format
 /// which is one-based.
+///
+/// As for RTMR3, the digest extended is calculated as `sha384(event_type.to_ne_bytes() || b":" || event || b":" || event_payload)`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TdxEventLog {
     /// IMR index, starts from 0
