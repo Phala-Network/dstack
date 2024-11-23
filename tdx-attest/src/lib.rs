@@ -1,4 +1,5 @@
 use anyhow::Context;
+use eventlog::TdxEventLog;
 pub use tdx_attest_sys as sys;
 
 use std::io::Write;
@@ -23,15 +24,6 @@ pub type TdxReportData = [u8; TDX_REPORT_DATA_SIZE as usize];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TdxReport(pub [u8; TDX_REPORT_SIZE as usize]);
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TdxRtmrEvent {
-    pub version: u32,
-    pub rtmr_index: u64,
-    pub digest: [u8; 48usize],
-    pub event_type: u32,
-    pub event: Vec<u8>,
-}
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromPrimitive, Error)]
@@ -118,15 +110,9 @@ pub fn get_report(report_data: &TdxReportData) -> Result<TdxReport> {
     Ok(report)
 }
 
-pub fn log_rtmr_event(rtmr_event: &TdxRtmrEvent) -> anyhow::Result<()> {
+pub fn log_rtmr_event(log: &TdxEventLog) -> anyhow::Result<()> {
     // Append to event log
-    let event_log = eventlog::TdxEventLog {
-        imr: rtmr_event.rtmr_index as u32,
-        event_type: rtmr_event.event_type,
-        digest: rtmr_event.digest,
-        event: rtmr_event.event.clone(),
-    };
-    let logline = serde_json::to_string(&event_log).context("Failed to serialize event log")?;
+    let logline = serde_json::to_string(&log).context("Failed to serialize event log")?;
 
     let logfile_path = std::path::Path::new(eventlog::RUNTIME_EVENT_LOG_FILE);
     let logfile_dir = logfile_path
@@ -148,12 +134,12 @@ pub fn log_rtmr_event(rtmr_event: &TdxRtmrEvent) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn extend_rtmr(rtmr_event: &TdxRtmrEvent) -> Result<()> {
+pub fn extend_rtmr(index: u32, event_type: u32, digest: [u8; 48]) -> Result<()> {
     let event = tdx_rtmr_event_t {
-        version: rtmr_event.version,
-        rtmr_index: rtmr_event.rtmr_index,
-        extend_data: rtmr_event.digest,
-        event_type: rtmr_event.event_type,
+        version: 1,
+        rtmr_index: index as u64,
+        extend_data: digest,
+        event_type,
         event_data_size: 0,
         event_data: Default::default(),
     };

@@ -3,8 +3,10 @@
 use anyhow::{anyhow, Context, Result};
 use dcap_qvl::quote::Quote;
 use qvl::{quote::Report, verify::VerifiedReport};
+use sha2::{Digest, Sha384};
 
-use crate::{event_log::EventLog, oids, traits::CertExt};
+use crate::{oids, traits::CertExt};
+use tdx_attest::eventlog::TdxEventLog as EventLog;
 
 /// The content type of a quote. A CVM should only generate quotes for these types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,20 +47,28 @@ impl QuoteContentType {
 pub struct Attestation {
     /// Quote
     pub quote: Vec<u8>,
+    /// Raw event log
+    pub raw_event_log: Vec<u8>,
     /// Event log
-    pub event_log: Vec<u8>,
+    pub event_log: Vec<EventLog>,
     /// Verified report
     pub verified_report: Option<VerifiedReport>,
 }
 
 impl Attestation {
     /// Create a new attestation
-    pub fn new(quote: Vec<u8>, event_log: Vec<u8>) -> Self {
-        Self {
+    pub fn new(quote: Vec<u8>, raw_event_log: Vec<u8>) -> Result<Self> {
+        let event_log: Vec<EventLog> = if !raw_event_log.is_empty() {
+            serde_json::from_slice(&raw_event_log).context("invalid event log")?
+        } else {
+            vec![]
+        };
+        Ok(Self {
             quote,
+            raw_event_log,
             event_log,
             verified_report: None,
-        }
+        })
     }
 
     /// Extract attestation data from a certificate
@@ -82,13 +92,8 @@ impl Attestation {
             Some(v) => v,
             None => return Ok(None),
         };
-        let event_log = read_ext_bytes!(oids::PHALA_RATLS_EVENT_LOG).unwrap_or_default();
-
-        Ok(Some(Self {
-            quote,
-            event_log,
-            verified_report: None,
-        }))
+        let raw_event_log = read_ext_bytes!(oids::PHALA_RATLS_EVENT_LOG).unwrap_or_default();
+        Self::new(quote, raw_event_log).map(Some)
     }
 
     /// Decode the quote
@@ -97,16 +102,17 @@ impl Attestation {
     }
 
     fn find_event(&self, imr: u32, ad: &str) -> Result<EventLog> {
-        let event_log = String::from_utf8(self.event_log.clone()).context("invalid event log")?;
-        let hexed_ad = hex::encode(ad);
-        for event in
-            serde_json::from_str::<Vec<EventLog>>(&event_log).context("invalid event log")?
-        {
-            if event.imr == imr && event.event == hexed_ad {
-                return Ok(event);
+        for event in &self.event_log {
+            if event.imr == imr && event.event == ad.as_bytes() {
+                return Ok(event.clone());
             }
         }
         Err(anyhow!("event {ad} not found"))
+    }
+
+    /// Replay event logs
+    pub fn replay_event_logs(&self) -> Result<[[u8; 48]; 4]> {
+        replay_event_logs(&self.event_log)
     }
 
     /// Return true if the quote is verified
@@ -117,25 +123,25 @@ impl Attestation {
     /// Decode the app-id from the event log
     pub fn decode_app_id(&self) -> Result<String> {
         self.find_event(3, "app-id")
-            .map(|event| truncate(&event.digest, 40).to_string())
+            .map(|event| hex::encode(&event.event_payload))
     }
 
     /// Decode the instance-id from the event log
     pub fn decode_instance_id(&self) -> Result<String> {
         self.find_event(3, "instance-id")
-            .map(|event| truncate(&event.digest, 40).to_string())
+            .map(|event| hex::encode(&event.event_payload))
     }
 
     /// Decode the upgraded app-id from the event log
     pub fn decode_upgraded_app_id(&self) -> Result<String> {
         self.find_event(3, "upgraded-app-id")
-            .map(|event| truncate(&event.digest, 40).to_string())
+            .map(|event| hex::encode(&event.event_payload))
     }
 
     /// Decode the rootfs hash from the event log
     pub fn decode_rootfs_hash(&self) -> Result<String> {
         self.find_event(3, "rootfs-hash")
-            .map(|event| truncate(&event.digest, 64).to_string())
+            .map(|event| hex::encode(&event.digest))
     }
 
     /// Decode the report data in the quote
@@ -152,16 +158,29 @@ impl Attestation {
         let report_data = self.decode_report_data()?;
         let expected_report_data = QuoteContentType::RaTlsCert.to_report_data(pubkey);
         if report_data != expected_report_data {
-            return Err(anyhow!("invalid quote"));
+            return Err(anyhow!("report data mismatch"));
         }
         Ok(())
     }
 }
 
-fn truncate(s: &str, len: usize) -> &str {
-    if s.len() > len {
-        &s[..len]
-    } else {
-        s
+/// Replay event logs
+pub fn replay_event_logs(eventlog: &[EventLog]) -> Result<[[u8; 48]; 4]> {
+    let mut rtmrs = [[0u8; 48]; 4];
+    for idx in 0..4 {
+        let mut mr = [0u8; 48];
+
+        for event in eventlog.iter() {
+            if event.imr == idx {
+                let mut hasher = Sha384::new();
+                hasher.update(&mr);
+                hasher.update(&event.digest);
+                mr = hasher.finalize().into();
+            }
+        }
+
+        rtmrs[idx as usize] = mr;
     }
+
+    Ok(rtmrs)
 }

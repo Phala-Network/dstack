@@ -79,13 +79,6 @@ impl RpcHandler {
             Report::TD10(r) => r,
             Report::TD15(r) => r.base,
         };
-        info!("Incoming report:");
-        info!("MRTD: {:?}", hex_fmt::HexFmt(&report.mr_td));
-        info!("RTMR0: {:?}", hex_fmt::HexFmt(&report.rt_mr0));
-        info!("RTMR1: {:?}", hex_fmt::HexFmt(&report.rt_mr1));
-        info!("RTMR2: {:?}", hex_fmt::HexFmt(&report.rt_mr2));
-        info!("RTMR3: {:?}", hex_fmt::HexFmt(&report.rt_mr3));
-
         if !self.state.inner.config.allowed_mr.is_allowed(&report) {
             bail!("Forbidden MR");
         }
@@ -158,7 +151,7 @@ impl KmsRpc for RpcHandler {
             .subject(&subject)
             .ca_level(1)
             .quote(&attest.quote)
-            .event_log(&attest.event_log)
+            .event_log(&attest.raw_event_log)
             .key(&app_key)
             .build();
 

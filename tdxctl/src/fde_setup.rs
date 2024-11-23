@@ -151,6 +151,14 @@ impl HostShared {
     }
 }
 
+fn truncate(s: &[u8], len: usize) -> &[u8] {
+    if s.len() > len {
+        &s[..len]
+    } else {
+        s
+    }
+}
+
 pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
     fs::create_dir_all(&args.host_shared).context("Failed to create host-sharing mount point")?;
     mount_9p("host-shared", &args.host_shared.display().to_string())
@@ -164,7 +172,8 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
 
     let rootfs_hash = &host_shared.vm_config.rootfs_hash;
     let kms_url = &host_shared.vm_config.kms_url;
-    let upgraded_app_id = sha256_file(host_shared_dir.app_compose_file())?;
+    let compose_hash = sha256_file(host_shared_dir.app_compose_file())?;
+    let upgraded_app_id = truncate(&compose_hash, 20);
     let kms_enabled = host_shared.app_compose.feature_enabled("kms");
     let ca_cert_hash = if kms_enabled {
         sha256_file(host_shared_dir.kms_ca_cert_file())?

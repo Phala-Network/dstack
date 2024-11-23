@@ -1,7 +1,11 @@
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use prpc::client::{Error, RequestClient};
+use prpc::{
+    client::{Error, RequestClient},
+    server::ProtoError,
+    Message,
+};
 use reqwest::{Certificate, Client, Identity};
 
 pub struct RaClient {
@@ -53,10 +57,14 @@ impl RequestClient for RaClient {
             .send()
             .await
             .map_err(|err| Error::RpcError(format!("failed to send request: {:?}", err)))?;
-        if !response.status().is_success() {
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.bytes().await.unwrap_or_default();
+            let error = ProtoError::decode(body.as_ref())
+                .unwrap_or_default()
+                .message;
             return Err(Error::RpcError(format!(
-                "request failed with status: {}",
-                response.status()
+                "request failed with status={status}, error={error}",
             )));
         }
         let body = response

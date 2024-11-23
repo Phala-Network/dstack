@@ -12,7 +12,7 @@ use std::{
 use tboot::TbootArgs;
 use tdx_attest as att;
 use tracing::error;
-use utils::{deserialize_json_file, run_command, AppCompose};
+use utils::{deserialize_json_file, extend_rtmr, run_command, AppCompose};
 
 mod crypto;
 mod fde_setup;
@@ -66,10 +66,6 @@ struct HexCommand {
 #[derive(Parser)]
 /// Extend RTMR
 struct ExtendArgs {
-    #[arg(short = 'v', long, default_value_t = 1)]
-    /// version (default: 1)
-    version: u32,
-
     #[clap(short = 'i', long, default_value_t = 3)]
     /// RTMR index (default: 3)
     index: u32,
@@ -78,13 +74,13 @@ struct ExtendArgs {
     /// event type (default: 1)
     event_type: u32,
 
-    #[clap(short, long, default_value = "")]
-    /// digest to extend to the RTMR
-    digest: String,
+    #[clap(short, long)]
+    /// event name
+    event: String,
 
     #[clap(short, long)]
-    /// associated data of the event
-    associated_data: String,
+    /// hex encoded payload of the event
+    payload: String,
 }
 
 #[derive(Parser)]
@@ -182,25 +178,13 @@ fn cmd_quote() -> Result<()> {
 }
 
 fn cmd_extend(extend_args: ExtendArgs) -> Result<()> {
-    let digest = hex::decode(&extend_args.digest).context("Failed to decode digest")?;
-
-    let mut padded_digest: [u8; 48] = [0; 48];
-    if digest.len() > 48 {
-        bail!("Digest too long");
-    }
-    padded_digest[..digest.len()].copy_from_slice(&digest);
-    let rtmr_event = att::TdxRtmrEvent {
-        version: extend_args.version,
-        rtmr_index: extend_args.index as u64,
-        digest: padded_digest,
-        event_type: extend_args.event_type,
-        event: extend_args.associated_data.into_bytes(),
-    };
-    att::extend_rtmr(&rtmr_event).context("Failed to extend RTMR")?;
-    let hexed_digest = hex::encode(&padded_digest);
-    println!("Extended RTMR {}: {}", extend_args.index, hexed_digest);
-    att::log_rtmr_event(&rtmr_event).context("Failed to log RTMR extending event")?;
-    Ok(())
+    let payload = hex::decode(&extend_args.payload).context("Failed to decode payload")?;
+    extend_rtmr(
+        extend_args.index,
+        extend_args.event_type,
+        &extend_args.event,
+        &payload,
+    )
 }
 
 fn cmd_report() -> Result<()> {

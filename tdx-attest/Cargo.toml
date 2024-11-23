@@ -10,11 +10,16 @@ num_enum = "0.7.3"
 scale = { version = "3.6.12", package = "parity-scale-codec", features = ["derive"] }
 serde = { version = "1.0.214", features = ["derive"] }
 serde-human-bytes = "0.1.0"
-tdx-attest-sys = { path = "../tdx-attest-sys" }
+tdx-attest-sys = { path = "../tdx-attest-sys", optional = true }
 thiserror = "2.0.3"
 fs-err = "3.0.0"
 serde_json = "1.0.132"
+sha2 = "0.10.8"
 
 [dev-dependencies]
 insta = "1.41.1"
 serde_json = "1.0.132"
+
+[features]
+default = ["sys"]
+sys = ["tdx-attest-sys"]

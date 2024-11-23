@@ -9,4 +9,3 @@ pub mod cert;
 pub mod kdf;
 pub mod oids;
 pub mod traits;
-pub mod event_log;

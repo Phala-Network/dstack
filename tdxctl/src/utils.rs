@@ -10,7 +10,6 @@ use serde::{de::DeserializeOwned, Deserialize};
 use serde_human_bytes as hex_bytes;
 use sha2::{digest::Output, Digest};
 use tdx_attest as att;
-use tracing::info;
 
 pub fn deserialize_json_file<T: DeserializeOwned>(path: impl AsRef<Path>) -> Result<T> {
     let data = fs::read_to_string(path).context("Failed to read file")?;
@@ -69,23 +68,22 @@ impl<H: Digest, F> HashingFile<H, F> {
     }
 }
 
-pub fn extend_rtmr3(associated_data: &str, digest: &[u8]) -> Result<()> {
-    if digest.len() > 48 {
-        bail!("Digest too long");
-    }
-    let mut padded_digest: [u8; 48] = [0; 48];
-    padded_digest[..digest.len()].copy_from_slice(&digest);
-    let rtmr_event = att::TdxRtmrEvent {
-        version: 1,
-        rtmr_index: 3,
-        digest: padded_digest,
-        event_type: 1,
-        event: associated_data.as_bytes().to_vec(),
-    };
-    att::extend_rtmr(&rtmr_event).context("Failed to extend RTMR")?;
-    let hexed_digest = hex::encode(&padded_digest);
-    info!("Extended RTMR3: {}", hexed_digest);
-    att::log_rtmr_event(&rtmr_event).context("Failed to log RTMR extending event")?;
+pub fn extend_rtmr3(event: &str, payload: &[u8]) -> Result<()> {
+    extend_rtmr(3, 1, event, payload)
+}
+
+pub fn extend_rtmr(index: u32, event_type: u32, event: &str, payload: &[u8]) -> Result<()> {
+    let log = att::eventlog::TdxEventLog::new(
+        index,
+        event_type,
+        event.as_bytes().to_vec(),
+        payload.to_vec(),
+    );
+    att::extend_rtmr(index, event_type, log.digest).context("Failed to extend RTMR")?;
+    let hexed_payload = hex::encode(payload);
+    let hexed_digest = hex_fmt::HexFmt(&log.digest);
+    println!("Extended RTMR{index}: event={event}, payload={hexed_payload}, digest={hexed_digest}");
+    att::log_rtmr_event(&log).context("Failed to log RTMR extending event")?;
     Ok(())
 }
 

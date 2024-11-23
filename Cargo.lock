@@ -933,8 +933,6 @@ checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 [[package]]
 name = "dcap-qvl"
 version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "150f17a7bb594ac16726c307fa53bcf2b40b1cd47d348df65a4c34de86ebd0d6"
 dependencies = [
  "anyhow",
  "asn1_der",
@@ -3174,6 +3172,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tdx-attest",
+ "tracing",
  "x509-parser",
  "yasna",
 ]
@@ -4454,6 +4454,7 @@ dependencies = [
  "serde",
  "serde-human-bytes",
  "serde_json",
+ "sha2",
  "tdx-attest-sys",
  "thiserror 2.0.3",
 ]

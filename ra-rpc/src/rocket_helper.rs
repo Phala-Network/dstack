@@ -12,9 +12,9 @@ use rocket::{
     response::status::Custom,
     Data,
 };
-use tracing::info;
+use tracing::{info, warn};
 
-use crate::RpcCall;
+use crate::{encode_error, RpcCall};
 
 #[derive(Debug, Clone)]
 pub struct QuoteVerifier {
@@ -30,7 +30,8 @@ impl QuoteVerifier {
         }
     }
 
-    pub async fn verify_quote(&self, quote: &[u8]) -> Result<VerifiedReport> {
+    pub async fn verify_quote(&self, attestation: &Attestation) -> Result<VerifiedReport> {
+        let quote = &attestation.quote;
         let collateral = qvl::collateral::get_collateral(&self.pccs_url, quote, self.timeout)
             .await
             .context("failed to get collateral")?;
@@ -38,9 +39,19 @@ impl QuoteVerifier {
             .duration_since(UNIX_EPOCH)
             .context("failed to get current time")?
             .as_secs();
-        qvl::verify::verify(quote, &collateral, now)
+        let report = qvl::verify::verify(quote, &collateral, now)
             .ok()
-            .context("invalid quote")
+            .context("quote verification failed")?;
+        if let Some(report) = report.report.as_td10() {
+            // Replay the event logs
+            let rtmrs = attestation
+                .replay_event_logs()
+                .context("failed to replay event logs")?;
+            if rtmrs != [report.rt_mr0, report.rt_mr1, report.rt_mr2, report.rt_mr3] {
+                anyhow::bail!("rtmr mismatch");
+            }
+        }
+        Ok(report)
     }
 }
 
@@ -70,15 +81,46 @@ pub async fn handle_prpc<S, Call: RpcCall<S>>(
     content_type: Option<&ContentType>,
     json: bool,
 ) -> Result<Custom<Vec<u8>>> {
+    let result = handle_prpc_impl::<S, Call>(
+        state,
+        certificate,
+        quote_verifier,
+        method,
+        data,
+        limits,
+        content_type,
+        json,
+    )
+    .await;
+    match result {
+        Ok(output) => Ok(output),
+        Err(e) => {
+            let estr = format!("{e:?}");
+            warn!("error handling prpc: {estr}");
+            let body = encode_error(json, estr);
+            Ok(Custom(Status::BadRequest, body))
+        }
+    }
+}
+
+pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
+    state: &S,
+    certificate: Option<Certificate<'_>>,
+    quote_verifier: Option<&QuoteVerifier>,
+    method: &str,
+    data: Option<Data<'_>>,
+    limits: &Limits,
+    content_type: Option<&ContentType>,
+    json: bool,
+) -> Result<Custom<Vec<u8>>> {
     let mut attestation = certificate.map(extract_attestation).transpose()?.flatten();
     let todo = "verified attestation needs to be a distinct type";
     if let (Some(quote_verifier), Some(attestation)) = (quote_verifier, &mut attestation) {
         let verified_report = quote_verifier
-            .verify_quote(&attestation.quote)
+            .verify_quote(&attestation)
             .await
             .context("invalid quote")?;
         attestation.verified_report = Some(verified_report);
-        info!("the ra quote is verified");
     } else if attestation.is_some() {
         info!("the ra quote is not verified");
     }
@@ -117,6 +159,6 @@ pub fn extract_attestation(cert: Certificate<'_>) -> Result<Option<Attestation>>
     let pubkey = cert.public_key().raw;
     attestation
         .ensure_quote_for_ra_tls_pubkey(pubkey)
-        .context("invalid quote")?;
+        .context("ratls quote verification failed")?;
     Ok(Some(attestation))
 }

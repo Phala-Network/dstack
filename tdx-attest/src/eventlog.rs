@@ -32,7 +32,7 @@ pub struct TcgEventLog {
 /// It is a simplified version of the TCG event log format, containing only a single digest
 /// and the raw event data. The IMR index is zero-based, unlike the TCG event log format
 /// which is one-based.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TdxEventLog {
     /// IMR index, starts from 0
     pub imr: u32,
@@ -41,9 +41,57 @@ pub struct TdxEventLog {
     /// Digest
     #[serde(with = "serde_human_bytes")]
     pub digest: [u8; 48],
-    /// Raw event data
+    /// Event name
     #[serde(with = "serde_human_bytes")]
     pub event: Vec<u8>,
+    /// Event payload
+    #[serde(with = "serde_human_bytes")]
+    pub event_payload: Vec<u8>,
+}
+
+fn event_digest(ty: u32, event: &[u8], payload: &[u8]) -> [u8; 48] {
+    use sha2::Digest;
+    let mut hasher = sha2::Sha384::new();
+    hasher.update(&ty.to_ne_bytes());
+    hasher.update(b":");
+    hasher.update(event);
+    hasher.update(b":");
+    hasher.update(payload);
+    hasher.finalize().into()
+}
+
+impl TdxEventLog {
+    pub fn new(imr: u32, event_type: u32, event: Vec<u8>, event_payload: Vec<u8>) -> Self {
+        let digest = event_digest(event_type, &event, &event_payload);
+        Self {
+            imr,
+            event_type,
+            digest,
+            event,
+            event_payload,
+        }
+    }
+
+    pub fn new_str(imr: u32, event_type: u32, event: &str, event_payload: &str) -> Self {
+        Self::new(
+            imr,
+            event_type,
+            event.as_bytes().to_vec(),
+            event_payload.as_bytes().to_vec(),
+        )
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        if self.imr != 3 {
+            // TODO: validate other imrs
+            return Ok(());
+        }
+        let digest = event_digest(self.event_type, &self.event, &self.event_payload);
+        if digest != self.digest {
+            return Err(anyhow::anyhow!("invalid digest"));
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<TcgEventLog> for TdxEventLog {
@@ -73,7 +121,8 @@ impl TryFrom<TcgEventLog> for TdxEventLog {
                 .context("invalid imr index")?,
             event_type: value.event_type,
             digest,
-            event: value.event.into(),
+            event: Default::default(),
+            event_payload: value.event.into(),
         })
     }
 }
