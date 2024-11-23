@@ -52,7 +52,7 @@ async fn prpc_post(
     limits: &Limits,
     content_type: Option<&ContentType>,
     json: bool,
-) -> Result<Custom<Vec<u8>>, String> {
+) -> Custom<Vec<u8>> {
     handle_prpc::<_, RpcHandler>(
         &*state,
         cert,
@@ -64,7 +64,6 @@ async fn prpc_post(
         json,
     )
     .await
-    .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
 #[get("/prpc/<method>")]
@@ -73,7 +72,7 @@ async fn prpc_get(
     method: &str,
     limits: &Limits,
     content_type: Option<&ContentType>,
-) -> Result<Custom<Vec<u8>>, String> {
+) -> Custom<Vec<u8>> {
     handle_prpc::<_, RpcHandler>(
         &*state,
         None,
@@ -85,7 +84,6 @@ async fn prpc_get(
         true,
     )
     .await
-    .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
 static STREAM_CREATED_COUNTER: AtomicUsize = AtomicUsize::new(0);

@@ -80,7 +80,7 @@ pub async fn handle_prpc<S, Call: RpcCall<S>>(
     limits: &Limits,
     content_type: Option<&ContentType>,
     json: bool,
-) -> Result<Custom<Vec<u8>>> {
+) -> Custom<Vec<u8>> {
     let result = handle_prpc_impl::<S, Call>(
         state,
         certificate,
@@ -93,12 +93,12 @@ pub async fn handle_prpc<S, Call: RpcCall<S>>(
     )
     .await;
     match result {
-        Ok(output) => Ok(output),
+        Ok(output) => output,
         Err(e) => {
             let estr = format!("{e:?}");
             warn!("error handling prpc: {estr}");
             let body = encode_error(json, estr);
-            Ok(Custom(Status::BadRequest, body))
+            Custom(Status::BadRequest, body)
         }
     }
 }

@@ -22,7 +22,7 @@ async fn prpc_post(
     limits: &Limits,
     content_type: Option<&ContentType>,
     json: bool,
-) -> Result<Custom<Vec<u8>>, String> {
+) -> Custom<Vec<u8>> {
     handle_prpc::<_, InternalRpcHandler>(
         &*state,
         None,
@@ -34,7 +34,6 @@ async fn prpc_post(
         json,
     )
     .await
-    .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
 #[get("/prpc/<method>")]
@@ -43,7 +42,7 @@ async fn prpc_get(
     method: &str,
     limits: &Limits,
     content_type: Option<&ContentType>,
-) -> Result<Custom<Vec<u8>>, String> {
+) -> Custom<Vec<u8>> {
     handle_prpc::<_, InternalRpcHandler>(
         &*state,
         None,
@@ -55,7 +54,6 @@ async fn prpc_get(
         true,
     )
     .await
-    .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
 pub fn internal_routes() -> Vec<Route> {
@@ -98,7 +96,7 @@ async fn external_prpc_post(
     limits: &Limits,
     content_type: Option<&ContentType>,
     json: bool,
-) -> Result<Custom<Vec<u8>>, String> {
+) -> Custom<Vec<u8>> {
     handle_prpc::<_, ExternalRpcHandler>(
         &*state,
         None,
@@ -110,7 +108,6 @@ async fn external_prpc_post(
         json,
     )
     .await
-    .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
 #[get("/prpc/<method>")]
@@ -119,7 +116,7 @@ async fn external_prpc_get(
     method: &str,
     limits: &Limits,
     content_type: Option<&ContentType>,
-) -> Result<Custom<Vec<u8>>, String> {
+) -> Custom<Vec<u8>> {
     handle_prpc::<_, ExternalRpcHandler>(
         &*state,
         None,
@@ -131,7 +128,6 @@ async fn external_prpc_get(
         true,
     )
     .await
-    .map_err(|e| format!("Failed to handle PRPC request: {e}"))
 }
 
 #[get("/logs/<container_name>?<since>&<until>&<follow>&<text>&<timestamps>&<bare>")]
