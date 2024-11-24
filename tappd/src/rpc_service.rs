@@ -120,6 +120,7 @@ impl WorkerRpc for ExternalRpcHandler {
             Report::TD10(tdreport10) => &tdreport10,
             Report::TD15(tdreport15) => &tdreport15.base,
         };
+        let event_log = &attestation.event_log;
         let mrtd = hex::encode(&report.mr_td);
         let rtmr0 = hex::encode(&report.rt_mr0);
         let rtmr1 = hex::encode(&report.rt_mr1);
@@ -132,6 +133,7 @@ impl WorkerRpc for ExternalRpcHandler {
             "rtmr1": rtmr1,
             "rtmr2": rtmr2,
             "rtmr3": rtmr3,
+            "event_log": event_log,
         }))
         .unwrap_or_default();
         Ok(WorkerInfo {

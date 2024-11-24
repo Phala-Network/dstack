@@ -103,7 +103,7 @@ impl Attestation {
 
     fn find_event(&self, imr: u32, ad: &str) -> Result<EventLog> {
         for event in &self.event_log {
-            if event.imr == imr && event.event == ad.as_bytes() {
+            if event.imr == imr && event.event == ad {
                 return Ok(event.clone());
             }
         }

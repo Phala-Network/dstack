@@ -73,12 +73,8 @@ pub fn extend_rtmr3(event: &str, payload: &[u8]) -> Result<()> {
 }
 
 pub fn extend_rtmr(index: u32, event_type: u32, event: &str, payload: &[u8]) -> Result<()> {
-    let log = att::eventlog::TdxEventLog::new(
-        index,
-        event_type,
-        event.as_bytes().to_vec(),
-        payload.to_vec(),
-    );
+    let log =
+        att::eventlog::TdxEventLog::new(index, event_type, event.to_string(), payload.to_vec());
     att::extend_rtmr(index, event_type, log.digest).context("Failed to extend RTMR")?;
     let hexed_payload = hex::encode(payload);
     let hexed_digest = hex_fmt::HexFmt(&log.digest);

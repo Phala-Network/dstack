@@ -44,26 +44,25 @@ pub struct TdxEventLog {
     #[serde(with = "serde_human_bytes")]
     pub digest: [u8; 48],
     /// Event name
-    #[serde(with = "serde_human_bytes")]
-    pub event: Vec<u8>,
+    pub event: String,
     /// Event payload
     #[serde(with = "serde_human_bytes")]
     pub event_payload: Vec<u8>,
 }
 
-fn event_digest(ty: u32, event: &[u8], payload: &[u8]) -> [u8; 48] {
+fn event_digest(ty: u32, event: &str, payload: &[u8]) -> [u8; 48] {
     use sha2::Digest;
     let mut hasher = sha2::Sha384::new();
     hasher.update(&ty.to_ne_bytes());
     hasher.update(b":");
-    hasher.update(event);
+    hasher.update(event.as_bytes());
     hasher.update(b":");
     hasher.update(payload);
     hasher.finalize().into()
 }
 
 impl TdxEventLog {
-    pub fn new(imr: u32, event_type: u32, event: Vec<u8>, event_payload: Vec<u8>) -> Self {
+    pub fn new(imr: u32, event_type: u32, event: String, event_payload: Vec<u8>) -> Self {
         let digest = event_digest(event_type, &event, &event_payload);
         Self {
             imr,
@@ -78,7 +77,7 @@ impl TdxEventLog {
         Self::new(
             imr,
             event_type,
-            event.as_bytes().to_vec(),
+            event.to_string(),
             event_payload.as_bytes().to_vec(),
         )
     }
