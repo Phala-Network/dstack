@@ -11,6 +11,11 @@ use serde_human_bytes as hex_bytes;
 use sha2::{digest::Output, Digest};
 use tdx_attest as att;
 
+/// This code is not defined in the TCG specification.
+/// See https://trustedcomputinggroup.org/wp-content/uploads/PC-ClientSpecific_Platform_Profile_for_TPM_2p0_Systems_v51.pdf
+const DSTACK_EVENT_TAG: u32 = 0x08000001;
+
+
 pub fn deserialize_json_file<T: DeserializeOwned>(path: impl AsRef<Path>) -> Result<T> {
     let data = fs::read_to_string(path).context("Failed to read file")?;
     serde_json::from_str(&data).context("Failed to parse json")
@@ -69,7 +74,7 @@ impl<H: Digest, F> HashingFile<H, F> {
 }
 
 pub fn extend_rtmr3(event: &str, payload: &[u8]) -> Result<()> {
-    extend_rtmr(3, 1, event, payload)
+    extend_rtmr(3, DSTACK_EVENT_TAG, event, payload)
 }
 
 pub fn extend_rtmr(index: u32, event_type: u32, event: &str, payload: &[u8]) -> Result<()> {
