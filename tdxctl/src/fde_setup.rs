@@ -16,7 +16,7 @@ use crate::{
     crypto::dh_decrypt,
     utils::{
         copy_dir_all, deserialize_json_file, extend_rtmr3, run_command, run_command_with_stdin,
-        sha256_file, AppCompose, AppKeys, HashingFile, VmConfig,
+        sha256, sha256_file, AppCompose, AppKeys, HashingFile, VmConfig,
     },
     GenAppKeysArgs, GenRaCertArgs,
 };
@@ -178,7 +178,7 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
     let ca_cert_hash = if kms_enabled {
         sha256_file(host_shared_dir.kms_ca_cert_file())?
     } else {
-        sha256_file(host_shared_dir.tmp_ca_cert_file())?
+        sha256(b"")
     };
     let tapp_dir = args.rootfs_dir.join("tapp");
     let app_keys_file = args.work_dir.join("appkeys.json");
@@ -241,8 +241,6 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
     } else {
         info!("KMS is not enabled, generating local app keys");
         cmd_gen_app_keys(GenAppKeysArgs {
-            ca_cert: host_shared_dir.tmp_ca_cert_file(),
-            ca_key: host_shared_dir.tmp_ca_key_file(),
             ca_level: 1,
             output: app_keys_file.clone(),
         })?;

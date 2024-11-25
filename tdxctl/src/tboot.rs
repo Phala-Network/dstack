@@ -112,10 +112,6 @@ async fn setup_tproxy_net(args: &TbootArgs, compose: &AppCompose) -> Result<()> 
 fn prepare_certs(args: &TbootArgs) -> Result<()> {
     info!("Preparing certs");
     fs::create_dir_all(args.resolve("/etc/tappd"))?;
-    fs::copy(
-        args.resolve("/tapp/certs/ca.cert"),
-        args.resolve("/etc/tappd/ca.cert"),
-    )?;
 
     let appkeys_data = fs::read_to_string(args.resolve("/tapp/appkeys.json"))?;
     let appkeys: AppKeys = serde_json::from_str(&appkeys_data)?;
@@ -124,6 +120,17 @@ fn prepare_certs(args: &TbootArgs) -> Result<()> {
         bail!("Invalid app_key");
     }
     fs::write(args.resolve("/etc/tappd/app-ca.key"), &appkeys.app_key)?;
+
+    let kms_ca_cert = args.resolve("/tapp/certs/ca.cert");
+    if fs::metadata(&kms_ca_cert).is_ok() {
+        fs::copy(kms_ca_cert, args.resolve("/etc/tappd/ca.cert"))?;
+    } else {
+        // symbolic link the app-ca.cert to ca.cert
+        fs::os::unix::fs::symlink(
+            args.resolve("/etc/tappd/app-ca.cert"),
+            args.resolve("/etc/tappd/ca.cert"),
+        )?;
+    }
 
     let cert_chain_str = appkeys.certificate_chain.join("\n");
     fs::write(args.resolve("/etc/tappd/app-ca.cert"), cert_chain_str)?;

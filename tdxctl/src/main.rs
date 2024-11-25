@@ -120,14 +120,6 @@ struct GenCaCertArgs {
 #[derive(Parser)]
 /// Generate app keys
 struct GenAppKeysArgs {
-    /// CA certificate used to sign the RA certificate
-    #[arg(long)]
-    ca_cert: PathBuf,
-
-    /// CA private key used to sign the RA certificate
-    #[arg(long)]
-    ca_key: PathBuf,
-
     /// CA level
     #[arg(long, default_value_t = 1)]
     ca_level: u8,
@@ -334,7 +326,6 @@ fn cmd_gen_app_keys(args: GenAppKeysArgs) -> Result<()> {
     use ra_tls::cert::CertRequest;
     use ra_tls::rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
 
-    let ca = CaCert::load(&args.ca_cert, &args.ca_key).context("Failed to read CA certificate")?;
     let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let disk_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let pubkey = key.public_key_der();
@@ -349,12 +340,14 @@ fn cmd_gen_app_keys(args: GenAppKeysArgs) -> Result<()> {
         .key(&key)
         .ca_level(args.ca_level)
         .build();
-    let cert = ca.sign(req).context("Failed to sign certificate")?;
+    let cert = req
+        .self_signed()
+        .context("Failed to self-sign certificate")?;
 
     let app_keys = serde_json::json!({
         "app_key": key.serialize_pem(),
         "disk_crypt_key": sha256(&disk_key.serialize_der()),
-        "certificate_chain": vec![cert.pem(), ca.pem_cert],
+        "certificate_chain": vec![cert.pem()],
     });
     let app_keys = serde_json::to_string(&app_keys).context("Failed to serialize app keys")?;
     fs::write(&args.output, app_keys).context("Failed to write app keys")?;
