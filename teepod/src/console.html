@@ -890,7 +890,7 @@
                 };
 
                 const dashboardAvailable = (vm) => {
-                    if (!vm.appConfig.features.includes('tproxy-net')) return false;
+                    if (!vm.appConfig?.features?.includes('tproxy-net')) return false;
                     return vm.app_url
                 };
 
