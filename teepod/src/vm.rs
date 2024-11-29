@@ -100,7 +100,6 @@ pub(crate) mod run {
 
     #[derive(Debug, Deserialize)]
     pub struct InstanceInfo {
-        pub app_id: String,
         pub instance_id: String,
     }
 

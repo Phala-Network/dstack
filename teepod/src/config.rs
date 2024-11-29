@@ -88,6 +88,8 @@ pub struct CvmConfig {
     pub kms_url: String,
     /// The URL of the TProxy server
     pub tproxy_url: String,
+    /// The URL of the Docker registry
+    pub docker_registry: String,
     /// The maximum disk size in GB
     pub max_disk_size: u32,
     /// The start of the CID pool that allocates CIDs to VMs

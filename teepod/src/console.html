@@ -412,6 +412,31 @@
             font-family: monospace;
         }
     </style>
+    <style>
+        .docker-registry-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .docker-registry-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .docker-registry-label {
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .docker-registry-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 
 <body>
@@ -502,13 +527,35 @@
                         <label>Encrypted Environment Variables</label>
                         <div v-for="(env, index) in vmForm.encrypted_envs" :key="index"
                             style="display: flex; gap: 10px; margin-bottom: 10px;">
-                            <input type="text" v-model="env.key" placeholder="Variable name" style="width: 200px;" required>
-                            <input type="text" v-model="env.value" placeholder="Value" style="flex-grow: 1;" required>
+                            <input type="text" v-model="env.key" placeholder="Variable name" style="width: 200px;"
+                                required>
+                            <input type="password" v-model="env.value" placeholder="Value" style="flex-grow: 1;" required>
                             <button type="button" class="action-btn danger" @click="removeEncryptedEnv(index)">
                                 Remove
                             </button>
                         </div>
                         <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            Docker Registry Login
+                            <input type="checkbox" v-model="vmForm.docker_config.enabled"
+                                style="width: 16px; height: 16px;">
+                        </label>
+                        <div v-if="vmForm.docker_config.enabled" class="docker-registry-section">
+                            <div class="docker-registry-field" v-if="vmForm.features.kms">
+                                <label class="docker-registry-label">Username</label>
+                                <input type="text" v-model="vmForm.docker_config.username"
+                                    class="docker-registry-input">
+                            </div>
+                            <div class="docker-registry-field" v-if="vmForm.features.kms">
+                                <label class="docker-registry-label">Token Key</label>
+                                <input type="text" v-model="vmForm.docker_config.token_key"
+                                    placeholder="The key name in the encrypted environment variables"
+                                    class="docker-registry-input">
+                            </div>
+                        </div>
                     </div>
 
                     <div class="vm-actions">
@@ -700,6 +747,11 @@
                     features: {
                         kms: true,
                         tproxy: true
+                    },
+                    docker_config: {
+                        enabled: false,
+                        username: '',
+                        token_key: ''
                     }
                 });
                 const images = ref([]);
@@ -767,7 +819,11 @@
                         "version": "1.0.0",
                         "features": features,
                         "runner": "docker-compose",
-                        "docker_compose_file": vmForm.value.compose_file
+                        "docker_compose_file": vmForm.value.compose_file,
+                        "docker_config": vmForm.value.docker_config.enabled ? {
+                            "username": vmForm.value.docker_config.username,
+                            "token_key": vmForm.value.docker_config.token_key,
+                        } : {}
                     };
                     return JSON.stringify(app_compose);
                 };

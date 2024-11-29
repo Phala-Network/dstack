@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
+use std::collections::BTreeMap;
 
 fn escape_value(v: &str) -> String {
     let mut needs_quotes = false;
@@ -40,15 +41,22 @@ struct Data {
     env: Vec<Pair>,
 }
 
-pub fn convert_env_to_str(decrypted_json: &[u8]) -> Result<String> {
+pub fn parse_env(decrypted_json: &[u8]) -> Result<BTreeMap<String, String>> {
+    const MAX_ITEMS: usize = 1024;
+    const MAX_TOTAL_SIZE: usize = 1024 * 1024;
+
     let data: Data = serde_json::from_slice(&decrypted_json).context("Failed to parse env")?;
 
-    // Compile regex once, outside the loop
+    if data.env.len() > MAX_ITEMS {
+        bail!("Too many environment variables: {}", data.env.len());
+    }
+
     const KEY_REGEX: &str = r"^[a-zA-Z_][a-zA-Z0-9_]*$";
     let key_regex = regex::Regex::new(KEY_REGEX)
         .context("Failed to compile environment key validation regex")?;
 
-    let mut env_str = String::with_capacity(1024);
+    let mut env = BTreeMap::new();
+    let mut total_size = 0;
 
     for Pair { key, value } in data.env {
         // Check key length (common Linux limit is 255)
@@ -66,9 +74,20 @@ pub fn convert_env_to_str(decrypted_json: &[u8]) -> Result<String> {
             bail!("Invalid env key: {}", key);
         }
 
-        env_str.push_str(&format!("{}={}\n", key, escape_value(&value)));
+        total_size += key.len() + value.len();
+        if total_size > MAX_TOTAL_SIZE {
+            bail!("Environment variables total size too large");
+        }
+        env.insert(key, value);
     }
-    Ok(env_str)
+    Ok(env)
+}
+
+pub fn convert_env_to_str(parsed_env: &BTreeMap<String, String>) -> String {
+    parsed_env
+        .into_iter()
+        .map(|(key, value)| format!("{}={}\n", key, escape_value(&value)))
+        .collect()
 }
 
 #[cfg(test)]

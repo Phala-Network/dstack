@@ -138,10 +138,26 @@ pub fn run_command(command: &str, args: &[&str]) -> Result<Vec<u8>> {
 }
 
 #[derive(Deserialize)]
+#[allow(unused)]
 pub struct AppCompose {
+    pub manifest_version: u32,
+    pub name: String,
+    pub version: String,
     pub features: Vec<String>,
     pub runner: String,
     pub docker_compose_file: Option<String>,
+    #[serde(default)]
+    pub docker_config: DockerConfig,
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct DockerConfig {
+    /// The URL of the Docker registry.
+    pub registry: Option<String>,
+    /// The username of the registry account.
+    pub username: Option<String>,
+    /// The key of the encrypted environment variables for registry account token.
+    pub token_key: Option<String>,
 }
 
 impl AppCompose {
@@ -151,11 +167,12 @@ impl AppCompose {
 }
 
 #[derive(Deserialize)]
-pub struct VmConfig {
+pub struct LocalConfig {
     #[serde(with = "hex_bytes")]
     pub rootfs_hash: Vec<u8>,
     pub kms_url: Option<String>,
     pub tproxy_url: Option<String>,
+    pub docker_registry: Option<String>,
 }
 
 #[derive(Deserialize)]

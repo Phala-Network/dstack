@@ -5,7 +5,6 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use env_process::convert_env_to_str;
 use fs_err as fs;
 use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
@@ -16,7 +15,7 @@ use crate::{
     crypto::dh_decrypt,
     utils::{
         copy_dir_all, deserialize_json_file, extend_rtmr3, run_command, run_command_with_stdin,
-        sha256, sha256_file, AppCompose, AppKeys, HashingFile, VmConfig,
+        sha256, sha256_file, AppCompose, AppKeys, HashingFile, LocalConfig,
     },
     GenAppKeysArgs, GenRaCertArgs,
 };
@@ -125,7 +124,7 @@ impl HostShareDir {
 }
 
 struct HostShared {
-    vm_config: VmConfig,
+    vm_config: LocalConfig,
     app_compose: AppCompose,
     encrypted_env: Vec<u8>,
     instance_info: Option<InstanceInfo>,
@@ -258,7 +257,7 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
                 .context("Invalid env crypt key length")?;
             let decrypted_json = dh_decrypt(env_crypt_key, &host_shared.encrypted_env)
                 .context("Failed to decrypt env file")?;
-            convert_env_to_str(&decrypted_json)?
+            env_process::parse_env(&decrypted_json)?
         } else {
             info!("No encrypted env, using default");
             Default::default()
@@ -407,7 +406,14 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
         &tapp_dir.join("config.json"),
     )
     .context("Failed to copy config.json")?;
-    fs::write(&tapp_dir.join("env"), &decrypted_env)
+    fs::write(
+        &tapp_dir.join("env"),
+        env_process::convert_env_to_str(&decrypted_env),
+    )
+    .context("Failed to write decrypted env file")?;
+    let env_json =
+        fs::File::create(&tapp_dir.join("env.json")).context("Failed to create env file")?;
+    serde_json::to_writer(env_json, &decrypted_env)
         .context("Failed to write decrypted env file")?;
     Ok(())
 }
