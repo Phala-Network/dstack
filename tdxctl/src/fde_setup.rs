@@ -433,9 +433,10 @@ impl SetupFdeArgs {
             sha256(b"")
         };
 
+        let can_reuse_disk = kms_enabled || !self.rootfs_encryption;
         let bootstraped;
         let instance_info = match &host_shared.instance_info {
-            Some(instance_info) if kms_enabled => {
+            Some(instance_info) if can_reuse_disk => {
                 bootstraped = true;
                 instance_info.clone()
             }

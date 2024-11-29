@@ -138,6 +138,9 @@ impl<'a> Setup<'a> {
 
     fn prepare_certs(&self) -> Result<()> {
         info!("Preparing certs");
+        if fs::metadata(self.resolve("/etc/tappd")).is_ok() {
+            fs::remove_dir_all(self.resolve("/etc/tappd"))?;
+        }
         fs::create_dir_all(self.resolve("/etc/tappd"))?;
 
         if self.app_keys.app_key.is_empty() {
