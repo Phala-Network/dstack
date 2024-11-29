@@ -16,7 +16,7 @@ fs-err = "3.0.0"
 clap = { version = "4.5.18", features = ["derive"] }
 shared_child = "1.0.1"
 tokio = { version = "1.40.0", features = ["full"] }
-rustls = { version = "0.23.13", features = ["ring"] }
+rustls = { version = "0.23.19", features = ["ring"] }
 tokio-rustls = { version = "0.26.0", features = ["ring"] }
 rinja = "0.3.4"
 certbot = { version = "0.1.0", path = "../certbot" }

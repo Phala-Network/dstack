@@ -20,6 +20,3 @@ members = [
     "ct_monitor",
 ]
 resolver = "2"
-
-[patch.crates-io]
-"rustls" = { git = "https://github.com/kvinwang/rustls", branch = "fix-panic" }
