@@ -572,6 +572,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cc-eventlog"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "fs-err 3.0.0",
+ "hex",
+ "parity-scale-codec",
+ "serde",
+ "serde-human-bytes",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "certbot"
 version = "0.1.0"
 dependencies = [
@@ -2619,15 +2633,16 @@ dependencies = [
 
 [[package]]
 name = "parity-scale-codec"
-version = "3.6.12"
+version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "306800abfa29c7f16596b5970a588435e3d5b3149683d00c12b699cc19f895ee"
+checksum = "8be4817d39f3272f69c59fe05d0535ae6456c2dc2fa1ba02910296c7e0a5c590"
 dependencies = [
  "arrayvec",
  "bitvec",
  "byte-slice-cast",
  "impl-trait-for-tuples",
  "parity-scale-codec-derive",
+ "rustversion",
  "serde",
 ]
 
@@ -3153,6 +3168,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bon 3.0.2",
+ "cc-eventlog",
  "dcap-qvl",
  "elliptic-curve",
  "fs-err 3.0.0",
@@ -3165,7 +3181,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "tdx-attest",
  "tracing",
  "x509-parser",
  "yasna",
@@ -4027,18 +4042,18 @@ checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 
 [[package]]
 name = "serde"
-version = "1.0.214"
+version = "1.0.215"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f55c3193aca71c12ad7890f1785d2b73e1b9f63a0bbc353c08ef26fe03fc56b5"
+checksum = "6513c1ad0b11a9376da888e3e0baa0077f1aed55c17f50e7b2397136129fb88f"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde-human-bytes"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77335fff0c01e4f315fcfdf12332bf279e82c86ea6a08312745f826f2cb63018"
+checksum = "78ef65cb41f3f9cef63c431193229067e8b98b53c4d4c4ed38a8ca87c4d07676"
 dependencies = [
  "hex",
  "serde",
@@ -4055,9 +4070,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.214"
+version = "1.0.215"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de523f781f095e28fa605cdce0f8307e451cc0fd14e2eb4cd2e98a355b147766"
+checksum = "ad1e866f866923f252f05c889987993144fb74e722403468a4ebd70c3cd756c0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4440,6 +4455,7 @@ name = "tdx-attest"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cc-eventlog",
  "fs-err 3.0.0",
  "hex",
  "insta",

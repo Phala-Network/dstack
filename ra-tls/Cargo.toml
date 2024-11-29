@@ -20,5 +20,5 @@ serde_json = "1.0.128"
 sha2 = "0.10.8"
 x509-parser = "0.16.0"
 yasna = "0.5.2"
-tdx-attest = { path = "../tdx-attest", default-features = false }
 tracing = "0.1.40"
+cc-eventlog = { version = "0.1.0", path = "../cc-eventlog" }

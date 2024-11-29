@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use tcg::{TcgDigest, TcgEfiSpecIdEvent};
 
 mod tcg;
+mod codecs;
 
 /// The path to the userspace TDX event log file.
-pub(crate) const RUNTIME_EVENT_LOG_FILE: &str = "/run/log/tdx_mr3/tdx_events.log";
+pub const RUNTIME_EVENT_LOG_FILE: &str = "/run/log/tdx_mr3/tdx_events.log";
 /// The path to boottime ccel file.
 const CCEL_FILE: &str = "/sys/firmware/acpi/tables/data/CCEL";
 

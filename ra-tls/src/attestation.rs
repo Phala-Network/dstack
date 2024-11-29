@@ -6,7 +6,7 @@ use qvl::{quote::Report, verify::VerifiedReport};
 use sha2::{Digest, Sha384};
 
 use crate::{oids, traits::CertExt};
-use tdx_attest::eventlog::TdxEventLog as EventLog;
+use cc_eventlog::TdxEventLog as EventLog;
 
 /// The content type of a quote. A CVM should only generate quotes for these types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

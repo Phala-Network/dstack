@@ -12,8 +12,7 @@ use fs_err as fs;
 use num_enum::FromPrimitive;
 use thiserror::Error;
 
-mod codecs;
-pub mod eventlog;
+pub use cc_eventlog as eventlog;
 
 pub type Result<T> = std::result::Result<T, TdxAttestError>;
 

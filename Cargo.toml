@@ -18,5 +18,6 @@ members = [
     "certbot",
     "certbot/cli",
     "ct_monitor",
+    "cc-eventlog",
 ]
 resolver = "2"
