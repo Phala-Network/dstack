@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     io::{Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -8,7 +9,7 @@ use anyhow::{bail, Context, Result};
 use fs_err as fs;
 use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{
     cmd_gen_app_keys, cmd_gen_ra_cert, cmd_show,
@@ -50,6 +51,9 @@ pub struct SetupFdeArgs {
     /// Enabled rootfs integrity
     #[arg(long)]
     rootfs_integrity: bool,
+    /// Enabled rootfs encryption
+    #[arg(long, default_value_t = true)]
+    rootfs_encryption: std::primitive::bool,
 }
 
 fn mount_9p(share_name: &str, mount_point: &str) -> Result<()> {
@@ -75,7 +79,7 @@ fn mount_cdrom(cdrom_device: &str, mount_point: &str) -> Result<()> {
     .map(|_| ())
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 struct InstanceInfo {
     #[serde(with = "hex_bytes")]
     instance_id: Vec<u8>,
@@ -83,6 +87,7 @@ struct InstanceInfo {
     app_id: Vec<u8>,
 }
 
+#[derive(Clone)]
 pub struct HostShareDir {
     base_dir: PathBuf,
 }
@@ -124,6 +129,7 @@ impl HostShareDir {
 }
 
 struct HostShared {
+    dir: HostShareDir,
     vm_config: LocalConfig,
     app_compose: AppCompose,
     encrypted_env: Vec<u8>,
@@ -142,6 +148,7 @@ impl HostShared {
         };
         let encrypted_env = fs::read(host_shared_dir.encrypted_env_file()).unwrap_or_default();
         Ok(Self {
+            dir: host_shared_dir.clone(),
             vm_config,
             app_compose,
             encrypted_env,
@@ -158,116 +165,98 @@ fn truncate(s: &[u8], len: usize) -> &[u8] {
     }
 }
 
-pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
-    fs::create_dir_all(&args.host_shared).context("Failed to create host-sharing mount point")?;
-    mount_9p("host-shared", &args.host_shared.display().to_string())
-        .context("Failed to mount host-sharing")?;
-    fs::create_dir_all(&args.host_shared_copy).context("Failed to create host-shared copy dir")?;
-    copy_dir_all(&args.host_shared, &args.host_shared_copy)
-        .context("Failed to copy host-shared dir")?;
-
-    let host_shared_dir = HostShareDir::new(&args.host_shared_copy);
-    let host_shared = HostShared::load(&host_shared_dir)?;
-
-    let rootfs_hash = &host_shared.vm_config.rootfs_hash;
-    let kms_url = &host_shared.vm_config.kms_url;
-    let compose_hash = sha256_file(host_shared_dir.app_compose_file())?;
-    let upgraded_app_id = truncate(&compose_hash, 20);
-    let kms_enabled = host_shared.app_compose.feature_enabled("kms");
-    let ca_cert_hash = if kms_enabled {
-        sha256_file(host_shared_dir.kms_ca_cert_file())?
-    } else {
-        sha256(b"")
-    };
-    let tapp_dir = args.rootfs_dir.join("tapp");
-    let app_keys_file = args.work_dir.join("appkeys.json");
-
-    let app_id;
-    let instance_id;
-    let bootstraped;
-
-    match host_shared.instance_info {
-        Some(instance_info) if kms_enabled => {
-            app_id = instance_info.app_id.clone();
-            instance_id = instance_info.instance_id.clone();
-            bootstraped = true;
-        }
-        _ => {
-            app_id = upgraded_app_id.to_vec();
-            let mut rand_id = vec![0u8; 20];
-            getrandom::getrandom(&mut rand_id)?;
-            instance_id = rand_id;
-            bootstraped = false;
-        }
+impl SetupFdeArgs {
+    fn app_keys_file(&self) -> PathBuf {
+        self.work_dir.join("appkeys.json")
     }
 
-    extend_rtmr3("rootfs-hash", rootfs_hash)?;
-    extend_rtmr3("app-id", &app_id)?;
-    extend_rtmr3("upgraded-app-id", &upgraded_app_id)?;
-    extend_rtmr3("ca-cert-hash", &ca_cert_hash)?;
-    extend_rtmr3("instance-id", &instance_id)?;
-
-    // Show the RTMR
-    cmd_show()?;
-
-    if kms_enabled {
-        let Some(kms_url) = kms_url else {
-            bail!("KMS URL is not set");
-        };
-        info!("KMS is enabled, generating RA-TLS cert");
-        let gen_certs_dir = args.work_dir.join("certs");
-        fs::create_dir_all(&gen_certs_dir).context("Failed to create certs dir")?;
-        cmd_gen_ra_cert(GenRaCertArgs {
-            ca_cert: host_shared_dir.tmp_ca_cert_file(),
-            ca_key: host_shared_dir.tmp_ca_key_file(),
-            cert_path: gen_certs_dir.join("cert.pem"),
-            key_path: gen_certs_dir.join("key.pem"),
-        })?;
-        info!("Requesting app keys from KMS: {kms_url}");
-        let ra_client = RaClient::new_mtls(
-            format!("{kms_url}/prpc"),
-            fs::read_to_string(host_shared_dir.kms_ca_cert_file())?,
-            fs::read_to_string(gen_certs_dir.join("cert.pem"))?,
-            fs::read_to_string(gen_certs_dir.join("key.pem"))?,
-        )?;
-        let kms_client = kms_rpc::kms_client::KmsClient::new(ra_client);
-        let response = kms_client
-            .get_app_key()
-            .await
-            .context("Failed to get app key")?;
-        let keys_json = serde_json::to_string(&response).context("Failed to serialize app keys")?;
-        fs::write(&app_keys_file, keys_json).context("Failed to write app keys")?;
-    } else {
-        info!("KMS is not enabled, generating local app keys");
-        cmd_gen_app_keys(GenAppKeysArgs {
-            ca_level: 1,
-            output: app_keys_file.clone(),
-        })?;
+    fn tapp_dir(&self) -> PathBuf {
+        self.rootfs_dir.join("tapp")
     }
-    let app_keys: AppKeys =
-        deserialize_json_file(&app_keys_file).context("Failed to decode app keys")?;
-    // Decrypt env file
-    let decrypted_env =
-        if (!app_keys.env_crypt_key.is_empty()) && !host_shared.encrypted_env.is_empty() {
+
+    fn copy_host_shared(&self) -> Result<HostShared> {
+        fs::create_dir_all(&self.host_shared)
+            .context("Failed to create host-sharing mount point")?;
+        mount_9p("host-shared", &self.host_shared.display().to_string())
+            .context("Failed to mount host-sharing")?;
+        fs::create_dir_all(&self.host_shared_copy)
+            .context("Failed to create host-shared copy dir")?;
+        copy_dir_all(&self.host_shared, &self.host_shared_copy)
+            .context("Failed to copy host-shared dir")?;
+        let host_shared_dir = HostShareDir::new(&self.host_shared_copy);
+        let host_shared = HostShared::load(&host_shared_dir)?;
+        Ok(host_shared)
+    }
+
+    async fn request_app_keys(&self, host_shared: &HostShared) -> Result<AppKeys> {
+        let kms_url = &host_shared.vm_config.kms_url;
+        let kms_enabled = host_shared.app_compose.feature_enabled("kms");
+        if kms_enabled {
+            let Some(kms_url) = kms_url else {
+                bail!("KMS URL is not set");
+            };
+            info!("KMS is enabled, generating RA-TLS cert");
+            let gen_certs_dir = self.work_dir.join("certs");
+            fs::create_dir_all(&gen_certs_dir).context("Failed to create certs dir")?;
+            cmd_gen_ra_cert(GenRaCertArgs {
+                ca_cert: host_shared.dir.tmp_ca_cert_file(),
+                ca_key: host_shared.dir.tmp_ca_key_file(),
+                cert_path: gen_certs_dir.join("cert.pem"),
+                key_path: gen_certs_dir.join("key.pem"),
+            })?;
+            info!("Requesting app keys from KMS: {kms_url}");
+            let ra_client = RaClient::new_mtls(
+                format!("{kms_url}/prpc"),
+                fs::read_to_string(host_shared.dir.kms_ca_cert_file())?,
+                fs::read_to_string(gen_certs_dir.join("cert.pem"))?,
+                fs::read_to_string(gen_certs_dir.join("key.pem"))?,
+            )?;
+            let kms_client = kms_rpc::kms_client::KmsClient::new(ra_client);
+            let response = kms_client
+                .get_app_key()
+                .await
+                .context("Failed to get app key")?;
+            let keys_json =
+                serde_json::to_string(&response).context("Failed to serialize app keys")?;
+            fs::write(&self.app_keys_file(), keys_json).context("Failed to write app keys")?;
+        } else {
+            info!("KMS is not enabled, generating local app keys");
+            cmd_gen_app_keys(GenAppKeysArgs {
+                ca_level: 1,
+                output: self.app_keys_file(),
+            })?;
+        }
+        deserialize_json_file(&self.app_keys_file()).context("Failed to decode app keys")
+    }
+
+    fn decrypt_env_vars(&self, key: &[u8], ciphertext: &[u8]) -> Result<BTreeMap<String, String>> {
+        let vars = if !key.is_empty() && !ciphertext.is_empty() {
             info!("Processing encrypted env");
-            let env_crypt_key: [u8; 32] = app_keys
-                .env_crypt_key
+            let env_crypt_key: [u8; 32] = key
                 .try_into()
                 .ok()
                 .context("Invalid env crypt key length")?;
-            let decrypted_json = dh_decrypt(env_crypt_key, &host_shared.encrypted_env)
-                .context("Failed to decrypt env file")?;
+            let decrypted_json =
+                dh_decrypt(env_crypt_key, ciphertext).context("Failed to decrypt env file")?;
             env_process::parse_env(&decrypted_json)?
         } else {
             info!("No encrypted env, using default");
             Default::default()
         };
-    if app_keys.disk_crypt_key.is_empty() {
-        bail!("Failed to get valid key phrase from KMS");
+        Ok(vars)
     }
-    let disk_crypt_key = format!("{}\n", app_keys.disk_crypt_key);
-    if bootstraped {
-        info!("Mounting rootfs");
+
+    fn mount_rootfs(&self, disk_crypt_key: &str) -> Result<()> {
+        if !self.rootfs_encryption {
+            warn!("Rootfs encryption is disabled, skipping disk encryption");
+            run_command(
+                "mount",
+                &[&self.root_hd, &self.rootfs_dir.display().to_string()],
+            )
+            .context("Failed to mount rootfs")?;
+            return Ok(());
+        }
+        info!("Mounting encrypted rootfs");
         run_command_with_stdin(
             "cryptsetup",
             &[
@@ -275,7 +264,7 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
                 "--type",
                 "luks2",
                 "-d-",
-                &args.root_hd,
+                &self.root_hd,
                 "rootfs_crypt",
             ],
             &disk_crypt_key,
@@ -285,17 +274,14 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
             "mount",
             &[
                 "/dev/mapper/rootfs_crypt",
-                &args.rootfs_dir.display().to_string(),
+                &self.rootfs_dir.display().to_string(),
             ],
         )
         .context("Failed to mount rootfs")?;
-    } else {
-        info!("Setting up disk encryption");
-        fs::create_dir_all(&args.root_cdrom_mnt)
-            .context("Failed to create rootfs cdrom mount point")?;
-        mount_cdrom(&args.root_cdrom, &args.root_cdrom_mnt.display().to_string())
-            .context("Failed to mount rootfs cdrom")?;
-        info!("Formatting rootfs");
+        Ok(())
+    }
+
+    fn luks_setup(&self, disk_crypt_key: &str) -> Result<()> {
         let mut cmd_args = vec![
             "luksFormat",
             "--type",
@@ -306,11 +292,11 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
             "pbkdf2",
             "-d-",
         ];
-        if args.rootfs_integrity {
+        if self.rootfs_integrity {
             cmd_args.push("--integrity");
             cmd_args.push("hmac-sha256");
         }
-        cmd_args.push(&args.root_hd);
+        cmd_args.push(&self.root_hd);
 
         run_command_with_stdin("cryptsetup", &cmd_args, &disk_crypt_key)
             .context("Failed to format encrypted rootfs")?;
@@ -322,29 +308,45 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
                 "--type",
                 "luks2",
                 "-d-",
-                &args.root_hd,
+                &self.root_hd,
                 "rootfs_crypt",
             ],
             &disk_crypt_key,
         )
         .context("Failed to open encrypted rootfs")?;
-        run_command(
-            "mkfs.ext4",
-            &["-L", "cloudimg-rootfs", "/dev/mapper/rootfs_crypt"],
-        )
-        .context("Failed to create ext4 filesystem")?;
+        Ok(())
+    }
+
+    fn bootstrap_rootfs(
+        &self,
+        host_shared: &HostShared,
+        disk_crypt_key: &str,
+        instance_info: &InstanceInfo,
+    ) -> Result<()> {
+        info!("Setting up disk encryption");
+        fs::create_dir_all(&self.root_cdrom_mnt)
+            .context("Failed to create rootfs cdrom mount point")?;
+        mount_cdrom(&self.root_cdrom, &self.root_cdrom_mnt.display().to_string())
+            .context("Failed to mount rootfs cdrom")?;
+        info!("Formatting rootfs");
+        let rootfs_dev = if self.rootfs_encryption {
+            self.luks_setup(disk_crypt_key)?;
+            "/dev/mapper/rootfs_crypt"
+        } else {
+            warn!("Rootfs encryption is disabled, skipping disk encryption");
+            &self.root_hd
+        };
+        run_command("mkfs.ext4", &["-L", "cloudimg-rootfs", rootfs_dev])
+            .context("Failed to create ext4 filesystem")?;
         run_command(
             "mount",
-            &[
-                "/dev/mapper/rootfs_crypt",
-                &args.rootfs_dir.display().to_string(),
-            ],
+            &[rootfs_dev, &self.rootfs_dir.display().to_string()],
         )
         .context("Failed to mount rootfs")?;
 
         info!("Extracting rootfs");
 
-        let rootfs_cpio = args.root_cdrom_mnt.join("rootfs.cpio");
+        let rootfs_cpio = self.root_cdrom_mnt.join("rootfs.cpio");
         if !rootfs_cpio.exists() {
             bail!("Rootfs cpio file not found on cdrom");
         }
@@ -353,7 +355,7 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
         let mut hashing_rootfs_cpio = HashingFile::<sha2::Sha256, _>::new(rootfs_cpio_file);
         let mut status = Command::new("/usr/bin/env")
             .args(&["cpio", "-i"])
-            .current_dir(&args.rootfs_dir)
+            .current_dir(&self.rootfs_dir)
             .stdin(Stdio::piped())
             .spawn()
             .context("Failed to extract rootfs")?;
@@ -383,37 +385,98 @@ pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
             bail!("Rootfs hash mismatch");
         }
         info!("Rootfs hash is valid");
-        copy_dir_all(&args.host_shared_copy, &tapp_dir).context("Failed to copy rootfs")?;
+        copy_dir_all(&self.host_shared_copy, &self.tapp_dir()).context("Failed to copy rootfs")?;
         // write instance info
-        let instance_info = serde_json::to_string(&InstanceInfo {
-            app_id,
-            instance_id,
-        })
-        .context("Failed to serialize instance info")?;
-        let origin_host_shared_dir = HostShareDir::new(&args.host_shared);
+        let instance_info =
+            serde_json::to_string(instance_info).context("Failed to serialize instance info")?;
+        let origin_host_shared_dir = HostShareDir::new(&self.host_shared);
         fs::write(origin_host_shared_dir.instance_info_file(), instance_info)
             .context("Failed to write instance info")?;
-        fs::File::create(args.rootfs_dir.join(".bootstraped"))
+        fs::File::create(self.rootfs_dir.join(".bootstraped"))
             .context("Failed to touch bootstraped")?;
         info!("Rootfs is ready");
+        Ok(())
     }
-    info!("Copying appkeys.json");
-    fs::copy(&app_keys_file, &tapp_dir.join("appkeys.json"))
-        .context("Failed to copy appkeys.json")?;
-    info!("Copying config.json");
-    fs::copy(
-        &args.host_shared_copy.join("config.json"),
-        &tapp_dir.join("config.json"),
-    )
-    .context("Failed to copy config.json")?;
-    fs::write(
-        &tapp_dir.join("env"),
-        env_process::convert_env_to_str(&decrypted_env),
-    )
-    .context("Failed to write decrypted env file")?;
-    let env_json =
-        fs::File::create(&tapp_dir.join("env.json")).context("Failed to create env file")?;
-    serde_json::to_writer(env_json, &decrypted_env)
+
+    fn copy_files_to_rootfs(&self, decrypted_env: &BTreeMap<String, String>) -> Result<()> {
+        let tapp_dir = self.tapp_dir();
+        info!("Copying appkeys.json");
+        fs::copy(&self.app_keys_file(), &tapp_dir.join("appkeys.json"))
+            .context("Failed to copy appkeys.json")?;
+        info!("Copying config.json");
+        fs::copy(
+            &self.host_shared_copy.join("config.json"),
+            &tapp_dir.join("config.json"),
+        )
+        .context("Failed to copy config.json")?;
+        fs::write(
+            &tapp_dir.join("env"),
+            env_process::convert_env_to_str(&decrypted_env),
+        )
         .context("Failed to write decrypted env file")?;
-    Ok(())
+        let env_json =
+            fs::File::create(&tapp_dir.join("env.json")).context("Failed to create env file")?;
+        serde_json::to_writer(env_json, &decrypted_env)
+            .context("Failed to write decrypted env file")?;
+        Ok(())
+    }
+
+    async fn setup_rootfs(&self) -> Result<()> {
+        let host_shared = self.copy_host_shared()?;
+        let rootfs_hash = &host_shared.vm_config.rootfs_hash;
+        let compose_hash = sha256_file(host_shared.dir.app_compose_file())?;
+        let upgraded_app_id = truncate(&compose_hash, 20);
+        let kms_enabled = host_shared.app_compose.feature_enabled("kms");
+        let ca_cert_hash = if kms_enabled {
+            sha256_file(host_shared.dir.kms_ca_cert_file())?
+        } else {
+            sha256(b"")
+        };
+
+        let bootstraped;
+        let instance_info = match &host_shared.instance_info {
+            Some(instance_info) if kms_enabled => {
+                bootstraped = true;
+                instance_info.clone()
+            }
+            _ => {
+                let mut rand_id = vec![0u8; 20];
+                getrandom::getrandom(&mut rand_id)?;
+                bootstraped = false;
+                InstanceInfo {
+                    app_id: upgraded_app_id.to_vec(),
+                    instance_id: rand_id,
+                }
+            }
+        };
+
+        extend_rtmr3("rootfs-hash", rootfs_hash)?;
+        extend_rtmr3("app-id", &instance_info.app_id)?;
+        extend_rtmr3("upgraded-app-id", &upgraded_app_id)?;
+        extend_rtmr3("ca-cert-hash", &ca_cert_hash)?;
+        extend_rtmr3("instance-id", &instance_info.instance_id)?;
+
+        // Show the RTMR
+        cmd_show()?;
+
+        let app_keys = self.request_app_keys(&host_shared).await?;
+        if app_keys.disk_crypt_key.is_empty() {
+            bail!("Failed to get valid key phrase from KMS");
+        }
+        // Decrypt env file
+        let decrypted_env =
+            self.decrypt_env_vars(&app_keys.env_crypt_key, &host_shared.encrypted_env)?;
+        let disk_crypt_key = format!("{}\n", app_keys.disk_crypt_key);
+        if bootstraped {
+            self.mount_rootfs(&disk_crypt_key)?;
+        } else {
+            self.bootstrap_rootfs(&host_shared, &disk_crypt_key, &instance_info)?;
+        }
+        self.copy_files_to_rootfs(&decrypted_env)?;
+        Ok(())
+    }
+}
+
+pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
+    args.setup_rootfs().await
 }
