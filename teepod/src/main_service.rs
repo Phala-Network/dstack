@@ -77,6 +77,7 @@ impl RpcHandler {
             "rootfs_hash": rootfs_hash,
             "kms_url": cfg.cvm.kms_url,
             "tproxy_url": cfg.cvm.tproxy_url,
+            "docker_registry": cfg.cvm.docker_registry,
         });
         let vm_config_str =
             serde_json::to_string(&vm_config).context("Failed to serialize vm config")?;
