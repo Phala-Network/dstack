@@ -97,6 +97,16 @@ pub(crate) mod run {
     use std::sync::Arc;
     use std::time::{Duration, Instant};
     use tracing::{error, info};
+    use std::io::Write;
+
+    fn append_to(path: impl AsRef<Path>, content: &[u8]) -> Result<()> {
+        fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path.as_ref())
+            .and_then(|mut file| file.write_all(content))
+            .map_err(Into::into)
+    }
 
     #[derive(Debug, Deserialize)]
     pub struct InstanceInfo {
@@ -137,6 +147,7 @@ pub(crate) mod run {
             let process = super::qemu::run_vm(qemu_bin, &self.config, &self.workdir)?;
             let cloned_child = process.clone();
             let vmid = self.config.manifest.id.clone();
+            let log_file = super::qemu::get_log_file(&self.workdir);
             std::thread::spawn(move || {
                 let span = tracing::info_span!("wait_on_child", id = vmid);
                 let _enter = span.enter();
@@ -152,26 +163,32 @@ pub(crate) mod run {
                 } else {
                     let todo = "Dont show error if VM is stopped by user";
                     error!("The instance exited with status: {:#?}", status);
-                    if let Some(mut output) = cloned_child.take_stderr() {
-                        let mut stderr = String::new();
-                        match output.read_to_string(&mut stderr) {
-                            Ok(_) => {
-                                if !stderr.is_empty() {
-                                    error!("The instance stderr: {:#?}", stderr);
-                                }
-                            }
-                            Err(e) => error!("Failed to read the instance stderr: {e:?}"),
-                        }
-                    }
                     if let Some(mut output) = cloned_child.take_stdout() {
                         let mut stdout = String::new();
                         match output.read_to_string(&mut stdout) {
                             Ok(_) => {
                                 if !stdout.is_empty() {
                                     info!("The instance stdout: {:#?}", stdout);
+                                    if let Err(e) = append_to(&log_file, stdout.as_bytes()) {
+                                        error!("Failed to write the instance stdout to log file: {e:?}");
+                                    }
                                 }
                             }
                             Err(e) => error!("Failed to read the instance stdout: {e:?}"),
+                        }
+                    }
+                    if let Some(mut output) = cloned_child.take_stderr() {
+                        let mut stderr = String::new();
+                        match output.read_to_string(&mut stderr) {
+                            Ok(_) => {
+                                if !stderr.is_empty() {
+                                    error!("The instance stderr: {:#?}", stderr);
+                                    if let Err(e) = append_to(&log_file, stderr.as_bytes()) {
+                                        error!("Failed to write the instance stderr to log file: {e:?}");
+                                    }
+                                }
+                            }
+                            Err(e) => error!("Failed to read the instance stderr: {e:?}"),
                         }
                     }
                 }
@@ -294,7 +311,7 @@ pub(crate) mod run {
             let Some(info) = self.vms.get(id) else {
                 bail!("The instance {} is not found", id);
             };
-            super::qemu::get_log_file(&info.workdir).context("Failed to get log")
+            Ok(super::qemu::get_log_file(&info.workdir))
         }
 
         pub fn iter_vms(&self) -> impl Iterator<Item = &VmInstance> {
@@ -437,8 +454,7 @@ mod qemu {
         Ok(Arc::new(child))
     }
 
-    pub fn get_log_file(workdir: impl AsRef<Path>) -> Result<PathBuf> {
-        let serial_file = workdir.as_ref().join("serial.log");
-        Ok(serial_file)
+    pub fn get_log_file(workdir: impl AsRef<Path>) -> PathBuf {
+        workdir.as_ref().join("serial.log")
     }
 }
