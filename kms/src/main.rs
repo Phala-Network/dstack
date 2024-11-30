@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use config::KmsConfig;
 use ra_rpc::rocket_helper::QuoteVerifier;
+use rocket::fairing::AdHoc;
 use tracing::info;
 
 mod config;
@@ -9,8 +10,18 @@ mod ct_log;
 mod main_service;
 mod web_routes;
 
+fn app_version() -> String {
+    const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+    const VERSION: &str = git_version::git_version!(
+        args = ["--abbrev=20", "--always", "--dirty=-modified"],
+        prefix = "git:",
+        fallback = "unknown"
+    );
+    format!("v{CARGO_PKG_VERSION} ({VERSION})")
+}
+
 #[derive(Parser)]
-#[command(author, version, about)]
+#[command(author, version, about, long_version = app_version())]
 struct Args {
     /// Path to the configuration file
     #[arg(short, long)]
@@ -33,6 +44,11 @@ async fn main() -> Result<()> {
     let pccs_url = config.pccs_url.clone();
     let state = main_service::KmsState::new(config).context("Failed to initialize KMS state")?;
     let mut rocket = rocket::custom(figment)
+        .attach(AdHoc::on_response("Add app version header", |_req, res| {
+            Box::pin(async move {
+                res.set_raw_header("X-App-Version", app_version());
+            })
+        }))
         .mount("/", web_routes::routes())
         .manage(state);
 

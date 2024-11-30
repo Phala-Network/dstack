@@ -9,8 +9,18 @@ mod main_service;
 mod vm;
 mod web_routes;
 
+fn app_version() -> String {
+    const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+    const VERSION: &str = git_version::git_version!(
+        args = ["--abbrev=20", "--always", "--dirty=-modified"],
+        prefix = "git:",
+        fallback = "unknown"
+    );
+    format!("v{CARGO_PKG_VERSION} ({VERSION})")
+}
+
 #[derive(Parser)]
-#[command(author, version, about)]
+#[command(author, version, about, long_version = app_version())]
 struct Args {
     /// Path to the configuration file
     #[arg(short, long)]
@@ -29,9 +39,16 @@ async fn main() -> Result<()> {
     let rocket = rocket::custom(figment)
         .mount("/", web_routes::routes())
         .manage(state)
-        .attach(AdHoc::on_response("Disable buffering", |_req, res| Box::pin(async move {
-            res.set_raw_header("X-Accel-Buffering", "no");
-        })));
+        .attach(AdHoc::on_response("Add app rev header", |_req, res| {
+            Box::pin(async move {
+                res.set_raw_header("X-App-Version", app_version());
+            })
+        }))
+        .attach(AdHoc::on_response("Disable buffering", |_req, res| {
+            Box::pin(async move {
+                res.set_raw_header("X-Accel-Buffering", "no");
+            })
+        }));
     web_routes::print_endpoints();
     rocket
         .launch()

@@ -16,7 +16,7 @@ fs-err = "2.11.0"
 rcgen = { version = "0.13.1", features = ["x509-parser", "pem"] }
 tdx-attest = { version = "0.1.0", path = "../tdx-attest" }
 sha2 = "0.10.8"
-clap = { version = "4.5.18", features = ["derive"] }
+clap = { version = "4.5.18", features = ["derive", "string"] }
 tokio = { version = "1.40.0", features = ["full"] }
 hex = "0.4.3"
 serde_json = "1.0.128"
@@ -24,3 +24,4 @@ bollard = "0.17.1"
 chrono = "0.4.38"
 base64 = "0.22.1"
 rinja = "0.3.5"
+git-version = "0.3.9"

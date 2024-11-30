@@ -3,6 +3,7 @@ use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use rocket::{
+    fairing::AdHoc,
     figment::Figment,
     listener::{Bind, DefaultListener},
 };
@@ -10,11 +11,21 @@ use rpc_service::AppState;
 
 mod config;
 mod http_routes;
-mod rpc_service;
 mod models;
+mod rpc_service;
+
+fn app_version() -> String {
+    const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+    const VERSION: &str = git_version::git_version!(
+        args = ["--abbrev=20", "--always", "--dirty=-modified"],
+        prefix = "git:",
+        fallback = "unknown"
+    );
+    format!("v{CARGO_PKG_VERSION} ({VERSION})")
+}
 
 #[derive(Parser)]
-#[command(author, version, about)]
+#[command(author, version, about, long_version = app_version())]
 struct Args {
     /// Path to the configuration file
     #[arg(short, long)]
@@ -48,6 +59,11 @@ async fn run_internal(state: AppState, figment: Figment) -> Result<()> {
 async fn run_external(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
         .mount("/", http_routes::external_routes())
+        .attach(AdHoc::on_response("Add app version header", |_req, res| {
+            Box::pin(async move {
+                res.set_raw_header("X-App-Version", app_version());
+            })
+        }))
         .manage(state);
     let _ = rocket
         .launch()

@@ -21,8 +21,9 @@ hex = "0.4.3"
 fs-err = "3.0.0"
 dirs = "5.0.1"
 which = "7.0.0"
-clap = { version = "4.5.18", features = ["derive"] }
+clap = { version = "4.5.18", features = ["derive", "string"] }
 humantime = "2.1.0"
 strip-ansi-escapes = "0.2.0"
 tailf = "0.1.2"
 tokio = { version = "1.41.1", features = ["full"] }
+git-version = "0.3.9"

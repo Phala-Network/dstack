@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use clap::Parser;
 use config::Config;
 use ra_rpc::rocket_helper::QuoteVerifier;
+use rocket::fairing::AdHoc;
 
 mod config;
 mod main_service;
@@ -9,8 +10,18 @@ mod models;
 mod proxy;
 mod web_routes;
 
+fn app_version() -> String {
+    const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+    const VERSION: &str = git_version::git_version!(
+        args = ["--abbrev=20", "--always", "--dirty=-modified"],
+        prefix = "git:",
+        fallback = "unknown"
+    );
+    format!("v{CARGO_PKG_VERSION} ({VERSION})")
+}
+
 #[derive(Parser)]
-#[command(author, version, about)]
+#[command(author, version, about, long_version = app_version())]
 struct Args {
     /// Path to the configuration file
     #[arg(short, long)]
@@ -35,6 +46,11 @@ async fn main() -> Result<()> {
 
     let mut rocket = rocket::custom(figment)
         .mount("/", web_routes::routes())
+        .attach(AdHoc::on_response("Add app version header", |_req, res| {
+            Box::pin(async move {
+                res.set_raw_header("X-App-Version", app_version());
+            })
+        }))
         .manage(state);
     if !pccs_url.is_empty() {
         let verifier = QuoteVerifier::new(pccs_url);
