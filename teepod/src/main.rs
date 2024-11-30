@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use config::Config;
+use rocket::fairing::AdHoc;
 
 mod app;
 mod config;
@@ -27,7 +28,10 @@ async fn main() -> Result<()> {
     state.reload_vms().context("Failed to reload VMs")?;
     let rocket = rocket::custom(figment)
         .mount("/", web_routes::routes())
-        .manage(state);
+        .manage(state)
+        .attach(AdHoc::on_response("Disable buffering", |_req, res| Box::pin(async move {
+            res.set_raw_header("X-Accel-Buffering", "no");
+        })));
     web_routes::print_endpoints();
     rocket
         .launch()
