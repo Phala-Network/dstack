@@ -663,15 +663,15 @@
                                         <div class="details-grid" style="margin-bottom: 16px;">
                                             <div class="detail-item">
                                                 <span class="detail-label">App Name:</span>
-                                                <span class="detail-value">{{ vm.appConfig?.name }}</span>
+                                                <span class="detail-value">{{ vm.appCompose?.name }}</span>
                                             </div>
                                             <div class="detail-item">
                                                 <span class="detail-label">Runner:</span>
-                                                <span class="detail-value">{{ vm.appConfig?.runner }}</span>
+                                                <span class="detail-value">{{ vm.appCompose?.runner }}</span>
                                             </div>
                                             <div class="detail-item">
                                                 <span class="detail-label">Features:</span>
-                                                <span class="detail-value">{{ vm.appConfig?.features?.join(', ') ||
+                                                <span class="detail-value">{{ vm.appCompose?.features?.join(', ') ||
                                                     'None' }}</span>
                                             </div>
                                             <div class="detail-item">
@@ -682,7 +682,7 @@
 
                                         <h4 style="margin: 0 0 12px 0;">Docker Compose File</h4>
                                         <pre
-                                            style="background: #f1f1f1; padding: 12px; border-radius: 4px; overflow-x: auto;">{{ vm.appConfig?.docker_compose_file }}</pre>
+                                            style="background: #f1f1f1; padding: 12px; border-radius: 4px; overflow-x: auto;">{{ vm.appCompose?.docker_compose_file }}</pre>
                                     </div>
                                 </div>
                             </td>
@@ -791,7 +791,7 @@
                         const data = await response.json();
                         vms.value = data.vms.map(vm => ({
                             ...vm,
-                            appConfig: (() => {
+                            appCompose: (() => {
                                 try {
                                     return JSON.parse(vm.configuration?.compose_file || '{}');
                                 } catch (e) {
@@ -946,7 +946,7 @@
                 };
 
                 const dashboardAvailable = (vm) => {
-                    if (!vm.appConfig?.features?.includes('tproxy-net')) return false;
+                    if (!vm.appCompose?.features?.includes('tproxy-net')) return false;
                     return vm.app_url
                 };
 
@@ -993,9 +993,16 @@
 
                 const upgradeVM = async () => {
                     try {
+                        const currentAppCompose = upgradeDialog.value.vm.appCompose;
+                        console.log('currentAppCompose', JSON.stringify(currentAppCompose, null, 2));
+                        const app_compose = {
+                            ...currentAppCompose,
+                            docker_compose_file: upgradeDialog.value.compose_file
+                        };
+
                         const response = await rpcCall('UpgradeApp', {
                             id: upgradeDialog.value.vm.id,
-                            compose_file: upgradeDialog.value.compose_file
+                            compose_file: JSON.stringify(app_compose)
                         });
                         const data = await response.json();
                         upgradeDialog.value.show = false;

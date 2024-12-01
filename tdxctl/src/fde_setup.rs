@@ -385,7 +385,6 @@ impl SetupFdeArgs {
             bail!("Rootfs hash mismatch");
         }
         info!("Rootfs hash is valid");
-        copy_dir_all(&self.host_shared_copy, &self.tapp_dir()).context("Failed to copy rootfs")?;
         // write instance info
         let instance_info =
             serde_json::to_string(instance_info).context("Failed to serialize instance info")?;
@@ -400,6 +399,9 @@ impl SetupFdeArgs {
 
     fn copy_files_to_rootfs(&self, decrypted_env: &BTreeMap<String, String>) -> Result<()> {
         let tapp_dir = self.tapp_dir();
+        info!("Copying host-shared to tapp dir");
+        fs::remove_dir_all(&tapp_dir).ok();
+        copy_dir_all(&self.host_shared_copy, &tapp_dir).context("Failed to copy rootfs")?;
         info!("Copying appkeys.json");
         fs::copy(&self.app_keys_file(), &tapp_dir.join("appkeys.json"))
             .context("Failed to copy appkeys.json")?;
@@ -441,12 +443,18 @@ impl SetupFdeArgs {
                 instance_info.clone()
             }
             _ => {
-                let mut rand_id = vec![0u8; 20];
-                getrandom::getrandom(&mut rand_id)?;
                 bootstraped = false;
+
+                let app_id = upgraded_app_id.to_vec();
+                let instance_id = {
+                    let mut rand_id = vec![0u8; 20];
+                    getrandom::getrandom(&mut rand_id)?;
+                    rand_id.extend_from_slice(&app_id);
+                    sha256(&rand_id)[..20].to_vec()
+                };
                 InstanceInfo {
-                    app_id: upgraded_app_id.to_vec(),
-                    instance_id: rand_id,
+                    app_id,
+                    instance_id,
                 }
             }
         };
