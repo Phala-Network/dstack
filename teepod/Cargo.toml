@@ -27,3 +27,4 @@ strip-ansi-escapes = "0.2.0"
 tailf = "0.1.2"
 tokio = { version = "1.41.1", features = ["full"] }
 git-version = "0.3.9"
+rocket-apitoken = { git = "https://github.com/kvinwang/rocket-apitoken", branch = "dev" }

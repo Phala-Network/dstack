@@ -3600,6 +3600,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rocket-apitoken"
+version = "0.1.0"
+source = "git+https://github.com/kvinwang/rocket-apitoken?branch=dev#db96cb7362822b505f93257b5f2f3ccadfb3f22f"
+dependencies = [
+ "rocket",
+]
+
+[[package]]
 name = "rocket_codegen"
 version = "0.6.0-dev"
 source = "git+https://github.com/rwf2/Rocket?branch=master#3bf9ef02d6e803fe9f753777f5a829dda6d2453d"
@@ -4545,6 +4553,7 @@ dependencies = [
  "kms-rpc",
  "ra-rpc",
  "rocket",
+ "rocket-apitoken",
  "serde",
  "serde_json",
  "sha2",

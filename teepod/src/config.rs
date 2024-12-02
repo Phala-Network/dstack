@@ -100,6 +100,14 @@ pub struct CvmConfig {
     pub port_mapping: PortMappingConfig,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct AuthConfig {
+    /// Whether to enable API token authentication
+    pub enabled: bool,
+    /// The API tokens
+    pub tokens: Vec<String>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct GatewayConfig {
     pub base_domain: String,
@@ -125,6 +133,9 @@ pub struct Config {
 
     /// Networking configuration
     pub networking: Networking,
+
+    /// Authentication configuration
+    pub auth: AuthConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

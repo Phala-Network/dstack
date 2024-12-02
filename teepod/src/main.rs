@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use config::Config;
 use rocket::fairing::AdHoc;
+use rocket_apitoken::ApiToken;
 
 mod app;
 mod config;
@@ -34,11 +35,13 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     let figment = config::load_config_figment(args.config.as_deref());
     let config = Config::extract_or_default(&figment)?;
+    let api_auth = ApiToken::new(config.auth.tokens.clone(), config.auth.enabled);
     let state = app::App::new(config);
     state.reload_vms().context("Failed to reload VMs")?;
     let rocket = rocket::custom(figment)
         .mount("/", web_routes::routes())
         .manage(state)
+        .manage(api_auth)
         .attach(AdHoc::on_response("Add app rev header", |_req, res| {
             Box::pin(async move {
                 res.set_raw_header("X-App-Version", app_version());

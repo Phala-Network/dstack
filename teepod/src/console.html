@@ -437,10 +437,43 @@
             border-radius: 4px;
         }
     </style>
+    <style>
+        .api-config-section {
+            margin: 16px 0;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .api-token-field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .api-token-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .api-token-input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
 </head>
 
 <body>
     <div id="app">
+        <div class="api-config-section">
+            <div class="api-token-field">
+                <label class="api-token-label">API Token</label>
+                <input class="api-token-input" type="password" v-model="teepodApiToken"
+                    placeholder="Enter API token for RPC authentication">
+            </div>
+        </div>
         <button class="action-btn" @click="showCreateDialog = true">Deploy a new instance</button>
 
         <div v-if="showCreateDialog" class="dialog-overlay">
@@ -529,7 +562,8 @@
                             style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <input type="text" v-model="env.key" placeholder="Variable name" style="width: 200px;"
                                 required>
-                            <input type="password" v-model="env.value" placeholder="Value" style="flex-grow: 1;" required>
+                            <input type="password" v-model="env.value" placeholder="Value" style="flex-grow: 1;"
+                                required>
                             <button type="button" class="action-btn danger" @click="removeEncryptedEnv(index)">
                                 Remove
                             </button>
@@ -728,7 +762,8 @@
         const {
             createApp,
             ref,
-            onMounted
+            onMounted,
+            watch
         } = Vue;
 
         createApp({
@@ -769,12 +804,20 @@
                     portMappingEnabled: false
                 });
 
+                const teepodApiToken = ref(localStorage.getItem('teepodApiToken') || '');
+
                 const rpcCall = async (method, params) => {
+                    const headers = {
+                        'Content-Type': 'application/json',
+                    };
+                    
+                    if (teepodApiToken.value) {
+                        headers['Authorization'] = `Bearer ${teepodApiToken.value}`;
+                    }
+
                     const response = await fetch(`/prpc/Teepod.${method}?json`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers,
                         body: JSON.stringify(params || {}),
                     });
                     if (!response.ok) {
@@ -1056,6 +1099,10 @@
                     vmForm.value.encrypted_envs.splice(index, 1);
                 };
 
+                watch(teepodApiToken, (newValue) => {
+                    localStorage.setItem('teepodApiToken', newValue);
+                });
+
                 onMounted(() => {
                     (async () => {
                         while (true) {
@@ -1096,6 +1143,7 @@
                     dashboardAvailable,
                     addEncryptedEnv,
                     removeEncryptedEnv,
+                    teepodApiToken,
                 };
             }
         }).mount('#app');
