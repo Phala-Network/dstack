@@ -3553,7 +3553,7 @@ dependencies = [
 [[package]]
 name = "rocket"
 version = "0.6.0-dev"
-source = "git+https://github.com/rwf2/Rocket?branch=master#3bf9ef02d6e803fe9f753777f5a829dda6d2453d"
+source = "git+https://github.com/rwf2/Rocket?branch=master#ebfcbd2c759dc232e210b59c3a4a56f66f22f4a3"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -3602,7 +3602,7 @@ dependencies = [
 [[package]]
 name = "rocket-apitoken"
 version = "0.1.0"
-source = "git+https://github.com/kvinwang/rocket-apitoken?branch=dev#db96cb7362822b505f93257b5f2f3ccadfb3f22f"
+source = "git+https://github.com/kvinwang/rocket-apitoken?branch=dev#7b5c1e864217b928e08913886c1a3ddd849e254c"
 dependencies = [
  "rocket",
 ]
@@ -3610,7 +3610,7 @@ dependencies = [
 [[package]]
 name = "rocket_codegen"
 version = "0.6.0-dev"
-source = "git+https://github.com/rwf2/Rocket?branch=master#3bf9ef02d6e803fe9f753777f5a829dda6d2453d"
+source = "git+https://github.com/rwf2/Rocket?branch=master#ebfcbd2c759dc232e210b59c3a4a56f66f22f4a3"
 dependencies = [
  "devise",
  "glob",
@@ -3626,7 +3626,7 @@ dependencies = [
 [[package]]
 name = "rocket_http"
 version = "0.6.0-dev"
-source = "git+https://github.com/rwf2/Rocket?branch=master#3bf9ef02d6e803fe9f753777f5a829dda6d2453d"
+source = "git+https://github.com/rwf2/Rocket?branch=master#ebfcbd2c759dc232e210b59c3a4a56f66f22f4a3"
 dependencies = [
  "cookie",
  "either",
