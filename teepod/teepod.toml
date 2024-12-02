@@ -36,3 +36,7 @@ range = [
 base_domain = "localhost"
 port = 8082
 tappd_port = 8083
+
+[auth]
+enabled = false
+tokens = []

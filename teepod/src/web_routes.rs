@@ -12,6 +12,7 @@ use rocket::{
     response::{status::Custom, stream::TextStream},
     routes, Route, State,
 };
+use rocket_apitoken::Authorized;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::time::timeout;
@@ -45,6 +46,7 @@ async fn res(path: &str) -> Result<(ContentType, String), Custom<String>> {
 
 #[post("/prpc/<method>?<json>", data = "<data>")]
 async fn prpc_post(
+    _auth: Authorized,
     state: &State<App>,
     cert: Option<Certificate<'_>>,
     method: &str,
@@ -68,6 +70,7 @@ async fn prpc_post(
 
 #[get("/prpc/<method>")]
 async fn prpc_get(
+    _auth: Authorized,
     state: &State<App>,
     method: &str,
     limits: &Limits,
@@ -119,6 +122,7 @@ impl Drop for StreamCounter {
 
 #[get("/logs?<id>&<follow>&<ansi>&<lines>")]
 fn vm_logs(
+    _auth: Authorized,
     app: &State<App>,
     id: String,
     follow: bool,
