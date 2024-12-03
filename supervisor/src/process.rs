@@ -3,7 +3,6 @@ use bon::Builder;
 use notify::{RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::OpenOptions;
 use std::io::Write;
 use std::marker::Unpin;
 use std::path::Path;
@@ -16,6 +15,7 @@ use tokio::process::{Child, Command};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tracing::{error, info};
+use fs_err as fs;
 
 #[derive(Debug, Clone, Builder, Serialize, Deserialize)]
 pub struct ProcessConfig {
@@ -347,7 +347,7 @@ async fn try_redirect(input: &mut (impl AsyncRead + Unpin), to: String) -> Resul
     let mut buffer = [0u8; 8192];
     loop {
         // Open or reopen the log file in append mode
-        let mut file = OpenOptions::new()
+        let mut file = fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(&dst_path)?;

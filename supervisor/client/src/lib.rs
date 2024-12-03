@@ -1,5 +1,9 @@
-use anyhow::Result;
+use std::time::Duration;
+
+use anyhow::{Context, Result};
+use log::info;
 use supervisor::{ProcessConfig, ProcessInfo, Response};
+use tokio::time::timeout;
 
 mod http;
 
@@ -12,6 +16,54 @@ impl SupervisorClient {
         SupervisorClient {
             base_url: base_url.to_string(),
         }
+    }
+
+    pub async fn connect_uds(
+        &self,
+        uds: &str,
+        supervisor_path: &str,
+        pid_file: &str,
+        log_file: &str,
+    ) -> Result<Self> {
+        let uri = format!("unix:{uds}");
+        let client = Self::new(&uri);
+        let response = timeout(Duration::from_millis(100), client.ping()).await;
+        if matches!(response, Ok(Ok(Response::Data(_)))) {
+            info!("Connected to supervisor at {uri}");
+            return Ok(client);
+        }
+        info!("Failed to connect to supervisor at {uri}, trying to start supervisor");
+        // if the uds exists, remove it
+        if std::path::Path::new(uds).exists() {
+            fs_err::remove_file(uds)?;
+        }
+        // start supervisor
+        let output = std::process::Command::new(supervisor_path)
+            .arg("--address")
+            .arg(&uri)
+            .arg("--pid-file")
+            .arg(pid_file)
+            .arg("--log-file")
+            .arg(log_file)
+            .arg("--detach")
+            .output()
+            .context("Failed to start supervisor")?;
+        if !output.status.success() {
+            anyhow::bail!(
+                "Failed to start supervisor: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        // wait while ping returns pong
+        for i in 1..=10 {
+            if client.probe(Duration::from_millis(100)).await.is_ok() {
+                info!("connected to supervisor at {uri}");
+                return Ok(client);
+            }
+            info!("waiting for supervisor at {uri} to start, attempt {i}");
+            tokio::time::sleep(Duration::from_millis(100 * i)).await;
+        }
+        anyhow::bail!("failed to connect to supervisor at {uri}");
     }
 
     async fn http_request<T: serde::de::DeserializeOwned, B: serde::Serialize>(
@@ -61,5 +113,14 @@ impl SupervisorClient {
 
     pub async fn ping(&self) -> Result<Response<String>> {
         self.http_get("/ping").await
+    }
+
+    pub async fn probe(&self, timeout: Duration) -> Result<()> {
+        let response = tokio::time::timeout(timeout, self.ping()).await;
+        if matches!(response, Ok(Ok(Response::Data(_)))) {
+            Ok(())
+        } else {
+            anyhow::bail!("failed to probe supervisor")
+        }
     }
 }

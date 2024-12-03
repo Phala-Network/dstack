@@ -4504,6 +4504,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "fs-err 3.0.0",
  "http 1.1.0",
  "http-body-util",
  "hyper 1.5.1",

@@ -114,7 +114,7 @@ async fn async_main(args: Args) -> Result<()> {
         .context(format!("Failed to bind on {endpoint}"))?;
     if let Some(pid_file) = &args.pid_file {
         let pid = std::process::id();
-        std::fs::write(pid_file, &pid.to_string()).context("Failed to write pid file")?;
+        fs_err::write(pid_file, &pid.to_string()).context("Failed to write pid file")?;
     }
     ignite
         .launch_on(listener)
