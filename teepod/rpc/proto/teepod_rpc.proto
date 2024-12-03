@@ -91,6 +91,22 @@ message PublicKeyResponse {
   bytes public_key = 1;
 }
 
+message GetInfoResponse {
+  bool found = 1;
+  optional VmInfo info = 2;
+}
+
+message ResizeVmRequest {
+  // Unique identifier for the VM
+  string id = 1;
+  // Number of vCPUs
+  optional uint32 vcpu = 2;
+  // Memory in MB
+  optional uint32 memory = 3;
+  // Disk size in GB
+  optional uint32 disk_size = 4;
+}
+
 // Service definition for Teepod
 service Teepod {
   // RPC to create a VM
@@ -111,4 +127,10 @@ service Teepod {
 
   // Get Env encrypt public key
   rpc GetAppEnvEncryptPubKey(AppId) returns (PublicKeyResponse);
+
+  // Get VM info by ID
+  rpc GetInfo(Id) returns (GetInfoResponse);
+
+  // RPC to resize a VM
+  rpc ResizeVm(ResizeVmRequest) returns (google.protobuf.Empty);
 }
