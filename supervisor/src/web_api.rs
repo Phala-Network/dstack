@@ -51,8 +51,13 @@ fn info(supervisor: &State<Supervisor>, id: &str) -> Json<Response<ProcessInfo>>
     to_json(supervisor.info(id).context("Process not found"))
 }
 
+#[get("/ping")]
+fn ping() -> Json<Response<&'static str>> {
+    Json(Response::Data("pong"))
+}
+
 pub fn rocket(figment: Figment) -> Rocket<Build> {
     rocket::custom(figment)
         .manage(Supervisor::new())
-        .mount("/", routes![deploy, start, stop, remove, list, info])
+        .mount("/", routes![deploy, start, stop, remove, list, info, ping])
 }

@@ -22,30 +22,30 @@ use tracing::{error, info};
 pub struct ProcessConfig {
     pub id: String,
     #[serde(default)]
-    name: String,
-    command: String,
+    pub name: String,
+    pub command: String,
     #[serde(default)]
-    args: Vec<String>,
+    pub args: Vec<String>,
     #[serde(default)]
-    env: HashMap<String, String>,
+    pub env: HashMap<String, String>,
     #[serde(default)]
-    cwd: String,
+    pub cwd: String,
     #[serde(default)]
-    stdout: String,
+    pub stdout: String,
     #[serde(default)]
-    stderr: String,
+    pub stderr: String,
     #[serde(default)]
-    pidfile: String,
+    pub pidfile: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct ProcessInfo {
+pub struct ProcessInfo {
     pub config: ProcessConfig,
-    pub state: ProcessStateDisplay,
+    pub state: ProcessState,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct ProcessStateDisplay {
+pub struct ProcessState {
     pub status: ProcessStatus,
     pub started: bool,
     pub pid: Option<u32>,
@@ -56,18 +56,18 @@ pub(crate) struct ProcessStateDisplay {
 }
 
 #[derive(Debug)]
-pub(crate) struct ProcessState {
-    pub status: ProcessStatus,
-    pub started: bool,
-    pub pid: Option<u32>,
-    pub kill_tx: Option<oneshot::Sender<()>>,
-    pub started_at: Option<SystemTime>,
-    pub stopped_at: Option<SystemTime>,
+pub(crate) struct ProcessStateRT {
+    status: ProcessStatus,
+    started: bool,
+    pid: Option<u32>,
+    kill_tx: Option<oneshot::Sender<()>>,
+    started_at: Option<SystemTime>,
+    stopped_at: Option<SystemTime>,
 }
 
-impl ProcessState {
-    pub fn display(&self) -> ProcessStateDisplay {
-        ProcessStateDisplay {
+impl ProcessStateRT {
+    pub fn display(&self) -> ProcessState {
+        ProcessState {
             status: self.status.clone(),
             started: self.started,
             pid: self.pid,
@@ -84,7 +84,7 @@ fn ts_seconds<S: Serializer>(time: &Option<SystemTime>, serializer: S) -> Result
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum ProcessStatus {
+pub enum ProcessStatus {
     Running,
     Stopped,
     Exited(i32),
@@ -93,15 +93,15 @@ pub(crate) enum ProcessStatus {
 
 #[derive(Clone)]
 pub(crate) struct Process {
-    pub(crate) config: Arc<ProcessConfig>,
-    pub(crate) state: Arc<Mutex<ProcessState>>,
+    config: Arc<ProcessConfig>,
+    state: Arc<Mutex<ProcessStateRT>>,
 }
 
 impl Process {
     pub fn new(config: ProcessConfig) -> Self {
         Self {
             config: Arc::new(config),
-            state: Arc::new(Mutex::new(ProcessState {
+            state: Arc::new(Mutex::new(ProcessStateRT {
                 pid: None,
                 kill_tx: None,
                 status: ProcessStatus::Stopped,
@@ -168,7 +168,9 @@ impl Process {
         {
             let pidfile_path = self.config.pidfile.clone();
             if !pidfile_path.is_empty() {
-                if let Err(err) = fs_err::write(&pidfile_path, format!("{}", process.id().unwrap_or(0))) {
+                if let Err(err) =
+                    fs_err::write(&pidfile_path, format!("{}", process.id().unwrap_or(0)))
+                {
                     error!("Failed to write pidfile: {err}");
                 }
             }
@@ -304,14 +306,15 @@ async fn try_redirect(input: &mut (impl AsyncRead + Unpin), to: String) -> Resul
     let dst_path = Path::new(&to);
     let dst_path_buf = dst_path.to_path_buf();
     let (reopen_tx, mut reopen_rx) = mpsc::channel(1);
-    
+
     // Set up file system watcher for logrotate detection
     let mut watcher =
         notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
             if let Ok(event) = res {
                 // Check if the event affects our specific file
-                if (event.kind.is_remove() || event.kind.is_modify()) 
-                    && event.paths.iter().any(|p| p == &dst_path_buf) {
+                if (event.kind.is_remove() || event.kind.is_modify())
+                    && event.paths.iter().any(|p| p == &dst_path_buf)
+                {
                     let _ = reopen_tx.blocking_send(());
                 }
             }
