@@ -46,6 +46,16 @@ struct Args {
     /// bind port
     #[arg(short, long)]
     port: Option<u16>,
+
+    /// detach from terminal
+    #[cfg(unix)]
+    #[arg(short, long)]
+    detach: bool,
+
+    /// pid file
+    #[cfg(unix)]
+    #[arg(long)]
+    pid_file: Option<String>,
 }
 
 #[rocket::main]
@@ -71,6 +81,18 @@ async fn main() -> Result<()> {
         .await
         .map_err(|err| anyhow!("{err:?}"))
         .context(format!("Failed to bind on {endpoint}"))?;
+    #[cfg(unix)]
+    if args.detach {
+        // run in background
+        let ret = unsafe { libc::daemon(1, 0) };
+        if ret != 0 {
+            return Err(anyhow!("Failed to run in background, error code: {ret}"));
+        }
+    }
+    if let Some(pid_file) = &args.pid_file {
+        let pid = std::process::id();
+        std::fs::write(pid_file, &pid.to_string()).context("Failed to write pid file")?;
+    }
     ignite
         .launch_on(listener)
         .await
