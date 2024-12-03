@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use bon::Builder;
 use notify::{RecursiveMode, Watcher};
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -11,7 +11,6 @@ use std::process::ExitStatus;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::{Child, Command};
 use tokio::sync::mpsc;
@@ -38,20 +37,20 @@ pub struct ProcessConfig {
     pub pidfile: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessInfo {
     pub config: ProcessConfig,
     pub state: ProcessState,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessState {
     pub status: ProcessStatus,
     pub started: bool,
     pub pid: Option<u32>,
-    #[serde(serialize_with = "ts_seconds")]
+    #[serde(with = "systime")]
     pub started_at: Option<SystemTime>,
-    #[serde(serialize_with = "ts_seconds")]
+    #[serde(with = "systime")]
     pub stopped_at: Option<SystemTime>,
 }
 
@@ -77,12 +76,32 @@ impl ProcessStateRT {
     }
 }
 
-fn ts_seconds<S: Serializer>(time: &Option<SystemTime>, serializer: S) -> Result<S::Ok, S::Error> {
-    time.map(|t| t.duration_since(UNIX_EPOCH).unwrap().as_secs())
-        .serialize(serializer)
+mod systime {
+    use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    pub(crate) fn serialize<S: Serializer>(
+        time: &Option<SystemTime>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        time.map(|t| t.duration_since(UNIX_EPOCH).unwrap().as_secs())
+            .serialize(serializer)
+    }
+
+    pub(crate) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<SystemTime>, D::Error> {
+        let Some(secs) = Option::<u64>::deserialize(deserializer)? else {
+            return Ok(None);
+        };
+        let time = UNIX_EPOCH
+            .checked_add(Duration::from_secs(secs))
+            .ok_or_else(|| D::Error::custom("invalid unix timestamp"))?;
+        Ok(Some(time))
+    }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProcessStatus {
     Running,

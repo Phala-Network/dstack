@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use rocket::{
     figment::{
@@ -8,6 +8,7 @@ use rocket::{
     listener::{Bind, DefaultListener},
 };
 use supervisor::web_api;
+use tracing::error;
 
 pub const CONFIG_FILENAME: &str = "supervisor.toml";
 pub const SYSTEM_CONFIG_FILENAME: &str = "/etc/supervisor/supervisor.toml";
@@ -61,8 +62,7 @@ struct Args {
     log_file: Option<String>,
 }
 
-#[rocket::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let args = Args::parse();
     if let Some(log_file) = &args.log_file {
         let file = std::fs::OpenOptions::new()
@@ -74,6 +74,24 @@ async fn main() -> Result<()> {
     } else {
         tracing_subscriber::fmt().init();
     }
+    #[cfg(unix)]
+    if args.detach {
+        // run in background
+        let ret = unsafe { libc::daemon(1, 1) };
+        if ret != 0 {
+            error!("Failed to run in background, error code: {ret}");
+            bail!("Failed to run in background, error code: {ret}");
+        }
+    }
+    if let Err(err) = async_main(args) {
+        error!("{err:?}");
+        return Err(err);
+    }
+    Ok(())
+}
+
+#[tokio::main]
+async fn async_main(args: Args) -> Result<()> {
     let mut figment = load_config_figment(args.config.as_deref());
     if let Some(address) = args.address {
         figment = figment.join(("address", address));
@@ -94,14 +112,6 @@ async fn main() -> Result<()> {
         .await
         .map_err(|err| anyhow!("{err:?}"))
         .context(format!("Failed to bind on {endpoint}"))?;
-    #[cfg(unix)]
-    if args.detach {
-        // run in background
-        let ret = unsafe { libc::daemon(1, 0) };
-        if ret != 0 {
-            return Err(anyhow!("Failed to run in background, error code: {ret}"));
-        }
-    }
     if let Some(pid_file) = &args.pid_file {
         let pid = std::process::id();
         std::fs::write(pid_file, &pid.to_string()).context("Failed to write pid file")?;

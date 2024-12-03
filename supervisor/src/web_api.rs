@@ -9,7 +9,7 @@ use crate::supervisor::Supervisor;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum Response<T> {
+pub enum Response<T> {
     Data(T),
     Error(String),
 }
@@ -42,8 +42,8 @@ async fn remove(supervisor: &State<Supervisor>, id: &str) -> Json<Response<()>> 
 }
 
 #[get("/list")]
-fn list(supervisor: &State<Supervisor>) -> Json<Vec<ProcessInfo>> {
-    Json(supervisor.list())
+fn list(supervisor: &State<Supervisor>) -> Json<Response<Vec<ProcessInfo>>> {
+    to_json(Ok(supervisor.list()))
 }
 
 #[get("/info/<id>")]

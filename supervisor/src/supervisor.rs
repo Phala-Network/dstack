@@ -1,6 +1,7 @@
 use crate::process::{Process, ProcessConfig, ProcessInfo};
 use anyhow::{bail, Context, Result};
 use dashmap::DashMap;
+use tracing::info;
 
 #[derive(Clone)]
 pub struct Supervisor {
@@ -21,17 +22,20 @@ impl Supervisor {
         }
         let process = Process::new(config);
         process.start()?;
+        info!("Deployed process {id}");
         self.processes.insert(id, process);
         Ok(())
     }
 
     pub fn start(&self, id: &str) -> Result<()> {
         let process = self.processes.get(id).context("Process not found")?;
+        info!("Starting process {id}");
         process.start()
     }
 
     pub fn stop(&self, id: &str) -> Result<()> {
         let process = self.processes.get(id).context("Process not found")?;
+        info!("Stopping process {id}");
         process.stop()
     }
 
@@ -45,6 +49,7 @@ impl Supervisor {
         }
         drop(process);
         self.processes.remove(id);
+        info!("Removed process {id}");
         Ok(())
     }
 

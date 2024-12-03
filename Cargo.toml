@@ -20,5 +20,6 @@ members = [
     "ct_monitor",
     "cc-eventlog",
     "supervisor",
+    "supervisor/client",
 ]
 resolver = "2"
