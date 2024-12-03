@@ -53,14 +53,27 @@ struct Args {
     detach: bool,
 
     /// pid file
-    #[cfg(unix)]
     #[arg(long)]
     pid_file: Option<String>,
+
+    /// log file
+    #[arg(long)]
+    log_file: Option<String>,
 }
 
 #[rocket::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
+    if let Some(log_file) = &args.log_file {
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(log_file)
+            .context("Failed to open log file")?;
+        tracing_subscriber::fmt().with_writer(file).init();
+    } else {
+        tracing_subscriber::fmt().init();
+    }
     let mut figment = load_config_figment(args.config.as_deref());
     if let Some(address) = args.address {
         figment = figment.join(("address", address));
