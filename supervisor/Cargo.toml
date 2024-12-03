@@ -6,8 +6,10 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.93"
 bon = "3.2.0"
+clap = { version = "4.5.21", features = ["derive", "string"] }
 dashmap = "6.1.0"
 fs-err = "3.0.0"
+git-version = "0.3.9"
 notify = "7.0.0"
 rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["json"] }
 serde = { version = "1.0.215", features = ["derive"] }

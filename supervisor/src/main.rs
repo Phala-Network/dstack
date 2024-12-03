@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use clap::Parser;
 use rocket::{
     figment::{
         providers::{Format, Toml},
@@ -23,9 +24,40 @@ pub fn load_config_figment(config_file: Option<&str>) -> Figment {
         .merge(leaf_config)
 }
 
+fn app_version() -> String {
+    const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+    const VERSION: &str = git_version::git_version!(
+        args = ["--abbrev=20", "--always", "--dirty=-modified"],
+        prefix = "git:",
+        fallback = "unknown"
+    );
+    format!("v{CARGO_PKG_VERSION} ({VERSION})")
+}
+
+#[derive(Parser)]
+#[command(author, version, about, long_version = app_version())]
+struct Args {
+    /// Path to the configuration file
+    #[arg(short, long)]
+    config: Option<String>,
+    /// bind address
+    #[arg(short, long)]
+    address: Option<String>,
+    /// bind port
+    #[arg(short, long)]
+    port: Option<u16>,
+}
+
 #[rocket::main]
 async fn main() -> Result<()> {
-    let figment = load_config_figment(None);
+    let args = Args::parse();
+    let mut figment = load_config_figment(args.config.as_deref());
+    if let Some(address) = args.address {
+        figment = figment.join(("address", address));
+    }
+    if let Some(port) = args.port {
+        figment = figment.join(("port", port));
+    }
     let rocket = web_api::rocket(figment);
     let ignite = rocket
         .ignite()

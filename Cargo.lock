@@ -4485,8 +4485,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bon 3.2.0",
+ "clap",
  "dashmap",
  "fs-err 3.0.0",
+ "git-version",
  "notify",
  "rocket",
  "serde",
