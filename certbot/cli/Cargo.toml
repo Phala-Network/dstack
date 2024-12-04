@@ -16,5 +16,5 @@ fs-err = "3.0.0"
 serde = { version = "1.0.213", features = ["derive"] }
 tokio = { version = "1.41.0", features = ["full"] }
 toml_edit = { version = "0.22.22", features = ["serde"] }
-tracing-subscriber = "0.3.18"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 rustls = "0.23.19"
