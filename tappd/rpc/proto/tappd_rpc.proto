@@ -32,9 +32,24 @@ message DeriveKeyResponse {
 }
 
 // The request to get a TDX quote
+// The report data is prefixed with `app-data:` before hashing unless the algorithm is `raw`.
+// Final report data is hash(`app-data:` + report_data) if the algorithm is not `raw`.
 message TdxQuoteArgs {
   // Report data
   bytes report_data = 1;
+  // The hash algorithm to use to process the report data. Default is `sha512`.
+  // Supported algorithms are:
+  // - `sha256`
+  // - `sha384`
+  // - `sha512`
+  // - `sha3-256`
+  // - `sha3-384`
+  // - `sha3-512`
+  // - `keccak256`
+  // - `keccak384`
+  // - `keccak512`
+  // - `raw`: Passes the report_data directly to the driver without any processing
+  string hash_algorithm = 2;
 }
 
 message TdxQuoteResponse {

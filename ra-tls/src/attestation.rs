@@ -3,7 +3,7 @@
 use anyhow::{anyhow, Context, Result};
 use dcap_qvl::quote::Quote;
 use qvl::{quote::Report, verify::VerifiedReport};
-use sha2::{Digest, Sha384};
+use sha2::{Digest as _, Sha384};
 
 use crate::{oids, traits::CertExt};
 use cc_eventlog::TdxEventLog as EventLog;
@@ -31,14 +31,42 @@ impl QuoteContentType {
 
     /// Convert the content to the report data.
     pub fn to_report_data(&self, content: &[u8]) -> [u8; 64] {
-        use sha2::Digest;
-        // The format is:
-        // sha2_512(<tag>:<content>)
-        let mut hasher = sha2::Sha512::new();
-        hasher.update(self.tag().as_bytes());
-        hasher.update(b":");
-        hasher.update(content);
-        hasher.finalize().into()
+        self.to_report_data_with_hash(content, "")
+            .expect("sha512 hash should not fail")
+    }
+
+    /// Convert the content to the report data with a specific hash algorithm.
+    pub fn to_report_data_with_hash(&self, content: &[u8], hash: &str) -> Result<[u8; 64]> {
+        macro_rules! do_hash {
+            ($hash: ty) => {{
+                // The format is:
+                // hash(<tag>:<content>)
+                let mut hasher = <$hash>::new();
+                hasher.update(self.tag().as_bytes());
+                hasher.update(b":");
+                hasher.update(content);
+                let output = hasher.finalize();
+
+                let mut padded = [0u8; 64];
+                padded[..output.len()].copy_from_slice(&output);
+                padded
+            }};
+        }
+        let output = match hash {
+            "sha256" => do_hash!(sha2::Sha256),
+            "sha384" => do_hash!(sha2::Sha384),
+            "sha512" => do_hash!(sha2::Sha512),
+            "sha3-256" => do_hash!(sha3::Sha3_256),
+            "sha3-384" => do_hash!(sha3::Sha3_384),
+            "sha3-512" => do_hash!(sha3::Sha3_512),
+            "keccak256" => do_hash!(sha3::Keccak256),
+            "keccak384" => do_hash!(sha3::Keccak384),
+            // Default to keccak512
+            "" | "keccak512" => do_hash!(sha3::Keccak512),
+            "raw" => content.try_into().ok().context("invalid content length")?,
+            _ => anyhow::bail!("invalid hash algorithm"),
+        };
+        Ok(output)
     }
 }
 
@@ -183,4 +211,54 @@ pub fn replay_event_logs(eventlog: &[EventLog]) -> Result<[[u8; 48]; 4]> {
     }
 
     Ok(rtmrs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_report_data_with_hash() {
+        let content_type = QuoteContentType::AppData;
+        let content = b"test content";
+
+        let report_data = content_type.to_report_data(content);
+        assert_eq!(hex::encode(&report_data), "7ea0b744ed5e9c0c83ff9f575668e1697652cd349f2027cdf26f918d4c53e8cd50b5ea9b449b4c3d50e20ae00ec29688d5a214e8daff8a10041f5d624dae8a01");
+
+        // Test SHA-256
+        let result = content_type
+            .to_report_data_with_hash(content, "sha256")
+            .unwrap();
+        assert_eq!(result[32..], [0u8; 32]); // Check padding
+        assert_ne!(result[..32], [0u8; 32]); // Check hash is non-zero
+
+        // Test SHA-384
+        let result = content_type
+            .to_report_data_with_hash(content, "sha384")
+            .unwrap();
+        assert_eq!(result[48..], [0u8; 16]); // Check padding
+        assert_ne!(result[..48], [0u8; 48]); // Check hash is non-zero
+
+        // Test default
+        let result = content_type.to_report_data_with_hash(content, "").unwrap();
+        assert_ne!(result, [0u8; 64]); // Should fill entire buffer
+
+        // Test raw content
+        let exact_content = [42u8; 64];
+        let result = content_type
+            .to_report_data_with_hash(&exact_content, "raw")
+            .unwrap();
+        assert_eq!(result, exact_content);
+
+        // Test invalid raw content length
+        let invalid_content = [42u8; 65];
+        assert!(content_type
+            .to_report_data_with_hash(&invalid_content, "raw")
+            .is_err());
+
+        // Test invalid hash algorithm
+        assert!(content_type
+            .to_report_data_with_hash(content, "invalid")
+            .is_err());
+    }
 }

@@ -66,7 +66,8 @@ impl TappdRpc for InternalRpcHandler {
     }
 
     async fn tdx_quote(self, request: TdxQuoteArgs) -> Result<TdxQuoteResponse> {
-        let report_data = QuoteContentType::KmsRootCa.to_report_data(&request.report_data);
+        let report_data = QuoteContentType::AppData
+            .to_report_data_with_hash(&request.report_data, &request.hash_algorithm)?;
         let event_log = read_event_logs().context("Failed to decode event log")?;
         let event_log =
             serde_json::to_string(&event_log).context("Failed to serialize event log")?;
