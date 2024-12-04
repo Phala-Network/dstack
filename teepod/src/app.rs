@@ -133,12 +133,12 @@ impl App {
         let work_dir = self.work_dir(id);
         work_dir
             .set_started(true)
-            .context("Failed to set started")?;
+            .with_context(|| format!("Failed to set started for VM {id}"))?;
         let process_config = vm_config.config_qemu(&self.config.qemu_path, &work_dir)?;
         self.supervisor
             .deploy(process_config)
             .await
-            .context("Failed to start VM")?;
+            .with_context(|| format!("Failed to start VM {id}"))?;
         Ok(())
     }
 
@@ -172,7 +172,7 @@ impl App {
                 let vm_path = entry.path();
                 if vm_path.is_dir() {
                     if let Err(err) = self.load_vm(vm_path).await {
-                        error!("Failed to load VM: {err}");
+                        error!("Failed to load VM: {err:?}");
                     }
                 }
             }
