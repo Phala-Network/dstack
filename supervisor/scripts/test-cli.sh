@@ -5,6 +5,10 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 RED='\033[0;31m'
 
+TEST_PROC_ID="test-process-0"
+UDS="./test.sock"
+PIDFILE="./test.pid"
+
 info() {
     printf "${GREEN}$1${NC}\n"
 }
@@ -29,59 +33,82 @@ assert_eq() {
     fi
 }
 
-CLI="cargo run -p supervisor-client --features cli -- --base-url unix:$1"
+CLI="cargo run -q -p supervisor-client --features cli -- --base-url unix:$UDS"
 
 info "Testing Supervisor CLI commands..."
 
-# Deploy a new process
-info "Testing Deploy command"
-RES=$(${CLI} deploy --id test-process --command sleep --arg 1000)
-assert_eq "$RES" null "Deploy should return empty object"
+info "Starting supervisor"
+if [ -f $PIDFILE ]; then
+    kill $(cat $PIDFILE) 2>/dev/null
+fi
+rm -f $UDS
+cargo run -q --bin supervisor -- --uds $UDS --pid-file $PIDFILE -d
 
-# Get info for specific process
-info "Testing Info command"
-RES=$(${CLI} info test-process)
-assert_eq "$(echo "$RES" | jq -r .data.config.id)" "test-process" "Info should return object with id"
-assert_eq "$(echo "$RES" | jq -r .data.config.command)" "sleep" "Info should return correct command"
-assert_eq "$(echo "$RES" | jq -r .data.config.args[0])" "1000" "Info should return correct args"
-assert_eq "$(echo "$RES" | jq -r .data.state.status)" "running" "Info should show running status"
-assert_eq "$(echo "$RES" | jq -r .data.state.started)" "true" "Info should show started as true"
+info "Listing processes"
+RES=$(${CLI} list | jq .)
+assert_eq "$RES" "[]" "List should return empty array"
 
-# Start the process (should fail as it's already running)
-info "Testing Start command"
-RES=$(${CLI} start test-process)
-assert_eq "$RES" '{"error":"Process is already running"}' "Start should return error"
-
-# Stop the process
-info "Testing Stop command"
-RES=$(${CLI} stop test-process)
-assert_eq "$RES" '{"data":null}' "Stop should return empty object"
-
-# Get info again to see the stopped state
-info "Testing Info command after stop"
-RES=$(${CLI} info test-process)
-assert_eq "$(echo "$RES" | jq -r .data.state.status)" "stopped" "Info should show stopped status"
-assert_eq "$(echo "$RES" | jq -r .data.state.started)" "false" "Info should show started as false"
-
-# Remove the process
-info "Testing Remove command"
-RES=$(${CLI} remove test-process)
-assert_eq "$RES" '{"data":null}' "Remove should return empty object"
-
-# Can not start a removed process
-info "Testing Start command after remove"
-RES=$(${CLI} start test-process)
-assert_eq "$RES" '{"error":"Process not found"}' "Start should return error"
+info "Cleaning up previous test processes"
+${CLI} clear >/dev/null 2>&1
 
 # Test list command
 info "Testing List command"
 RES=$(${CLI} list)
-echo "$RES"
-assert_eq "$(echo "$RES" | jq -r .data)" "[]" "List should return empty array"
+assert_eq "$RES" "[]" "List should return empty array"
+
+# Deploy a new process
+info "Testing Deploy command"
+RES=$(${CLI} deploy --id ${TEST_PROC_ID} --command sleep --arg 1000)
+assert_eq "$RES" null "Deploy should return empty object"
+
+# Get info for specific process
+info "Testing Info command"
+RES=$(${CLI} info ${TEST_PROC_ID})
+assert_eq "$(echo "$RES" | jq -r .config.id)" "${TEST_PROC_ID}" "Info should return object with id"
+assert_eq "$(echo "$RES" | jq -r .config.command)" "sleep" "Info should return correct command"
+assert_eq "$(echo "$RES" | jq -r .config.args[0])" "1000" "Info should return correct args"
+assert_eq "$(echo "$RES" | jq -r .state.status)" "running" "Info should show running status"
+assert_eq "$(echo "$RES" | jq -r .state.started)" "true" "Info should show started as true"
+
+# Start the process (should fail as it's already running)
+info "Testing Start command"
+${CLI} start ${TEST_PROC_ID}
+assert_eq "$?" 1 "Start should return error"
+
+# Stop the process
+info "Testing Stop command"
+RES=$(${CLI} stop ${TEST_PROC_ID})
+assert_eq "$RES" "null" "Stop should return empty object"
+
+# Get info again to see the stopped state
+info "Testing Info command after stop"
+RES=$(${CLI} info ${TEST_PROC_ID})
+assert_eq "$(echo "$RES" | jq -r .state.status)" "stopped" "Info should show stopped status"
+assert_eq "$(echo "$RES" | jq -r .state.started)" "false" "Info should show started as false"
+
+# Remove the process
+info "Testing Remove command"
+RES=$(${CLI} remove ${TEST_PROC_ID})
+assert_eq "$RES" "null" "Remove should return empty object"
+
+# Can not start a removed process
+info "Testing Start command after remove"
+${CLI} start ${TEST_PROC_ID}
+assert_eq "$?" 1 "Start should return error"
+
+# Test list command
+info "Testing List command"
+RES=$(${CLI} list)
+assert_eq "$RES" "[]" "List should return empty array"
 
 # Test ping command
 info "Testing Ping command"
 RES=$(${CLI} ping)
-assert_eq "$RES" '{"data":"pong"}' "Ping should return empty object"
+assert_eq "$RES" '"pong"' "Ping should return pong"
+
+info "Shutting down supervisor"
+${CLI} shutdown
+kill $(cat $PIDFILE) 2>/dev/null
+rm -f $UDS $PIDFILE
 
 info "CLI testing completed!" 

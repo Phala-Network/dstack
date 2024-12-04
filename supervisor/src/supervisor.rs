@@ -82,10 +82,10 @@ impl Supervisor {
 
     pub fn remove(&self, id: &str) -> Result<()> {
         let process = self.processes.get(id).context("Process not found")?;
-        if process.is_started() {
+        if process.lock().is_started() {
             bail!("Process is started");
         }
-        if process.is_running() {
+        if process.lock().is_running() {
             bail!("Process is running");
         }
         drop(process);
@@ -117,7 +117,8 @@ impl Supervisor {
             n_running = 0;
             for pair in self.processes.iter() {
                 let process = pair.value();
-                if process.is_running() {
+                let is_running = process.lock().is_running();
+                if is_running {
                     process.stop().ok();
                     n_running += 1;
                 }

@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use bon::Builder;
+use fs_err as fs;
 use notify::{RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -8,6 +9,7 @@ use std::marker::Unpin;
 use std::path::Path;
 use std::process::ExitStatus;
 use std::process::Stdio;
+use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -15,7 +17,6 @@ use tokio::process::{Child, Command};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tracing::{error, info};
-use fs_err as fs;
 
 #[derive(Debug, Clone, Builder, Serialize, Deserialize)]
 pub struct ProcessConfig {
@@ -62,6 +63,16 @@ pub(crate) struct ProcessStateRT {
     kill_tx: Option<oneshot::Sender<()>>,
     started_at: Option<SystemTime>,
     stopped_at: Option<SystemTime>,
+}
+
+impl ProcessStateRT {
+    pub(crate) fn is_running(&self) -> bool {
+        self.status.is_running()
+    }
+
+    pub(crate) fn is_started(&self) -> bool {
+        self.started
+    }
 }
 
 impl ProcessStateRT {
@@ -137,18 +148,12 @@ impl Process {
         }
     }
 
-    pub fn is_running(&self) -> bool {
-        let state = self.state.lock().unwrap();
-        matches!(state.status, ProcessStatus::Running)
-    }
-
-    pub fn is_started(&self) -> bool {
-        let state = self.state.lock().unwrap();
-        state.started
+    pub(crate) fn lock(&self) -> MutexGuard<ProcessStateRT> {
+        self.state.lock().unwrap()
     }
 
     pub fn start(&self) -> Result<()> {
-        if self.is_running() {
+        if self.lock().is_running() {
             bail!("Process is already running");
         }
 
@@ -257,14 +262,20 @@ impl Process {
     pub fn stop(&self) -> Result<()> {
         let mut state = self.state.lock().unwrap();
         state.started = false;
-        if let Some(stop_tx) = state.kill_tx.take() {
-            if stop_tx.send(()).is_err() {
-                bail!("Failed to send stop signal to process");
+        let is_running = state.status.is_running();
+        let Some(stop_tx) = state.kill_tx.take() else {
+            if is_running {
+                bail!("Missing kill tx for process");
             }
-        } else {
-            bail!("Process is not running or is being stopped");
+            return Ok(());
+        };
+        match stop_tx.send(()) {
+            Ok(()) => return Ok(()),
+            Err(()) => match is_running {
+                true => bail!("Failed to send stop signal to process"),
+                false => return Ok(()),
+            },
         }
-        Ok(())
     }
 
     pub fn info(&self) -> ProcessInfo {
