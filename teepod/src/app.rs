@@ -16,20 +16,26 @@
 //!             └── app-compose.json
 //! ```
 use crate::config::{Config, Protocol};
-use crate::vm::run::{Image, TdxConfig, VmConfig, VmMonitor};
 
 use anyhow::{bail, Context, Result};
 use bon::Builder;
 use fs_err as fs;
 use id_pool::IdPool;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
+use supervisor_client::SupervisorClient;
 use teepod_rpc as pb;
-use tracing::{error, Instrument};
+use tracing::error;
+
+pub use image::{Image, ImageInfo};
+pub use qemu::{TdxConfig, VmConfig, VmWorkDir};
 
 mod id_pool;
+mod image;
+mod qemu;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct PortMapping {
@@ -52,99 +58,41 @@ pub struct Manifest {
     pub created_at_ms: u64,
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct State {
-    started: bool,
-}
-
-pub struct VmWorkDir {
-    workdir: PathBuf,
-}
-impl VmWorkDir {
-    pub fn new(workdir: impl AsRef<Path>) -> Self {
-        Self {
-            workdir: workdir.as_ref().to_path_buf(),
-        }
-    }
-
-    pub fn manifest_path(&self) -> PathBuf {
-        self.workdir.join("vm-manifest.json")
-    }
-
-    pub fn state_path(&self) -> PathBuf {
-        self.workdir.join("vm-state.json")
-    }
-
-    pub fn manifest(&self) -> Result<Manifest> {
-        let manifest_path = self.manifest_path();
-        let manifest = fs::read_to_string(manifest_path).context("Failed to read manifest")?;
-        let manifest: Manifest =
-            serde_json::from_str(&manifest).context("Failed to parse manifest")?;
-        Ok(manifest)
-    }
-
-    pub fn put_manifest(&self, manifest: &Manifest) -> Result<()> {
-        let manifest_path = self.manifest_path();
-        fs::write(manifest_path, serde_json::to_string(manifest)?)
-            .context("Failed to write manifest")
-    }
-
-    pub fn started(&self) -> Result<bool> {
-        let state_path = self.state_path();
-        if !state_path.exists() {
-            return Ok(false);
-        }
-        let state: State =
-            serde_json::from_str(&fs::read_to_string(state_path).context("Failed to read state")?)
-                .context("Failed to parse state")?;
-        Ok(state.started)
-    }
-
-    pub fn set_started(&self, started: bool) -> Result<()> {
-        let state_path = self.state_path();
-        fs::write(state_path, serde_json::to_string(&State { started })?)
-            .context("Failed to write state")
-    }
-
-    pub fn app_compose_path(&self) -> PathBuf {
-        self.workdir.join("shared").join("app-compose.json")
-    }
-
-    pub fn encrypted_env_path(&self) -> PathBuf {
-        self.workdir.join("shared").join("encrypted-env")
-    }
-}
-
 #[derive(Clone)]
 pub struct App {
     pub config: Arc<Config>,
+    pub supervisor: SupervisorClient,
     state: Arc<Mutex<AppState>>,
 }
 
-pub(crate) struct AppState {
-    monitor: VmMonitor,
-    cid_pool: IdPool<u32>,
-}
-
 impl App {
+    fn lock(&self) -> MutexGuard<AppState> {
+        self.state.lock().unwrap()
+    }
+
     pub(crate) fn vm_dir(&self) -> PathBuf {
         self.config.run_path.clone().into()
     }
 
-    pub fn new(config: Config) -> Self {
+    pub(crate) fn work_dir(&self, id: &str) -> VmWorkDir {
+        VmWorkDir::new(self.config.run_path.join(id))
+    }
+
+    pub fn new(config: Config, supervisor: SupervisorClient) -> Self {
         let cid_start = config.cvm.cid_start;
         let cid_end = cid_start.saturating_add(config.cvm.cid_pool_size);
         let cid_pool = IdPool::new(cid_start, cid_end);
         Self {
+            supervisor: supervisor.clone(),
             state: Arc::new(Mutex::new(AppState {
                 cid_pool,
-                monitor: VmMonitor::new(config.qemu_path.clone()),
+                vms: BTreeMap::new(),
             })),
             config: Arc::new(config),
         }
     }
 
-    pub fn load_vm(&self, work_dir: impl AsRef<Path>) -> Result<()> {
+    pub async fn load_vm(&self, work_dir: impl AsRef<Path>) -> Result<()> {
         let vm_work_dir = VmWorkDir::new(work_dir.as_ref());
         let manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
         let todo = "sanitize the image name";
@@ -171,52 +119,59 @@ impl App {
                 self.config.cvm.max_disk_size
             );
         }
+        let vm_id = vm_config.manifest.id.clone();
+        self.lock().add(vm_config);
         let started = vm_work_dir.started().context("Failed to read VM state")?;
-        let result =
-            self.state
-                .lock()
-                .unwrap()
-                .monitor
-                .load_vm(vm_config, work_dir.as_ref(), started);
-        if let Err(err) = result {
-            println!("Failed to run VM: {err}");
+        if started {
+            self.start_vm(&vm_id).await?;
         }
         Ok(())
     }
 
-    pub fn start_vm(&self, id: &str) -> Result<()> {
-        self.state.lock().unwrap().monitor.start_vm(id)?;
-        let work_dir = VmWorkDir::new(self.vm_dir().join(id));
+    pub async fn start_vm(&self, id: &str) -> Result<()> {
+        let vm_config = self.lock().get(id).context("VM not found")?;
+        let work_dir = self.work_dir(id);
         work_dir
             .set_started(true)
             .context("Failed to set started")?;
+        let process_config = vm_config.config_qemu(&self.config.qemu_path, &work_dir)?;
+        self.supervisor
+            .deploy(process_config)
+            .await
+            .context("Failed to start VM")?;
         Ok(())
     }
 
-    pub fn stop_vm(&self, id: &str) -> Result<()> {
-        let work_dir = VmWorkDir::new(self.vm_dir().join(id));
+    pub async fn stop_vm(&self, id: &str) -> Result<()> {
+        let work_dir = self.work_dir(id);
         work_dir
             .set_started(false)
             .context("Failed to set started")?;
-        self.state.lock().unwrap().monitor.stop_vm(id)?;
+        self.supervisor.stop(id).await?;
         Ok(())
     }
 
-    pub fn remove_vm(&self, id: &str) -> Result<()> {
-        self.state.lock().unwrap().monitor.remove_vm(id)?;
-        let vm_path = self.vm_dir().join(id);
-        fs::remove_dir_all(vm_path).context("Failed to remove VM directory")?;
+    pub async fn remove_vm(&self, id: &str) -> Result<()> {
+        let info = self.supervisor.info(id).await?;
+        let is_running = info.map_or(false, |i| i.state.status.is_running());
+        if is_running {
+            bail!("VM is running, stop it first");
+        }
+        self.supervisor.remove(id).await?;
+        self.lock().remove(id);
+        let vm_path = self.work_dir(id);
+        fs::remove_dir_all(&vm_path).context("Failed to remove VM directory")?;
         Ok(())
     }
 
-    pub fn reload_vms(&self) -> Result<()> {
+    pub async fn reload_vms(&self) -> Result<()> {
         let vm_path = self.vm_dir();
         if vm_path.exists() {
             for entry in fs::read_dir(vm_path).context("Failed to read VM directory")? {
                 let entry = entry.context("Failed to read directory entry")?;
                 let vm_path = entry.path();
                 if vm_path.is_dir() {
-                    if let Err(err) = self.load_vm(vm_path) {
+                    if let Err(err) = self.load_vm(vm_path).await {
                         error!("Failed to load VM: {err}");
                     }
                 }
@@ -225,27 +180,27 @@ impl App {
         Ok(())
     }
 
-    pub fn list_vms(&self) -> Vec<pb::VmInfo> {
+    pub async fn list_vms(&self) -> Result<Vec<pb::VmInfo>> {
+        let vms = self
+            .supervisor
+            .list()
+            .await
+            .context("Failed to list VMs")?
+            .into_iter()
+            .map(|p| (p.config.id.clone(), p))
+            .collect::<HashMap<_, _>>();
+
         let mut infos = self
-            .state
             .lock()
-            .unwrap()
-            .monitor
             .iter_vms()
-            .map(|vm| vm.info())
+            .map(|vm| vm.merge_info(vms.get(&vm.manifest.id), &self.work_dir(&vm.manifest.id)))
             .collect::<Vec<_>>();
 
         infos.sort_by(|a, b| a.manifest.created_at_ms.cmp(&b.manifest.created_at_ms));
         let gw = &self.config.gateway;
 
-        infos
-            .into_iter()
-            .map(|info| info.to_pb(gw))
-            .collect()
-    }
-
-    pub fn get_log_file(&self, id: &str) -> Result<PathBuf> {
-        self.state.lock().unwrap().monitor.get_log_file(id)
+        let lst = infos.into_iter().map(|info| info.to_pb(gw)).collect();
+        Ok(lst)
     }
 
     pub fn list_image_names(&self) -> Result<Vec<String>> {
@@ -265,11 +220,37 @@ impl App {
             .collect())
     }
 
-    pub fn get_vm(&self, id: &str) -> Option<pb::VmInfo> {
-        let state = self.state.lock().unwrap();
-        let vm = state.monitor.get_vm(id)?;
-        let info = vm.info();
-        let gw = &self.config.gateway;
-        Some(info.to_pb(gw))
+    pub async fn get_vm(&self, id: &str) -> Result<Option<pb::VmInfo>> {
+        let proc_state = self.supervisor.info(id).await?;
+        let Some(cfg) = self.lock().get(id) else {
+            return Ok(None);
+        };
+        let info = cfg
+            .merge_info(proc_state.as_ref(), &self.work_dir(id))
+            .to_pb(&self.config.gateway);
+        Ok(Some(info))
+    }
+}
+
+pub(crate) struct AppState {
+    cid_pool: IdPool<u32>,
+    vms: BTreeMap<String, Arc<VmConfig>>,
+}
+
+impl AppState {
+    pub fn add(&mut self, vm: VmConfig) {
+        self.vms.insert(vm.manifest.id.clone(), Arc::new(vm));
+    }
+
+    pub fn get(&self, id: &str) -> Option<Arc<VmConfig>> {
+        self.vms.get(id).cloned()
+    }
+
+    pub fn remove(&mut self, id: &str) -> Option<Arc<VmConfig>> {
+        self.vms.remove(id)
+    }
+
+    pub fn iter_vms(&self) -> impl Iterator<Item = &Arc<VmConfig>> {
+        self.vms.values()
     }
 }

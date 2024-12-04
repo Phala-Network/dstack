@@ -1,0 +1,29 @@
+[package]
+name = "supervisor-client"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "supervisor-client"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[dependencies]
+anyhow = "1.0.93"
+supervisor = { version = "0.1.0", path = ".." }
+clap = { version = "4.5.21", optional = true, features = ["derive"] }
+tokio = { version = "1.41.1", features = ["time"] }
+hyperlocal = "0.9.1"
+hyper = { version = "1.5.1", features = ["client", "http1"] }
+http = "1"
+serde_json = "1.0"
+hyper-util = { version = "0.1.10", features = ["client", "client-legacy", "http1"] }
+serde = "1.0.215"
+http-body-util = "0.1.2"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+log = "0.4.22"
+fs-err = "3.0.0"
+futures = "0.3.31"
+
+[features]
+cli = ["dep:clap", "tokio/full"]
