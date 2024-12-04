@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{path::Path, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use log::info;
@@ -20,13 +20,13 @@ impl SupervisorClient {
         }
     }
 
-    pub async fn connect_uds(
-        supervisor_path: &str,
-        uds: &str,
-        pid_file: &str,
-        log_file: &str,
+    pub async fn start_and_connect_uds(
+        supervisor_path: impl AsRef<Path>,
+        uds: impl AsRef<Path>,
+        pid_file: impl AsRef<Path>,
+        log_file: impl AsRef<Path>,
     ) -> Result<Self> {
-        let uri = format!("unix:{uds}");
+        let uri = format!("unix:{}", uds.as_ref().display());
         let client = Self::new(&uri);
         if client.probe(Duration::from_millis(100)).await.is_ok() {
             info!("Connected to supervisor at {uri}");
@@ -34,17 +34,17 @@ impl SupervisorClient {
         }
         info!("Failed to connect to supervisor at {uri}, trying to start supervisor");
         // if the uds exists, remove it
-        if std::path::Path::new(uds).exists() {
-            fs_err::remove_file(uds)?;
+        if std::path::Path::new(uds.as_ref()).exists() {
+            fs_err::remove_file(uds.as_ref())?;
         }
         // start supervisor
-        let output = std::process::Command::new(supervisor_path)
+        let output = std::process::Command::new(supervisor_path.as_ref())
             .arg("--uds")
-            .arg(uds)
+            .arg(uds.as_ref())
             .arg("--pid-file")
-            .arg(pid_file)
+            .arg(pid_file.as_ref())
             .arg("--log-file")
-            .arg(log_file)
+            .arg(log_file.as_ref())
             .arg("--detach")
             .env("RUST_LOG", "info,rocket=warn")
             .output()
