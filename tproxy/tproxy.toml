@@ -30,6 +30,23 @@ base_domain = "app.localhost"
 listen_addr = "0.0.0.0"
 listen_port = 8443
 tappd_port = 8090
+buffer_size = 8192
+
+[core.proxy.timeouts]
+# Timeout for establishing a connection to the target app.
+connect = "5s"
+# TLS-termination handshake timeout or SNI extraction timeout.
+handshake = "5s"
+
+# Enable data transfer timeouts below. This might impact performance. Turn off if
+# bad performance is observed.
+data_timeout_enabled = true
+# Timeout for a connection without any data transfer.
+idle = "10m"
+# Timeout for writing data to the target app.
+write = "5s"
+# Timeout for shutting down a connection.
+shutdown = "5s"
 
 [core.recycle]
 enabled = true

@@ -72,6 +72,7 @@ scale = { version = "3.6.12", package = "parity-scale-codec", features = ["deriv
 serde_json = "1.0"
 toml_edit = { version = "0.22.22", features = ["serde"] }
 yasna = "0.5.2"
+bytes = "1.9.0"
 
 # Networking/HTTP
 bollard = "0.18.1"

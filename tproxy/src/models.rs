@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Iter, BTreeMap},
     net::Ipv4Addr,
-    time::{Duration, SystemTime},
+    time::SystemTime,
 };
 use tproxy_rpc::{AcmeInfoResponse, HostInfo as PbHostInfo};
 
@@ -76,19 +76,4 @@ pub struct WgConf<'a> {
 pub struct CvmList<'a> {
     pub hosts: &'a [PbHostInfo],
     pub acme_info: &'a AcmeInfoResponse,
-}
-
-#[derive(Clone, Copy)]
-pub struct Timeouts {
-    pub connect: Duration,
-    pub first_byte: Duration,
-}
-
-impl Default for Timeouts {
-    fn default() -> Self {
-        Self {
-            connect: Duration::from_secs(5),
-            first_byte: Duration::from_secs(10),
-        }
-    }
 }

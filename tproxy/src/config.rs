@@ -27,8 +27,24 @@ pub struct ProxyConfig {
     pub listen_addr: Ipv4Addr,
     pub listen_port: u16,
     pub tappd_port: u16,
-    pub connect_timeout: u16,
-    pub first_byte_timeout: u16,
+    pub timeouts: Timeouts,
+    pub buffer_size: usize,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Timeouts {
+    #[serde(with = "serde_duration")]
+    pub connect: Duration,
+    #[serde(with = "serde_duration")]
+    pub handshake: Duration,
+
+    pub data_timeout_enabled: bool,
+    #[serde(with = "serde_duration")]
+    pub idle: Duration,
+    #[serde(with = "serde_duration")]
+    pub write: Duration,
+    #[serde(with = "serde_duration")]
+    pub shutdown: Duration,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -53,6 +69,9 @@ mod serde_duration {
     where
         S: Serializer,
     {
+        if duration == &Duration::MAX {
+            return serializer.serialize_str("never");
+        }
         let (value, unit) = if duration.as_secs() % (24 * 3600) == 0 {
             (duration.as_secs() / (24 * 3600), "d")
         } else if duration.as_secs() % 3600 == 0 {
@@ -72,6 +91,9 @@ mod serde_duration {
         let s = String::deserialize(deserializer)?;
         if s.is_empty() {
             return Err(serde::de::Error::custom("Duration string cannot be empty"));
+        }
+        if s == "never" {
+            return Ok(Duration::MAX);
         }
         let (value, unit) = s.split_at(s.len() - 1);
         let value = value.parse::<u64>().map_err(serde::de::Error::custom)?;

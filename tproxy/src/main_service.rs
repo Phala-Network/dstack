@@ -28,6 +28,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct AppState {
+    pub(crate) config: Arc<Config>,
     inner: Arc<Mutex<AppStateInner>>,
 }
 
@@ -39,7 +40,7 @@ struct State {
 }
 
 pub(crate) struct AppStateInner {
-    config: Config,
+    config: Arc<Config>,
     state: State,
 }
 
@@ -49,6 +50,7 @@ impl AppState {
     }
 
     pub fn new(config: Config) -> Result<Self> {
+        let config = Arc::new(config);
         let state_path = &config.state_path;
         let state = if fs::metadata(state_path).is_ok() {
             let state_str = fs::read_to_string(state_path).context("Failed to read state")?;
@@ -64,12 +66,12 @@ impl AppState {
             config: config.clone(),
             state,
         }));
-        start_recycle_thread(Arc::downgrade(&inner), config);
-        Ok(Self { inner })
+        start_recycle_thread(Arc::downgrade(&inner), config.clone());
+        Ok(Self { config, inner })
     }
 }
 
-fn start_recycle_thread(state: Weak<Mutex<AppStateInner>>, config: Config) {
+fn start_recycle_thread(state: Weak<Mutex<AppStateInner>>, config: Arc<Config>) {
     if !config.recycle.enabled {
         info!("recycle is disabled");
         return;

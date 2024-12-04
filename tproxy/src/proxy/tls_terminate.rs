@@ -10,11 +10,12 @@ use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpStream;
-use tokio_rustls::{rustls, TlsAcceptor};
 use tokio::time::timeout;
+use tokio_rustls::{rustls, TlsAcceptor};
 
 use crate::main_service::AppState;
-use crate::models::Timeouts;
+
+use super::copy_bidirectional;
 
 pub struct TlsTerminateProxy {
     app_state: AppState,
@@ -53,10 +54,8 @@ impl TlsTerminateProxy {
         buffer: Vec<u8>,
         app_id: &str,
         port: Option<u16>,
-        timeouts: Option<Timeouts>,
     ) -> Result<()> {
         let port = port.unwrap_or(80);
-        let timeouts = timeouts.unwrap_or_default();
         let host = self
             .app_state
             .lock()
@@ -67,25 +66,23 @@ impl TlsTerminateProxy {
             buffer_cursor: 0,
             inbound,
         };
-        let mut tls_stream = self
-            .acceptor
-            .accept(stream)
-            .await
-            .context("failed to accept tls connection")?;
-        let mut outbound = timeout(
-            timeouts.connect,
-            TcpStream::connect((host.ip, port))
+        let tls_stream = timeout(
+            self.app_state.config.proxy.timeouts.handshake,
+            self.acceptor.accept(stream),
+        )
+        .await
+        .context("handshake timeout")?
+        .context("failed to accept tls connection")?;
+        let outbound = timeout(
+            self.app_state.config.proxy.timeouts.connect,
+            TcpStream::connect((host.ip, port)),
         )
         .await
         .map_err(|_| anyhow::anyhow!("connection timeout"))?
         .context("failed to connect to app")?;
-        let _first_byte_timeout = timeout(
-            timeouts.first_byte,
-            tokio::io::copy_bidirectional(&mut tls_stream, &mut outbound)
-        )
-        .await
-        .map_err(|_| anyhow::anyhow!("first byte timeout"))?
-        .context("failed to bridge inbound and outbound")?;
+        copy_bidirectional(tls_stream, outbound, &self.app_state.config.proxy)
+            .await
+            .context("failed to bridge inbound and outbound")?;
         Ok(())
     }
 }

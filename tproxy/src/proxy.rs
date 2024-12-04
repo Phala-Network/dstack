@@ -1,16 +1,17 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
+use bytes::BytesMut;
 use sni::extract_sni;
 use tls_terminate::TlsTerminateProxy;
 use tokio::{
-    io::AsyncReadExt as _,
+    io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _},
     net::{TcpListener, TcpStream},
+    time::timeout,
 };
 use tracing::{debug, error, info};
 
 use crate::{config::ProxyConfig, main_service::AppState};
-use crate::models::Timeouts;
 
 mod sni;
 mod tls_passthough;
@@ -91,9 +92,12 @@ async fn handle_connection(
     state: AppState,
     dotted_base_domain: &str,
     tls_terminate_proxy: Arc<TlsTerminateProxy>,
-    timeouts: Option<Timeouts>,
 ) -> Result<()> {
-    let (sni, buffer) = take_sni(&mut inbound).await.context("failed to take sni")?;
+    let timeouts = &state.config.proxy.timeouts;
+    let (sni, buffer) = timeout(timeouts.handshake, take_sni(&mut inbound))
+        .await
+        .context("take sni timeout")?
+        .context("failed to take sni")?;
     let Some(sni) = sni else {
         bail!("no sni found");
     };
@@ -106,18 +110,17 @@ async fn handle_connection(
                 buffer,
                 &dst.app_id,
                 dst.port.unwrap_or(443),
-                timeouts,
             )
             .await
             .with_context(|| format!("error on connection {sni}"))
         } else {
             tls_terminate_proxy
-                .proxy(inbound, buffer, &dst.app_id, dst.port, timeouts)
+                .proxy(inbound, buffer, &dst.app_id, dst.port)
                 .await
                 .with_context(|| format!("error on connection {sni}"))
         }
     } else {
-        tls_passthough::proxy_with_sni(state, inbound, buffer, &sni, timeouts)
+        tls_passthough::proxy_with_sni(state, inbound, buffer, &sni)
             .await
             .with_context(|| format!("error on connection {sni}"))
     }
@@ -129,11 +132,6 @@ pub async fn run(config: &ProxyConfig, app_state: AppState) -> Result<()> {
         let base_domain = base_domain.strip_prefix(".").unwrap_or(base_domain);
         Arc::new(format!(".{base_domain}"))
     };
-    let timeouts = Timeouts {
-        connect: Duration::from_secs(config.connect_timeout.into()),
-        first_byte: Duration::from_secs(config.first_byte_timeout.into()),
-    };
-
     let tls_terminate_proxy =
         TlsTerminateProxy::new(&app_state, &config.cert_chain, &config.cert_key)
             .context("failed to create tls terminate proxy")?;
@@ -165,7 +163,6 @@ pub async fn run(config: &ProxyConfig, app_state: AppState) -> Result<()> {
                         app_state,
                         &dotted_base_domain,
                         tls_terminate_proxy,
-                        Some(timeouts),
                     )
                     .await
                     {
@@ -189,4 +186,114 @@ pub fn start(config: ProxyConfig, app_state: AppState) {
             );
         }
     });
+}
+
+async fn copy_bidirectional<A, B>(mut a: A, mut b: B, config: &ProxyConfig) -> Result<()>
+where
+    A: AsyncRead + AsyncWrite + Unpin,
+    B: AsyncRead + AsyncWrite + Unpin,
+{
+    let timeouts = &config.timeouts;
+    let buf_size = config.buffer_size;
+    if !config.timeouts.data_timeout_enabled {
+        tokio::io::copy_bidirectional_with_sizes(&mut a, &mut b, buf_size, buf_size)
+            .await
+            .context("failed to copy")?;
+        return Ok(());
+    }
+
+    let (mut ra, mut wa) = tokio::io::split(a);
+    let (mut rb, mut wb) = tokio::io::split(b);
+
+    let mut a2b_buf = BytesMut::with_capacity(buf_size);
+    let mut b2a_buf = BytesMut::with_capacity(buf_size);
+
+    enum Rest<A, B> {
+        A2b(A),
+        B2a(B),
+    }
+    let mut rest;
+
+    // Transfer data between a and b bidirectionally.
+    loop {
+        a2b_buf.clear();
+        b2a_buf.clear();
+        tokio::select! {
+            rv = timeout(timeouts.idle, ra.read_buf(&mut a2b_buf)) => {
+                let n = rv.ok().context("idle timeout")?.context("a2b read error")?;
+                if n == 0 {
+                    // a to b is EOF, switch to b to a only
+                    rest = Rest::B2a((rb, wa));
+                    timeout(timeouts.shutdown, wb.shutdown())
+                        .await
+                        .context("a2b shutdown timeout")?
+                        .context("a2b failed to shutdown")?;
+                    break;
+                }
+                timeout(timeouts.write, wb.write_all(&a2b_buf))
+                    .await
+                    .context("a2b write timeout")?
+                    .context("a2b failed to write")?;
+            }
+            rv = timeout(timeouts.idle, rb.read_buf(&mut b2a_buf)) => {
+                let n = rv.ok().context("idle timeout")?.context("b2a read error")?;
+                if n == 0 {
+                    // b to a is EOF, switch to a to b only
+                    rest = Rest::A2b((ra, wb));
+                    timeout(timeouts.shutdown, wa.shutdown())
+                        .await
+                        .context("b2a shutdown timeout")?
+                        .context("b2a failed to shutdown")?;
+                    break;
+                }
+                timeout(timeouts.write, wa.write_all(&b2a_buf))
+                    .await
+                    .context("b2a write timeout")?
+                    .context("b2a failed to write")?;
+            }
+        }
+    }
+
+    drop(b2a_buf);
+    let mut buf = a2b_buf;
+    // One of the direction is closed, copy the other direction.
+    match &mut rest {
+        Rest::A2b((ra, wb)) => loop {
+            buf.clear();
+            let n = timeout(timeouts.idle, ra.read_buf(&mut buf))
+                .await
+                .context("a2b idle timeout")?
+                .context("a2b read error")?;
+            if n == 0 {
+                timeout(timeouts.shutdown, wb.shutdown())
+                    .await
+                    .context("a2b shutdown timeout")?
+                    .context("a2b failed to shutdown")?;
+                break;
+            }
+            timeout(timeouts.write, wb.write_all(&buf))
+                .await
+                .context("a2b write timeout")?
+                .context("a2b failed to write")?;
+        },
+        Rest::B2a((rb, wa)) => loop {
+            buf.clear();
+            let n = timeout(timeouts.idle, rb.read_buf(&mut buf))
+                .await
+                .context("b2a idle timeout")?
+                .context("b2a read error")?;
+            if n == 0 {
+                timeout(timeouts.shutdown, wa.shutdown())
+                    .await
+                    .context("b2a shutdown timeout")?
+                    .context("b2a failed to shutdown")?;
+                break;
+            }
+            timeout(timeouts.write, wa.write_all(&buf))
+                .await
+                .context("b2a write timeout")?
+                .context("b2a failed to write")?;
+        },
+    }
+    Ok(())
 }
