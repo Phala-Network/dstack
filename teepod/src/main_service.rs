@@ -275,6 +275,7 @@ impl TeepodRpc for RpcHandler {
             manifest.memory = memory;
         }
         if let Some(disk_size) = request.disk_size {
+            // it only updates the manifesta and does NOT affect the real storage alloc at this time.
             manifest.disk_size = disk_size;
         }
         vm_work_dir
