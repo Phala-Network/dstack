@@ -16,29 +16,22 @@ use log::debug;
 pub async fn http_request(method: &str, base: &str, path: &str, body: &[u8]) -> Result<Vec<u8>> {
     debug!("Sending HTTP request to {base}, path={path}");
     let mut response = if base.starts_with("unix:") {
-        // Create a Unix client
         let client: Client<UnixConnector, Full<Bytes>> = Client::unix();
         let unix_uri: hyper::Uri = Uri::new(base.strip_prefix("unix:").unwrap(), path).into();
-        // Create the request with proper method and body
         let req = Request::builder()
             .method(method)
             .uri(unix_uri)
             .body(Full::new(Bytes::copy_from_slice(body)))?;
-
-        // Send the request
         client.request(req).await?
     } else {
-        // Create an HTTP client
         let client =
             Client::builder(hyper_util::rt::TokioExecutor::new()).build(HttpConnector::new());
 
         let uri = format!("{}{}", base, path).parse::<hyper::Uri>()?;
-        // Create the request
         let req = Request::builder()
             .method(method)
             .uri(uri)
             .body(Full::new(Bytes::copy_from_slice(body)))?;
-        // Send the request
         client.request(req).await?
     };
     debug!("Response: {:?}", response);
