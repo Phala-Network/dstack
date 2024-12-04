@@ -1,0 +1,158 @@
+from typing import Optional, List, Dict, Any
+import binascii
+import json
+import hashlib
+import os
+import logging
+import base64
+
+from pydantic import BaseModel
+import httpx
+
+logger = logging.getLogger('dstack_sdk')
+
+INIT_MR = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+
+def replay_rtmr(history: list[str]):
+    """
+    Replay the RTMR history to calculate the final RTMR value.
+    """
+    if len(history) == 0:
+        return INIT_MR
+    mr = bytes.fromhex(INIT_MR)
+    for content in history:
+        # mr = sha384(concat(mr, content))
+        # if content is shorter than 48 bytes, pad it with zeros
+        content = bytes.fromhex(content)
+        if len(content) < 48:
+            content = content.ljust(48, b'\0')
+        mr = hashlib.sha384(mr + content).digest()
+    return mr.hex()
+
+
+def get_endpoint(endpoint: str | None = None) -> str:
+    if endpoint:
+        return endpoint
+    if "DSTACK_SIMULATOR_ENDPOINT" in os.environ:
+        logger.info(f"Using simulator endpoint: {os.environ['DSTACK_SIMULATOR_ENDPOINT']}")
+        return os.environ["DSTACK_SIMULATOR_ENDPOINT"]
+    return "/var/run/tappd.sock"
+
+
+class DeriveKeyResponse(BaseModel):
+    key: str
+    certificate_chain: List[str]
+
+    def toBytes(self, max_length: Optional[int] = None) -> bytes:
+        content = self.key.replace("-----BEGIN PRIVATE KEY-----", "") \
+            .replace("-----END PRIVATE KEY-----", "") \
+            .replace("\n", "")
+        binary_der = base64.b64decode(content)
+        if max_length is None:
+            max_length = len(binary_der)
+        return binary_der[:max_length]
+
+
+class TdxQuoteResponse(BaseModel):
+    quote: str
+    event_log: str
+
+    def replay_rtmrs(self) -> Dict[int, str]:
+        # NOTE: before dstack-0.3.0, event log might not a JSON file.
+        parsed_event_log = json.loads(self.event_log)
+        rtmrs = {}
+        for idx in range(4):
+            history = []
+            for event in parsed_event_log:
+                if event.get('imr') == idx:
+                    history.append(event['digest'])
+            rtmrs[idx] = replay_rtmr(history)
+        return rtmrs
+
+
+class BaseClient:
+    pass
+
+
+class TappdClient(BaseClient):
+    def __init__(self, endpoint: str | None = None):
+        endpoint = get_endpoint(endpoint)
+        if endpoint.startswith("http://") or endpoint.startswith('https://'):
+            self.transport = httpx.HTTPTransport()
+            self.base_url = endpoint
+        else:
+            self.transport = httpx.HTTPTransport(uds=endpoint)
+            self.base_url = "http://localhost"
+
+    def _send_rpc_request(self, path, payload):
+        with httpx.Client(transport=self.transport, base_url=self.base_url) as client:
+            response = client.post(
+                path,
+                json=payload,
+                headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            return response.json()
+
+    def derive_key(
+            self,
+            path: str | None = None,
+            subject: str | None = None,
+            alt_names: List[str] | None = None
+        ) -> DeriveKeyResponse:
+        data: Dict[str, Any] = {"path": path or '', "subject": subject or path or ''}
+        if alt_names:
+            data["alt_names"] = alt_names
+        result = self._send_rpc_request("/prpc/Tappd.DeriveKey", data)
+        return DeriveKeyResponse(**result)
+
+    def tdx_quote(self, report_data: str | bytes) -> TdxQuoteResponse:
+        if not report_data or not isinstance(report_data, (bytes, str)):
+            raise ValueError("report_data can not be empty")
+        if isinstance(report_data, str):
+            report_data = report_data.encode()
+        hex = binascii.hexlify(report_data).decode()
+        result = self._send_rpc_request("/prpc/Tappd.TdxQuote", {"report_data": hex})
+        return TdxQuoteResponse(**result)
+
+
+class AsyncTappdClient(BaseClient):
+    def __init__(self, endpoint=None):
+        endpoint = get_endpoint(endpoint)
+        if endpoint.startswith("http://") or endpoint.startswith('https://'):
+            self.transport = httpx.AsyncHTTPTransport()
+            self.base_url = endpoint
+        else:
+            self.transport = httpx.AsyncHTTPTransport(uds=endpoint)
+            self.base_url = "http://localhost"
+
+    async def _send_rpc_request(self, path, payload):
+        async with httpx.AsyncClient(transport=self.transport, base_url=self.base_url) as client:
+            response = await client.post(
+                path,
+                json=payload,
+                headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def derive_key(
+            self,
+            path: str | None = None,
+            subject: str | None = None,
+            alt_names: List[str] | None = None
+        ) -> DeriveKeyResponse:
+        data: Dict[str, Any] = {"path": path or '', "subject": subject or path or ''}
+        if alt_names:
+            data["alt_names"] = alt_names
+        result = await self._send_rpc_request("/prpc/Tappd.DeriveKey", data)
+        return DeriveKeyResponse(**result)
+
+    async def tdx_quote(self, report_data: str |bytes) -> TdxQuoteResponse:
+        if not report_data or not isinstance(report_data, (bytes, str)):
+            raise ValueError("report_data can not be empty")
+        if isinstance(report_data, str):
+            report_data = report_data.encode()
+        hex = binascii.hexlify(report_data).decode()
+        result = await self._send_rpc_request("/prpc/Tappd.TdxQuote", {"report_data": hex})
+        return TdxQuoteResponse(**result)

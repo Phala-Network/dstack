@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:f0cb93b9a204ccc5637a570d2d604a3a28e912e5acb1c44eae0fd57ae9699639"
+content_hash = "sha256:43a0958126263e17148793409b1093d912249d70496eb66b0e520682f8e1c19e"
 
 [[metadata.targets]]
 requires_python = ">=3.10"
@@ -72,6 +72,17 @@ marker = "sys_platform == \"win32\""
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
+]
+
+[[package]]
+name = "evidence-api"
+version = "0.5.0"
+requires_python = ">=3.6"
+summary = "Evidence API Base SDK"
+groups = ["dev"]
+files = [
+    {file = "evidence_api-0.5.0-py3-none-any.whl", hash = "sha256:4e60fd031f07afb557aa90777343136cf5b3dc0027f97ad322af1b2684b31d06"},
+    {file = "evidence_api-0.5.0.tar.gz", hash = "sha256:de2bcc2d74d409f3aba0e575b52ee60a55e32479d42ff848e422f7b9776e8376"},
 ]
 
 [[package]]
