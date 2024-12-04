@@ -13,13 +13,31 @@ export interface DeriveKeyResponse {
 
 export type Hex = `0x${string}`
 
+export type TdxQuoteHashAlgorithms =
+  'sha256' | 'sha384' | 'sha512' | 'sha3-256' | 'sha3-384' | 'sha3-512' |
+  'keccak256' | 'keccak384' | 'keccak512' | 'raw'
+
 export interface TdxQuoteResponse {
   quote: Hex
   event_log: string
+
+  replayRtmrs: () => string[]
+}
+
+export function to_hex(data: string | Buffer | Uint8Array): string {
+  if (typeof data === 'string') {
+    return Buffer.from(data).toString('hex');
+  }
+  if (data instanceof Uint8Array) {
+    return Buffer.from(data).toString('hex');
+  }
+  return (data as Buffer).toString('hex');
 }
 
 function x509key_to_uint8array(pem: string, max_length?: number) {
-  const content = pem.replace(/-----BEGIN PRIVATE KEY-----/, '').replace(/-----END PRIVATE KEY-----/, '').replace(/\n/g, '')
+  const content = pem.replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\n/g, '');
   const binaryDer = atob(content)
   if (!max_length) {
     max_length = binaryDer.length
@@ -30,6 +48,44 @@ function x509key_to_uint8array(pem: string, max_length?: number) {
   }
   return result
 }
+
+function replay_rtmr(history: string[]): string {
+  const INIT_MR = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  if (history.length === 0) {
+      return INIT_MR
+  }
+  let mr = Buffer.from(INIT_MR, 'hex')
+  for (const content of history) {
+      // Convert hex string to buffer
+      let contentBuffer = Buffer.from(content, 'hex')
+      // Pad content with zeros if shorter than 48 bytes
+      if (contentBuffer.length < 48) {
+          const padding = Buffer.alloc(48 - contentBuffer.length, 0)
+          contentBuffer = Buffer.concat([contentBuffer, padding])
+      }
+      mr = crypto.createHash('sha384')
+          .update(Buffer.concat([mr, contentBuffer]))
+          .digest()
+  }
+  return mr.toString('hex')
+}
+
+interface EventLog {
+  imr: number
+  digest: string
+}
+
+function reply_rtmrs(event_log: EventLog[]): Record<number, string> {
+  const rtmrs: Array<string> = []
+  for (let idx = 0; idx < 4; idx++) {
+      const history = event_log
+          .filter(event => event.imr === idx)
+          .map(event => event.digest)
+      rtmrs[idx] = replay_rtmr(history)
+  }
+  return rtmrs
+}
+
 
 export function send_rpc_request<T = any>(endpoint: string, path: string, payload: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -148,14 +204,18 @@ export class TappdClient {
 
   constructor(endpoint: string = '/var/run/tappd.sock') {
     if (process.env.DSTACK_SIMULATOR_ENDPOINT) {
-      console.log(`Using simulator endpoint: ${process.env.DSTACK_SIMULATOR_ENDPOINT}`)
+      console.debug(`Using simulator endpoint: ${process.env.DSTACK_SIMULATOR_ENDPOINT}`)
       endpoint = process.env.DSTACK_SIMULATOR_ENDPOINT
     }
     this.endpoint = endpoint
   }
 
-  async deriveKey(path: string, subject: string): Promise<DeriveKeyResponse> {
-    const payload = JSON.stringify({ path, subject })
+  async deriveKey(path?: string, subject?: string, alt_names?: string[]): Promise<DeriveKeyResponse> {
+    let raw: Record<string, any> = { path: path || '', subject: subject || path || '' }
+    if (alt_names && alt_names.length) {
+      raw['alt_names'] = alt_names
+    }
+    const payload = JSON.stringify(raw)
     const result = await send_rpc_request<DeriveKeyResponse>(this.endpoint, '/prpc/Tappd.DeriveKey', payload)
     Object.defineProperty(result, 'asUint8Array', {
       get: () => (length?: number) => x509key_to_uint8array(result.key, length),
@@ -165,18 +225,27 @@ export class TappdClient {
     return Object.freeze(result)
   }
 
-  async tdxQuote(report_data: string | Buffer | Uint8Array): Promise<TdxQuoteResponse> {
-    let hashInput: Buffer
-    if (typeof report_data === 'string') {
-      hashInput = Buffer.from(report_data)
-    } else if (report_data instanceof Uint8Array) {
-      hashInput = Buffer.from(report_data)
-    } else {
-      hashInput = report_data
+  async tdxQuote(report_data: string | Buffer | Uint8Array, hash_algorithm?: TdxQuoteHashAlgorithms): Promise<TdxQuoteResponse> {
+    let hex = to_hex(report_data)
+    if (hash_algorithm === 'raw') {
+      if (hex.length > 128) {
+        throw new Error('Report data is too large, it should less then 128 characters when hash_algorithm is raw.')
+      }
+      if (hex.length < 128) {
+        hex = hex.padEnd(128, '0')
+      }
     }
-    const hash = crypto.createHash('sha384').update(hashInput).digest('hex')
-    const payload = JSON.stringify({ report_data: `0x${hash}` })
+    const payload = JSON.stringify({ report_data: hex, hash_algorithm })
     const result = await send_rpc_request<TdxQuoteResponse>(this.endpoint, '/prpc/Tappd.TdxQuote', payload)
+    if ('error' in result) {
+      const err = result['error'] as string
+      throw new Error(err)
+    }
+    Object.defineProperty(result, 'replayRtmrs', {
+      get: () => () => reply_rtmrs(JSON.parse(result.event_log) as EventLog[]),
+      enumerable: true,
+      configurable: false,
+    })
     return Object.freeze(result)
   }
 }
