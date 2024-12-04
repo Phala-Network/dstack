@@ -72,7 +72,7 @@ assert_eq "$(echo "$RES" | jq -r .state.started)" "true" "Info should show start
 
 # Start the process (should fail as it's already running)
 info "Testing Start command"
-${CLI} start ${TEST_PROC_ID}
+${CLI} start ${TEST_PROC_ID} 2>/dev/null
 assert_eq "$?" 1 "Start should return error"
 
 # Stop the process
@@ -86,6 +86,21 @@ RES=$(${CLI} info ${TEST_PROC_ID})
 assert_eq "$(echo "$RES" | jq -r .state.status)" "stopped" "Info should show stopped status"
 assert_eq "$(echo "$RES" | jq -r .state.started)" "false" "Info should show started as false"
 
+# Can be started again
+info "Testing Start command after stop"
+RES=$(${CLI} start ${TEST_PROC_ID})
+assert_eq "$RES" "null" "Start should return empty object"
+
+# Can not be removed when running
+info "Testing Remove command when running"
+${CLI} remove ${TEST_PROC_ID} 2>/dev/null
+assert_eq "$?" 1 "Remove should return error"
+
+# Stop the process
+info "Testing Stop command"
+RES=$(${CLI} stop ${TEST_PROC_ID})
+assert_eq "$RES" "null" "Stop should return empty object"
+
 # Remove the process
 info "Testing Remove command"
 RES=$(${CLI} remove ${TEST_PROC_ID})
@@ -93,7 +108,7 @@ assert_eq "$RES" "null" "Remove should return empty object"
 
 # Can not start a removed process
 info "Testing Start command after remove"
-${CLI} start ${TEST_PROC_ID}
+${CLI} start ${TEST_PROC_ID} 2>/dev/null
 assert_eq "$?" 1 "Start should return error"
 
 # Test list command
@@ -107,7 +122,7 @@ RES=$(${CLI} ping)
 assert_eq "$RES" '"pong"' "Ping should return pong"
 
 info "Shutting down supervisor"
-${CLI} shutdown
+${CLI} shutdown 2>/dev/null
 kill $(cat $PIDFILE) 2>/dev/null
 rm -f $UDS $PIDFILE
 
