@@ -3,6 +3,7 @@ use std::path::Path;
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use rocket::{
+    fairing::AdHoc,
     figment::{
         providers::{Format, Toml},
         Figment,
@@ -118,6 +119,11 @@ async fn async_main(args: Args) -> Result<()> {
         figment = figment.join(("port", port));
     }
     let rocket = web_api::rocket(figment);
+    let rocket = rocket.attach(AdHoc::on_response("Add app version header", |_req, res| {
+        Box::pin(async move {
+            res.set_raw_header("X-App-Version", app_version());
+        })
+    }));
     let ignite = rocket
         .ignite()
         .await
