@@ -36,6 +36,10 @@ pub struct ProcessConfig {
     pub stderr: String,
     #[serde(default)]
     pub pidfile: String,
+    #[serde(default)]
+    pub cid: Option<u32>,
+    #[serde(default)]
+    pub note: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

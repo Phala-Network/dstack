@@ -1,5 +1,7 @@
 use std::collections::BTreeSet;
 
+use anyhow::bail;
+
 macro_rules! impl_numbers {
     ($($t:ty),*) => {
         $(impl Number for $t {
@@ -29,6 +31,15 @@ impl<T: Number> IdPool<T> {
             allocated: BTreeSet::new(),
         }
     }
+
+    pub fn occupy(&mut self, id: T) -> anyhow::Result<()> {
+        if self.allocated.insert(id) {
+            Ok(())
+        } else {
+            bail!("id already occupied")
+        }
+    }
+
     pub fn allocate(&mut self) -> Option<T> {
         let mut id = self.start.clone();
         while let Some(next) = id.next() {

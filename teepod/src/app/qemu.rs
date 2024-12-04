@@ -246,6 +246,8 @@ impl VmConfig {
             stdout: stdout_path.to_string_lossy().to_string(),
             stderr: stderr_path.to_string_lossy().to_string(),
             pidfile: pidfile_path.to_string_lossy().to_string(),
+            cid: self.tdx_config.as_ref().map(|cfg| cfg.cid),
+            note: "".into(),
         };
         Ok(process_config)
     }

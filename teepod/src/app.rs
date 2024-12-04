@@ -22,7 +22,7 @@ use bon::Builder;
 use fs_err as fs;
 use id_pool::IdPool;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -86,26 +86,33 @@ impl App {
             supervisor: supervisor.clone(),
             state: Arc::new(Mutex::new(AppState {
                 cid_pool,
-                vms: BTreeMap::new(),
+                vms: HashMap::new(),
             })),
             config: Arc::new(config),
         }
     }
 
-    pub async fn load_vm(&self, work_dir: impl AsRef<Path>) -> Result<()> {
+    pub async fn load_vm(
+        &self,
+        work_dir: impl AsRef<Path>,
+        cids_assigned: &HashMap<String, u32>,
+    ) -> Result<()> {
         let vm_work_dir = VmWorkDir::new(work_dir.as_ref());
         let manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
         let todo = "sanitize the image name";
         let image_path = self.config.image_path.join(&manifest.image);
         let image = Image::load(&image_path).context("Failed to load image")?;
+        let running_vms = self.supervisor.list().await.context("Failed to list VMs")?;
 
-        let cid = self
-            .state
-            .lock()
-            .unwrap()
-            .cid_pool
-            .allocate()
-            .context("CID pool exhausted")?;
+        let cid = cids_assigned.get(&manifest.id).cloned();
+        let cid = match cid {
+            Some(cid) => cid,
+            None => self
+                .lock()
+                .cid_pool
+                .allocate()
+                .context("CID pool exhausted")?,
+        };
 
         let vm_config = VmConfig {
             manifest,
@@ -158,7 +165,16 @@ impl App {
             bail!("VM is running, stop it first");
         }
         self.supervisor.remove(id).await?;
-        self.lock().remove(id);
+
+        {
+            let mut state = self.lock();
+            if let Some(config) = state.remove(id) {
+                if let Some(cfg) = &config.tdx_config {
+                    state.cid_pool.free(cfg.cid);
+                }
+            }
+        }
+
         let vm_path = self.work_dir(id);
         fs::remove_dir_all(&vm_path).context("Failed to remove VM directory")?;
         Ok(())
@@ -166,12 +182,26 @@ impl App {
 
     pub async fn reload_vms(&self) -> Result<()> {
         let vm_path = self.vm_dir();
+        let running_vms = self.supervisor.list().await.context("Failed to list VMs")?;
+        let occupied_cids = running_vms
+            .iter()
+            .flat_map(|p| match p.config.cid {
+                Some(cid) => Some((p.config.id.clone(), cid)),
+                None => None,
+            })
+            .collect::<HashMap<_, _>>();
+        {
+            let mut state = self.lock();
+            for (_id, cid) in &occupied_cids {
+                state.cid_pool.occupy(*cid)?;
+            }
+        }
         if vm_path.exists() {
             for entry in fs::read_dir(vm_path).context("Failed to read VM directory")? {
                 let entry = entry.context("Failed to read directory entry")?;
                 let vm_path = entry.path();
                 if vm_path.is_dir() {
-                    if let Err(err) = self.load_vm(vm_path).await {
+                    if let Err(err) = self.load_vm(vm_path, &occupied_cids).await {
                         error!("Failed to load VM: {err:?}");
                     }
                 }
@@ -234,7 +264,7 @@ impl App {
 
 pub(crate) struct AppState {
     cid_pool: IdPool<u32>,
-    vms: BTreeMap<String, Arc<VmConfig>>,
+    vms: HashMap<String, Arc<VmConfig>>,
 }
 
 impl AppState {

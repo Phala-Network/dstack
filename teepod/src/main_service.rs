@@ -178,7 +178,7 @@ impl TeepodRpc for RpcHandler {
         }
 
         self.app
-            .load_vm(&work_dir)
+            .load_vm(&work_dir, &Default::default())
             .await
             .context("Failed to load VM")?;
 
@@ -296,7 +296,7 @@ impl TeepodRpc for RpcHandler {
             .put_manifest(&manifest)
             .context("failed to update manifest")?;
         self.app
-            .load_vm(work_dir)
+            .load_vm(work_dir, &Default::default())
             .await
             .context("Failed to load VM")?;
         Ok(())
