@@ -71,6 +71,16 @@ message AcmeInfoResponse {
   repeated bytes hist_keys = 2;
 }
 
+// Get HostInfo for associated instance id.
+message GetInfoRequest {
+  string id = 1;
+}
+
+message GetInfoResponse {
+  bool found = 1;
+  optional HostInfo info = 2;
+}
+
 service Tproxy {
   // Register a new proxied CVM.
   rpc RegisterCvm(RegisterCvmRequest) returns (RegisterCvmResponse) {}
@@ -78,4 +88,6 @@ service Tproxy {
   rpc List(google.protobuf.Empty) returns (ListResponse) {}
   // List all ACME account URIs and the public key history of the certificates for the Content Addressable HTTPS.
   rpc AcmeInfo(google.protobuf.Empty) returns (AcmeInfoResponse) {}
+  // Find Proxied HostInfo by instance ID
+  rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {}
 }

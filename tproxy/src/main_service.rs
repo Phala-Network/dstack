@@ -16,7 +16,8 @@ use serde::{Deserialize, Serialize};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
     AcmeInfoResponse, HostInfo as PbHostInfo, ListResponse, RegisterCvmRequest,
-    RegisterCvmResponse, TappdConfig, WireGuardConfig,
+    RegisterCvmResponse, TappdConfig, WireGuardConfig, GetInfoRequest,
+    GetInfoResponse,
 };
 use tracing::{debug, error, info};
 
@@ -366,6 +367,38 @@ impl TproxyRpc for RpcHandler {
             })
             .collect::<Vec<_>>();
         Ok(ListResponse { hosts })
+    }
+
+    async fn get_info(self, request: GetInfoRequest) -> Result<GetInfoResponse> {
+        let state = self.state.lock();
+        let base_domain = &state.config.proxy.base_domain;
+        let handshakes = state.latest_handshakes(None)?;
+
+        if let Some(instance) = state.state.instances.get(&request.id) {
+            let host_info = PbHostInfo {
+                id: instance.id.clone(),
+                ip: instance.ip.to_string(),
+                app_id: instance.app_id.clone(),
+                base_domain: base_domain.clone(),
+                port: state.config.proxy.listen_port as u32,
+                latest_handshake: {
+                    let (ts, _) = handshakes
+                        .get(&instance.public_key)
+                        .copied()
+                        .unwrap_or_default();
+                    ts
+                },
+            };
+            Ok(GetInfoResponse {
+                found: true,
+                info: Some(host_info),
+            })
+        } else {
+            Ok(GetInfoResponse {
+                found: false,
+                info: None,
+            })
+        }
     }
 
     async fn acme_info(self) -> Result<AcmeInfoResponse> {

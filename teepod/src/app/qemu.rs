@@ -1,13 +1,14 @@
 //! QEMU related code
+use crate::{
+    app::Manifest,
+    config::{GatewayConfig, Networking},
+};
 use std::{
-    collections::HashMap,
     ops::Deref,
     path::{Path, PathBuf},
     process::Command,
     time::{Duration, SystemTime},
 };
-
-use crate::{app::Manifest, config::Networking};
 
 use super::image::Image;
 use anyhow::{Context, Result};
@@ -15,6 +16,7 @@ use bon::Builder;
 use fs_err as fs;
 use serde::{Deserialize, Serialize};
 use supervisor_client::supervisor::{ProcessConfig, ProcessInfo};
+use teepod_rpc as pb;
 
 #[derive(Debug, Deserialize)]
 pub struct InstanceInfo {
@@ -68,13 +70,53 @@ fn create_hd(
     Ok(())
 }
 
+impl VmInfo {
+    pub fn to_pb(&self, gw: &GatewayConfig) -> pb::VmInfo {
+        let workdir = VmWorkDir::new(&self.workdir);
+        pb::VmInfo {
+            id: self.manifest.id.as_str().into(),
+            name: self.manifest.name.as_str().into(),
+            status: self.status.into(),
+            uptime: self.uptime.as_str().into(),
+            configuration: Some(pb::VmConfiguration {
+                name: self.manifest.name.as_str().into(),
+                image: self.manifest.image.as_str().into(),
+                compose_file: {
+                    fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
+                },
+                encrypted_env: { fs::read(workdir.encrypted_env_path()).unwrap_or_default() },
+                vcpu: self.manifest.vcpu,
+                memory: self.manifest.memory,
+                disk_size: self.manifest.disk_size,
+                ports: self
+                    .manifest
+                    .port_map
+                    .iter()
+                    .map(|pm| pb::PortMapping {
+                        protocol: pm.protocol.as_str().into(),
+                        host_port: pm.from as u32,
+                        vm_port: pm.to as u32,
+                    })
+                    .collect(),
+            }),
+            app_url: self.instance_id.as_ref().map(|id| {
+                format!(
+                    "https://{id}-{}.{}:{}",
+                    gw.tappd_port, gw.base_domain, gw.port
+                )
+            }),
+            app_id: self.manifest.app_id.as_str().into(),
+            instance_id: self.instance_id.as_deref().map(Into::into),
+        }
+    }
+}
+
 impl VmConfig {
-    pub fn merge_info(&self, states: &HashMap<String, ProcessInfo>, workdir: &VmWorkDir) -> VmInfo {
+    pub fn merge_info(&self, proc_state: Option<&ProcessInfo>, workdir: &VmWorkDir) -> VmInfo {
         fn truncate(d: Duration) -> Duration {
             Duration::from_secs(d.as_secs())
         }
-        let info = states.get(&self.manifest.id);
-        let is_running = match &info {
+        let is_running = match proc_state {
             Some(info) => info.state.status.is_running(),
             None => false,
         };
@@ -96,8 +138,8 @@ impl VmConfig {
                 }
             }
         }
-        let uptime = display_ts(info.and_then(|info| info.state.started_at.as_ref()));
-        let exited_at = display_ts(info.and_then(|info| info.state.stopped_at.as_ref()));
+        let uptime = display_ts(proc_state.and_then(|info| info.state.started_at.as_ref()));
+        let exited_at = display_ts(proc_state.and_then(|info| info.state.stopped_at.as_ref()));
         let instance_id = workdir.instance_info().ok().map(|info| info.instance_id);
         VmInfo {
             manifest: self.manifest.clone(),

@@ -193,54 +193,13 @@ impl App {
         let mut infos = self
             .lock()
             .iter_vms()
-            .map(|vm| vm.merge_info(&vms, &self.work_dir(&vm.manifest.id)))
+            .map(|vm| vm.merge_info(vms.get(&vm.manifest.id), &self.work_dir(&vm.manifest.id)))
             .collect::<Vec<_>>();
 
         infos.sort_by(|a, b| a.manifest.created_at_ms.cmp(&b.manifest.created_at_ms));
         let gw = &self.config.gateway;
 
-        let lst = infos
-            .into_iter()
-            .map(|info| pb::VmInfo {
-                id: info.manifest.id,
-                name: info.manifest.name.clone(),
-                status: info.status.to_string(),
-                uptime: info.uptime,
-                configuration: Some(pb::VmConfiguration {
-                    name: info.manifest.name,
-                    image: info.manifest.image,
-                    compose_file: {
-                        let workdir = VmWorkDir::new(&info.workdir);
-                        fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
-                    },
-                    encrypted_env: {
-                        let workdir = VmWorkDir::new(&info.workdir);
-                        fs::read(workdir.encrypted_env_path()).unwrap_or_default()
-                    },
-                    vcpu: info.manifest.vcpu,
-                    memory: info.manifest.memory,
-                    disk_size: info.manifest.disk_size,
-                    ports: info
-                        .manifest
-                        .port_map
-                        .into_iter()
-                        .map(|pm| pb::PortMapping {
-                            protocol: pm.protocol.as_str().into(),
-                            host_port: pm.from as u32,
-                            vm_port: pm.to as u32,
-                        })
-                        .collect(),
-                }),
-                app_url: info.instance_id.as_ref().map(|id| {
-                    format!(
-                        "https://{id}-{}.{}:{}",
-                        gw.tappd_port, gw.base_domain, gw.port
-                    )
-                }),
-                app_id: info.manifest.app_id,
-                instance_id: info.instance_id,
-            })
-            .collect();
+        let lst = infos.into_iter().map(|info| info.to_pb(gw)).collect();
         Ok(lst)
     }
 
@@ -259,6 +218,17 @@ impl App {
                 )
             })
             .collect())
+    }
+
+    pub async fn get_vm(&self, id: &str) -> Result<Option<pb::VmInfo>> {
+        let proc_state = self.supervisor.info(id).await?;
+        let Some(cfg) = self.lock().get(id) else {
+            return Ok(None);
+        };
+        let info = cfg
+            .merge_info(proc_state.as_ref(), &self.work_dir(id))
+            .to_pb(&self.config.gateway);
+        Ok(Some(info))
     }
 }
 

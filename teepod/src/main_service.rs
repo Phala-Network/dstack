@@ -8,8 +8,8 @@ use ra_rpc::client::RaClient;
 use ra_rpc::{Attestation, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
-    AppId, Id, ImageInfo as RpcImageInfo, ImageListResponse, PublicKeyResponse, StatusResponse,
-    UpgradeAppRequest, VmConfiguration,
+    AppId, GetInfoResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse, PublicKeyResponse,
+    ResizeVmRequest, StatusResponse, UpgradeAppRequest, VmConfiguration,
 };
 use tracing::warn;
 
@@ -251,6 +251,55 @@ impl TeepodRpc for RpcHandler {
         Ok(PublicKeyResponse {
             public_key: response.public_key,
         })
+    }
+
+    async fn get_info(self, request: Id) -> Result<GetInfoResponse> {
+        if let Some(vm) = self.app.get_vm(&request.id).await? {
+            Ok(GetInfoResponse {
+                found: true,
+                info: Some(vm),
+            })
+        } else {
+            Ok(GetInfoResponse {
+                found: false,
+                info: None,
+            })
+        }
+    }
+
+    async fn resize_vm(self, request: ResizeVmRequest) -> Result<()> {
+        let vm = self
+            .app
+            .get_vm(&request.id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("vm not found: {}", request.id))?;
+        if vm.status != "stopped" {
+            return Err(anyhow::anyhow!(
+                "vm should be stopped before resize: {}",
+                request.id
+            ));
+        }
+        let work_dir = self.app.config.run_path.join(&request.id);
+        let vm_work_dir = VmWorkDir::new(&work_dir);
+        let mut manifest = vm_work_dir.manifest().context("failed to read manifest")?;
+        if let Some(vcpu) = request.vcpu {
+            manifest.vcpu = vcpu;
+        }
+        if let Some(memory) = request.memory {
+            manifest.memory = memory;
+        }
+        if let Some(disk_size) = request.disk_size {
+            // it only updates the manifesta and does NOT affect the real storage alloc at this time.
+            manifest.disk_size = disk_size;
+        }
+        vm_work_dir
+            .put_manifest(&manifest)
+            .context("failed to update manifest")?;
+        self.app
+            .load_vm(work_dir)
+            .await
+            .context("Failed to load VM")?;
+        Ok(())
     }
 }
 
