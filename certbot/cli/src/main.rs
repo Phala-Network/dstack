@@ -8,7 +8,6 @@ use fs_err as fs;
 use serde::{Deserialize, Serialize};
 use toml_edit::ser::to_document;
 
-
 #[derive(Parser)]
 enum Command {
     /// Automatically renew certificates if they are close to expiration
@@ -147,7 +146,11 @@ async fn renew(config: &PathBuf, once: bool) -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    {
+        use tracing_subscriber::{fmt, EnvFilter};
+        let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+        fmt().with_env_filter(filter).init();
+    }
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install default crypto provider");

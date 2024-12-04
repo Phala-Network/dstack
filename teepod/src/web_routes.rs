@@ -120,7 +120,7 @@ impl Drop for StreamCounter {
     }
 }
 
-#[get("/logs?<id>&<follow>&<ansi>&<lines>")]
+#[get("/logs?<id>&<follow>&<ansi>&<lines>&<ch>")]
 fn vm_logs(
     _auth: Authorized,
     app: &State<App>,
@@ -128,16 +128,21 @@ fn vm_logs(
     follow: bool,
     ansi: bool,
     lines: Option<usize>,
+    ch: Option<&str>,
 ) -> TextStream![String] {
-    let log_file = app.get_log_file(&id);
+    let workdir = app.work_dir(&id);
+    let ch = ch.unwrap_or("serial").to_string();
     TextStream! {
-        let log_file = match log_file {
-            Err(err) => {
-                yield format!("{err:?}");
+        let log_file = match ch.as_str() {
+            "serial" => workdir.serial_file(),
+            "stdout" => workdir.stdout_file(),
+            "stderr" => workdir.stderr_file(),
+            _ => {
+                yield format!("Unknown channel {ch}");
                 return;
             }
-            Ok(log_file) => log_file,
         };
+
         let counter = StreamCounter::new();
 
         const DEFAULT_TAIL_LINES: usize = 10000;

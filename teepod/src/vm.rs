@@ -82,166 +82,29 @@ pub(crate) mod image {
     }
 }
 
-pub(crate) mod run {
-    use crate::app::Manifest;
+mod qemu {
+    //! QEMU related code
+    use std::{
+        collections::HashMap,
+        path::{Path, PathBuf},
+        process::Command,
+        sync::Arc,
+    };
 
-    pub use super::image::Image;
-    pub use super::qemu::{TdxConfig, VmConfig};
-    use anyhow::{bail, Context, Result};
+    use crate::{
+        app::{Manifest, VmWorkDir},
+        config::Networking,
+    };
+
+    use super::image::Image;
+    use anyhow::Result;
+    use bon::Builder;
     use fs_err as fs;
-    use serde::Deserialize;
-    use shared_child::SharedChild;
-    use std::collections::BTreeMap;
-    use std::io::Read;
-    use std::path::{Path, PathBuf};
-    use std::sync::Arc;
-    use std::time::{Duration, Instant};
-    use tracing::{error, info};
-    use std::io::Write;
-
-    fn append_to(path: impl AsRef<Path>, content: &[u8]) -> Result<()> {
-        fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path.as_ref())
-            .and_then(|mut file| file.write_all(content))
-            .map_err(Into::into)
-    }
+    use supervisor_client::supervisor::{ProcessConfig, ProcessInfo};
 
     #[derive(Debug, Deserialize)]
     pub struct InstanceInfo {
         pub instance_id: String,
-    }
-
-    pub struct VmInstance {
-        config: VmConfig,
-        workdir: PathBuf,
-        process: Option<Arc<SharedChild>>,
-        started: bool,
-        exited_at: Option<Instant>,
-        started_at: Option<Instant>,
-    }
-
-    impl VmInstance {
-        pub fn new(config: VmConfig, workdir: PathBuf) -> Self {
-            Self {
-                config,
-                workdir,
-                process: None,
-                started: false,
-                exited_at: None,
-                started_at: None,
-            }
-        }
-
-        pub fn instance_info(&self) -> Result<InstanceInfo> {
-            let info_file = self.workdir.join("shared").join(".instance_info");
-            let info: InstanceInfo = serde_json::from_slice(&fs::read(&info_file)?)?;
-            Ok(info)
-        }
-
-        pub fn start(&mut self, qemu_bin: &Path) -> Result<()> {
-            if self.is_running() {
-                bail!("The instance is already running");
-            }
-            let process = super::qemu::run_vm(qemu_bin, &self.config, &self.workdir)?;
-            let cloned_child = process.clone();
-            let vmid = self.config.manifest.id.clone();
-            let log_file = super::qemu::get_log_file(&self.workdir);
-            std::thread::spawn(move || {
-                let span = tracing::info_span!("wait_on_child", id = vmid);
-                let _enter = span.enter();
-                let status = match cloned_child.wait() {
-                    Ok(status) => status,
-                    Err(e) => {
-                        error!("Failed to wait on child: {e:?}");
-                        return;
-                    }
-                };
-                if status.success() {
-                    info!("The instance exited successfully");
-                } else {
-                    let todo = "Dont show error if VM is stopped by user";
-                    error!("The instance exited with status: {:#?}", status);
-                    if let Some(mut output) = cloned_child.take_stdout() {
-                        let mut stdout = String::new();
-                        match output.read_to_string(&mut stdout) {
-                            Ok(_) => {
-                                if !stdout.is_empty() {
-                                    info!("The instance stdout: {:#?}", stdout);
-                                    if let Err(e) = append_to(&log_file, stdout.as_bytes()) {
-                                        error!("Failed to write the instance stdout to log file: {e:?}");
-                                    }
-                                }
-                            }
-                            Err(e) => error!("Failed to read the instance stdout: {e:?}"),
-                        }
-                    }
-                    if let Some(mut output) = cloned_child.take_stderr() {
-                        let mut stderr = String::new();
-                        match output.read_to_string(&mut stderr) {
-                            Ok(_) => {
-                                if !stderr.is_empty() {
-                                    error!("The instance stderr: {:#?}", stderr);
-                                    if let Err(e) = append_to(&log_file, stderr.as_bytes()) {
-                                        error!("Failed to write the instance stderr to log file: {e:?}");
-                                    }
-                                }
-                            }
-                            Err(e) => error!("Failed to read the instance stderr: {e:?}"),
-                        }
-                    }
-                }
-            });
-            self.process = Some(process);
-            self.started_at = Some(Instant::now());
-            self.started = true;
-            Ok(())
-        }
-
-        pub fn stop(&mut self) -> Result<()> {
-            self.started = false;
-            if let Some(process) = &self.process {
-                process.kill()?;
-                self.exited_at = Some(Instant::now());
-            }
-            Ok(())
-        }
-
-        pub fn is_running(&self) -> bool {
-            match &self.process {
-                Some(child) => match child.try_wait() {
-                    Ok(None) => true,
-                    _ => false,
-                },
-                None => false,
-            }
-        }
-
-        pub fn info(&self) -> VmInfo {
-            fn truncate(d: Duration) -> Duration {
-                Duration::from_secs(d.as_secs())
-            }
-            let uptime = self.started_at.map(|t| t.elapsed());
-            let uptime = uptime
-                .map(|d| humantime::format_duration(truncate(d)).to_string())
-                .unwrap_or_default();
-            let status = match (self.started, self.is_running()) {
-                (true, true) => "running",
-                (true, false) => "exited",
-                (false, true) => "stopping",
-                (false, false) => "stopped",
-            };
-            let instance_id = self.instance_info().ok().map(|info| info.instance_id);
-            VmInfo {
-                manifest: self.config.manifest.clone(),
-                workdir: self.workdir.clone(),
-                instance_id,
-                status,
-                uptime,
-                exited_at: None,
-            }
-        }
     }
 
     pub struct VmInfo {
@@ -252,89 +115,6 @@ pub(crate) mod run {
         pub exited_at: Option<String>,
         pub instance_id: Option<String>,
     }
-
-    pub struct VmMonitor {
-        qemu_bin: PathBuf,
-        vms: BTreeMap<String, VmInstance>,
-    }
-
-    impl VmMonitor {
-        pub fn new(qemu_bin: PathBuf) -> Self {
-            Self {
-                qemu_bin,
-                vms: BTreeMap::new(),
-            }
-        }
-
-        pub fn load_vm(
-            &mut self,
-            vm: VmConfig,
-            workdir: impl AsRef<Path>,
-            start: bool,
-        ) -> Result<()> {
-            let mut vm = VmInstance::new(vm, workdir.as_ref().to_path_buf());
-            if start {
-                vm.start(&self.qemu_bin)?;
-            }
-            self.vms.insert(vm.config.manifest.id.clone(), vm);
-            Ok(())
-        }
-
-        pub fn start_vm(&mut self, id: &str) -> Result<()> {
-            let Some(vm) = self.vms.get_mut(id) else {
-                bail!("The instance {} is not found", id);
-            };
-            vm.start(&self.qemu_bin)?;
-            Ok(())
-        }
-
-        pub fn stop_vm(&mut self, id: &str) -> Result<()> {
-            let Some(vm) = self.vms.get_mut(id) else {
-                bail!("The instance {} is not found", id);
-            };
-            vm.stop()?;
-            Ok(())
-        }
-
-        pub fn remove_vm(&mut self, id: &str) -> Result<()> {
-            {
-                let vm = self.vms.get(id).context("VM not found")?;
-                if vm.is_running() || vm.started {
-                    bail!("The instance is running, please stop it first");
-                }
-            }
-            self.vms.remove(id);
-            Ok(())
-        }
-
-        pub fn get_log_file(&self, id: &str) -> Result<PathBuf> {
-            let Some(info) = self.vms.get(id) else {
-                bail!("The instance {} is not found", id);
-            };
-            Ok(super::qemu::get_log_file(&info.workdir))
-        }
-
-        pub fn iter_vms(&self) -> impl Iterator<Item = &VmInstance> {
-            self.vms.values()
-        }
-    }
-}
-
-mod qemu {
-    //! QEMU related code
-    use std::{
-        path::{Path, PathBuf},
-        process::Command,
-        sync::Arc,
-    };
-
-    use crate::{app::Manifest, config::Networking};
-
-    use super::image::Image;
-    use anyhow::Result;
-    use bon::Builder;
-    use fs_err as fs;
-    use shared_child::SharedChild;
 
     #[derive(Debug)]
     pub struct TdxConfig {
@@ -369,92 +149,146 @@ mod qemu {
         Ok(())
     }
 
-    pub fn run_vm(
-        qemu: &Path,
-        config: &VmConfig,
-        workdir: impl AsRef<Path>,
-    ) -> Result<Arc<SharedChild>> {
-        let workdir = workdir.as_ref();
-        let serial_file = workdir.join("serial.log");
-        let shared_dir = workdir.join("shared");
-        let disk_size = format!("{}G", config.manifest.disk_size);
-        let hda_path = workdir.join("hda.img");
-        if !hda_path.exists() {
-            create_hd(&hda_path, config.image.hda.as_ref(), &disk_size)?;
-        }
-        if !shared_dir.exists() {
-            fs::create_dir_all(&shared_dir)?;
-        }
-        let mut command = Command::new(qemu);
-        command.arg("-accel").arg("kvm");
-        command.arg("-cpu").arg("host");
-        command.arg("-smp").arg(config.manifest.vcpu.to_string());
-        command
-            .arg("-m")
-            .arg(format!("{}M", config.manifest.memory));
-        command.arg("-nographic");
-        command.arg("-nodefaults");
-        command
-            .arg("-serial")
-            .arg(format!("file:{}", serial_file.display()));
-        command.arg("-kernel").arg(&config.image.kernel);
-        command.arg("-initrd").arg(&config.image.initrd);
-        command
-            .arg("-drive")
-            .arg(format!("file={},if=none,id=hd0", hda_path.display()))
-            .arg("-device")
-            .arg(format!("virtio-blk-pci,drive=hd0"));
-        if let Some(rootfs) = &config.image.rootfs {
-            command.arg("-cdrom").arg(rootfs);
-        }
-        if let Some(bios) = &config.image.bios {
-            command.arg("-bios").arg(bios);
-        }
-        let netdev = match &config.networking {
-            Networking::User(netcfg) => {
-                let mut netdev = format!(
-                    "user,id=net0,net={},dhcpstart={},restrict={}",
-                    netcfg.net,
-                    netcfg.dhcp_start,
-                    if netcfg.restrict { "yes" } else { "no" }
-                );
-                for pm in &config.manifest.port_map {
-                    netdev.push_str(&format!(
-                        ",hostfwd={}:{}:{}-:{}",
-                        pm.protocol.as_str(),
-                        pm.address,
-                        pm.from,
-                        pm.to
-                    ));
-                }
-                netdev
+    impl VmConfig {
+        pub fn merge_info(
+            &self,
+            states: &HashMap<String, ProcessInfo>,
+            instance_id: Option<String>,
+        ) -> VmInfo {
+            fn truncate(d: Duration) -> Duration {
+                Duration::from_secs(d.as_secs())
             }
-            Networking::Custom(netcfg) => netcfg.netdev.clone(),
-        };
-        command.arg("-netdev").arg(netdev);
-        command.arg("-device").arg("virtio-net-pci,netdev=net0");
-        if let Some(tdx) = &config.tdx_config {
-            command
-                .arg("-machine")
-                .arg("q35,kernel-irqchip=split,confidential-guest-support=tdx,hpet=off");
-            command.arg("-object").arg("tdx-guest,id=tdx");
-            command
-                .arg("-device")
-                .arg(format!("vhost-vsock-pci,guest-cid={}", tdx.cid));
-        }
-        command.arg("-virtfs").arg(format!(
-            "local,path={},mount_tag=host-shared,readonly=off,security_model=mapped,id=virtfs0",
-            shared_dir.display()
-        ));
-        if let Some(cmdline) = &config.image.info.cmdline {
-            command.arg("-append").arg(cmdline);
-        }
-        command.current_dir(workdir);
-        let child = SharedChild::spawn(&mut command)?;
-        Ok(Arc::new(child))
-    }
+            let info = states.get(&self.config.manifest.id);
+            let is_running = match &info {
+                Some(info) => info.state.status.is_running(),
+                None => false,
+            };
+            let status = match (self.started, is_running) {
+                (true, true) => "running",
+                (true, false) => "exited",
+                (false, true) => "stopping",
+                (false, false) => "stopped",
+            };
 
-    pub fn get_log_file(workdir: impl AsRef<Path>) -> PathBuf {
-        workdir.as_ref().join("serial.log")
+            fn display_ts(t: Option<&SystemTime>) -> String {
+                match t {
+                    None => "never".into(),
+                    Some(t) => {
+                        let ts = t.duration_since(UNIX_EPOCH).unwrap_or(Duration::MAX);
+                        humantime::format_duration(truncate(ts)).to_string()
+                    }
+                }
+            }
+            let uptime = display_ts(info.and_then(|info| info.state.started_at.as_ref()));
+            let exited_at = display_ts(info.and_then(|info| info.state.stopped_at.as_ref()));
+
+            VmInfo {
+                manifest: self.config.manifest.clone(),
+                workdir: self.workdir.clone(),
+                instance_id,
+                status,
+                uptime,
+                exited_at: Some(exited_at),
+            }
+        }
+
+        pub fn config_qemu(&self, qemu: &Path, workdir: impl AsRef<Path>) -> Result<ProcessConfig> {
+            let workdir = VmWorkDir::new(workdir);
+            let serial_file = workdir.serial_file();
+            let shared_dir = workdir.shared_dir();
+            let disk_size = format!("{}G", self.manifest.disk_size);
+            let hda_path = workdir.hda_path();
+            if !hda_path.exists() {
+                create_hd(&hda_path, self.image.hda.as_ref(), &disk_size)?;
+            }
+            if !shared_dir.exists() {
+                fs::create_dir_all(&shared_dir)?;
+            }
+            let mut command = Command::new(qemu);
+            command.arg("-accel").arg("kvm");
+            command.arg("-cpu").arg("host");
+            command.arg("-smp").arg(self.manifest.vcpu.to_string());
+            command.arg("-m").arg(format!("{}M", self.manifest.memory));
+            command.arg("-nographic");
+            command.arg("-nodefaults");
+            command
+                .arg("-serial")
+                .arg(format!("file:{}", serial_file.display()));
+            command.arg("-kernel").arg(&self.image.kernel);
+            command.arg("-initrd").arg(&self.image.initrd);
+            command
+                .arg("-drive")
+                .arg(format!("file={},if=none,id=hd0", hda_path.display()))
+                .arg("-device")
+                .arg(format!("virtio-blk-pci,drive=hd0"));
+            if let Some(rootfs) = &self.image.rootfs {
+                command.arg("-cdrom").arg(rootfs);
+            }
+            if let Some(bios) = &self.image.bios {
+                command.arg("-bios").arg(bios);
+            }
+            let netdev = match &self.networking {
+                Networking::User(netcfg) => {
+                    let mut netdev = format!(
+                        "user,id=net0,net={},dhcpstart={},restrict={}",
+                        netcfg.net,
+                        netcfg.dhcp_start,
+                        if netcfg.restrict { "yes" } else { "no" }
+                    );
+                    for pm in &self.manifest.port_map {
+                        netdev.push_str(&format!(
+                            ",hostfwd={}:{}:{}-:{}",
+                            pm.protocol.as_str(),
+                            pm.address,
+                            pm.from,
+                            pm.to
+                        ));
+                    }
+                    netdev
+                }
+                Networking::Custom(netcfg) => netcfg.netdev.clone(),
+            };
+            command.arg("-netdev").arg(netdev);
+            command.arg("-device").arg("virtio-net-pci,netdev=net0");
+            if let Some(tdx) = &self.tdx_config {
+                command
+                    .arg("-machine")
+                    .arg("q35,kernel-irqchip=split,confidential-guest-support=tdx,hpet=off");
+                command.arg("-object").arg("tdx-guest,id=tdx");
+                command
+                    .arg("-device")
+                    .arg(format!("vhost-vsock-pci,guest-cid={}", tdx.cid));
+            }
+            command.arg("-virtfs").arg(format!(
+                "local,path={},mount_tag=host-shared,readonly=off,security_model=mapped,id=virtfs0",
+                shared_dir.display()
+            ));
+            if let Some(cmdline) = &self.image.info.cmdline {
+                command.arg("-append").arg(cmdline);
+            }
+
+            let args = command
+                .get_args()
+                .map(|arg| arg.to_string_lossy().to_string())
+                .collect::<Vec<_>>();
+
+            let pidfile_path = workdir.pid_file();
+            let stdout_path = workdir.stdout_file();
+            let stderr_path = workdir.stderr_file();
+
+            let workdir = workdir.path();
+            let process_config = ProcessConfig {
+                id: self.manifest.id.clone(),
+                args,
+                name: self.manifest.name.clone(),
+                command: qemu.to_string_lossy().to_string(),
+                env: Default::default(),
+                cwd: workdir.to_string_lossy().to_string(),
+                stdout: stdout_path.to_string_lossy().to_string(),
+                stderr: stderr_path.to_string_lossy().to_string(),
+                pidfile: pidfile_path.to_string_lossy().to_string(),
+            };
+            Ok(process_config)
+        }
     }
 }

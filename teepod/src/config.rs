@@ -108,6 +108,14 @@ pub struct AuthConfig {
     pub tokens: Vec<String>,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct SupervisorConfig {
+    pub exe: String,
+    pub sock: String,
+    pub pid_file: String,
+    pub log_file: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct GatewayConfig {
     pub base_domain: String,
@@ -136,6 +144,9 @@ pub struct Config {
 
     /// Authentication configuration
     pub auth: AuthConfig,
+
+    /// Supervisor configuration
+    pub supervisor: SupervisorConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

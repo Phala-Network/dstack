@@ -13,8 +13,7 @@ use teepod_rpc::{
 };
 use tracing::warn;
 
-use crate::app::{App, Manifest, PortMapping, VmWorkDir};
-use crate::vm::image::ImageInfo;
+use crate::app::{App, ImageInfo, Manifest, PortMapping, VmWorkDir};
 
 fn hex_sha256(data: &str) -> String {
     use sha2::Digest;
@@ -43,9 +42,8 @@ impl RpcHandler {
         compose_file: &str,
         image_name: &str,
         encrypted_env: &[u8],
-    ) -> Result<PathBuf> {
-        let cfg = self.app.config.clone();
-        let work_dir = cfg.run_path.join(&id);
+    ) -> Result<VmWorkDir> {
+        let work_dir = self.app.work_dir(id);
         if work_dir.exists() {
             anyhow::bail!("The instance is already exists at {}", work_dir.display());
         }
@@ -60,6 +58,7 @@ impl RpcHandler {
         let certs_dir = shared_dir.join("certs");
         fs::create_dir_all(&certs_dir).context("Failed to create certs directory")?;
 
+        let cfg = &self.app.config;
         fs::copy(&cfg.cvm.ca_cert, certs_dir.join("ca.cert")).context("Failed to copy ca cert")?;
         fs::copy(&cfg.cvm.tmp_ca_cert, certs_dir.join("tmp-ca.cert"))
             .context("Failed to copy tmp ca cert")?;
@@ -178,29 +177,41 @@ impl TeepodRpc for RpcHandler {
             warn!("Failed to set started: {}", err);
         }
 
-        self.app.load_vm(work_dir).context("Failed to load VM")?;
+        self.app
+            .load_vm(&work_dir)
+            .await
+            .context("Failed to load VM")?;
 
         Ok(Id { id })
     }
 
     async fn start_vm(self, request: Id) -> Result<()> {
-        self.app.start_vm(&request.id)?;
+        self.app
+            .start_vm(&request.id)
+            .await
+            .context("Failed to start VM")?;
         Ok(())
     }
 
     async fn stop_vm(self, request: Id) -> Result<()> {
-        self.app.stop_vm(&request.id)?;
+        self.app
+            .stop_vm(&request.id)
+            .await
+            .context("Failed to stop VM")?;
         Ok(())
     }
 
     async fn remove_vm(self, request: Id) -> Result<()> {
-        self.app.remove_vm(&request.id)?;
+        self.app
+            .remove_vm(&request.id)
+            .await
+            .context("Failed to remove VM")?;
         Ok(())
     }
 
     async fn status(self) -> Result<StatusResponse> {
         Ok(StatusResponse {
-            vms: self.app.list_vms(),
+            vms: self.app.list_vms().await?,
             port_mapping_enabled: self.app.config.cvm.port_mapping.enabled,
         })
     }
