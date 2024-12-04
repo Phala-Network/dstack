@@ -55,14 +55,14 @@ impl QuoteContentType {
         let output = match hash {
             "sha256" => do_hash!(sha2::Sha256),
             "sha384" => do_hash!(sha2::Sha384),
-            "sha512" => do_hash!(sha2::Sha512),
+            // Default to sha512
+            "" | "sha512" => do_hash!(sha2::Sha512),
             "sha3-256" => do_hash!(sha3::Sha3_256),
             "sha3-384" => do_hash!(sha3::Sha3_384),
             "sha3-512" => do_hash!(sha3::Sha3_512),
             "keccak256" => do_hash!(sha3::Keccak256),
             "keccak384" => do_hash!(sha3::Keccak384),
-            // Default to keccak512
-            "" | "keccak512" => do_hash!(sha3::Keccak512),
+            "keccak512" => do_hash!(sha3::Keccak512),
             "raw" => content.try_into().ok().context("invalid content length")?,
             _ => anyhow::bail!("invalid hash algorithm"),
         };
