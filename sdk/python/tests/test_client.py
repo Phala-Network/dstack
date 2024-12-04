@@ -41,3 +41,8 @@ async def test_replay_rtmr():
     assert rtmrs[2] == tdxQuote.body.rtmr2.hex()
     assert rtmrs[3] == tdxQuote.body.rtmr3.hex()
 
+@pytest.mark.asyncio
+async def test_tdx_quote_raw_hash_error():
+    with pytest.raises(ValueError):
+        client = AsyncTappdClient()
+        await client.tdx_quote('0' * 129, 'raw')

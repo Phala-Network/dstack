@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Literal, Optional, List, Dict, Any
 import binascii
 import json
 import hashlib
@@ -10,6 +10,20 @@ from pydantic import BaseModel
 import httpx
 
 logger = logging.getLogger('dstack_sdk')
+
+QuoteHashAlgorithms = Literal[
+  'sha256',
+  'sha384',
+  'sha512',
+  'sha3-256',
+  'sha3-384',
+  'sha3-512',
+  'keccak256',
+  'keccak384',
+  'keccak512',
+  'raw',
+  '', # Default value is sha512, so empty equals to sha512
+]
 
 INIT_MR = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 
@@ -106,13 +120,22 @@ class TappdClient(BaseClient):
         result = self._send_rpc_request("/prpc/Tappd.DeriveKey", data)
         return DeriveKeyResponse(**result)
 
-    def tdx_quote(self, report_data: str | bytes) -> TdxQuoteResponse:
+    def tdx_quote(
+            self,
+            report_data: str | bytes,
+            hash_algorithm: QuoteHashAlgorithms = ''
+        ) -> TdxQuoteResponse:
         if not report_data or not isinstance(report_data, (bytes, str)):
             raise ValueError("report_data can not be empty")
         if isinstance(report_data, str):
             report_data = report_data.encode()
         hex = binascii.hexlify(report_data).decode()
-        result = self._send_rpc_request("/prpc/Tappd.TdxQuote", {"report_data": hex})
+        if hash_algorithm == "raw":
+            if len(hex) < 128:
+                hex = hex.rjust(128, '0')
+            elif len(hex) > 128:
+                raise ValueError('Report data is too large, it should less then 128 characters when hash_algorithm is raw.')
+        result = self._send_rpc_request("/prpc/Tappd.TdxQuote", {"report_data": hex, "hash_algorithm": hash_algorithm})
         return TdxQuoteResponse(**result)
 
 
@@ -148,11 +171,20 @@ class AsyncTappdClient(BaseClient):
         result = await self._send_rpc_request("/prpc/Tappd.DeriveKey", data)
         return DeriveKeyResponse(**result)
 
-    async def tdx_quote(self, report_data: str |bytes) -> TdxQuoteResponse:
+    async def tdx_quote(
+            self,
+            report_data: str | bytes,
+            hash_algorithm: QuoteHashAlgorithms = ''
+        ) -> TdxQuoteResponse:
         if not report_data or not isinstance(report_data, (bytes, str)):
             raise ValueError("report_data can not be empty")
         if isinstance(report_data, str):
             report_data = report_data.encode()
         hex = binascii.hexlify(report_data).decode()
-        result = await self._send_rpc_request("/prpc/Tappd.TdxQuote", {"report_data": hex})
+        if hash_algorithm == "raw":
+            if len(hex) < 128:
+                hex = hex.rjust(128, '0')
+            elif len(hex) > 128:
+                raise ValueError('Report data is too large, it should less then 128 characters when hash_algorithm is raw.')
+        result = await self._send_rpc_request("/prpc/Tappd.TdxQuote", {"report_data": hex, "hash_algorithm": hash_algorithm})
         return TdxQuoteResponse(**result)
