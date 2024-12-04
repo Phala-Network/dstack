@@ -37,6 +37,8 @@ enum Commands {
         id: String,
     },
     Ping,
+    Clear,
+    Shutdown,
 }
 
 #[tokio::main]
@@ -78,6 +80,12 @@ async fn main() -> Result<()> {
         }
         Commands::Ping => {
             print_json(&client.ping().await?);
+        }
+        Commands::Clear => {
+            print_json(&client.clear().await?);
+        }
+        Commands::Shutdown => {
+            print_json(&client.shutdown().await?);
         }
     }
     Ok(())

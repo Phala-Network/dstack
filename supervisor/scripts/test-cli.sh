@@ -36,7 +36,7 @@ info "Testing Supervisor CLI commands..."
 # Deploy a new process
 info "Testing Deploy command"
 RES=$(${CLI} deploy --id test-process --command sleep --arg 1000)
-assert_eq "$RES" '{"data":null}' "Deploy should return empty object"
+assert_eq "$RES" null "Deploy should return empty object"
 
 # Get info for specific process
 info "Testing Info command"

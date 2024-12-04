@@ -40,3 +40,9 @@ tappd_port = 8083
 [auth]
 enabled = false
 tokens = []
+
+[supervisor]
+exe = "./supervisor"
+sock = "./run/supervisor.sock"
+pid_file = "./run/supervisor.pid"
+log_file = "./run/supervisor.log"

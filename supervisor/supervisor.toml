@@ -7,3 +7,9 @@ keep_alive = 10
 log_level = "info"
 address = "unix:/var/run/supervisor.sock"
 reuse = false
+
+[default.shutdown]
+ctrlc = false
+signals = []
+grace = 0
+mercy = 0

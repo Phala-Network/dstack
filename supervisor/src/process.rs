@@ -110,6 +110,12 @@ pub enum ProcessStatus {
     Error(String),
 }
 
+impl ProcessStatus {
+    pub fn is_running(&self) -> bool {
+        matches!(self, ProcessStatus::Running)
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct Process {
     config: Arc<ProcessConfig>,

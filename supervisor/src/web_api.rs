@@ -1,8 +1,10 @@
-use anyhow::Context;
+use anyhow::{anyhow, Result};
 use rocket::figment::Figment;
 use rocket::serde::json::Json;
 use rocket::{delete, get, post, routes, Build, Rocket, State};
 use serde::{Deserialize, Serialize};
+use tokio::signal;
+use tracing::info;
 
 use crate::process::{ProcessConfig, ProcessInfo};
 use crate::supervisor::Supervisor;
@@ -14,7 +16,16 @@ pub enum Response<T> {
     Error(String),
 }
 
-fn to_json<T: Serialize>(r: anyhow::Result<T>) -> Json<Response<T>> {
+impl<T> Response<T> {
+    pub fn into_result(self) -> Result<T> {
+        match self {
+            Response::Data(data) => Ok(data),
+            Response::Error(e) => Err(anyhow!(e)),
+        }
+    }
+}
+
+fn to_json<T: Serialize>(r: Result<T>) -> Json<Response<T>> {
     match r {
         Ok(data) => Json(Response::Data(data)),
         Err(e) => Json(Response::Error(format!("{e:?}"))),
@@ -47,8 +58,8 @@ fn list(supervisor: &State<Supervisor>) -> Json<Response<Vec<ProcessInfo>>> {
 }
 
 #[get("/info/<id>")]
-fn info(supervisor: &State<Supervisor>, id: &str) -> Json<Response<ProcessInfo>> {
-    to_json(supervisor.info(id).context("Process not found"))
+fn info(supervisor: &State<Supervisor>, id: &str) -> Json<Response<Option<ProcessInfo>>> {
+    to_json(Ok(supervisor.info(id)))
 }
 
 #[get("/ping")]
@@ -56,8 +67,64 @@ fn ping() -> Json<Response<&'static str>> {
     Json(Response::Data("pong"))
 }
 
+#[post("/clear")]
+fn clear(supervisor: &State<Supervisor>) -> Json<Response<()>> {
+    to_json(Ok(supervisor.clear()))
+}
+
+#[post("/shutdown")]
+async fn shutdown(supervisor: &State<Supervisor>) -> Json<Response<()>> {
+    to_json(perform_shutdown(supervisor, false).await)
+}
+
+async fn perform_shutdown(supervisor: &Supervisor, force: bool) -> Result<()> {
+    info!("Shutting down supervisor");
+    let result = supervisor.shutdown().await;
+    if result.is_ok() || force {
+        info!("Supervisor shutdown successfully");
+        std::process::exit(0);
+    }
+    result
+}
+
 pub fn rocket(figment: Figment) -> Rocket<Build> {
-    rocket::custom(figment)
-        .manage(Supervisor::new())
-        .mount("/", routes![deploy, start, stop, remove, list, info, ping])
+    let supervisor = Supervisor::new();
+    let rocket = rocket::custom(figment).manage(supervisor.clone()).mount(
+        "/",
+        routes![deploy, start, stop, remove, list, info, ping, clear, shutdown],
+    );
+    tokio::spawn(handle_shutdown_signals(supervisor));
+    rocket
+}
+
+async fn handle_shutdown_signals(supervisor: Supervisor) {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            println!("Received Ctrl+C signal, initiating shutdown...");
+        }
+        _ = terminate => {
+            println!("Received terminate signal, initiating shutdown...");
+        }
+    }
+
+    perform_shutdown(&supervisor, true)
+        .await
+        .expect("Force shutdown should never return");
 }
