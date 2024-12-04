@@ -240,45 +240,7 @@ impl App {
 
         infos
             .into_iter()
-            .map(|info| pb::VmInfo {
-                id: info.manifest.id,
-                name: info.manifest.name.clone(),
-                status: info.status.to_string(),
-                uptime: info.uptime,
-                configuration: Some(pb::VmConfiguration {
-                    name: info.manifest.name,
-                    image: info.manifest.image,
-                    compose_file: {
-                        let workdir = VmWorkDir::new(&info.workdir);
-                        fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
-                    },
-                    encrypted_env: {
-                        let workdir = VmWorkDir::new(&info.workdir);
-                        fs::read(workdir.encrypted_env_path()).unwrap_or_default()
-                    },
-                    vcpu: info.manifest.vcpu,
-                    memory: info.manifest.memory,
-                    disk_size: info.manifest.disk_size,
-                    ports: info
-                        .manifest
-                        .port_map
-                        .into_iter()
-                        .map(|pm| pb::PortMapping {
-                            protocol: pm.protocol.as_str().into(),
-                            host_port: pm.from as u32,
-                            vm_port: pm.to as u32,
-                        })
-                        .collect(),
-                }),
-                app_url: info.instance_id.as_ref().map(|id| {
-                    format!(
-                        "https://{id}-{}.{}:{}",
-                        gw.tappd_port, gw.base_domain, gw.port
-                    )
-                }),
-                app_id: info.manifest.app_id,
-                instance_id: info.instance_id,
-            })
+            .map(|info| info.to_pb(gw))
             .collect()
     }
 
@@ -305,48 +267,9 @@ impl App {
 
     pub fn get_vm(&self, id: &str) -> Option<pb::VmInfo> {
         let state = self.state.lock().unwrap();
-        let vm = state.monitor.iter_vms().find(|vm| vm.info().manifest.id == id)?;
+        let vm = state.monitor.get_vm(id)?;
         let info = vm.info();
         let gw = &self.config.gateway;
-
-        Some(pb::VmInfo {
-            id: info.manifest.id,
-            name: info.manifest.name.clone(),
-            status: info.status.to_string(),
-            uptime: info.uptime,
-            configuration: Some(pb::VmConfiguration {
-                name: info.manifest.name,
-                image: info.manifest.image,
-                compose_file: {
-                    let workdir = VmWorkDir::new(&info.workdir);
-                    fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
-                },
-                encrypted_env: {
-                    let workdir = VmWorkDir::new(&info.workdir);
-                    fs::read(workdir.encrypted_env_path()).unwrap_or_default()
-                },
-                vcpu: info.manifest.vcpu,
-                memory: info.manifest.memory,
-                disk_size: info.manifest.disk_size,
-                ports: info
-                    .manifest
-                    .port_map
-                    .into_iter()
-                    .map(|pm| pb::PortMapping {
-                        protocol: pm.protocol.as_str().into(),
-                        host_port: pm.from as u32,
-                        vm_port: pm.to as u32,
-                    })
-                    .collect(),
-            }),
-            app_url: info.instance_id.as_ref().map(|id| {
-                format!(
-                    "https://{id}-{}.{}:{}",
-                    gw.tappd_port, gw.base_domain, gw.port
-                )
-            }),
-            app_id: info.manifest.app_id,
-            instance_id: info.instance_id,
-        })
+        Some(info.to_pb(gw))
     }
 }

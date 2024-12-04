@@ -83,7 +83,9 @@ pub(crate) mod image {
 }
 
 pub(crate) mod run {
-    use crate::app::Manifest;
+    use crate::app::{Manifest, VmWorkDir};
+    use crate::config::GatewayConfig;
+    use teepod_rpc as pb;
 
     pub use super::image::Image;
     pub use super::qemu::{TdxConfig, VmConfig};
@@ -253,6 +255,49 @@ pub(crate) mod run {
         pub instance_id: Option<String>,
     }
 
+    impl VmInfo {
+        pub fn to_pb(&self, gw: &GatewayConfig) -> pb::VmInfo {
+            let workdir = VmWorkDir::new(&self.workdir);
+            pb::VmInfo {
+                id: self.manifest.id.as_str().into(),
+                name: self.manifest.name.as_str().into(),
+                status: self.status.into(),
+                uptime: self.uptime.as_str().into(),
+                configuration: Some(pb::VmConfiguration {
+                    name: self.manifest.name.as_str().into(),
+                    image: self.manifest.image.as_str().into(),
+                    compose_file: {
+                        fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
+                    },
+                    encrypted_env: {
+                        fs::read(workdir.encrypted_env_path()).unwrap_or_default()
+                    },
+                    vcpu: self.manifest.vcpu,
+                    memory: self.manifest.memory,
+                    disk_size: self.manifest.disk_size,
+                    ports: self
+                        .manifest
+                        .port_map
+                        .iter()
+                        .map(|pm| pb::PortMapping {
+                            protocol: pm.protocol.as_str().into(),
+                            host_port: pm.from as u32,
+                            vm_port: pm.to as u32,
+                        })
+                        .collect(),
+                }),
+                app_url: self.instance_id.as_ref().map(|id| {
+                    format!(
+                        "https://{id}-{}.{}:{}",
+                        gw.tappd_port, gw.base_domain, gw.port
+                    )
+                }),
+                app_id: self.manifest.app_id.as_str().into(),
+                instance_id: self.instance_id.as_deref().map(Into::into),
+            }
+        }
+    }
+
     pub struct VmMonitor {
         qemu_bin: PathBuf,
         vms: BTreeMap<String, VmInstance>,
@@ -316,6 +361,10 @@ pub(crate) mod run {
 
         pub fn iter_vms(&self) -> impl Iterator<Item = &VmInstance> {
             self.vms.values()
+        }
+
+        pub fn get_vm(&self, id: &str) -> Option<&VmInstance> {
+            self.vms.get(id)
         }
     }
 }
