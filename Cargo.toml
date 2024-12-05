@@ -1,3 +1,9 @@
+[workspace.package]
+version = "0.1.0"
+authors = ["Kevin Wang <wy721@qq.com>", "Leechael <Leechael@github.com>"]
+edition = "2021"
+license = "MIT"
+
 [workspace]
 members = [
     "kms",
