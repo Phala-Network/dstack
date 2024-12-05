@@ -5,7 +5,7 @@ use tracing::debug;
 
 use crate::main_service::AppState;
 
-use super::copy_bidirectional;
+use super::io_bridge::bridge;
 
 #[derive(Debug)]
 struct TappAddress {
@@ -78,7 +78,7 @@ pub(crate) async fn proxy_to_app(
         .write_all(&buffer)
         .await
         .context("failed to write to tapp")?;
-    copy_bidirectional(inbound, outbound, &state.config.proxy)
+    bridge(inbound, outbound, &state.config.proxy)
         .await
         .context("failed to copy between inbound and outbound")?;
     Ok(())

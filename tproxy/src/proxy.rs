@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use bytes::BytesMut;
 use sni::extract_sni;
 use tls_terminate::TlsTerminateProxy;
 use tokio::{
-    io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _},
+    io::AsyncReadExt,
     net::{TcpListener, TcpStream},
     time::timeout,
 };
@@ -13,6 +12,7 @@ use tracing::{debug, error, info};
 
 use crate::{config::ProxyConfig, main_service::AppState};
 
+mod io_bridge;
 mod sni;
 mod tls_passthough;
 mod tls_terminate;
@@ -166,7 +166,7 @@ pub async fn run(config: &ProxyConfig, app_state: AppState) -> Result<()> {
                     )
                     .await
                     {
-                        error!("failed to handle connection: {e:?}");
+                        error!("connection error: {e:?}");
                     }
                 });
             }
@@ -186,114 +186,4 @@ pub fn start(config: ProxyConfig, app_state: AppState) {
             );
         }
     });
-}
-
-async fn copy_bidirectional<A, B>(mut a: A, mut b: B, config: &ProxyConfig) -> Result<()>
-where
-    A: AsyncRead + AsyncWrite + Unpin,
-    B: AsyncRead + AsyncWrite + Unpin,
-{
-    let timeouts = &config.timeouts;
-    let buf_size = config.buffer_size;
-    if !config.timeouts.data_timeout_enabled {
-        tokio::io::copy_bidirectional_with_sizes(&mut a, &mut b, buf_size, buf_size)
-            .await
-            .context("failed to copy")?;
-        return Ok(());
-    }
-
-    let (mut ra, mut wa) = tokio::io::split(a);
-    let (mut rb, mut wb) = tokio::io::split(b);
-
-    let mut a2b_buf = BytesMut::with_capacity(buf_size);
-    let mut b2a_buf = BytesMut::with_capacity(buf_size);
-
-    enum Rest<A, B> {
-        A2b(A),
-        B2a(B),
-    }
-    let mut rest;
-
-    // Transfer data between a and b bidirectionally.
-    loop {
-        a2b_buf.clear();
-        b2a_buf.clear();
-        tokio::select! {
-            rv = timeout(timeouts.idle, ra.read_buf(&mut a2b_buf)) => {
-                let n = rv.ok().context("idle timeout")?.context("a2b read error")?;
-                if n == 0 {
-                    // a to b is EOF, switch to b to a only
-                    rest = Rest::B2a((rb, wa));
-                    timeout(timeouts.shutdown, wb.shutdown())
-                        .await
-                        .context("a2b shutdown timeout")?
-                        .context("a2b failed to shutdown")?;
-                    break;
-                }
-                timeout(timeouts.write, wb.write_all(&a2b_buf))
-                    .await
-                    .context("a2b write timeout")?
-                    .context("a2b failed to write")?;
-            }
-            rv = timeout(timeouts.idle, rb.read_buf(&mut b2a_buf)) => {
-                let n = rv.ok().context("idle timeout")?.context("b2a read error")?;
-                if n == 0 {
-                    // b to a is EOF, switch to a to b only
-                    rest = Rest::A2b((ra, wb));
-                    timeout(timeouts.shutdown, wa.shutdown())
-                        .await
-                        .context("b2a shutdown timeout")?
-                        .context("b2a failed to shutdown")?;
-                    break;
-                }
-                timeout(timeouts.write, wa.write_all(&b2a_buf))
-                    .await
-                    .context("b2a write timeout")?
-                    .context("b2a failed to write")?;
-            }
-        }
-    }
-
-    drop(b2a_buf);
-    let mut buf = a2b_buf;
-    // One of the direction is closed, copy the other direction.
-    match &mut rest {
-        Rest::A2b((ra, wb)) => loop {
-            buf.clear();
-            let n = timeout(timeouts.idle, ra.read_buf(&mut buf))
-                .await
-                .context("a2b idle timeout")?
-                .context("a2b read error")?;
-            if n == 0 {
-                timeout(timeouts.shutdown, wb.shutdown())
-                    .await
-                    .context("a2b shutdown timeout")?
-                    .context("a2b failed to shutdown")?;
-                break;
-            }
-            timeout(timeouts.write, wb.write_all(&buf))
-                .await
-                .context("a2b write timeout")?
-                .context("a2b failed to write")?;
-        },
-        Rest::B2a((rb, wa)) => loop {
-            buf.clear();
-            let n = timeout(timeouts.idle, rb.read_buf(&mut buf))
-                .await
-                .context("b2a idle timeout")?
-                .context("b2a read error")?;
-            if n == 0 {
-                timeout(timeouts.shutdown, wa.shutdown())
-                    .await
-                    .context("b2a shutdown timeout")?
-                    .context("b2a failed to shutdown")?;
-                break;
-            }
-            timeout(timeouts.write, wa.write_all(&buf))
-                .await
-                .context("b2a write timeout")?
-                .context("b2a failed to write")?;
-        },
-    }
-    Ok(())
 }

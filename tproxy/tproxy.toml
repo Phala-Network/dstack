@@ -43,7 +43,7 @@ handshake = "5s"
 data_timeout_enabled = true
 # Timeout for a connection without any data transfer.
 idle = "10m"
-# Timeout for writing data to the target app.
+# Timeout for writing data to the target app or to the client.
 write = "5s"
 # Timeout for shutting down a connection.
 shutdown = "5s"

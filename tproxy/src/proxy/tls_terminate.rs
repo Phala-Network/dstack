@@ -15,7 +15,74 @@ use tokio_rustls::{rustls, TlsAcceptor};
 
 use crate::main_service::AppState;
 
-use super::copy_bidirectional;
+use super::io_bridge::bridge;
+
+#[pin_project::pin_project]
+struct IgnoreUnexpectedEofStream<S> {
+    #[pin]
+    stream: S,
+}
+
+impl<S> IgnoreUnexpectedEofStream<S> {
+    fn new(stream: S) -> Self {
+        Self { stream }
+    }
+}
+
+impl<S> AsyncRead for IgnoreUnexpectedEofStream<S>
+where
+    S: AsyncRead + Unpin,
+{
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        match self.project().stream.poll_read(cx, buf) {
+            Poll::Ready(Err(e)) if e.kind() == io::ErrorKind::UnexpectedEof => Poll::Ready(Ok(())),
+            output => output,
+        }
+    }
+}
+
+impl<S> AsyncWrite for IgnoreUnexpectedEofStream<S>
+where
+    S: AsyncWrite + Unpin,
+{
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        self.project().stream.poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<std::result::Result<(), io::Error>> {
+        self.project().stream.poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<std::result::Result<(), io::Error>> {
+        self.project().stream.poll_shutdown(cx)
+    }
+
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[io::IoSlice<'_>],
+    ) -> Poll<std::result::Result<usize, io::Error>> {
+        self.project().stream.poll_write_vectored(cx, bufs)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.stream.is_write_vectored()
+    }
+}
 
 pub struct TlsTerminateProxy {
     app_state: AppState,
@@ -80,9 +147,13 @@ impl TlsTerminateProxy {
         .await
         .map_err(|_| anyhow::anyhow!("connection timeout"))?
         .context("failed to connect to app")?;
-        copy_bidirectional(tls_stream, outbound, &self.app_state.config.proxy)
-            .await
-            .context("failed to bridge inbound and outbound")?;
+        bridge(
+            IgnoreUnexpectedEofStream::new(tls_stream),
+            outbound,
+            &self.app_state.config.proxy,
+        )
+        .await
+        .context("failed to bridge inbound and outbound")?;
         Ok(())
     }
 }
