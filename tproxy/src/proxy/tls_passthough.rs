@@ -1,9 +1,11 @@
 use anyhow::{Context, Result};
 use std::fmt::Debug;
-use tokio::{io::AsyncWriteExt, net::TcpStream};
+use tokio::{io::AsyncWriteExt, net::TcpStream, time::timeout};
 use tracing::debug;
 
 use crate::main_service::AppState;
+
+use super::io_bridge::bridge;
 
 #[derive(Debug)]
 struct TappAddress {
@@ -55,21 +57,28 @@ pub(crate) async fn proxy_with_sni(
 
 pub(crate) async fn proxy_to_app(
     state: AppState,
-    mut inbound: TcpStream,
+    inbound: TcpStream,
     buffer: Vec<u8>,
     app_id: &str,
     port: u16,
 ) -> Result<()> {
-    let target_ip = state.lock().select_a_host(app_id).context("tapp not found")?.ip;
-    let mut outbound = TcpStream::connect((target_ip, port))
-        .await
-        .context("failed to connect to tapp")?;
+    let target_ip = state
+        .lock()
+        .select_a_host(app_id)
+        .context("tapp not found")?
+        .ip;
+    let mut outbound = timeout(
+        state.config.proxy.timeouts.connect,
+        TcpStream::connect((target_ip, port)),
+    )
+    .await
+    .context("connection timeout")?
+    .context("failed to connect to tapp")?;
     outbound
         .write_all(&buffer)
         .await
         .context("failed to write to tapp")?;
-
-    tokio::io::copy_bidirectional(&mut inbound, &mut outbound)
+    bridge(inbound, outbound, &state.config.proxy)
         .await
         .context("failed to copy between inbound and outbound")?;
     Ok(())

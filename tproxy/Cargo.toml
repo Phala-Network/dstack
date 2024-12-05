@@ -30,6 +30,7 @@ git-version = { workspace = true }
 ra-rpc = { workspace = true, features = ["rocket"] }
 tproxy-rpc = { workspace = true }
 certbot = { workspace = true }
+bytes = { workspace = true }
 
 [dev-dependencies]
-insta = "1.40.0"
+insta = { workspace = true }

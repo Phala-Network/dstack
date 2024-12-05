@@ -4,13 +4,15 @@ use anyhow::{bail, Context, Result};
 use sni::extract_sni;
 use tls_terminate::TlsTerminateProxy;
 use tokio::{
-    io::AsyncReadExt as _,
+    io::AsyncReadExt,
     net::{TcpListener, TcpStream},
+    time::timeout,
 };
 use tracing::{debug, error, info};
 
 use crate::{config::ProxyConfig, main_service::AppState};
 
+mod io_bridge;
 mod sni;
 mod tls_passthough;
 mod tls_terminate;
@@ -91,7 +93,11 @@ async fn handle_connection(
     dotted_base_domain: &str,
     tls_terminate_proxy: Arc<TlsTerminateProxy>,
 ) -> Result<()> {
-    let (sni, buffer) = take_sni(&mut inbound).await.context("failed to take sni")?;
+    let timeouts = &state.config.proxy.timeouts;
+    let (sni, buffer) = timeout(timeouts.handshake, take_sni(&mut inbound))
+        .await
+        .context("take sni timeout")?
+        .context("failed to take sni")?;
     let Some(sni) = sni else {
         bail!("no sni found");
     };
@@ -126,7 +132,6 @@ pub async fn run(config: &ProxyConfig, app_state: AppState) -> Result<()> {
         let base_domain = base_domain.strip_prefix(".").unwrap_or(base_domain);
         Arc::new(format!(".{base_domain}"))
     };
-
     let tls_terminate_proxy =
         TlsTerminateProxy::new(&app_state, &config.cert_chain, &config.cert_key)
             .context("failed to create tls terminate proxy")?;
@@ -161,7 +166,7 @@ pub async fn run(config: &ProxyConfig, app_state: AppState) -> Result<()> {
                     )
                     .await
                     {
-                        error!("failed to handle connection: {e:?}");
+                        error!("connection error: {e:?}");
                     }
                 });
             }
