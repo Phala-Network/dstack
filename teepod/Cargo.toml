@@ -6,28 +6,29 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-ra-rpc = { version = "0.1.0", path = "../ra-rpc" }
-teepod-rpc = { version = "0.1.0", path = "./rpc" }
-kms-rpc = { version = "0.1.0", path = "../kms/rpc" }
-rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-anyhow = "1.0.89"
-serde = { version = "1.0.210", features = ["derive"] }
-serde_json = "1.0.128"
-shared_child = "1.0.1"
-bon = "3.0.0"
-uuid = { version = "1.10.0", features = ["v4"] }
-sha2 = "0.10.8"
-hex = "0.4.3"
-fs-err = "3.0.0"
-dirs = "5.0.1"
-which = "7.0.0"
-clap = { version = "4.5.18", features = ["derive", "string"] }
-humantime = "2.1.0"
-strip-ansi-escapes = "0.2.0"
-tailf = "0.1.2"
-tokio = { version = "1.41.1", features = ["full"] }
-git-version = "0.3.9"
-rocket-apitoken = { git = "https://github.com/kvinwang/rocket-apitoken", branch = "dev" }
-supervisor-client = { version = "0.1.0", path = "../supervisor/client" }
+rocket = { workspace = true, features = ["mtls"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+shared_child = { workspace = true }
+bon = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+sha2 = { workspace = true }
+hex = { workspace = true }
+fs-err = { workspace = true }
+dirs = { workspace = true }
+which = { workspace = true }
+clap = { workspace = true, features = ["derive", "string"] }
+humantime = { workspace = true }
+strip-ansi-escapes = { workspace = true }
+tailf = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+git-version = { workspace = true }
+rocket-apitoken = { workspace = true }
+
+supervisor-client = { workspace = true }
+ra-rpc = { workspace = true, features = ["client", "rocket"] }
+teepod-rpc = { workspace = true }
+kms-rpc = { workspace = true }

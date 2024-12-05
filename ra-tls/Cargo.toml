@@ -6,22 +6,23 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow = "1.0.88"
-bon = "3.0.2"
-dcap-qvl = "0.1.6"
-elliptic-curve = { version = "0.13.8", features = ["pkcs8"] }
-fs-err = "3.0.0"
-hex = "0.4.3"
-hkdf = "0.12.4"
-p256 = "0.13.2"
-rcgen = { version = "0.13.1", features = ["x509-parser"] }
-ring = "0.17.8"
-rustls-pki-types = "1.8.0"
-serde = { version = "1.0.210", features = ["derive"] }
-serde_json = "1.0.128"
-sha2 = "0.10.8"
-x509-parser = "0.16.0"
-yasna = "0.5.2"
-tracing = "0.1.40"
-cc-eventlog = { version = "0.1.0", path = "../cc-eventlog" }
-sha3 = "0.10.8"
+anyhow = { workspace = true }
+bon = { workspace = true }
+dcap-qvl = { workspace = true }
+elliptic-curve = { workspace = true }
+fs-err = { workspace = true }
+hex = { workspace = true }
+hkdf = { workspace = true }
+p256 = { workspace = true }
+rcgen = { workspace = true, features = ["x509-parser", "pem"] }
+ring = { workspace = true }
+rustls-pki-types = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+x509-parser = { workspace = true }
+yasna = { workspace = true }
+tracing = { workspace = true }
+sha3 = { workspace = true }
+
+cc-eventlog = { workspace = true }

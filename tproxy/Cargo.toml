@@ -6,29 +6,30 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-ra-rpc = { version = "0.1.0", path = "../ra-rpc" }
-tproxy-rpc = { version = "0.1.0", path = "./rpc" }
-rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-anyhow = "1.0.89"
-serde = { version = "1.0.210", features = ["derive"] }
-ipnet = { version = "2.10.0", features = ["serde"] }
-fs-err = "3.0.0"
-clap = { version = "4.5.18", features = ["derive", "string"] }
-shared_child = "1.0.1"
-tokio = { version = "1.40.0", features = ["full"] }
-rustls = { version = "0.23.19", features = ["ring"] }
-tokio-rustls = { version = "0.26.0", features = ["ring"] }
-rinja = "0.3.4"
-certbot = { version = "0.1.0", path = "../certbot" }
-hex = "0.4.3"
-parcelona = "0.4.3"
-hickory-resolver = "0.24.1"
-pin-project = "1.1.7"
-serde_json = "1.0.133"
-rand = "0.8.5"
-git-version = "0.3.9"
+rocket = { workspace = true, features = ["mtls"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+ipnet = { workspace = true, features = ["serde"] }
+fs-err = { workspace = true }
+clap = { workspace = true, features = ["derive", "string"] }
+shared_child = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true, features = ["ring"] }
+rinja = { workspace = true }
+hex = { workspace = true }
+parcelona = { workspace = true }
+hickory-resolver = { workspace = true }
+pin-project = { workspace = true }
+serde_json = { workspace = true }
+rand = { workspace = true }
+git-version = { workspace = true }
+
+ra-rpc = { workspace = true, features = ["rocket"] }
+tproxy-rpc = { workspace = true }
+certbot = { workspace = true }
 
 [dev-dependencies]
 insta = "1.40.0"

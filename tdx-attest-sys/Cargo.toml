@@ -8,5 +8,5 @@ license.workspace = true
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.70.1"
-cc = "1.1.20"
+bindgen = { workspace = true }
+cc = { workspace = true }

@@ -6,12 +6,12 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-prpc = "0.3.0"
-prost = "0.13.3"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1"
-scale = { version = "3.6.12", package = "parity-scale-codec", features = ["derive"] }
+prpc = { workspace = true }
+prost = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+scale = { workspace = true }
 
 [build-dependencies]
-prpc-build = "0.3.1"
+prpc-build = { workspace = true }

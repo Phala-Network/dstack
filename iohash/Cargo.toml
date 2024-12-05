@@ -6,10 +6,10 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow = "1.0.87"
-blake2 = "0.10.6"
-clap = { version = "4.5.17", features = ["derive"] }
-fs-err = "2.11.0"
-hex_fmt = "0.3.0"
-sha2 = "0.10.8"
-sha3 = "0.10.8"
+anyhow = { workspace = true }
+blake2 = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+fs-err = { workspace = true }
+hex_fmt = { workspace = true }
+sha2 = { workspace = true }
+sha3 = { workspace = true }

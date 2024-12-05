@@ -6,24 +6,25 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-ra-rpc = { version = "0.1.0", path = "../ra-rpc" }
-tappd-rpc = { version = "0.1.0", path = "./rpc" }
-rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-anyhow = "1.0.89"
-serde = { version = "1.0.210", features = ["derive"] }
-ra-tls = { version = "0.1.0", path = "../ra-tls" }
-fs-err = "2.11.0"
-rcgen = { version = "0.13.1", features = ["x509-parser", "pem"] }
-tdx-attest = { version = "0.1.0", path = "../tdx-attest" }
-sha2 = "0.10.8"
-clap = { version = "4.5.18", features = ["derive", "string"] }
-tokio = { version = "1.40.0", features = ["full"] }
-hex = "0.4.3"
-serde_json = "1.0.128"
-bollard = "0.17.1"
-chrono = "0.4.38"
-base64 = "0.22.1"
-rinja = "0.3.5"
-git-version = "0.3.9"
+rocket = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+fs-err = { workspace = true }
+rcgen = { workspace = true }
+sha2 = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+hex = { workspace = true }
+serde_json = { workspace = true }
+bollard = { workspace = true }
+chrono = { workspace = true }
+base64 = { workspace = true }
+rinja = { workspace = true }
+git-version = { workspace = true }
+
+ra-rpc = { workspace = true, features = ["rocket"] }
+tappd-rpc = { workspace = true }
+ra-tls = { workspace = true }
+tdx-attest = { workspace = true }
