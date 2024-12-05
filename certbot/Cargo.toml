@@ -1,25 +1,27 @@
 [package]
 name = "certbot"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-anyhow = "1.0.91"
-bon = "3.2.0"
-enum_dispatch = "0.3.13"
-fs-err = "3.0.0"
-hickory-resolver = "0.24.1"
-instant-acme = "0.7.2"
-rcgen = { version = "0.13.1", features = ["pem"] }
-reqwest = { version = "0.12.8", default-features = false, features = ["json", "rustls-tls", "charset", "hickory-dns"] }
-serde = { version = "1.0.213", features = ["derive"] }
-serde_json = "1.0.132"
-time = "0.3.36"
-tokio = "1.41.0"
-tracing = "0.1.40"
-x509-parser = "0.16.0"
+anyhow = { workspace = true }
+bon = { workspace = true }
+enum_dispatch = { workspace = true }
+fs-err = { workspace = true }
+hickory-resolver = { workspace = true }
+instant-acme = { workspace = true }
+rcgen = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+x509-parser = { workspace = true }
 
 [dev-dependencies]
-rand = "0.8.5"
-tokio = { version = "1.41.0", features = ["full"] }
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+rand = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true }

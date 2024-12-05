@@ -1,3 +1,9 @@
+[workspace.package]
+version = "0.1.0"
+authors = ["Kevin Wang <wy721@qq.com>", "Leechael <Leechael@github.com>"]
+edition = "2021"
+license = "MIT"
+
 [workspace]
 members = [
     "kms",
@@ -23,3 +29,110 @@ members = [
     "supervisor/client",
 ]
 resolver = "2"
+
+[workspace.dependencies]
+# Internal dependencies
+ra-rpc = { path = "ra-rpc", default-features = false }
+ra-tls = { path = "ra-tls" }
+tproxy-rpc = { path = "tproxy/rpc" }
+kms-rpc = { path = "kms/rpc" }
+tappd-rpc = { path = "tappd/rpc" }
+teepod-rpc = { path = "teepod/rpc" }
+cc-eventlog = { path = "cc-eventlog" }
+supervisor = { path = "supervisor" }
+supervisor-client = { path = "supervisor/client" }
+tdx-attest = { path = "tdx-attest" }
+tdx-attest-sys = { path = "tdx-attest-sys" }
+certbot = { path = "certbot" }
+
+# Core dependencies
+anyhow = "1.0.94"
+chrono = "0.4.38"
+clap = { version = "4.5.22", features = ["derive", "string"] }
+dashmap = "6.1.0"
+fs-err = "3.0.0"
+futures = "0.3.31"
+git-version = "0.3.9"
+libc = "0.2.167"
+log = "0.4.22"
+notify = "7.0.0"
+rand = "0.8.5"
+serde = { version = "1.0.210", features = ["derive"] }
+tokio = { version = "1.42.0" }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+
+# Serialization/Parsing
+bon = "3.2.0"
+base64 = "0.22.1"
+hex = "0.4.3"
+hex_fmt = "0.3.0"
+prost = "0.13.3"
+scale = { version = "3.6.12", package = "parity-scale-codec", features = ["derive"] }
+serde_json = "1.0"
+toml_edit = { version = "0.22.22", features = ["serde"] }
+yasna = "0.5.2"
+
+# Networking/HTTP
+bollard = "0.18.1"
+http = "1.2.0"
+http-body-util = "0.1.2"
+hyper = { version = "1.5.1", features = ["client", "http1"] }
+hyper-util = { version = "0.1.10", features = ["client", "client-legacy", "http1"] }
+hyperlocal = "0.9.1"
+ipnet = { version = "2.10.1", features = ["serde"] }
+reqwest = { version = "0.12.9", default-features = false, features = ["json", "rustls-tls", "charset", "hickory-dns"] }
+rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
+rocket-apitoken = { git = "https://github.com/kvinwang/rocket-apitoken", branch = "dev" }
+
+# Cryptography/Security
+aes-gcm = "0.10.3"
+curve25519-dalek = "4.1.3"
+dcap-qvl = "0.1.6"
+elliptic-curve = { version = "0.13.8", features = ["pkcs8"] }
+getrandom = "0.2.15"
+hkdf = "0.12.4"
+p256 = "0.13.2"
+ring = "0.17.8"
+rustls = "0.23.19"
+rustls-pki-types = "1.8.0"
+schnorrkel = "0.11.4"
+sha2 = "0.10.8"
+sha3 = "0.10.8"
+blake2 = "0.10.6"
+tokio-rustls = { version = "0.26.0", features = ["ring"] }
+x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
+
+# Certificate/DNS
+hickory-resolver = "0.24.1"
+instant-acme = "0.7.2"
+rcgen = { version = "0.13.1", features = ["pem"] }
+x509-parser = "0.16.0"
+
+# RPC/Protocol
+prpc = "0.3.0"
+prpc-build = "0.3.1"
+
+# Development/Testing
+bindgen = "0.70.1"
+cc = "1.2.2"
+documented = "0.9.1"
+enum_dispatch = "0.3.13"
+insta = "1.41.1"
+num_enum = "0.7.3"
+thiserror = "2.0.4"
+
+# Utilities
+dirs = "5.0.1"
+humantime = "2.1.0"
+parcelona = "0.4.3"
+pin-project = "1.1.7"
+regex = "1.11.1"
+rinja = "0.3.5"
+serde-human-bytes = "0.1.0"
+shared_child = "1.0.1"
+strip-ansi-escapes = "0.2.0"
+tailf = "0.1.2"
+time = "0.3.37"
+uuid = { version = "1.11.0", features = ["v4"] }
+which = "7.0.0"

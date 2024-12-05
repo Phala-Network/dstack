@@ -1,14 +1,16 @@
 [package]
 name = "cc-eventlog"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-anyhow = "1.0.93"
-fs-err = "3.0.0"
-hex = "0.4.3"
-scale = { version = "3.7.0", package = "parity-scale-codec", features = ["derive"] }
-serde = { version = "1.0.215", features = ["derive"] }
-serde-human-bytes = "0.1.1"
-serde_json = "1.0.133"
-sha2 = "0.10.8"
+anyhow = { workspace = true }
+fs-err = { workspace = true }
+hex = { workspace = true }
+scale = { workspace = true }
+serde = { workspace = true }
+serde-human-bytes = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }

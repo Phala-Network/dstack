@@ -1,22 +1,24 @@
 [package]
 name = "tdx-attest"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-anyhow = "1.0.93"
-hex = "0.4.3"
-num_enum = "0.7.3"
-scale = { version = "3.6.12", package = "parity-scale-codec", features = ["derive"] }
-serde = { version = "1.0.214", features = ["derive"] }
-serde-human-bytes = "0.1.0"
-tdx-attest-sys = { path = "../tdx-attest-sys" }
-cc-eventlog = { path = "../cc-eventlog" }
-thiserror = "2.0.3"
-fs-err = "3.0.0"
-serde_json = "1.0.132"
-sha2 = "0.10.8"
+anyhow = { workspace = true }
+hex = { workspace = true }
+num_enum = { workspace = true }
+scale = { workspace = true }
+serde = { workspace = true }
+serde-human-bytes = { workspace = true }
+tdx-attest-sys = { workspace = true }
+cc-eventlog = { workspace = true }
+thiserror = { workspace = true }
+fs-err = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
 
 [dev-dependencies]
-insta = "1.41.1"
-serde_json = "1.0.132"
+insta = { workspace = true }
+serde_json = { workspace = true }

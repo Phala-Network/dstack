@@ -1,10 +1,12 @@
 [package]
 name = "certgen"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-anyhow = "1.0.89"
-clap = { version = "4.5.18", features = ["derive"] }
-ra-tls = { version = "0.1.0", path = "../ra-tls" }
-fs-err = "3.0.0"
+anyhow = { workspace = true }
+clap = { workspace = true }
+fs-err = { workspace = true }
+ra-tls = { workspace = true }

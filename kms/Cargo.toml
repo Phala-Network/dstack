@@ -1,25 +1,28 @@
 [package]
 name = "kms"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-anyhow = "1.0.88"
-chrono = "0.4.38"
-clap = { version = "4.5.18", features = ["derive", "string"] }
-fs-err = "3.0.0"
-git-version = "0.3.9"
-hex = "0.4.3"
-hex_fmt = "0.3.0"
-kms-rpc = { version = "0.1.0", path = "./rpc" }
-ra-rpc = { version = "0.1.0", path = "../ra-rpc" }
-ra-tls = { version = "0.1.0", path = "../ra-tls" }
-rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
-serde = { version = "1.0.210", features = ["derive"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
-yasna = "0.5.2"
+anyhow = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+fs-err = { workspace = true }
+git-version = { workspace = true }
+hex = { workspace = true }
+hex_fmt = { workspace = true }
+rocket = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+x25519-dalek = { workspace = true }
+yasna = { workspace = true }
+
+kms-rpc = { workspace = true }
+ra-rpc = { workspace = true, features = ["rocket"] }
+ra-tls = { workspace = true }
 
 [features]
 default = []

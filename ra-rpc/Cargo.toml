@@ -1,16 +1,19 @@
 [package]
 name = "ra-rpc"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-anyhow = "1.0.88"
-prpc = "0.3.0"
-ra-tls = { version = "0.1.0", path = "../ra-tls" }
-rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"], optional = true }
-serde_json = "1.0.128"
-tracing = "0.1.40"
-reqwest = { version = "0.12.5", default-features = false, features = ["rustls-tls", "charset"], optional = true }
+anyhow = { workspace = true }
+prpc = { workspace = true }
+rocket = { workspace = true, features = ["mtls"], optional = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+reqwest = { workspace = true, default-features = false, features = ["rustls-tls", "charset"], optional = true }
+
+ra-tls = { workspace = true }
 
 [features]
 default = ["rocket", "client"]
