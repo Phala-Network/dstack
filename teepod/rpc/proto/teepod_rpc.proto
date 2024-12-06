@@ -21,6 +21,8 @@ message VmInfo {
   optional string instance_id = 7;
   // Configuration of the VM
   VmConfiguration configuration = 8;
+  // Exit time
+  optional string exited_at = 9;
 }
 
 message Id {

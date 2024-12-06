@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use fs_err as fs;
 
+#[allow(dead_code)]
 pub(crate) fn iter_ct_log_files(log_dir: &Path) -> Result<impl Iterator<Item = PathBuf>> {
     // Certs files at log_dir/YYYYMMDD/xxx.cert
     let day_dirs = fs::read_dir(log_dir)?.filter_map(|entry| {

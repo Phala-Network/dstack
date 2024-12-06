@@ -107,6 +107,7 @@ impl VmInfo {
             }),
             app_id: self.manifest.app_id.as_str().into(),
             instance_id: self.instance_id.as_deref().map(Into::into),
+            exited_at: self.exited_at.clone(),
         }
     }
 }
