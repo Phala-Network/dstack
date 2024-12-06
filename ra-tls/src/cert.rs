@@ -1,6 +1,7 @@
 //! Certificate creation functions.
 
-use std::path::Path;
+use std::time::SystemTime;
+use std::{path::Path, time::Duration};
 
 use anyhow::{anyhow, Context, Result};
 use fs_err as fs;
@@ -89,6 +90,8 @@ pub struct CertRequest<'a> {
     ca_level: Option<u8>,
     quote: Option<&'a [u8]>,
     event_log: Option<&'a [u8]>,
+    not_before: Option<SystemTime>,
+    not_after: Option<SystemTime>,
 }
 
 impl<'a> CertRequest<'a> {
@@ -126,6 +129,15 @@ impl<'a> CertRequest<'a> {
                 params.is_ca = IsCa::Ca(BasicConstraints::Constrained(ca_level));
             }
         }
+        params.not_before = self.not_before.unwrap_or_else(|| SystemTime::now()).into();
+        params.not_after = self
+            .not_after
+            .unwrap_or_else(|| {
+                let now = SystemTime::now();
+                let day = Duration::from_secs(86400);
+                now + day * 365
+            })
+            .into();
         Ok(params)
     }
 
