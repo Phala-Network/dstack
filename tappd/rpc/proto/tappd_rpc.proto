@@ -11,6 +11,9 @@ service Tappd {
 
   // Get a TDX quote
   rpc TdxQuote(TdxQuoteArgs) returns (TdxQuoteResponse) {}
+
+  // Get worker info
+  rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
 }
 
 // The request to derive a key
@@ -92,7 +95,7 @@ message Container {
 
 // The request to derive a key
 message WorkerInfo {
-  // Worker ID
+  // App ID
   string app_id = 1;
   // App Instance ID
   string instance_id = 2;
