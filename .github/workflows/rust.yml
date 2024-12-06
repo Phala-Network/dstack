@@ -1,16 +1,16 @@
-name: Clippy
+name: Rust checks
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  clippy:
+  rust-checks:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -22,3 +22,6 @@ jobs:
     
     - name: Run Clippy
       run: cargo clippy -- -D warnings --allow unused_variables 
+    
+    - name: Run tests
+      run: cargo test
