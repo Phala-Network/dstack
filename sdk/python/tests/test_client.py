@@ -1,5 +1,8 @@
+import hashlib
 import pytest
-from evidence_api.tdx.quote import TdxQuote, AttestationKeyType, TeeType, TdxQuoteTeeTcbSvn, TdxQuoteTeeTcbSvn, TdxQuoteTeeTcbSvn, TdxQuoteTeeTcbSvn
+
+from evidence_api.tdx.quote import TdxQuote
+
 from dstack_sdk import TappdClient, AsyncTappdClient, DeriveKeyResponse, TdxQuoteResponse
 
 def test_sync_client_derive_key():
@@ -46,3 +49,15 @@ async def test_tdx_quote_raw_hash_error():
     with pytest.raises(ValueError):
         client = AsyncTappdClient()
         await client.tdx_quote('0' * 129, 'raw')
+
+@pytest.mark.asyncio
+async def test_report_data():
+    reportdata = 'test'
+    client = AsyncTappdClient()
+    result = await client.tdx_quote(reportdata)
+    tdxQuote = TdxQuote(bytes.fromhex(result.quote[2:]))
+    assert hashlib.sha512(b"app-data:" + reportdata.encode("utf8")).hexdigest() == tdxQuote.body.reportdata.hex()
+    # #2
+    result = await client.tdx_quote(reportdata, 'raw')
+    tdxQuote = TdxQuote(bytes.fromhex(result.quote[2:]))
+    print(tdxQuote.body.reportdata.lstrip(b'\x00') == reportdata.encode('utf8'))
