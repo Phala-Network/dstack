@@ -1,10 +1,16 @@
 ---
 source: tproxy/src/main_service/tests.rs
-assertion_line: 31
+assertion_line: 32
 expression: info1
+snapshot_kind: text
 ---
-HostInfo {
+InstanceInfo {
     id: "test-id-1",
+    app_id: "app-id-1",
     ip: 10.0.0.3,
     public_key: "test-pubkey-1",
+    reg_time: SystemTime {
+        tv_sec: 0,
+        tv_nsec: 0,
+    },
 }

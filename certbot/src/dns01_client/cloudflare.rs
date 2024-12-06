@@ -161,31 +161,33 @@ impl Dns01Api for CloudflareClient {
     }
 }
 
-impl CloudflareClient {
-    #[cfg(test)]
-    async fn get_txt_records(&self, domain: &str) -> Result<Vec<Record>> {
-        Ok(self
-            .get_records(domain)
-            .await?
-            .into_iter()
-            .filter(|r| r.r#type == "TXT")
-            .collect())
-    }
-
-    #[cfg(test)]
-    async fn get_caa_records(&self, domain: &str) -> Result<Vec<Record>> {
-        Ok(self
-            .get_records(domain)
-            .await?
-            .into_iter()
-            .filter(|r| r.r#type == "CAA")
-            .collect())
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    #![cfg(not(test))]
+
     use super::*;
+
+    impl CloudflareClient {
+        #[cfg(test)]
+        async fn get_txt_records(&self, domain: &str) -> Result<Vec<Record>> {
+            Ok(self
+                .get_records(domain)
+                .await?
+                .into_iter()
+                .filter(|r| r.r#type == "TXT")
+                .collect())
+        }
+
+        #[cfg(test)]
+        async fn get_caa_records(&self, domain: &str) -> Result<Vec<Record>> {
+            Ok(self
+                .get_records(domain)
+                .await?
+                .into_iter()
+                .filter(|r| r.r#type == "CAA")
+                .collect())
+        }
+    }
 
     fn create_client() -> CloudflareClient {
         CloudflareClient::new(

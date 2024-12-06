@@ -1,3 +1,5 @@
+#![cfg(not(test))]
+
 use super::*;
 
 async fn new_acme_client() -> Result<AcmeClient> {

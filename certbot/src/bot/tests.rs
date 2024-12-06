@@ -1,3 +1,5 @@
+#![cfg(not(test))]
+
 use instant_acme::LetsEncrypt;
 
 use super::*;
