@@ -14,8 +14,8 @@ mod filters {
 }
 
 pub struct MapValues<'a, K, V>(pub &'a BTreeMap<K, V>);
-impl<'a, K, V> Copy for MapValues<'a, K, V> {}
-impl<'a, K, V> Clone for MapValues<'a, K, V> {
+impl<K, V> Copy for MapValues<'_, K, V> {}
+impl<K, V> Clone for MapValues<'_, K, V> {
     fn clone(&self) -> Self {
         *self
     }
@@ -23,15 +23,6 @@ impl<'a, K, V> Clone for MapValues<'a, K, V> {
 impl<'a, K, V> From<&'a BTreeMap<K, V>> for MapValues<'a, K, V> {
     fn from(map: &'a BTreeMap<K, V>) -> Self {
         MapValues(map)
-    }
-}
-
-impl<'a, K, V> MapValues<'a, K, V> {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
     }
 }
 
