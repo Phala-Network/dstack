@@ -15,7 +15,6 @@ use tdx_attest as att;
 /// See https://trustedcomputinggroup.org/wp-content/uploads/PC-ClientSpecific_Platform_Profile_for_TPM_2p0_Systems_v51.pdf
 const DSTACK_EVENT_TAG: u32 = 0x08000001;
 
-
 pub fn deserialize_json_file<T: DeserializeOwned>(path: impl AsRef<Path>) -> Result<T> {
     let data = fs::read_to_string(path).context("Failed to read file")?;
     serde_json::from_str(&data).context("Failed to parse json")

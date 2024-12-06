@@ -4,8 +4,8 @@ use scale::Decode;
 use serde::{Deserialize, Serialize};
 use tcg::{TcgDigest, TcgEfiSpecIdEvent};
 
-mod tcg;
 mod codecs;
+mod tcg;
 
 /// The path to the userspace TDX event log file.
 pub const RUNTIME_EVENT_LOG_FILE: &str = "/run/log/tdx_mr3/tdx_events.log";

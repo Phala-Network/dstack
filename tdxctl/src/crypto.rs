@@ -85,7 +85,11 @@ mod tests {
 
     #[test]
     fn test_dh_decrypt_empty_env() {
-        let secret: [u8; 32] = hex::decode("62c77517a14f46e7db0c25fe97ba54e185c1a269a28cb748a81397f4577057d8").unwrap().try_into().unwrap();
+        let secret: [u8; 32] =
+            hex::decode("62c77517a14f46e7db0c25fe97ba54e185c1a269a28cb748a81397f4577057d8")
+                .unwrap()
+                .try_into()
+                .unwrap();
         let ciphertext = include_bytes!("/home/kvin/codes/meta-dstack/build/run/vm/03b84270-53c4-43aa-ba3d-d32fe6afb294/shared/encrypted_env");
         let decrypted = dh_decrypt(secret, &ciphertext[..]).unwrap();
         let decrypted_str = String::from_utf8(decrypted).unwrap();

@@ -1,9 +1,9 @@
 use clap::Parser;
+use fs_err as fs;
 use ra_tls::{
     cert::CertRequest,
     rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256},
 };
-use fs_err as fs;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -66,7 +66,12 @@ fn main() -> anyhow::Result<()> {
         &tmp_ca_cert.pem(),
         &tmp_ca_key.serialize_pem(),
     )?;
-    store_cert(output_dir, "root-ca", &ca_cert.pem(), &ca_key.serialize_pem())?;
+    store_cert(
+        output_dir,
+        "root-ca",
+        &ca_cert.pem(),
+        &ca_key.serialize_pem(),
+    )?;
     store_cert(
         output_dir,
         "kms-rpc",
