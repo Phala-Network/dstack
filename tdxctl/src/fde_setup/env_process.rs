@@ -45,7 +45,7 @@ pub fn parse_env(decrypted_json: &[u8]) -> Result<BTreeMap<String, String>> {
     const MAX_ITEMS: usize = 1024;
     const MAX_TOTAL_SIZE: usize = 1024 * 1024;
 
-    let data: Data = serde_json::from_slice(&decrypted_json).context("Failed to parse env")?;
+    let data: Data = serde_json::from_slice(decrypted_json).context("Failed to parse env")?;
 
     if data.env.len() > MAX_ITEMS {
         bail!("Too many environment variables: {}", data.env.len());
@@ -84,9 +84,10 @@ pub fn parse_env(decrypted_json: &[u8]) -> Result<BTreeMap<String, String>> {
 }
 
 pub fn convert_env_to_str(parsed_env: &BTreeMap<String, String>) -> String {
+    #[allow(clippy::format_collect)]
     parsed_env
-        .into_iter()
-        .map(|(key, value)| format!("{}={}\n", key, escape_value(&value)))
+        .iter()
+        .map(|(key, value)| format!("{}={}\n", key, escape_value(value)))
         .collect()
 }
 

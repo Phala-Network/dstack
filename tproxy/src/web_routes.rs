@@ -19,6 +19,7 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]
+#[allow(clippy::too_many_arguments)]
 async fn prpc_post(
     state: &State<AppState>,
     cert: Option<Certificate<'_>>,
@@ -30,7 +31,7 @@ async fn prpc_post(
     json: bool,
 ) -> Custom<Vec<u8>> {
     handle_prpc::<_, RpcHandler>(
-        &*state,
+        state,
         cert,
         quote_verifier.map(|v| &**v),
         method,
@@ -52,7 +53,7 @@ async fn prpc_get(
     content_type: Option<&ContentType>,
 ) -> Custom<Vec<u8>> {
     handle_prpc::<_, RpcHandler>(
-        &*state,
+        state,
         cert,
         quote_verifier.map(|v| &**v),
         method,

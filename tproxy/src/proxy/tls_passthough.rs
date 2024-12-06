@@ -37,7 +37,7 @@ async fn resolve_tapp_address(sni: &str) -> Result<TappAddress> {
     let txt_record = lookup.iter().next().context("no txt record found")?;
     let data = txt_record
         .txt_data()
-        .get(0)
+        .first()
         .context("no data in txt record")?;
     TappAddress::parse(data).context("failed to parse tapp address")
 }

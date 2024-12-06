@@ -41,9 +41,9 @@ pub(crate) struct Credentials {
 
 impl AcmeClient {
     pub async fn load(dns01_client: Dns01Client, encoded_credentials: &str) -> Result<Self> {
-        let credentials: Credentials = serde_json::from_str(&encoded_credentials)?;
+        let credentials: Credentials = serde_json::from_str(encoded_credentials)?;
         let account = Account::from_credentials(credentials.credentials).await?;
-        let credentials: Credentials = serde_json::from_str(&encoded_credentials)?;
+        let credentials: Credentials = serde_json::from_str(encoded_credentials)?;
         Ok(Self {
             account,
             dns01_client,
@@ -175,7 +175,7 @@ impl AcmeClient {
         let domains =
             extract_subject_alt_names(cert_pem).context("failed to extract subject alt names")?;
         let cert = self
-            .request_new_certificate(&key_pem, &domains)
+            .request_new_certificate(key_pem, &domains)
             .await
             .context("failed to request new certificates")?;
         Ok(cert)
@@ -327,8 +327,7 @@ impl AcmeClient {
                 let settled = match dns_resolver.txt_lookup(&challenge.acme_domain).await {
                     Ok(record) => record
                         .iter()
-                        .find(|txt| txt.to_string() == challenge.dns_value)
-                        .is_some(),
+                        .any(|txt| txt.to_string() == challenge.dns_value),
                     Err(err) => {
                         let ResolveErrorKind::NoRecordsFound { .. } = err.kind() else {
                             bail!(
@@ -413,7 +412,7 @@ impl AcmeClient {
                 // To upload CSR
                 OrderStatus::Ready => {
                     debug!("order is ready, uploading CSR");
-                    let csr = make_csr(key, &domains)?;
+                    let csr = make_csr(key, domains)?;
                     order
                         .finalize(csr.as_ref())
                         .await

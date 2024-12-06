@@ -39,17 +39,17 @@ async fn deploy(supervisor: &State<Supervisor>, config: Json<ProcessConfig>) -> 
 
 #[post("/start/<id>")]
 async fn start(supervisor: &State<Supervisor>, id: &str) -> Json<Response<()>> {
-    to_json(supervisor.start(&id))
+    to_json(supervisor.start(id))
 }
 
 #[post("/stop/<id>")]
 async fn stop(supervisor: &State<Supervisor>, id: &str) -> Json<Response<()>> {
-    to_json(supervisor.stop(&id))
+    to_json(supervisor.stop(id))
 }
 
 #[delete("/remove/<id>")]
 async fn remove(supervisor: &State<Supervisor>, id: &str) -> Json<Response<()>> {
-    to_json(supervisor.remove(&id))
+    to_json(supervisor.remove(id))
 }
 
 #[get("/list")]
@@ -69,7 +69,10 @@ fn ping() -> Json<Response<&'static str>> {
 
 #[post("/clear")]
 fn clear(supervisor: &State<Supervisor>) -> Json<Response<()>> {
-    to_json(Ok(supervisor.clear()))
+    to_json({
+        supervisor.clear();
+        Ok(())
+    })
 }
 
 #[post("/shutdown")]

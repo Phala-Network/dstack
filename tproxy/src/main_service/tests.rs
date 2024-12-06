@@ -10,8 +10,6 @@ fn create_test_state() -> AppState {
 #[test]
 fn test_empty_config() {
     let state = create_test_state();
-    let proxy_config = state.lock().generate_proxy_config().unwrap();
-    insta::assert_snapshot!(proxy_config);
     let wg_config = state.lock().generate_wg_config().unwrap();
     insta::assert_snapshot!(wg_config);
 }
@@ -21,16 +19,14 @@ fn test_config() {
     let state = create_test_state();
     let info = state
         .lock()
-        .new_client_by_id("test-id-0", "test-pubkey-0")
+        .new_client_by_id("test-id-0", "app-id-0", "test-pubkey-0")
         .unwrap();
     insta::assert_debug_snapshot!(info);
     let info1 = state
         .lock()
-        .new_client_by_id("test-id-1", "test-pubkey-1")
+        .new_client_by_id("test-id-1", "app-id-1", "test-pubkey-1")
         .unwrap();
     insta::assert_debug_snapshot!(info1);
-    let proxy_config = state.lock().generate_proxy_config().unwrap();
-    insta::assert_snapshot!(proxy_config);
     let wg_config = state.lock().generate_wg_config().unwrap();
     insta::assert_snapshot!(wg_config);
 }

@@ -24,7 +24,7 @@ async fn prpc_post(
     json: bool,
 ) -> Custom<Vec<u8>> {
     handle_prpc::<_, InternalRpcHandler>(
-        &*state,
+        state,
         None,
         None,
         method,
@@ -44,7 +44,7 @@ async fn prpc_get(
     content_type: Option<&ContentType>,
 ) -> Custom<Vec<u8>> {
     handle_prpc::<_, InternalRpcHandler>(
-        &*state,
+        state,
         None,
         None,
         method,
@@ -98,7 +98,7 @@ async fn external_prpc_post(
     json: bool,
 ) -> Custom<Vec<u8>> {
     handle_prpc::<_, ExternalRpcHandler>(
-        &*state,
+        state,
         None,
         None,
         method,
@@ -118,7 +118,7 @@ async fn external_prpc_get(
     content_type: Option<&ContentType>,
 ) -> Custom<Vec<u8>> {
     handle_prpc::<_, ExternalRpcHandler>(
-        &*state,
+        state,
         None,
         None,
         method,

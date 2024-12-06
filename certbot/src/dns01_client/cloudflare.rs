@@ -197,7 +197,7 @@ mod tests {
     fn random_subdomain() -> String {
         format!(
             "_acme-challenge.{}.{}",
-            rand::random::<u64>().to_string(),
+            rand::random::<u64>(),
             std::env::var("TEST_DOMAIN").expect("TEST_DOMAIN not set"),
         )
     }

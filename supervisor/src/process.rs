@@ -274,10 +274,10 @@ impl Process {
             return Ok(());
         };
         match stop_tx.send(()) {
-            Ok(()) => return Ok(()),
+            Ok(()) => Ok(()),
             Err(()) => match is_running {
                 true => bail!("Failed to send stop signal to process"),
-                false => return Ok(()),
+                false => Ok(()),
             },
         }
     }
@@ -371,7 +371,7 @@ async fn try_redirect(input: &mut (impl AsyncRead + Unpin), to: String) -> Resul
         let mut file = fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&dst_path)?;
+            .open(dst_path)?;
 
         loop {
             tokio::select! {

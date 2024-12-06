@@ -79,7 +79,7 @@ impl<'a> Setup<'a> {
         let sk = run_command("wg", &["genkey"])?;
         let sk = String::from_utf8(sk).context("Failed to parse client private key")?;
         let sk = sk.trim();
-        let pk = run_command_with_stdin("wg", &["pubkey"], &sk)?;
+        let pk = run_command_with_stdin("wg", &["pubkey"], sk)?;
         let pk = String::from_utf8(pk).context("Failed to parse client public key")?;
         let pk = pk.trim();
 

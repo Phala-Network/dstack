@@ -290,8 +290,8 @@ fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
         .build();
     let cert = ca.sign(req).context("Failed to sign certificate")?;
 
-    fs::write(&args.cert_path, &cert.pem()).context("Failed to write certificate")?;
-    fs::write(&args.key_path, &key.serialize_pem()).context("Failed to write private key")?;
+    fs::write(&args.cert_path, cert.pem()).context("Failed to write certificate")?;
+    fs::write(&args.key_path, key.serialize_pem()).context("Failed to write private key")?;
     Ok(())
 }
 

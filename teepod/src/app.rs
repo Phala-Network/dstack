@@ -71,7 +71,7 @@ impl App {
     }
 
     pub(crate) fn vm_dir(&self) -> PathBuf {
-        self.config.run_path.clone().into()
+        self.config.run_path.clone()
     }
 
     pub(crate) fn work_dir(&self, id: &str) -> VmWorkDir {
@@ -102,7 +102,6 @@ impl App {
         let todo = "sanitize the image name";
         let image_path = self.config.image_path.join(&manifest.image);
         let image = Image::load(&image_path).context("Failed to load image")?;
-        let running_vms = self.supervisor.list().await.context("Failed to list VMs")?;
 
         let cid = cids_assigned.get(&manifest.id).cloned();
         let cid = match cid {
@@ -185,14 +184,11 @@ impl App {
         let running_vms = self.supervisor.list().await.context("Failed to list VMs")?;
         let occupied_cids = running_vms
             .iter()
-            .flat_map(|p| match p.config.cid {
-                Some(cid) => Some((p.config.id.clone(), cid)),
-                None => None,
-            })
+            .flat_map(|p| p.config.cid.map(|cid| (p.config.id.clone(), cid)))
             .collect::<HashMap<_, _>>();
         {
             let mut state = self.lock();
-            for (_id, cid) in &occupied_cids {
+            for cid in occupied_cids.values() {
                 state.cid_pool.occupy(*cid)?;
             }
         }

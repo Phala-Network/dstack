@@ -218,7 +218,7 @@ impl SetupFdeArgs {
                 .context("Failed to get app key")?;
             let keys_json =
                 serde_json::to_string(&response).context("Failed to serialize app keys")?;
-            fs::write(&self.app_keys_file(), keys_json).context("Failed to write app keys")?;
+            fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
         } else {
             info!("KMS is not enabled, generating local app keys");
             cmd_gen_app_keys(GenAppKeysArgs {
@@ -226,7 +226,7 @@ impl SetupFdeArgs {
                 output: self.app_keys_file(),
             })?;
         }
-        deserialize_json_file(&self.app_keys_file()).context("Failed to decode app keys")
+        deserialize_json_file(self.app_keys_file()).context("Failed to decode app keys")
     }
 
     fn decrypt_env_vars(&self, key: &[u8], ciphertext: &[u8]) -> Result<BTreeMap<String, String>> {
@@ -267,7 +267,7 @@ impl SetupFdeArgs {
                 &self.root_hd,
                 "rootfs_crypt",
             ],
-            &disk_crypt_key,
+            disk_crypt_key,
         )
         .context("Failed to open encrypted rootfs")?;
         run_command(
@@ -298,7 +298,7 @@ impl SetupFdeArgs {
         }
         cmd_args.push(&self.root_hd);
 
-        run_command_with_stdin("cryptsetup", &cmd_args, &disk_crypt_key)
+        run_command_with_stdin("cryptsetup", &cmd_args, disk_crypt_key)
             .context("Failed to format encrypted rootfs")?;
         info!("Formatting rootfs done, opening the device");
         run_command_with_stdin(
@@ -311,7 +311,7 @@ impl SetupFdeArgs {
                 &self.root_hd,
                 "rootfs_crypt",
             ],
-            &disk_crypt_key,
+            disk_crypt_key,
         )
         .context("Failed to open encrypted rootfs")?;
         Ok(())
@@ -354,7 +354,7 @@ impl SetupFdeArgs {
             fs::File::open(rootfs_cpio).context("Failed to open rootfs cpio file")?;
         let mut hashing_rootfs_cpio = HashingFile::<sha2::Sha256, _>::new(rootfs_cpio_file);
         let mut status = Command::new("/usr/bin/env")
-            .args(&["cpio", "-i"])
+            .args(["cpio", "-i"])
             .current_dir(&self.rootfs_dir)
             .stdin(Stdio::piped())
             .spawn()
@@ -381,7 +381,7 @@ impl SetupFdeArgs {
             bail!("Failed to extract rootfs, cpio returned {status:?}");
         }
         let rootfs_hash = hashing_rootfs_cpio.finalize();
-        if &rootfs_hash[..] != &host_shared.vm_config.rootfs_hash[..] {
+        if rootfs_hash[..] != host_shared.vm_config.rootfs_hash[..] {
             bail!("Rootfs hash mismatch");
         }
         info!("Rootfs hash is valid");
@@ -403,21 +403,21 @@ impl SetupFdeArgs {
         fs::remove_dir_all(&tapp_dir).ok();
         copy_dir_all(&self.host_shared_copy, &tapp_dir).context("Failed to copy rootfs")?;
         info!("Copying appkeys.json");
-        fs::copy(&self.app_keys_file(), &tapp_dir.join("appkeys.json"))
+        fs::copy(self.app_keys_file(), tapp_dir.join("appkeys.json"))
             .context("Failed to copy appkeys.json")?;
         info!("Copying config.json");
         fs::copy(
-            &self.host_shared_copy.join("config.json"),
-            &tapp_dir.join("config.json"),
+            self.host_shared_copy.join("config.json"),
+            tapp_dir.join("config.json"),
         )
         .context("Failed to copy config.json")?;
         fs::write(
-            &tapp_dir.join("env"),
-            env_process::convert_env_to_str(&decrypted_env),
+            tapp_dir.join("env"),
+            env_process::convert_env_to_str(decrypted_env),
         )
         .context("Failed to write decrypted env file")?;
         let env_json =
-            fs::File::create(&tapp_dir.join("env.json")).context("Failed to create env file")?;
+            fs::File::create(tapp_dir.join("env.json")).context("Failed to create env file")?;
         serde_json::to_writer(env_json, &decrypted_env)
             .context("Failed to write decrypted env file")?;
         Ok(())
@@ -461,7 +461,7 @@ impl SetupFdeArgs {
 
         extend_rtmr3("rootfs-hash", rootfs_hash)?;
         extend_rtmr3("app-id", &instance_info.app_id)?;
-        extend_rtmr3("upgraded-app-id", &upgraded_app_id)?;
+        extend_rtmr3("upgraded-app-id", upgraded_app_id)?;
         extend_rtmr3("ca-cert-hash", &ca_cert_hash)?;
         extend_rtmr3("instance-id", &instance_info.instance_id)?;
 

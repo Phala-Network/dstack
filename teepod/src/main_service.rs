@@ -104,7 +104,7 @@ fn app_id_of(compose_file: &str) -> String {
             s
         }
     }
-    truncate40(&hex_sha256(&compose_file)).to_string()
+    truncate40(&hex_sha256(compose_file)).to_string()
 }
 
 /// Validate the label of the VM. Valid chars are alphanumeric, dash and underscore.

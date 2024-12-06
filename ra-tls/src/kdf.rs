@@ -33,7 +33,7 @@ pub fn derive_ecdsa_key(
 /// Derives a key pair from a given key pair.
 pub fn derive_ecdsa_key_pair(from: &KeyPair, context_data: &[&[u8]]) -> Result<KeyPair> {
     let der_bytes = from.serialized_der();
-    let sk = p256::SecretKey::from_pkcs8_der(&der_bytes).context("failed to decode secret key")?;
+    let sk = p256::SecretKey::from_pkcs8_der(der_bytes).context("failed to decode secret key")?;
     let sk_bytes = sk.as_scalar_primitive().to_bytes();
     let derived_sk_bytes =
         derive_ecdsa_key(&sk_bytes, context_data, 32).or(Err(anyhow!("failed to derive key")))?;

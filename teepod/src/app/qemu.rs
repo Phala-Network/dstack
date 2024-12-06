@@ -179,7 +179,7 @@ impl VmConfig {
             .arg("-drive")
             .arg(format!("file={},if=none,id=hd0", hda_path.display()))
             .arg("-device")
-            .arg(format!("virtio-blk-pci,drive=hd0"));
+            .arg("virtio-blk-pci,drive=hd0");
         if let Some(rootfs) = &self.image.rootfs {
             command.arg("-cdrom").arg(rootfs);
         }

@@ -54,7 +54,7 @@ pub struct TdxEventLog {
 fn event_digest(ty: u32, event: &str, payload: &[u8]) -> [u8; 48] {
     use sha2::Digest;
     let mut hasher = sha2::Sha384::new();
-    hasher.update(&ty.to_ne_bytes());
+    hasher.update(ty.to_ne_bytes());
     hasher.update(b":");
     hasher.update(event.as_bytes());
     hasher.update(b":");

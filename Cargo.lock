@@ -555,6 +555,7 @@ dependencies = [
  "anyhow",
  "fs-err",
  "hex",
+ "insta",
  "parity-scale-codec",
  "serde",
  "serde-human-bytes",

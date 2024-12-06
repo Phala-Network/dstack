@@ -44,16 +44,16 @@ impl WorkDir {
     }
 
     pub fn list_certs(&self) -> Result<Vec<PathBuf>> {
-        crate::bot::list_certs(&self.backup_dir())
+        crate::bot::list_certs(self.backup_dir())
     }
 
     pub fn acme_account_uri(&self) -> Result<String> {
-        let encoded_credentials = fs::read_to_string(&self.account_credentials_path())?;
+        let encoded_credentials = fs::read_to_string(self.account_credentials_path())?;
         let credentials: Credentials = serde_json::from_str(&encoded_credentials)?;
         Ok(credentials.account_id)
     }
 
     pub fn list_cert_public_keys(&self) -> Result<BTreeSet<Vec<u8>>> {
-        crate::bot::list_cert_public_keys(&self.backup_dir())
+        crate::bot::list_cert_public_keys(self.backup_dir())
     }
 }

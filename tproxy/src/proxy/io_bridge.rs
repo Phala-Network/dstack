@@ -99,14 +99,14 @@ where
     let (mut rb, mut wb) = tokio::io::split(b);
 
     let mut a2b = OneDirection {
-        cfg: &config,
+        cfg: config,
         buf: BytesMut::with_capacity(buf_size),
         reader: &mut ra,
         writer: &mut wb,
         next_step: NextStep::Read,
     };
     let mut b2a = OneDirection {
-        cfg: &config,
+        cfg: config,
         buf: BytesMut::with_capacity(buf_size),
         reader: &mut rb,
         writer: &mut wa,

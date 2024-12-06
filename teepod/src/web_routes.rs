@@ -45,6 +45,7 @@ async fn res(path: &str) -> Result<(ContentType, String), Custom<String>> {
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]
+#[allow(clippy::too_many_arguments)]
 async fn prpc_post(
     _auth: Authorized,
     state: &State<App>,
@@ -56,7 +57,7 @@ async fn prpc_post(
     json: bool,
 ) -> Custom<Vec<u8>> {
     handle_prpc::<_, RpcHandler>(
-        &*state,
+        state,
         cert,
         None,
         method,
@@ -76,17 +77,7 @@ async fn prpc_get(
     limits: &Limits,
     content_type: Option<&ContentType>,
 ) -> Custom<Vec<u8>> {
-    handle_prpc::<_, RpcHandler>(
-        &*state,
-        None,
-        None,
-        method,
-        None,
-        limits,
-        content_type,
-        true,
-    )
-    .await
+    handle_prpc::<_, RpcHandler>(state, None, None, method, None, limits, content_type, true).await
 }
 
 static STREAM_CREATED_COUNTER: AtomicUsize = AtomicUsize::new(0);

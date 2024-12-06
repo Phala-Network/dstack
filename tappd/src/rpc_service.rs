@@ -122,15 +122,15 @@ impl WorkerRpc for ExternalRpcHandler {
             .context("Failed to decode rootfs hash")?;
         let report = match &quote.report {
             Report::SgxEnclave(_) => bail!("SGX reports are not supported"),
-            Report::TD10(tdreport10) => &tdreport10,
+            Report::TD10(tdreport10) => tdreport10,
             Report::TD15(tdreport15) => &tdreport15.base,
         };
         let event_log = &attestation.event_log;
-        let mrtd = hex::encode(&report.mr_td);
-        let rtmr0 = hex::encode(&report.rt_mr0);
-        let rtmr1 = hex::encode(&report.rt_mr1);
-        let rtmr2 = hex::encode(&report.rt_mr2);
-        let rtmr3 = hex::encode(&report.rt_mr3);
+        let mrtd = hex::encode(report.mr_td);
+        let rtmr0 = hex::encode(report.rt_mr0);
+        let rtmr1 = hex::encode(report.rt_mr1);
+        let rtmr2 = hex::encode(report.rt_mr2);
+        let rtmr3 = hex::encode(report.rt_mr3);
         let tcb_info = serde_json::to_string_pretty(&json!({
             "rootfs_hash": rootfs_hash,
             "mrtd": mrtd,

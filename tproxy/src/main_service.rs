@@ -82,7 +82,7 @@ fn start_recycle_thread(state: Weak<Mutex<AppStateInner>>, config: Arc<Config>) 
         };
         if let Err(err) = state.lock().unwrap().recycle() {
             error!("failed to run recycle: {err}");
-        }
+        };
     });
 }
 

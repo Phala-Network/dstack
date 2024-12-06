@@ -71,6 +71,7 @@ fn limit_for_method(method: &str, limits: &Limits) -> ByteUnit {
     10.mebibytes()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_prpc<S, Call: RpcCall<S>>(
     state: &S,
     certificate: Option<Certificate<'_>>,
@@ -103,6 +104,7 @@ pub async fn handle_prpc<S, Call: RpcCall<S>>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
     state: &S,
     certificate: Option<Certificate<'_>>,
@@ -117,7 +119,7 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
     let todo = "verified attestation needs to be a distinct type";
     if let (Some(quote_verifier), Some(attestation)) = (quote_verifier, &mut attestation) {
         let verified_report = quote_verifier
-            .verify_quote(&attestation)
+            .verify_quote(attestation)
             .await
             .context("invalid quote")?;
         attestation.verified_report = Some(verified_report);

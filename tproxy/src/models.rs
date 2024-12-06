@@ -17,7 +17,7 @@ pub struct MapValues<'a, K, V>(pub &'a BTreeMap<K, V>);
 impl<'a, K, V> Copy for MapValues<'a, K, V> {}
 impl<'a, K, V> Clone for MapValues<'a, K, V> {
     fn clone(&self) -> Self {
-        MapValues(self.0)
+        *self
     }
 }
 impl<'a, K, V> From<&'a BTreeMap<K, V>> for MapValues<'a, K, V> {

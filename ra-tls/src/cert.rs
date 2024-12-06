@@ -53,7 +53,7 @@ impl CaCert {
     pub fn sign(&self, req: CertRequest) -> Result<Certificate> {
         let key = req.key;
         let params = req.into_cert_params()?;
-        let cert = params.signed_by(&key, &self.cert, &self.key)?;
+        let cert = params.signed_by(key, &self.cert, &self.key)?;
         Ok(cert)
     }
 
@@ -129,7 +129,7 @@ impl<'a> CertRequest<'a> {
                 params.is_ca = IsCa::Ca(BasicConstraints::Constrained(ca_level));
             }
         }
-        params.not_before = self.not_before.unwrap_or_else(|| SystemTime::now()).into();
+        params.not_before = self.not_before.unwrap_or_else(SystemTime::now).into();
         params.not_after = self
             .not_after
             .unwrap_or_else(|| {

@@ -14,6 +14,7 @@ use crate::acme_client::read_pem;
 
 use super::{AcmeClient, Dns01Client};
 
+#[allow(clippy::duplicated_attributes)]
 #[derive(Clone, Debug, bon::Builder)]
 #[builder(on(String, into))]
 #[builder(on(PathBuf, into))]
@@ -187,13 +188,13 @@ pub fn list_certs(workdir: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
 }
 
 pub fn list_cert_public_keys(workdir: impl AsRef<Path>) -> Result<BTreeSet<Vec<u8>>> {
-    Ok(list_certs(workdir)?
+    list_certs(workdir)?
         .into_iter()
         .map(|cert_path| {
             let cert_pem = fs::read_to_string(&cert_path).context("failed to read cert")?;
             read_pubkey(&cert_pem).context("failed to parse cert")
         })
-        .collect::<Result<_>>()?)
+        .collect::<Result<_>>()
 }
 
 #[cfg(test)]

@@ -93,7 +93,7 @@ pub fn run_command_with_stdin(
     stdin: impl AsRef<[u8]>,
 ) -> Result<Vec<u8>> {
     let mut child = Command::new("/usr/bin/env")
-        .args(&[command])
+        .args([command])
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
