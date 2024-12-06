@@ -15,9 +15,8 @@ use rinja::Template as _;
 use serde::{Deserialize, Serialize};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
-    AcmeInfoResponse, HostInfo as PbHostInfo, ListResponse, RegisterCvmRequest,
-    RegisterCvmResponse, TappdConfig, WireGuardConfig, GetInfoRequest,
-    GetInfoResponse,
+    AcmeInfoResponse, GetInfoRequest, GetInfoResponse, HostInfo as PbHostInfo, ListResponse,
+    RegisterCvmRequest, RegisterCvmResponse, TappdConfig, WireGuardConfig,
 };
 use tracing::{debug, error, info};
 
@@ -78,13 +77,11 @@ fn start_recycle_thread(state: Weak<Mutex<AppStateInner>>, config: Arc<Config>) 
     }
     std::thread::spawn(move || loop {
         std::thread::sleep(config.recycle.interval);
-        match state.upgrade() {
-            Some(inner) => {
-                if let Err(err) = inner.lock().unwrap().recycle() {
-                    error!("failed to run recycle: {err}");
-                }
-            }
-            None => break,
+        let Some(state) = state.upgrade() else {
+            break;
+        };
+        if let Err(err) = state.lock().unwrap().recycle() {
+            error!("failed to run recycle: {err}");
         }
     });
 }
