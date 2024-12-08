@@ -233,15 +233,10 @@ impl App {
         let image_path = self.config.image_path.clone();
         let images = fs::read_dir(image_path).context("Failed to read image directory")?;
         Ok(images
-            .flat_map(|e| {
-                Some(
-                    e.ok()?
-                        .path()
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                        .to_string(),
-                )
+            .flat_map(|entry| {
+                let path = entry.ok()?.path();
+                let _ = Image::load(&path).ok()?;
+                Some(path.file_name()?.to_string_lossy().to_string())
             })
             .collect())
     }
