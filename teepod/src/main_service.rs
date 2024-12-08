@@ -235,6 +235,22 @@ impl TeepodRpc for RpcHandler {
         if !compose_file_path.exists() {
             anyhow::bail!("The instance {} not found", request.id);
         }
+        {
+            // check the compose file is valid
+            let todo = "import from external crate";
+            #[allow(dead_code)]
+            #[derive(serde::Deserialize)]
+            struct AppCompose {
+                manifest_version: u32,
+                name: String,
+                version: String,
+                features: Vec<String>,
+                runner: String,
+                docker_compose_file: Option<String>,
+            }
+            let _: AppCompose = serde_json::from_str(&request.compose_file)
+                .context("Invalid compose file")?;
+        }
         fs::write(compose_file_path, &request.compose_file)
             .context("Failed to write compose file")?;
         let new_app_id = app_id_of(&request.compose_file);
