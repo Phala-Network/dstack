@@ -79,11 +79,13 @@ fn mount_cdrom(cdrom_device: &str, mount_point: &str) -> Result<()> {
     .map(|_| ())
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 struct InstanceInfo {
-    #[serde(with = "hex_bytes")]
+    #[serde(default)]
+    bootstrapped: bool,
+    #[serde(with = "hex_bytes", default)]
     instance_id: Vec<u8>,
-    #[serde(with = "hex_bytes")]
+    #[serde(with = "hex_bytes", default)]
     app_id: Vec<u8>,
 }
 
@@ -133,7 +135,7 @@ struct HostShared {
     vm_config: LocalConfig,
     app_compose: AppCompose,
     encrypted_env: Vec<u8>,
-    instance_info: Option<InstanceInfo>,
+    instance_info: InstanceInfo,
 }
 
 impl HostShared {
@@ -142,9 +144,9 @@ impl HostShared {
         let app_compose = deserialize_json_file(host_shared_dir.app_compose_file())?;
         let instance_info_file = host_shared_dir.instance_info_file();
         let instance_info = if instance_info_file.exists() {
-            Some(deserialize_json_file(instance_info_file)?)
+            deserialize_json_file(instance_info_file)?
         } else {
-            None
+            InstanceInfo::default()
         };
         let encrypted_env = fs::read(host_shared_dir.encrypted_env_file()).unwrap_or_default();
         Ok(Self {
@@ -385,9 +387,11 @@ impl SetupFdeArgs {
             bail!("Rootfs hash mismatch");
         }
         info!("Rootfs hash is valid");
+        let mut instance_info = instance_info.clone();
+        instance_info.bootstrapped = true;
         // write instance info
         let instance_info =
-            serde_json::to_string(instance_info).context("Failed to serialize instance info")?;
+            serde_json::to_string(&instance_info).context("Failed to serialize instance info")?;
         let origin_host_shared_dir = HostShareDir::new(&self.host_shared);
         fs::write(origin_host_shared_dir.instance_info_file(), instance_info)
             .context("Failed to write instance info")?;
@@ -435,30 +439,24 @@ impl SetupFdeArgs {
             sha256(b"")
         };
 
-        let can_reuse_disk = kms_enabled || !self.rootfs_encryption;
-        let bootstraped;
-        let instance_info = match &host_shared.instance_info {
-            Some(instance_info) if can_reuse_disk => {
-                bootstraped = true;
-                instance_info.clone()
-            }
-            _ => {
-                bootstraped = false;
+        let mut instance_info = host_shared.instance_info.clone();
 
-                let app_id = upgraded_app_id.to_vec();
-                let instance_id = {
-                    let mut rand_id = vec![0u8; 20];
-                    getrandom::getrandom(&mut rand_id)?;
-                    rand_id.extend_from_slice(&app_id);
-                    sha256(&rand_id)[..20].to_vec()
-                };
-                InstanceInfo {
-                    app_id,
-                    instance_id,
-                }
-            }
-        };
+        if instance_info.app_id.is_empty() {
+            instance_info.app_id = upgraded_app_id.to_vec();
+        }
 
+        let disk_reusable = kms_enabled || !self.rootfs_encryption;
+        if (!disk_reusable) || instance_info.instance_id.is_empty() {
+            instance_info.instance_id = {
+                let mut rand_id = vec![0u8; 20];
+                getrandom::getrandom(&mut rand_id)?;
+                rand_id.extend_from_slice(&instance_info.app_id);
+                sha256(&rand_id)[..20].to_vec()
+            };
+        }
+        if !kms_enabled && instance_info.app_id != upgraded_app_id {
+            bail!("App upgrade is not supported without KMS");
+        }
         extend_rtmr3("rootfs-hash", rootfs_hash)?;
         extend_rtmr3("app-id", &instance_info.app_id)?;
         extend_rtmr3("upgraded-app-id", upgraded_app_id)?;
@@ -476,7 +474,7 @@ impl SetupFdeArgs {
         let decrypted_env =
             self.decrypt_env_vars(&app_keys.env_crypt_key, &host_shared.encrypted_env)?;
         let disk_crypt_key = format!("{}\n", app_keys.disk_crypt_key);
-        if bootstraped {
+        if instance_info.bootstrapped {
             self.mount_rootfs(&disk_crypt_key)?;
         } else {
             self.bootstrap_rootfs(&host_shared, &disk_crypt_key, &instance_info)?;
