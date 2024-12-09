@@ -98,6 +98,7 @@ impl VmInfo {
                         vm_port: pm.to as u32,
                     })
                     .collect(),
+                app_id: Some(self.manifest.app_id.clone()),
             }),
             app_url: self.instance_id.as_ref().map(|id| {
                 format!(

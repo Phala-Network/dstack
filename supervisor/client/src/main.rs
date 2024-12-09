@@ -64,6 +64,8 @@ async fn main() -> Result<()> {
                 stdout: String::new(),
                 stderr: String::new(),
                 pidfile: String::new(),
+                cid: None,
+                note: String::new(),
             };
             print_json(&client.deploy(config).await?);
         }

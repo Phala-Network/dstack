@@ -28,31 +28,28 @@ pub struct RpcHandler {
 
 impl RpcHandler {
     fn compose_file_path(&self, id: &str) -> PathBuf {
-        self.app
-            .config
-            .run_path
-            .join(id)
-            .join("shared")
-            .join("app-compose.json")
+        self.shared_dir(id).join("app-compose.json")
     }
 
-    fn prepare_work_dir(
-        &self,
-        id: &str,
-        compose_file: &str,
-        image_name: &str,
-        encrypted_env: &[u8],
-    ) -> Result<VmWorkDir> {
+    fn encrypted_env_path(&self, id: &str) -> PathBuf {
+        self.shared_dir(id).join("encrypted-env")
+    }
+
+    fn shared_dir(&self, id: &str) -> PathBuf {
+        self.app.config.run_path.join(id).join("shared")
+    }
+
+    fn prepare_work_dir(&self, id: &str, req: &VmConfiguration) -> Result<VmWorkDir> {
         let work_dir = self.app.work_dir(id);
         if work_dir.exists() {
             anyhow::bail!("The instance is already exists at {}", work_dir.display());
         }
         let shared_dir = work_dir.join("shared");
         fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
-        fs::write(shared_dir.join("app-compose.json"), compose_file)
+        fs::write(shared_dir.join("app-compose.json"), &req.compose_file)
             .context("Failed to write compose file")?;
-        if !encrypted_env.is_empty() {
-            fs::write(shared_dir.join("encrypted-env"), encrypted_env)
+        if !req.encrypted_env.is_empty() {
+            fs::write(shared_dir.join("encrypted-env"), &req.encrypted_env)
                 .context("Failed to write encrypted env")?;
         }
         let certs_dir = shared_dir.join("certs");
@@ -65,7 +62,7 @@ impl RpcHandler {
         fs::copy(&cfg.cvm.tmp_ca_key, certs_dir.join("tmp-ca.key"))
             .context("Failed to copy tmp ca key")?;
 
-        let image_path = cfg.image_path.join(image_name);
+        let image_path = cfg.image_path.join(&req.image);
         let image_info = ImageInfo::load(image_path.join("metadata.json"))
             .context("Failed to load image info")?;
 
@@ -82,6 +79,17 @@ impl RpcHandler {
             serde_json::to_string(&vm_config).context("Failed to serialize vm config")?;
         fs::write(shared_dir.join("config.json"), vm_config_str)
             .context("Failed to write vm config")?;
+        let app_id = req.app_id.clone().unwrap_or_default();
+        if !app_id.is_empty() {
+            let instance_info = serde_json::json!({
+                "app_id": app_id,
+            });
+            fs::write(
+                shared_dir.join(".instance_info"),
+                serde_json::to_string(&instance_info)?,
+            )
+            .context("Failed to write vm config")?;
+        }
 
         Ok(work_dir)
     }
@@ -145,14 +153,12 @@ impl TeepodRpc for RpcHandler {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let app_id = app_id_of(&request.compose_file);
+        let app_id = match &request.app_id {
+            Some(id) => id.clone(),
+            None => app_id_of(&request.compose_file),
+        };
         let id = uuid::Uuid::new_v4().to_string();
-        let work_dir = self.prepare_work_dir(
-            &id,
-            &request.compose_file,
-            &request.image,
-            &request.encrypted_env,
-        )?;
+        let work_dir = self.prepare_work_dir(&id, &request)?;
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -177,10 +183,17 @@ impl TeepodRpc for RpcHandler {
             warn!("Failed to set started: {}", err);
         }
 
-        self.app
+        let result = self
+            .app
             .load_vm(&work_dir, &Default::default())
             .await
-            .context("Failed to load VM")?;
+            .context("Failed to load VM");
+        if let Err(err) = result {
+            if let Err(err) = fs::remove_dir_all(&work_dir) {
+                warn!("Failed to remove work dir: {}", err);
+            }
+            return Err(err);
+        }
 
         Ok(Id { id })
     }
@@ -231,30 +244,43 @@ impl TeepodRpc for RpcHandler {
     }
 
     async fn upgrade_app(self, request: UpgradeAppRequest) -> Result<Id> {
-        let compose_file_path = self.compose_file_path(&request.id);
-        if !compose_file_path.exists() {
-            anyhow::bail!("The instance {} not found", request.id);
-        }
-        {
-            // check the compose file is valid
-            let todo = "import from external crate";
-            #[allow(dead_code)]
-            #[derive(serde::Deserialize)]
-            struct AppCompose {
-                manifest_version: u32,
-                name: String,
-                version: String,
-                features: Vec<String>,
-                runner: String,
-                docker_compose_file: Option<String>,
+        let new_id = if !request.compose_file.is_empty() {
+            {
+                // check the compose file is valid
+                let todo = "import from external crate";
+                #[allow(dead_code)]
+                #[derive(serde::Deserialize)]
+                struct AppCompose {
+                    manifest_version: u32,
+                    name: String,
+                    version: String,
+                    features: Vec<String>,
+                    runner: String,
+                    docker_compose_file: Option<String>,
+                }
+                let app_compose: AppCompose =
+                    serde_json::from_str(&request.compose_file).context("Invalid compose file")?;
+                if app_compose.docker_compose_file.is_none() {
+                    anyhow::bail!("Docker compose file cannot be empty");
+                }
             }
-            let _: AppCompose = serde_json::from_str(&request.compose_file)
-                .context("Invalid compose file")?;
+            let compose_file_path = self.compose_file_path(&request.id);
+            if !compose_file_path.exists() {
+                anyhow::bail!("The instance {} not found", request.id);
+            }
+            fs::write(compose_file_path, &request.compose_file)
+                .context("Failed to write compose file")?;
+
+            app_id_of(&request.compose_file)
+        } else {
+            Default::default()
+        };
+        if !request.encrypted_env.is_empty() {
+            let encrypted_env_path = self.encrypted_env_path(&request.id);
+            fs::write(encrypted_env_path, &request.encrypted_env)
+                .context("Failed to write encrypted env")?;
         }
-        fs::write(compose_file_path, &request.compose_file)
-            .context("Failed to write compose file")?;
-        let new_app_id = app_id_of(&request.compose_file);
-        Ok(Id { id: new_app_id })
+        Ok(Id { id: new_id })
     }
 
     async fn get_app_env_encrypt_pub_key(self, request: AppId) -> Result<PublicKeyResponse> {
