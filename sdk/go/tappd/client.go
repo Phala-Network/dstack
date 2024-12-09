@@ -133,7 +133,7 @@ func getEndpoint(endpoint string) string {
 		return endpoint
 	}
 	if simEndpoint, exists := os.LookupEnv("DSTACK_SIMULATOR_ENDPOINT"); exists {
-		slog.Warn("Using simulator endpoint", "endpoint", simEndpoint)
+		slog.Info("using simulator endpoint", "endpoint", simEndpoint)
 		return simEndpoint
 	}
 	return "/var/run/tappd.sock"
@@ -198,10 +198,13 @@ func (c *TappdClient) sendRPCRequest(ctx context.Context, path string, payload i
 }
 
 // Derives a key from the Tappd service.
-func (c *TappdClient) DeriveKey(ctx context.Context, path, subject string) (*DeriveKeyResponse, error) {
-	payload := map[string]string{
+func (c *TappdClient) DeriveKey(ctx context.Context, path string, subject string, altNames []string) (*DeriveKeyResponse, error) {
+	payload := map[string]interface{}{
 		"path":    path,
 		"subject": subject,
+	}
+	if len(altNames) > 0 {
+		payload["alt_names"] = altNames
 	}
 
 	data, err := c.sendRPCRequest(ctx, "/prpc/Tappd.DeriveKey", payload)
