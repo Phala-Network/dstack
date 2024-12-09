@@ -28,28 +28,18 @@ pub struct RpcHandler {
 
 impl RpcHandler {
     fn compose_file_path(&self, id: &str) -> PathBuf {
-        self.shared_dir(id)
-            .join("app-compose.json")
+        self.shared_dir(id).join("app-compose.json")
     }
 
     fn encrypted_env_path(&self, id: &str) -> PathBuf {
-        self.shared_dir(id)
-            .join("encrypted-env")
+        self.shared_dir(id).join("encrypted-env")
     }
 
     fn shared_dir(&self, id: &str) -> PathBuf {
-        self.app
-            .config
-            .run_path
-            .join(id)
-            .join("shared")
+        self.app.config.run_path.join(id).join("shared")
     }
 
-    fn prepare_work_dir(
-        &self,
-        id: &str,
-        req: &VmConfiguration,
-    ) -> Result<VmWorkDir> {
+    fn prepare_work_dir(&self, id: &str, req: &VmConfiguration) -> Result<VmWorkDir> {
         let work_dir = self.app.work_dir(id);
         if work_dir.exists() {
             anyhow::bail!("The instance is already exists at {}", work_dir.display());
@@ -94,8 +84,11 @@ impl RpcHandler {
             let instance_info = serde_json::json!({
                 "app_id": app_id,
             });
-            fs::write(shared_dir.join(".instance_info"), serde_json::to_string(&instance_info)?)
-                .context("Failed to write vm config")?;
+            fs::write(
+                shared_dir.join(".instance_info"),
+                serde_json::to_string(&instance_info)?,
+            )
+            .context("Failed to write vm config")?;
         }
 
         Ok(work_dir)
@@ -160,7 +153,10 @@ impl TeepodRpc for RpcHandler {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let app_id = app_id_of(&request.compose_file);
+        let app_id = match &request.app_id {
+            Some(id) => id.clone(),
+            None => app_id_of(&request.compose_file),
+        };
         let id = uuid::Uuid::new_v4().to_string();
         let work_dir = self.prepare_work_dir(&id, &request)?;
         let now = SystemTime::now()
@@ -187,10 +183,17 @@ impl TeepodRpc for RpcHandler {
             warn!("Failed to set started: {}", err);
         }
 
-        self.app
+        let result = self
+            .app
             .load_vm(&work_dir, &Default::default())
             .await
-            .context("Failed to load VM")?;
+            .context("Failed to load VM");
+        if let Err(err) = result {
+            if let Err(err) = fs::remove_dir_all(&work_dir) {
+                warn!("Failed to remove work dir: {}", err);
+            }
+            return Err(err);
+        }
 
         Ok(Id { id })
     }
@@ -255,8 +258,8 @@ impl TeepodRpc for RpcHandler {
                     runner: String,
                     docker_compose_file: Option<String>,
                 }
-                let app_compose: AppCompose = serde_json::from_str(&request.compose_file)
-                    .context("Invalid compose file")?;
+                let app_compose: AppCompose =
+                    serde_json::from_str(&request.compose_file).context("Invalid compose file")?;
                 if app_compose.docker_compose_file.is_none() {
                     anyhow::bail!("Docker compose file cannot be empty");
                 }
@@ -267,7 +270,7 @@ impl TeepodRpc for RpcHandler {
             }
             fs::write(compose_file_path, &request.compose_file)
                 .context("Failed to write compose file")?;
-            
+
             app_id_of(&request.compose_file)
         } else {
             Default::default()

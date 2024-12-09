@@ -159,11 +159,14 @@ impl App {
 
     pub async fn remove_vm(&self, id: &str) -> Result<()> {
         let info = self.supervisor.info(id).await?;
-        let is_running = info.map_or(false, |i| i.state.status.is_running());
+        let is_running = info.as_ref().map_or(false, |i| i.state.status.is_running());
         if is_running {
             bail!("VM is running, stop it first");
         }
-        self.supervisor.remove(id).await?;
+
+        if info.is_some() {
+            self.supervisor.remove(id).await?;
+        }
 
         {
             let mut state = self.lock();

@@ -1,6 +1,7 @@
 use std::{net::IpAddr, path::PathBuf, str::FromStr};
 
 use anyhow::{bail, Context, Result};
+use fs_err as fs;
 use rocket::figment::{
     providers::{Format, Toml},
     Figment,
@@ -147,6 +148,16 @@ pub struct Config {
 
     /// Supervisor configuration
     pub supervisor: SupervisorConfig,
+}
+
+impl Config {
+    pub fn abs_path(self) -> Result<Self> {
+        Ok(Self {
+            image_path: fs::canonicalize(&self.image_path)?,
+            run_path: fs::canonicalize(&self.run_path)?,
+            ..self
+        })
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
