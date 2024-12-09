@@ -1,4 +1,4 @@
-package client
+package tappd
 
 import (
 	"bytes"
