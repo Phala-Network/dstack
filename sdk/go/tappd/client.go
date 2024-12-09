@@ -128,12 +128,12 @@ func (r *TdxQuoteResponse) ReplayRTMRs() (map[int]string, error) {
 // endpoint is empty, it will use the simulator endpoint if it is set in the
 // environment through DSTACK_SIMULATOR_ENDPOINT. Otherwise, it will use the
 // default endpoint at /var/run/tappd.sock.
-func getEndpoint(endpoint string) string {
+func getEndpoint(endpoint string, logger *slog.Logger) string {
 	if endpoint != "" {
 		return endpoint
 	}
 	if simEndpoint, exists := os.LookupEnv("DSTACK_SIMULATOR_ENDPOINT"); exists {
-		slog.Info("using simulator endpoint", "endpoint", simEndpoint)
+		logger.Info("using simulator endpoint", "endpoint", simEndpoint)
 		return simEndpoint
 	}
 	return "/var/run/tappd.sock"
@@ -149,8 +149,8 @@ type TappdClient struct {
 // If the endpoint is empty, it will use the simulator endpoint if it is
 // set in the environment through DSTACK_SIMULATOR_ENDPOINT. Otherwise, it
 // will use the default endpoint at /var/run/tappd.sock.
-func NewTappdClient(endpoint string) *TappdClient {
-	endpoint = getEndpoint(endpoint)
+func NewTappdClient(endpoint string, logger *slog.Logger) *TappdClient {
+	endpoint = getEndpoint(endpoint, logger)
 	baseURL := endpoint
 	httpClient := &http.Client{}
 

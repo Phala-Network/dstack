@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"log/slog"
 	"strings"
 	"testing"
 )
 
 func TestDeriveKey(t *testing.T) {
-	client := NewTappdClient("")
+	client := NewTappdClient("", slog.Default())
 	resp, err := client.DeriveKey(context.Background(), "/", "test", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -43,7 +44,7 @@ func TestDeriveKey(t *testing.T) {
 }
 
 func TestTdxQuote(t *testing.T) {
-	client := NewTappdClient("")
+	client := NewTappdClient("", slog.Default())
 	resp, err := client.TdxQuote(context.Background(), []byte("test"), "")
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +90,7 @@ func TestTdxQuote(t *testing.T) {
 }
 
 func TestTdxQuoteRawHash(t *testing.T) {
-	client := NewTappdClient("")
+	client := NewTappdClient("", slog.Default())
 
 	// Test valid raw hash
 	resp, err := client.TdxQuote(context.Background(), []byte("test"), RAW)
