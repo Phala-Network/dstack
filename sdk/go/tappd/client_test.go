@@ -2,6 +2,7 @@ package tappd
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -9,56 +10,103 @@ import (
 
 func TestDeriveKey(t *testing.T) {
 	client := NewTappdClient("")
-	result, err := client.DeriveKey(context.Background(), "/", "test")
+	resp, err := client.DeriveKey(context.Background(), "/", "test", nil)
 	if err != nil {
-		t.Fatalf("failed to derive key: %v", err)
+		t.Fatal(err)
 	}
 
-	if result.Key == "" {
-		t.Error("key should not be empty")
+	if resp.Key == "" {
+		t.Error("expected key to not be empty")
 	}
 
-	if len(result.CertificateChain) == 0 {
-		t.Error("certificate chain should not be empty")
+	if len(resp.CertificateChain) == 0 {
+		t.Error("expected certificate chain to not be empty")
 	}
 
-	// Test key bytes conversion
-	keyBytes, err := result.ToBytes(-1)
+	// Test ToBytes
+	key, err := resp.ToBytes(-1)
 	if err != nil {
-		t.Fatalf("failed to convert key to bytes: %v", err)
+		t.Fatal(err)
 	}
-	if len(keyBytes) == 0 {
-		t.Error("key bytes should not be empty")
+	if len(key) == 0 {
+		t.Error("expected key bytes to not be empty")
 	}
 
-	// Test truncated key bytes
-	truncatedBytes, err := result.ToBytes(32)
+	// Test ToBytes with max length
+	key, err = resp.ToBytes(32)
 	if err != nil {
-		t.Fatalf("failed to convert truncated key to bytes: %v", err)
+		t.Fatal(err)
 	}
-	if len(truncatedBytes) != 32 {
-		t.Errorf("truncated key length should be 32, got %d", len(truncatedBytes))
+	if len(key) != 32 {
+		t.Errorf("expected key length to be 32, got %d", len(key))
 	}
 }
 
 func TestTdxQuote(t *testing.T) {
 	client := NewTappdClient("")
-	testData := []byte("some data or anything")
-	result, err := client.TdxQuote(context.Background(), testData)
+	resp, err := client.TdxQuote(context.Background(), []byte("test"), "")
 	if err != nil {
-		t.Fatalf("failed to get tdx quote: %v", err)
+		t.Fatal(err)
 	}
 
-	if !strings.HasPrefix(result.Quote, "0x") {
-		t.Error("quote should start with 0x")
+	if resp.Quote == "" {
+		t.Error("expected quote to not be empty")
 	}
 
-	if !strings.HasPrefix(result.EventLog, "{") {
-		t.Error("event log should be a JSON object")
+	if !strings.HasPrefix(resp.Quote, "0x") {
+		t.Error("expected quote to start with 0x")
 	}
 
-	var eventLog interface{}
-	if err := json.Unmarshal([]byte(result.EventLog), &eventLog); err != nil {
-		t.Errorf("event log should be valid JSON: %v", err)
+	if resp.EventLog == "" {
+		t.Error("expected event log to not be empty")
+	}
+
+	var eventLog map[string]interface{}
+	err = json.Unmarshal([]byte(resp.EventLog), &eventLog)
+	if err != nil {
+		t.Errorf("expected event log to be a valid JSON object: %v", err)
+	}
+
+	// Test ReplayRTMRs
+	rtmrs, err := resp.ReplayRTMRs()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rtmrs) != 4 {
+		t.Errorf("expected 4 RTMRs, got %d", len(rtmrs))
+	}
+
+	for i := 0; i < 4; i++ {
+		if rtmrs[i] == "" {
+			t.Errorf("expected RTMR %d to not be empty", i)
+		}
+		// Verify hex string
+		if _, err := hex.DecodeString(rtmrs[i]); err != nil {
+			t.Errorf("expected RTMR %d to be valid hex: %v", i, err)
+		}
+	}
+}
+
+func TestTdxQuoteRawHash(t *testing.T) {
+	client := NewTappdClient("")
+
+	// Test valid raw hash
+	resp, err := client.TdxQuote(context.Background(), []byte("test"), RAW)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Quote == "" {
+		t.Error("expected quote to not be empty")
+	}
+
+	// Test too large raw hash
+	largeData := make([]byte, 65)
+	_, err = client.TdxQuote(context.Background(), largeData, RAW)
+	if err == nil {
+		t.Error("expected error for large raw hash data")
+	}
+	if !strings.Contains(err.Error(), "report data is too large") {
+		t.Errorf("unexpected error message: %v", err)
 	}
 }
