@@ -649,7 +649,7 @@
                                         <i class="fas fa-info-circle"></i> Dashboard
                                     </button>
                                     <button class="action-btn" @click="showUpgradeDialog(vm)" title="Upgrade VM">
-                                        <i class="fas fa-arrow-up"></i> Upgrade
+                                        <i class="fas fa-arrow-up"></i> Update
                                     </button>
                                     <button class="action-btn" @click="showForkVm(vm)" title="Derive VM">
                                         <i class="fas fa-code-branch"></i> Derive
@@ -731,7 +731,18 @@
 
         <div v-if="upgradeDialog.show" class="dialog-overlay">
             <div class="dialog">
-                <h3>Upgrade VM</h3>
+                <h3>Update VM Config</h3>
+
+                <div class="form-group">
+                    <label for="vcpu">Number of vCPUs</label>
+                    <input id="vcpu" v-model.number="upgradeDialog.vcpu" type="number" placeholder="vCPUs" required>
+                </div>
+                <div class="form-group">
+                    <label for="memory">Memory (MB)</label>
+                    <input id="memory" v-model.number="upgradeDialog.memory" type="number" placeholder="Memory in MB"
+                        required>
+                </div>
+
                 <div class="form-group">
                     <label for="upgradeFile">Upload New Compose File</label>
                     <input id="upgradeFile" type="file" @change="loadUpgradeFile" accept=".yml,.yaml,.txt">
@@ -856,7 +867,9 @@
                     vm: null,
                     compose_file: '',
                     encrypted_envs: [],
-                    resetSecrets: false
+                    resetSecrets: false,
+                    vcpu: 0,
+                    memory: 0
                 });
                 const upgradeMessage = ref('');
                 const errorMessage = ref('');
@@ -1091,7 +1104,9 @@
                         show: true,
                         vm: vm,
                         compose_file: '',
-                        resetSecrets: false
+                        resetSecrets: false,
+                        vcpu: vm.configuration?.vcpu,
+                        memory: vm.configuration?.memory,
                     };
                     clearEncryptedEnv();
                 };
@@ -1109,6 +1124,17 @@
 
                 const upgradeVM = async () => {
                     try {
+                        if (
+                            upgradeDialog.value.vcpu != upgradeDialog.value.vm.configuration.vcpu ||
+                            upgradeDialog.value.memory != upgradeDialog.value.vm.configuration.memory
+                        ) {
+                            const response = await rpcCall('ResizeVm', {
+                                id: upgradeDialog.value.vm.id,
+                                vcpu: upgradeDialog.value.vcpu,
+                                memory: upgradeDialog.value.memory
+                            });
+                            await response.json();
+                        }
                         const body = {
                             id: upgradeDialog.value.vm.id,
                         };
