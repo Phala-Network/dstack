@@ -72,10 +72,7 @@ func replayRTMR(history []string) (string, error) {
 		return INIT_MR, nil
 	}
 
-	mr, err := hex.DecodeString(INIT_MR)
-	if err != nil {
-		return "", err
-	}
+	mr := make([]byte, 48)
 
 	for _, content := range history {
 		contentBytes, err := hex.DecodeString(content)
