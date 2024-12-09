@@ -1,12 +1,15 @@
 package tappd
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"log/slog"
 	"strings"
 	"testing"
+
+	tdxtypes "github.com/edgelesssys/go-tdx-qpl/verification/types"
 )
 
 func TestDeriveKey(t *testing.T) {
@@ -68,6 +71,17 @@ func TestTdxQuote(t *testing.T) {
 		t.Errorf("expected event log to be a valid JSON object: %v", err)
 	}
 
+	quoteBytes, err := hex.DecodeString(resp.Quote[2:])
+	if err != nil {
+		t.Errorf("expected quote to be a valid hex string: %v", err)
+	}
+
+	// Test parsing quote
+	tdxQuote, err := tdxtypes.ParseQuote(quoteBytes)
+	if err != nil {
+		t.Errorf("expected quote to be a valid TDX quote: %v", err)
+	}
+
 	// Test ReplayRTMRs
 	rtmrs, err := resp.ReplayRTMRs()
 	if err != nil {
@@ -78,13 +92,19 @@ func TestTdxQuote(t *testing.T) {
 		t.Errorf("expected 4 RTMRs, got %d", len(rtmrs))
 	}
 
+	// Verify RTMRs
 	for i := 0; i < 4; i++ {
 		if rtmrs[i] == "" {
 			t.Errorf("expected RTMR %d to not be empty", i)
 		}
-		// Verify hex string
-		if _, err := hex.DecodeString(rtmrs[i]); err != nil {
+
+		rtmrBytes, err := hex.DecodeString(rtmrs[i])
+		if err != nil {
 			t.Errorf("expected RTMR %d to be valid hex: %v", i, err)
+		}
+
+		if !bytes.Equal(rtmrBytes, tdxQuote.Body.RTMR[i][:]) {
+			t.Errorf("expected RTMR %d to be %s, got %s", i, hex.EncodeToString(tdxQuote.Body.RTMR[i][:]), rtmrs[i])
 		}
 	}
 }
