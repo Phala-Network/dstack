@@ -16,6 +16,22 @@ import (
 	"strings"
 )
 
+// Represents the hash algorithm used in TDX quote generation.
+type QuoteHashAlgorithm string
+
+const (
+	SHA256    QuoteHashAlgorithm = "sha256"
+	SHA384    QuoteHashAlgorithm = "sha384"
+	SHA512    QuoteHashAlgorithm = "sha512"
+	SHA3_256  QuoteHashAlgorithm = "sha3-256"
+	SHA3_384  QuoteHashAlgorithm = "sha3-384"
+	SHA3_512  QuoteHashAlgorithm = "sha3-512"
+	KECCAK256 QuoteHashAlgorithm = "keccak256"
+	KECCAK384 QuoteHashAlgorithm = "keccak384"
+	KECCAK512 QuoteHashAlgorithm = "keccak512"
+	RAW       QuoteHashAlgorithm = "raw"
+)
+
 // Represents the response from a key derivation request.
 type DeriveKeyResponse struct {
 	Key              string   `json:"key"`
@@ -141,10 +157,20 @@ func (c *TappdClient) DeriveKey(ctx context.Context, path, subject string) (*Der
 }
 
 // Sends a TDX quote request to the Tappd service.
-func (c *TappdClient) TdxQuote(ctx context.Context, reportData []byte) (*TdxQuoteResponse, error) {
-	hash := sha512.Sum384(reportData)
-	payload := map[string]string{
-		"report_data": hex.EncodeToString(hash[:]),
+func (c *TappdClient) TdxQuote(ctx context.Context, reportData []byte, hashAlgorithm QuoteHashAlgorithm) (*TdxQuoteResponse, error) {
+	hexData := hex.EncodeToString(reportData)
+	if hashAlgorithm == RAW {
+		if len(hexData) > 128 {
+			return nil, fmt.Errorf("report data is too large, it should be less than 128 characters when hash_algorithm is raw")
+		}
+		if len(hexData) < 128 {
+			hexData = strings.Repeat("0", 128-len(hexData)) + hexData
+		}
+	}
+
+	payload := map[string]interface{}{
+		"report_data":    hexData,
+		"hash_algorithm": string(hashAlgorithm),
 	}
 
 	data, err := c.sendRPCRequest(ctx, "/prpc/Tappd.TdxQuote", payload)
