@@ -474,7 +474,7 @@
                     placeholder="Enter API token for RPC authentication">
             </div>
         </div>
-        <button class="action-btn" @click="showCreateDialog = true">Deploy a new instance</button>
+        <button class="action-btn" @click="showCreateDialog = true; clearEncryptedEnv()">Deploy a new instance</button>
 
         <div v-if="showCreateDialog" class="dialog-overlay">
             <div class="dialog">
@@ -651,6 +651,9 @@
                                     <button class="action-btn" @click="showUpgradeDialog(vm)" title="Upgrade VM">
                                         <i class="fas fa-arrow-up"></i> Upgrade
                                     </button>
+                                    <button class="action-btn" @click="showForkVm(vm)" title="Derive VM">
+                                        <i class="fas fa-code-branch"></i> Derive
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -738,9 +741,66 @@
                     <textarea id="upgradeCompose" v-model="upgradeDialog.compose_file"
                         placeholder="Paste your new docker-compose.yml here" required></textarea>
                 </div>
+                <div style="display: flex; align-items: center; margin-top: 16px;">
+                    <input type="checkbox" v-model="upgradeDialog.resetSecrets" style="width: 16px; height: 16px;">
+                    <span style="margin-left: 8px;">Reset secrets</span>
+                </div>
+                <div v-if="upgradeDialog.vm.appCompose?.features?.includes('kms') && upgradeDialog.resetSecrets" style="margin-top: 16px;">
+                    <label>Encrypted Environment Variables</label>
+                    <div v-for="(env, index) in vmForm.encrypted_envs" :key="index"
+                        style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" v-model="env.key" placeholder="Variable name" style="width: 200px;"
+                            required>
+                        <input type="password" v-model="env.value" placeholder="Value" style="flex-grow: 1;"
+                            required>
+                        <button type="button" class="action-btn danger" @click="removeEncryptedEnv(index)">
+                            Remove
+                        </button>
+                    </div>
+                    <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
+                </div>
+
                 <div class="vm-actions">
                     <button class="action-btn upgrade" @click="upgradeVM">Upgrade</button>
                     <button class="action-btn remove" @click="upgradeDialog.show = false">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="forkDialog.show" class="dialog-overlay">
+            <div class="dialog">
+                <h3>Derive VM</h3>
+                <p style="color: #f44336; margin: 0 0 12px 0;">
+                    This will create a new VM instance with the same app id, but the disk state will NOT migrate to the new instance.
+                </p>
+
+                <div class="form-group">
+                    <label for="vmImage">Image</label>
+                    <select id="vmImage" v-model="forkDialog.image" required>
+                        <option value="" disabled>Select an image</option>
+                        <option v-for="image in images" :key="image" :value="image.name">
+                            {{ image.name }}
+                        </option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="vcpu">Number of vCPUs</label>
+                    <input id="vcpu" v-model.number="forkDialog.vcpu" type="number" placeholder="vCPUs" required>
+                </div>
+                <div class="form-group">
+                    <label for="memory">Memory (MB)</label>
+                    <input id="memory" v-model.number="forkDialog.memory" type="number" placeholder="Memory in MB"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label for="diskSize">Disk Size (GB)</label>
+                    <input id="diskSize" v-model.number="forkDialog.disk_size" type="number" placeholder="Disk size in GB"
+                        required>
+                </div>
+                <div class="vm-actions">
+                    <button class="action-btn upgrade" @click="forkVm">Derive</button>
+                    <button class="action-btn remove" @click="forkDialog.show = false">Cancel</button>
                 </div>
             </div>
         </div>
@@ -794,10 +854,20 @@
                 const upgradeDialog = ref({
                     show: false,
                     vm: null,
-                    compose_file: ''
+                    compose_file: '',
+                    encrypted_envs: [],
+                    resetSecrets: false
                 });
                 const upgradeMessage = ref('');
                 const errorMessage = ref('');
+
+                const forkDialog = ref({
+                    show: false,
+                    image: '',
+                    vcpu: 0,
+                    memory: 0,
+                    disk_size: 0
+                });
 
                 const showCreateDialog = ref(false);
                 const config = ref({
@@ -874,7 +944,6 @@
                 const appIdOf = async (composeFile) => {
                     const app_compose = makeAppComposeFile();
                     const sha256Hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(app_compose));
-                    console.log('sha256Hash', sha256Hash);
                     return Array.from(new Uint8Array(sha256Hash)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
                 };
 
@@ -915,13 +984,15 @@
                 const makeEncryptedEnv = async () => {
                     if ((!vmForm.value.features.kms) || vmForm.value.encrypted_envs.length === 0) return '';
                     const appId = await appIdOf(vmForm.value.compose_file);
-                    console.log('appId', appId);
                     const response = await rpcCall('GetAppEnvEncryptPubKey', {
                         app_id: appId
                     });
                     const encryptPubkey = await response.json();
-                    console.log('encryptPubkey', encryptPubkey);
                     return await encryptEnv(vmForm.value.encrypted_envs, encryptPubkey.public_key);
+                };
+
+                const clearEncryptedEnv = () => {
+                    vmForm.value.encrypted_envs = [];
                 };
 
                 const createVm = async () => {
@@ -934,6 +1005,7 @@
                         const _response = await rpcCall('CreateVm', form);
                         loadVMList();
                         showCreateDialog.value = false;
+                        clearEncryptedEnv();
                     } catch (error) {
                         console.error('Error creating VM:', error);
                         alert('Failed to create VM');
@@ -998,7 +1070,6 @@
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = (e) => {
-                            console.log('file content', e.target.result);
                             vmForm.value.compose_file = e.target.result;
                         };
                         reader.readAsText(file);
@@ -1019,8 +1090,10 @@
                     upgradeDialog.value = {
                         show: true,
                         vm: vm,
-                        compose_file: ''
+                        compose_file: '',
+                        resetSecrets: false
                     };
+                    clearEncryptedEnv();
                 };
 
                 const loadUpgradeFile = (event) => {
@@ -1036,20 +1109,28 @@
 
                 const upgradeVM = async () => {
                     try {
-                        const currentAppCompose = upgradeDialog.value.vm.appCompose;
-                        console.log('currentAppCompose', JSON.stringify(currentAppCompose, null, 2));
-                        const app_compose = {
-                            ...currentAppCompose,
-                            docker_compose_file: upgradeDialog.value.compose_file
-                        };
-
-                        const response = await rpcCall('UpgradeApp', {
+                        const body = {
                             id: upgradeDialog.value.vm.id,
-                            compose_file: JSON.stringify(app_compose)
-                        });
+                        };
+                        if (upgradeDialog.value.compose_file) {
+                            const currentAppCompose = upgradeDialog.value.vm.appCompose;
+                            const app_compose = {
+                                ...currentAppCompose,
+                                docker_compose_file: upgradeDialog.value.compose_file
+                            };
+                            body.compose_file = JSON.stringify(app_compose);
+                        }
+
+                        if (upgradeDialog.value.resetSecrets) {
+                            body.encrypted_env = await makeEncryptedEnv();
+                        }
+
+                        const response = await rpcCall('UpgradeApp', body);
                         const data = await response.json();
+                        clearEncryptedEnv();
                         upgradeDialog.value.show = false;
-                        upgradeMessage.value = `
+                        if (body.compose_file) {
+                            upgradeMessage.value = `
 <div class="upgrade-message">✅ Upgrade initiated successfully!</div>
 <div class="next-steps-header">Next steps:</div>
 <ol class="steps-list">
@@ -1061,6 +1142,7 @@
     </li>
     <li>Restart the instance</li>
 </ol>`;
+                        }
                         loadVMList();
                     } catch (error) {
                         console.error('error upgrading VM:', error);
@@ -1117,6 +1199,24 @@
                     loadImages();
                 });
 
+                const showForkVm = (vm) => {
+                    forkDialog.value = {
+                        ...vm.configuration,
+                        show: true
+                    };
+                };
+
+                const forkVm = async () => {
+                    try {
+                        const _response = await rpcCall('CreateVm', forkDialog.value);
+                        loadVMList();
+                        forkDialog.value.show = false;
+                    } catch (error) {
+                        console.error('Error creating VM:', error);
+                        alert('Failed to create VM');
+                    }
+                };
+
                 return {
                     vms,
                     vmForm,
@@ -1143,7 +1243,11 @@
                     dashboardAvailable,
                     addEncryptedEnv,
                     removeEncryptedEnv,
+                    clearEncryptedEnv,
                     teepodApiToken,
+                    showForkVm,
+                    forkDialog,
+                    forkVm,
                 };
             }
         }).mount('#app');

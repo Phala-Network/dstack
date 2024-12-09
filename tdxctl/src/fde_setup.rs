@@ -177,6 +177,7 @@ impl SetupFdeArgs {
     }
 
     fn copy_host_shared(&self) -> Result<HostShared> {
+        info!("Mounting host-shared");
         fs::create_dir_all(&self.host_shared)
             .context("Failed to create host-sharing mount point")?;
         mount_9p("host-shared", &self.host_shared.display().to_string())

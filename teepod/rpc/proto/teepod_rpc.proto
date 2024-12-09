@@ -48,6 +48,11 @@ message VmConfiguration {
   repeated PortMapping ports = 7;
   // Encrypted environment variables
   bytes encrypted_env = 8;
+  // App ID.
+  // If not provided, it assumes the app is newly created.
+  // If provided, and KMS is enabled, it assumes the app is upgraded from given app_id.
+  // If provided, and KMS is disabled, it must equal to the actual app_id computed from compose_file, or the VM will fail to start.
+  optional string app_id = 9;
 }
 
 // Message for port mapping
@@ -66,6 +71,8 @@ message UpgradeAppRequest {
   string id = 1;
   // Compose file to be used for the VM
   string compose_file = 2;
+  // Optional update encrypted environment variables. Leave empty to not update.
+  bytes encrypted_env = 3;
 }
 
 // Message for VM list response
