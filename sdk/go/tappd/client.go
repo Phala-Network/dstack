@@ -64,6 +64,66 @@ type TdxQuoteResponse struct {
 	EventLog string `json:"event_log"`
 }
 
+const INIT_MR = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+
+// Replays the RTMR history to calculate final RTMR values
+func replayRTMR(history []string) (string, error) {
+	if len(history) == 0 {
+		return INIT_MR, nil
+	}
+
+	mr, err := hex.DecodeString(INIT_MR)
+	if err != nil {
+		return "", err
+	}
+
+	for _, content := range history {
+		contentBytes, err := hex.DecodeString(content)
+		if err != nil {
+			return "", err
+		}
+
+		if len(contentBytes) < 48 {
+			padding := make([]byte, 48-len(contentBytes))
+			contentBytes = append(contentBytes, padding...)
+		}
+
+		h := sha512.New384()
+		h.Write(append(mr, contentBytes...))
+		mr = h.Sum(nil)
+	}
+
+	return hex.EncodeToString(mr), nil
+}
+
+// Replays the RTMR history to calculate final RTMR values
+func (r *TdxQuoteResponse) ReplayRTMRs() (map[int]string, error) {
+	var eventLog []struct {
+		IMR    int    `json:"imr"`
+		Digest string `json:"digest"`
+	}
+	json.Unmarshal([]byte(r.EventLog), &eventLog)
+
+	rtmrs := make(map[int]string, 4)
+	for idx := 0; idx < 4; idx++ {
+		history := make([]string, 0)
+		for _, event := range eventLog {
+			if event.IMR == idx {
+				history = append(history, event.Digest)
+			}
+		}
+
+		rtmr, err := replayRTMR(history)
+		if err != nil {
+			return nil, err
+		}
+
+		rtmrs[idx] = rtmr
+	}
+
+	return rtmrs, nil
+}
+
 // Returns the appropriate endpoint based on environment and input. If the
 // endpoint is empty, it will use the simulator endpoint if it is set in the
 // environment through DSTACK_SIMULATOR_ENDPOINT. Otherwise, it will use the
