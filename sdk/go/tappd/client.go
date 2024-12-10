@@ -121,51 +121,78 @@ func (r *TdxQuoteResponse) ReplayRTMRs() (map[int]string, error) {
 	return rtmrs, nil
 }
 
-// Returns the appropriate endpoint based on environment and input. If the
-// endpoint is empty, it will use the simulator endpoint if it is set in the
-// environment through DSTACK_SIMULATOR_ENDPOINT. Otherwise, it will use the
-// default endpoint at /var/run/tappd.sock.
-func getEndpoint(endpoint string, logger *slog.Logger) string {
-	if endpoint != "" {
-		return endpoint
-	}
-	if simEndpoint, exists := os.LookupEnv("DSTACK_SIMULATOR_ENDPOINT"); exists {
-		logger.Info("using simulator endpoint", "endpoint", simEndpoint)
-		return simEndpoint
-	}
-	return "/var/run/tappd.sock"
-}
-
 // Handles communication with the Tappd service.
 type TappdClient struct {
+	endpoint   string
 	baseURL    string
 	httpClient *http.Client
+	logger     *slog.Logger
+}
+
+// Functional option for configuring a TappdClient.
+type TappdClientOption func(*TappdClient)
+
+// Sets the endpoint for the TappdClient.
+func WithEndpoint(endpoint string) TappdClientOption {
+	return func(c *TappdClient) {
+		c.endpoint = endpoint
+	}
+}
+
+// Sets the logger for the TappdClient
+func WithLogger(logger *slog.Logger) TappdClientOption {
+	return func(c *TappdClient) {
+		c.logger = logger
+	}
 }
 
 // Creates a new TappdClient instance based on the provided endpoint.
 // If the endpoint is empty, it will use the simulator endpoint if it is
 // set in the environment through DSTACK_SIMULATOR_ENDPOINT. Otherwise, it
 // will use the default endpoint at /var/run/tappd.sock.
-func NewTappdClient(endpoint string, logger *slog.Logger) *TappdClient {
-	endpoint = getEndpoint(endpoint, logger)
-	baseURL := endpoint
-	httpClient := &http.Client{}
+func NewTappdClient(opts ...TappdClientOption) *TappdClient {
+	client := &TappdClient{
+		endpoint:   "",
+		baseURL:    "",
+		httpClient: &http.Client{},
+		logger:     slog.Default(),
+	}
 
-	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
-		baseURL = "http://localhost"
-		httpClient = &http.Client{
+	for _, opt := range opts {
+		opt(client)
+	}
+
+	client.endpoint = client.getEndpoint()
+
+	if strings.HasPrefix(client.endpoint, "http://") || strings.HasPrefix(client.endpoint, "https://") {
+		client.baseURL = client.endpoint
+	} else {
+		client.baseURL = "http://localhost"
+		client.httpClient = &http.Client{
 			Transport: &http.Transport{
 				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-					return net.Dial("unix", endpoint)
+					return net.Dial("unix", client.endpoint)
 				},
 			},
 		}
 	}
 
-	return &TappdClient{
-		baseURL:    baseURL,
-		httpClient: httpClient,
+	return client
+}
+
+// Returns the appropriate endpoint based on environment and input. If the
+// endpoint is empty, it will use the simulator endpoint if it is set in the
+// environment through DSTACK_SIMULATOR_ENDPOINT. Otherwise, it will use the
+// default endpoint at /var/run/tappd.sock.
+func (c *TappdClient) getEndpoint() string {
+	if c.endpoint != "" {
+		return c.endpoint
 	}
+	if simEndpoint, exists := os.LookupEnv("DSTACK_SIMULATOR_ENDPOINT"); exists {
+		c.logger.Info("using simulator endpoint", "endpoint", simEndpoint)
+		return simEndpoint
+	}
+	return "/var/run/tappd.sock"
 }
 
 // Sends an RPC request to the Tappd service.
