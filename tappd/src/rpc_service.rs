@@ -172,7 +172,7 @@ impl WorkerRpc for ExternalRpcHandler {
             os_name: System::name().unwrap_or_default(),
             os_version: System::os_version().unwrap_or_default(),
             kernel_version: System::kernel_version().unwrap_or_default(),
-            cpu_model: cpus.get(0).map_or("".into(), |cpu| {
+            cpu_model: cpus.first().map_or("".into(), |cpu| {
                 format!("{} @{} MHz", cpu.name(), cpu.frequency())
             }),
             num_cpus: cpus.len() as _,
