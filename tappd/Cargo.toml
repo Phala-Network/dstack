@@ -28,3 +28,4 @@ ra-rpc = { workspace = true, features = ["rocket"] }
 tappd-rpc = { workspace = true }
 ra-tls = { workspace = true }
 tdx-attest = { workspace = true }
+sysinfo = "0.33.0"

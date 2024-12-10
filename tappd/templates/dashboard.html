@@ -105,15 +105,90 @@
             margin-bottom: 20px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
+
+        .info-grid {
+            display: grid;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .info-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            align-items: center;
+            padding: 4px 12px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .info-value {
+            font-family: monospace;
+            background-color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
     </style>
 </head>
 
 <body>
     <h1>Worker Information</h1>
     <div class="info-section">
-        <p><strong>App ID:</strong> {{app_id}}</p>
-        <p><strong>Instance ID:</strong> {{instance_id}}</p>
+        <h2>System Information</h2>
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-label">App ID</div>
+                <div class="info-value">{{app_id}}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Instance ID</div>
+                <div class="info-value">{{instance_id}}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Operating System</div>
+                <div class="info-value">{{system_info.os_name}} {{system_info.os_version}}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Kernel Version</div>
+                <div class="info-value">{{system_info.kernel_version}}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">CPU</div>
+                <div class="info-value">{{system_info.cpu_model}} ({{system_info.num_cpus}} cores)</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Memory Usage</div>
+                <div class="info-value">Used: {{system_info.used_memory|hsize}} / Total: {{system_info.total_memory|hsize}}
+                    (Available: {{system_info.available_memory|hsize}})</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Swap Usage</div>
+                <div class="info-value">Used: {{system_info.used_swap|hsize}} / Total: {{system_info.total_swap|hsize}} (Free:
+                    {{system_info.free_swap|hsize}})</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Load Average</div>
+                <div class="info-value">1min: {{system_info.loadavg_one as f32 / 100.0}}%, 5min: {{system_info.loadavg_five as f32 / 100.0}}%, 15min:
+                    {{system_info.loadavg_fifteen as f32 / 100.0}}%</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">System Uptime</div>
+                <div class="info-value">{{system_info.uptime}}</div>
+            </div>
+            {% for disk in system_info.disks %}
+            <div class="info-row">
+                <div class="info-label">Disk</div>
+                <div class="info-value">Free: {{disk.free_size|hsize}} / Total: {{disk.total_size|hsize}}</div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
+
     <h2>Deployed Containers</h2>
     <table>
         <thead>
@@ -143,5 +218,7 @@
     <h2>App Certificate</h2>
     <textarea readonly>{{app_cert}}</textarea>
 </body>
+
+</html>
 
 </html>
