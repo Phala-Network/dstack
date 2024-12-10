@@ -1,19 +1,20 @@
-package tappd
+package tappd_test
 
 import (
 	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"log/slog"
 	"strings"
 	"testing"
 
 	tdxtypes "github.com/edgelesssys/go-tdx-qpl/verification/types"
+
+	"github.com/Dstack-TEE/dstack/sdk/go/tappd"
 )
 
 func TestDeriveKey(t *testing.T) {
-	client := NewTappdClient("", slog.Default())
+	client := tappd.NewTappdClient()
 	resp, err := client.DeriveKey(context.Background(), "/", "test", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -47,7 +48,7 @@ func TestDeriveKey(t *testing.T) {
 }
 
 func TestTdxQuote(t *testing.T) {
-	client := NewTappdClient("", slog.Default())
+	client := tappd.NewTappdClient()
 	resp, err := client.TdxQuote(context.Background(), []byte("test"), "")
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +66,7 @@ func TestTdxQuote(t *testing.T) {
 		t.Error("expected event log to not be empty")
 	}
 
-	var eventLog map[string]interface{}
+	var eventLog []map[string]interface{}
 	err = json.Unmarshal([]byte(resp.EventLog), &eventLog)
 	if err != nil {
 		t.Errorf("expected event log to be a valid JSON object: %v", err)
@@ -110,10 +111,10 @@ func TestTdxQuote(t *testing.T) {
 }
 
 func TestTdxQuoteRawHash(t *testing.T) {
-	client := NewTappdClient("", slog.Default())
+	client := tappd.NewTappdClient()
 
 	// Test valid raw hash
-	resp, err := client.TdxQuote(context.Background(), []byte("test"), RAW)
+	resp, err := client.TdxQuote(context.Background(), []byte("test"), tappd.RAW)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +124,7 @@ func TestTdxQuoteRawHash(t *testing.T) {
 
 	// Test too large raw hash
 	largeData := make([]byte, 65)
-	_, err = client.TdxQuote(context.Background(), largeData, RAW)
+	_, err = client.TdxQuote(context.Background(), largeData, tappd.RAW)
 	if err == nil {
 		t.Error("expected error for large raw hash data")
 	}
