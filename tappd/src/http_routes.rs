@@ -74,6 +74,10 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         .await
         .map_err(|e| format!("Failed to get worker info: {}", e))?;
 
+    let handler = ExternalRpcHandler::construct(state, None)
+        .map_err(|e| format!("Failed to construct RPC handler: {}", e))?;
+    let system_info = handler.sys_info().await.unwrap_or_default();
+
     let containers = list_containers().await.unwrap_or_default().containers;
     let model = crate::models::Dashboard {
         app_id,
@@ -81,6 +85,7 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         app_cert,
         tcb_info,
         containers,
+        system_info,
     };
     match model.render() {
         Ok(html) => Ok(RawHtml(html)),

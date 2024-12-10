@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use bollard::{container::ListContainersOptions, Docker};
@@ -13,8 +13,8 @@ use serde_json::json;
 use tappd_rpc::{
     tappd_server::{TappdRpc, TappdServer},
     worker_server::{WorkerRpc, WorkerServer},
-    Container, DeriveKeyArgs, DeriveKeyResponse, ListContainersResponse, TdxQuoteArgs,
-    TdxQuoteResponse, WorkerInfo,
+    Container, DeriveKeyArgs, DeriveKeyResponse, DiskInfo, ListContainersResponse, SystemInfo,
+    TdxQuoteArgs, TdxQuoteResponse, WorkerInfo,
 };
 use tdx_attest::eventlog::read_event_logs;
 
@@ -146,6 +146,48 @@ impl WorkerRpc for ExternalRpcHandler {
             instance_id,
             app_cert: ca.pem_cert.clone(),
             tcb_info,
+        })
+    }
+
+    async fn sys_info(self) -> Result<SystemInfo> {
+        use sysinfo::System;
+
+        let system = System::new_all();
+        let cpus = system.cpus();
+
+        let disks = sysinfo::Disks::new_with_refreshed_list();
+        let disks = disks
+            .list()
+            .iter()
+            .filter(|d| d.mount_point() == Path::new("/"))
+            .map(|d| DiskInfo {
+                name: d.name().to_string_lossy().to_string(),
+                mount_point: d.mount_point().to_string_lossy().to_string(),
+                total_size: d.total_space(),
+                free_size: d.available_space(),
+            })
+            .collect::<Vec<_>>();
+        let avg = System::load_average();
+        Ok(SystemInfo {
+            os_name: System::name().unwrap_or_default(),
+            os_version: System::os_version().unwrap_or_default(),
+            kernel_version: System::kernel_version().unwrap_or_default(),
+            cpu_model: cpus.first().map_or("".into(), |cpu| {
+                format!("{} @{} MHz", cpu.name(), cpu.frequency())
+            }),
+            num_cpus: cpus.len() as _,
+            total_memory: system.total_memory(),
+            available_memory: system.available_memory(),
+            used_memory: system.used_memory(),
+            free_memory: system.free_memory(),
+            total_swap: system.total_swap(),
+            used_swap: system.used_swap(),
+            free_swap: system.free_swap(),
+            uptime: System::uptime(),
+            loadavg_one: (avg.one * 100.0) as u32,
+            loadavg_five: (avg.five * 100.0) as u32,
+            loadavg_fifteen: (avg.fifteen * 100.0) as u32,
+            disks,
         })
     }
 

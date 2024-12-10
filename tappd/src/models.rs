@@ -1,5 +1,5 @@
 use rinja::Template;
-use tappd_rpc::Container;
+use tappd_rpc::{Container, SystemInfo};
 
 mod filters {
     use anyhow::Result;
@@ -7,6 +7,22 @@ mod filters {
     pub fn cname<'a>(s: &'a Option<&'a String>) -> Result<&'a str, rinja::Error> {
         let name = s.map(|s| s.as_str()).unwrap_or_default();
         Ok(name.strip_prefix("/").unwrap_or(name))
+    }
+
+    pub fn hsize(s: &u64) -> Result<String, rinja::Error> {
+        // convert bytes to human readable size
+        let mut size = *s as f64;
+        let units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+        let mut unit_index = 0;
+        while size >= 1024.0 && unit_index < units.len() - 1 {
+            size /= 1024.0;
+            unit_index += 1;
+        }
+        Ok(format!(
+            "{:.2} {}",
+            size,
+            units.get(unit_index).unwrap_or(&"?")
+        ))
     }
 }
 
@@ -18,4 +34,5 @@ pub struct Dashboard {
     pub app_cert: String,
     pub tcb_info: String,
     pub containers: Vec<Container>,
+    pub system_info: SystemInfo,
 }
