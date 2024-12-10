@@ -387,7 +387,7 @@ impl TproxyRpc for RpcHandler {
             .instances
             .values()
             .map(|instance| PbHostInfo {
-                id: instance.id.clone(),
+                instance_id: instance.id.clone(),
                 ip: instance.ip.to_string(),
                 app_id: instance.app_id.clone(),
                 base_domain: base_domain.clone(),
@@ -411,7 +411,7 @@ impl TproxyRpc for RpcHandler {
 
         if let Some(instance) = state.state.instances.get(&request.id) {
             let host_info = PbHostInfo {
-                id: instance.id.clone(),
+                instance_id: instance.id.clone(),
                 ip: instance.ip.to_string(),
                 app_id: instance.app_id.clone(),
                 base_domain: base_domain.clone(),
