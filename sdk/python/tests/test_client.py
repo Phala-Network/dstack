@@ -46,9 +46,14 @@ async def test_replay_rtmr():
 
 @pytest.mark.asyncio
 async def test_tdx_quote_raw_hash_error():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as excinfo:
         client = AsyncTappdClient()
-        await client.tdx_quote('0' * 129, 'raw')
+        await client.tdx_quote('0' * 65, 'raw')
+    assert '64 characters' in str(excinfo.value)
+    with pytest.raises(ValueError) as excinfo:
+        client = AsyncTappdClient()
+        await client.tdx_quote(b'0' * 129, 'raw')
+    assert '128 bytes' in str(excinfo.value)
 
 @pytest.mark.asyncio
 async def test_report_data():
