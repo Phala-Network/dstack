@@ -1,3 +1,6 @@
+// Provides a Dstack SDK Tappd client and related utilities
+//
+// Author: Franco Barpp Gomes <franco@nethermind.io>
 package tappd
 
 import (
