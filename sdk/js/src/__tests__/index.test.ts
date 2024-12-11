@@ -41,13 +41,22 @@ describe('TappdClient', () => {
 
   it('should able set quote hash_algorithm', async () => {
     const client = new TappdClient()
-    // You can put computation result as report data to tdxQuote. NOTE: it should serializable by JSON.stringify
-    const result = await client.tdxQuote('some data or anything can be call by toJSON', 'raw')
+    const result = await client.tdxQuote('pure string', 'raw')
   })
 
-  it('should throw error on report_data large then 128 characters and using raw hash_algorithm', async () => {
+  it('should throw error on report_data large then 64 characters and using raw hash_algorithm', async () => {
     const client = new TappdClient()
-    // You can put computation result as report data to tdxQuote. NOTE: it should serializable by JSON.stringify
-    expect(() => client.tdxQuote('x'.padEnd(129, 'x'), 'raw')).rejects.toThrow()
+    expect(() => client.tdxQuote('0'.padEnd(65, 'x'), 'raw')).rejects.toThrow()
+  })
+
+  it('should throw error on report_data large then 128 bytes and using raw hash_algorithm', async () => {
+    const client = new TappdClient()
+    expect(() => client.tdxQuote(Buffer.alloc(65), 'raw')).rejects.toThrow()
+  })
+
+  it('should throw error on report_data large then 128 bytes and using raw hash_algorithm', async () => {
+    const client = new TappdClient()
+    const input = new Uint8Array(65).fill(0)
+    expect(() => client.tdxQuote(input, 'raw')).rejects.toThrow()
   })
 })
