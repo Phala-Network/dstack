@@ -219,9 +219,11 @@ impl AcmeClient {
         key_pem: &str,
         backup_dir: impl AsRef<Path>,
     ) -> Result<()> {
+        use path_absolutize::Absolutize;
+
         // Put the new cert in {backup_dir}/%Y%m%d_%H%M%S/cert.pem
         let cert_dir = self.new_cert_dir(backup_dir.as_ref())?;
-        let backup_path = fs::canonicalize(&cert_dir)?;
+        let backup_path = cert_dir.absolutize()?;
         let cert_path = backup_path.join("cert.pem");
         let key_path = backup_path.join("key.pem");
         fs::write(&cert_path, cert_pem)?;

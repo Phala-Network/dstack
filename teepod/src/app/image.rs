@@ -1,4 +1,5 @@
 use fs_err as fs;
+use path_absolutize::Absolutize;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
@@ -36,7 +37,7 @@ pub struct Image {
 
 impl Image {
     pub fn load(base_path: impl AsRef<Path>) -> Result<Self> {
-        let base_path = fs::canonicalize(base_path.as_ref())?;
+        let base_path = base_path.as_ref().absolutize()?;
         let info = ImageInfo::load(base_path.join("metadata.json"))?;
         let initrd = base_path.join(&info.initrd);
         let kernel = base_path.join(&info.kernel);
