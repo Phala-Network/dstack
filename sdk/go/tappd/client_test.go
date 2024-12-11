@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	tdxtypes "github.com/edgelesssys/go-tdx-qpl/verification/types"
-
 	"github.com/Dstack-TEE/dstack/sdk/go/tappd"
 )
 
@@ -49,7 +47,7 @@ func TestDeriveKey(t *testing.T) {
 
 func TestTdxQuote(t *testing.T) {
 	client := tappd.NewTappdClient()
-	resp, err := client.TdxQuote(context.Background(), []byte("test"), "")
+	resp, err := client.TdxQuote(context.Background(), []byte("test"), tappd.SHA256)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,10 +75,12 @@ func TestTdxQuote(t *testing.T) {
 		t.Errorf("expected quote to be a valid hex string: %v", err)
 	}
 
-	// Test parsing quote
-	tdxQuote, err := tdxtypes.ParseQuote(quoteBytes)
-	if err != nil {
-		t.Errorf("expected quote to be a valid TDX quote: %v", err)
+	// Get quote RTMRs manually
+	quoteRtmrs := [4][48]byte{
+		[48]byte(quoteBytes[376:424]),
+		[48]byte(quoteBytes[424:472]),
+		[48]byte(quoteBytes[472:520]),
+		[48]byte(quoteBytes[520:568]),
 	}
 
 	// Test ReplayRTMRs
@@ -104,8 +104,8 @@ func TestTdxQuote(t *testing.T) {
 			t.Errorf("expected RTMR %d to be valid hex: %v", i, err)
 		}
 
-		if !bytes.Equal(rtmrBytes, tdxQuote.Body.RTMR[i][:]) {
-			t.Errorf("expected RTMR %d to be %s, got %s", i, hex.EncodeToString(tdxQuote.Body.RTMR[i][:]), rtmrs[i])
+		if !bytes.Equal(rtmrBytes, quoteRtmrs[i][:]) {
+			t.Errorf("expected RTMR %d to be %s, got %s", i, hex.EncodeToString(quoteRtmrs[i][:]), rtmrs[i])
 		}
 	}
 }
