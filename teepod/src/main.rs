@@ -1,6 +1,9 @@
+use std::path::Path;
+
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use config::Config;
+use path_absolutize::Absolutize;
 use rocket::fairing::AdHoc;
 use rocket_apitoken::ApiToken;
 use supervisor_client::SupervisorClient;
@@ -42,7 +45,7 @@ async fn main() -> Result<()> {
     let api_auth = ApiToken::new(config.auth.tokens.clone(), config.auth.enabled);
     let supervisor = {
         let cfg = &config.supervisor;
-        let abs_exe = fs_err::canonicalize(cfg.exe.as_str())?;
+        let abs_exe = Path::new(&cfg.exe).absolutize()?;
         SupervisorClient::start_and_connect_uds(&abs_exe, &cfg.sock, &cfg.pid_file, &cfg.log_file)
             .await
             .context("Failed to start supervisor")?

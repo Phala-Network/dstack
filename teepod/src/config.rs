@@ -1,7 +1,7 @@
 use std::{net::IpAddr, path::PathBuf, str::FromStr};
 
 use anyhow::{bail, Context, Result};
-use fs_err as fs;
+use path_absolutize::Absolutize;
 use rocket::figment::{
     providers::{Format, Toml},
     Figment,
@@ -153,8 +153,8 @@ pub struct Config {
 impl Config {
     pub fn abs_path(self) -> Result<Self> {
         Ok(Self {
-            image_path: fs::canonicalize(&self.image_path)?,
-            run_path: fs::canonicalize(&self.run_path)?,
+            image_path: self.image_path.absolutize()?.to_path_buf(),
+            run_path: self.run_path.absolutize()?.to_path_buf(),
             ..self
         })
     }

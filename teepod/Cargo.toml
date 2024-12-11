@@ -32,3 +32,4 @@ supervisor-client = { workspace = true }
 ra-rpc = { workspace = true, features = ["client", "rocket"] }
 teepod-rpc = { workspace = true }
 kms-rpc = { workspace = true }
+path-absolutize = { workspace = true }
