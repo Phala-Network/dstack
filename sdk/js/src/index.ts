@@ -229,10 +229,10 @@ export class TappdClient {
     let hex = to_hex(report_data)
     if (hash_algorithm === 'raw') {
       if (hex.length > 128) {
-        throw new Error('Report data is too large, it should less then 128 characters when hash_algorithm is raw.')
+        throw new Error(`Report data is too large, it should less then 64 bytes when hash_algorithm is raw.`)
       }
       if (hex.length < 128) {
-        hex = hex.padEnd(128, '0')
+        hex = hex.padStart(128, '0')
       }
     }
     const payload = JSON.stringify({ report_data: hex, hash_algorithm })

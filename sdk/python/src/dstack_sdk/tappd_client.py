@@ -127,14 +127,16 @@ class TappdClient(BaseClient):
         ) -> TdxQuoteResponse:
         if not report_data or not isinstance(report_data, (bytes, str)):
             raise ValueError("report_data can not be empty")
-        if isinstance(report_data, str):
+        is_str = isinstance(report_data, str)
+        if is_str:
             report_data = report_data.encode()
         hex = binascii.hexlify(report_data).decode()
         if hash_algorithm == "raw":
             if len(hex) < 128:
                 hex = hex.rjust(128, '0')
             elif len(hex) > 128:
-                raise ValueError('Report data is too large, it should less then 128 characters when hash_algorithm is raw.')
+                hint = is_str and '64 characters' or '128 bytes'
+                raise ValueError(f'Report data is too large, it should at most {hint} when hash_algorithm is raw.')
         result = self._send_rpc_request("/prpc/Tappd.TdxQuote", {"report_data": hex, "hash_algorithm": hash_algorithm})
         return TdxQuoteResponse(**result)
 
@@ -178,13 +180,15 @@ class AsyncTappdClient(BaseClient):
         ) -> TdxQuoteResponse:
         if not report_data or not isinstance(report_data, (bytes, str)):
             raise ValueError("report_data can not be empty")
-        if isinstance(report_data, str):
+        is_str = isinstance(report_data, str)
+        if is_str:
             report_data = report_data.encode()
         hex = binascii.hexlify(report_data).decode()
         if hash_algorithm == "raw":
             if len(hex) < 128:
                 hex = hex.rjust(128, '0')
             elif len(hex) > 128:
-                raise ValueError('Report data is too large, it should less then 128 characters when hash_algorithm is raw.')
+                hint = is_str and '64 characters' or '128 bytes'
+                raise ValueError(f'Report data is too large, it should at most {hint} when hash_algorithm is raw.')
         result = await self._send_rpc_request("/prpc/Tappd.TdxQuote", {"report_data": hex, "hash_algorithm": hash_algorithm})
         return TdxQuoteResponse(**result)
