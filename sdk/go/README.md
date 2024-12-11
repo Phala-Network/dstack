@@ -27,7 +27,7 @@ func main() {
 		// tappd.WithLogger(slog.Default()),
 	)
 
-	deriveKeyResp, err := client.DeriveKey(context.Background(), "/", "test", nil)
+	deriveKeyResp, err := client.DeriveKey(context.Background(), "/")
 	if err != nil {
 		fmt.Println(err)
 		return

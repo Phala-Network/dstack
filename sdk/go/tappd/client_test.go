@@ -13,7 +13,7 @@ import (
 
 func TestDeriveKey(t *testing.T) {
 	client := tappd.NewTappdClient()
-	resp, err := client.DeriveKey(context.Background(), "/", "test", nil)
+	resp, err := client.DeriveKeyWithSubjectAndAltNames(context.Background(), "/", "test", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
