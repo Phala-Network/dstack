@@ -124,7 +124,7 @@ func TestTdxQuoteRawHash(t *testing.T) {
 
 	// Test too large raw hash
 	largeData := make([]byte, 65)
-	_, err = client.TdxQuote(context.Background(), largeData)
+	_, err = client.TdxQuoteWithHashAlgorithm(context.Background(), largeData, tappd.RAW)
 	if err == nil {
 		t.Error("expected error for large raw hash data")
 	}
