@@ -244,8 +244,15 @@ func (c *TappdClient) DeriveKey(ctx context.Context, path string, subject string
 	return &response, nil
 }
 
-// Sends a TDX quote request to the Tappd service.
-func (c *TappdClient) TdxQuote(ctx context.Context, reportData []byte, hashAlgorithm QuoteHashAlgorithm) (*TdxQuoteResponse, error) {
+// Sends a TDX quote request to the Tappd service using SHA512 as the report
+// data hash algorithm.
+func (c *TappdClient) TdxQuote(ctx context.Context, reportData []byte) (*TdxQuoteResponse, error) {
+	return c.TdxQuoteWithHashAlgorithm(ctx, reportData, SHA512)
+}
+
+// Sends a TDX quote request to the Tappd service with a specific hash
+// report data hash algorithm.
+func (c *TappdClient) TdxQuoteWithHashAlgorithm(ctx context.Context, reportData []byte, hashAlgorithm QuoteHashAlgorithm) (*TdxQuoteResponse, error) {
 	hexData := hex.EncodeToString(reportData)
 	if hashAlgorithm == RAW {
 		if len(hexData) > 128 {

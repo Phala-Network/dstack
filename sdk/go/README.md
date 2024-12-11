@@ -34,7 +34,7 @@ func main() {
 	}
 	fmt.Println(deriveKeyResp) // &{-----BEGIN PRIVATE KEY--- ...
 
-	tdxQuoteResp, err := client.TdxQuote(context.Background(), []byte("test"), tappd.SHA256)
+	tdxQuoteResp, err := client.TdxQuote(context.Background(), []byte("test"))
 	if err != nil {
 		fmt.Println(err)
 		return
