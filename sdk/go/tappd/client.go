@@ -270,18 +270,17 @@ func (c *TappdClient) TdxQuote(ctx context.Context, reportData []byte) (*TdxQuot
 // Sends a TDX quote request to the Tappd service with a specific hash
 // report data hash algorithm.
 func (c *TappdClient) TdxQuoteWithHashAlgorithm(ctx context.Context, reportData []byte, hashAlgorithm QuoteHashAlgorithm) (*TdxQuoteResponse, error) {
-	hexData := hex.EncodeToString(reportData)
 	if hashAlgorithm == RAW {
-		if len(hexData) > 128 {
+		if len(reportData) > 64 {
 			return nil, fmt.Errorf("report data is too large, it should be at most 64 bytes when hashAlgorithm is RAW")
 		}
-		if len(hexData) < 128 {
-			hexData = strings.Repeat("0", 128-len(hexData)) + hexData
+		if len(reportData) < 64 {
+			reportData = append(make([]byte, 64-len(reportData)), reportData...)
 		}
 	}
 
 	payload := map[string]interface{}{
-		"report_data":    hexData,
+		"report_data":    hex.EncodeToString(reportData),
 		"hash_algorithm": string(hashAlgorithm),
 	}
 
