@@ -268,7 +268,9 @@ func (c *TappdClient) TdxQuote(ctx context.Context, reportData []byte) (*TdxQuot
 }
 
 // Sends a TDX quote request to the Tappd service with a specific hash
-// report data hash algorithm.
+// report data hash algorithm. If the hash algorithm is RAW, the report data
+// must be at most 64 bytes - if it's below that, it will be left-padded with
+// zeros.
 func (c *TappdClient) TdxQuoteWithHashAlgorithm(ctx context.Context, reportData []byte, hashAlgorithm QuoteHashAlgorithm) (*TdxQuoteResponse, error) {
 	if hashAlgorithm == RAW {
 		if len(reportData) > 64 {
