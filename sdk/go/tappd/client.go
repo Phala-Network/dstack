@@ -249,7 +249,7 @@ func (c *TappdClient) TdxQuote(ctx context.Context, reportData []byte, hashAlgor
 	hexData := hex.EncodeToString(reportData)
 	if hashAlgorithm == RAW {
 		if len(hexData) > 128 {
-			return nil, fmt.Errorf("report data is too large, it should be less than 128 characters when hash_algorithm is raw")
+			return nil, fmt.Errorf("report data is too large, it should be at most 64 bytes when hashAlgorithm is RAW")
 		}
 		if len(hexData) < 128 {
 			hexData = strings.Repeat("0", 128-len(hexData)) + hexData
