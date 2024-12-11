@@ -221,8 +221,8 @@ func (c *TappdClient) sendRPCRequest(ctx context.Context, path string, payload i
 	return io.ReadAll(resp.Body)
 }
 
-// Derives a key from the Tappd service. If altNames is empty or nill, it will
-// not be included inthe request.
+// Derives a key from the Tappd service. If altNames is empty or nil, it will
+// not be included in the request.
 func (c *TappdClient) DeriveKey(ctx context.Context, path string, subject string, altNames []string) (*DeriveKeyResponse, error) {
 	payload := map[string]interface{}{
 		"path":    path,
