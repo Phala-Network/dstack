@@ -6,12 +6,12 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-prpc = { workspace = true }
-prost = { workspace = true }
+prpc.workspace = true
+prost.workspace = true
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-anyhow = { workspace = true }
+serde_json.workspace = true
+anyhow.workspace = true
 scale = { workspace = true, features = ["derive"] }
 
 [build-dependencies]
-prpc-build = { workspace = true }
+prpc-build.workspace = true

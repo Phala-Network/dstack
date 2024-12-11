@@ -6,31 +6,31 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-aes-gcm = { workspace = true }
-anyhow = { workspace = true }
-clap = { workspace = true }
-curve25519-dalek = { workspace = true }
-fs-err = { workspace = true }
-getrandom = { workspace = true }
-hex = { workspace = true }
-hex_fmt = { workspace = true }
-regex = { workspace = true }
+aes-gcm.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+curve25519-dalek.workspace = true
+fs-err.workspace = true
+getrandom.workspace = true
+hex.workspace = true
+hex_fmt.workspace = true
+regex.workspace = true
 scale = { workspace = true, features = ["derive"] }
-schnorrkel = { workspace = true }
-serde = { workspace = true }
-serde-human-bytes = { workspace = true }
-serde_json = { workspace = true }
-sha2 = { workspace = true }
+schnorrkel.workspace = true
+serde.workspace = true
+serde-human-bytes.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
 tokio = { workspace = true, features = ["full"] }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-x25519-dalek = { workspace = true }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+x25519-dalek.workspace = true
 
-kms-rpc = { workspace = true }
+kms-rpc.workspace = true
 ra-rpc = { workspace = true, features = ["client"] }
-ra-tls = { workspace = true }
-tproxy-rpc = { workspace = true }
-tdx-attest = { workspace = true }
+ra-tls.workspace = true
+tproxy-rpc.workspace = true
+tdx-attest.workspace = true
 
 [dev-dependencies]
-rand = { workspace = true }
+rand.workspace = true

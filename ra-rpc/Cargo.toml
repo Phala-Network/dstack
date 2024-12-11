@@ -6,14 +6,14 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-prpc = { workspace = true }
+anyhow.workspace = true
+prpc.workspace = true
 rocket = { workspace = true, features = ["mtls"], optional = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
+serde_json.workspace = true
+tracing.workspace = true
 reqwest = { workspace = true, default-features = false, features = ["rustls-tls", "charset"], optional = true }
 
-ra-tls = { workspace = true }
+ra-tls.workspace = true
 
 [features]
 default = ["rocket", "client"]

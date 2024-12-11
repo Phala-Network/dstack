@@ -7,29 +7,29 @@ license.workspace = true
 
 [dependencies]
 rocket = { workspace = true, features = ["mtls"] }
-tracing = { workspace = true }
+tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-anyhow = { workspace = true }
+anyhow.workspace = true
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-shared_child = { workspace = true }
-bon = { workspace = true }
+serde_json.workspace = true
+shared_child.workspace = true
+bon.workspace = true
 uuid = { workspace = true, features = ["v4"] }
-sha2 = { workspace = true }
-hex = { workspace = true }
-fs-err = { workspace = true }
-dirs = { workspace = true }
-which = { workspace = true }
+sha2.workspace = true
+hex.workspace = true
+fs-err.workspace = true
+dirs.workspace = true
+which.workspace = true
 clap = { workspace = true, features = ["derive", "string"] }
-humantime = { workspace = true }
-strip-ansi-escapes = { workspace = true }
-tailf = { workspace = true }
+humantime.workspace = true
+strip-ansi-escapes.workspace = true
+tailf.workspace = true
 tokio = { workspace = true, features = ["full"] }
-git-version = { workspace = true }
-rocket-apitoken = { workspace = true }
+git-version.workspace = true
+rocket-apitoken.workspace = true
 
-supervisor-client = { workspace = true }
+supervisor-client.workspace = true
 ra-rpc = { workspace = true, features = ["client", "rocket"] }
-teepod-rpc = { workspace = true }
-kms-rpc = { workspace = true }
-path-absolutize = { workspace = true }
+teepod-rpc.workspace = true
+kms-rpc.workspace = true
+path-absolutize.workspace = true

@@ -6,23 +6,23 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-chrono = { workspace = true }
-clap = { workspace = true }
-fs-err = { workspace = true }
-git-version = { workspace = true }
-hex = { workspace = true }
-hex_fmt = { workspace = true }
-rocket = { workspace = true }
-serde = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-x25519-dalek = { workspace = true }
-yasna = { workspace = true }
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+fs-err.workspace = true
+git-version.workspace = true
+hex.workspace = true
+hex_fmt.workspace = true
+rocket.workspace = true
+serde.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+x25519-dalek.workspace = true
+yasna.workspace = true
 
-kms-rpc = { workspace = true }
+kms-rpc.workspace = true
 ra-rpc = { workspace = true, features = ["rocket"] }
-ra-tls = { workspace = true }
+ra-tls.workspace = true
 
 [features]
 default = []

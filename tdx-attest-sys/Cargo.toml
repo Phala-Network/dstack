@@ -8,5 +8,5 @@ license.workspace = true
 [dependencies]
 
 [build-dependencies]
-bindgen = { workspace = true }
-cc = { workspace = true }
+bindgen.workspace = true
+cc.workspace = true

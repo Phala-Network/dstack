@@ -6,19 +6,19 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-hex = { workspace = true }
-num_enum = { workspace = true }
-scale = { workspace = true }
-serde = { workspace = true }
-serde-human-bytes = { workspace = true }
-tdx-attest-sys = { workspace = true }
-cc-eventlog = { workspace = true }
-thiserror = { workspace = true }
-fs-err = { workspace = true }
-serde_json = { workspace = true }
-sha2 = { workspace = true }
+anyhow.workspace = true
+hex.workspace = true
+num_enum.workspace = true
+scale.workspace = true
+serde.workspace = true
+serde-human-bytes.workspace = true
+tdx-attest-sys.workspace = true
+cc-eventlog.workspace = true
+thiserror.workspace = true
+fs-err.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
 
 [dev-dependencies]
-insta = { workspace = true }
-serde_json = { workspace = true }
+insta.workspace = true
+serde_json.workspace = true
