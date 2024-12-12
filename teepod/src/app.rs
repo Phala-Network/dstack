@@ -142,7 +142,7 @@ impl App {
             .with_context(|| format!("Failed to set started for VM {id}"))?;
         if work_dir.serial_pty().exists() {
             // remove the existing pty
-            fs::remove_file(&work_dir.serial_pty())?;
+            fs::remove_file(work_dir.serial_pty()).context("Failed to remove existing pty link")?;
         }
         let process_config = vm_config.config_qemu(&self.config.qemu_path, &work_dir)?;
         self.supervisor
