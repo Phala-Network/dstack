@@ -1,25 +1,74 @@
 use clap::Parser;
 use fs_err as fs;
 use ra_tls::{
-    cert::CertRequest,
+    cert::{CaCert, CertRequest},
     rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256},
 };
 
 #[derive(Parser)]
 #[command(author, version, about)]
 struct Args {
-    /// Domain name for the generated certificates
-    #[arg(short, long, default_value = "local")]
-    domain: String,
+    #[command(subcommand)]
+    command: Commands,
+}
 
-    /// Output directory for the generated certificates
-    #[arg(short, long, default_value = "certs")]
-    output_dir: String,
+#[derive(clap::Subcommand)]
+enum Commands {
+    /// Generate certificates for the KMS system
+    Generate {
+        /// Domain name for the generated certificates
+        #[arg(short, long)]
+        domain: String,
+
+        /// Output directory for the generated certificates
+        #[arg(short, long, default_value = "certs")]
+        output_dir: String,
+    },
+    /// Sign a certificate using an existing CA
+    Sign {
+        /// Domain name for the generated certificate
+        #[arg(short, long)]
+        domain: String,
+
+        /// CA key file
+        #[arg(short, long)]
+        ca_key: String,
+
+        /// CA cert file
+        #[arg(short, long)]
+        ca_cert: String,
+
+        /// Output cert file
+        #[arg(short, long)]
+        cert: String,
+
+        /// Output key file
+        #[arg(short, long)]
+        key: String,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
+    match args.command {
+        Commands::Generate { domain, output_dir } => {
+            generate_and_store_certificates(&domain, &output_dir)?;
+        }
+        Commands::Sign {
+            domain,
+            ca_key,
+            ca_cert,
+            cert,
+            key,
+        } => {
+            sign_certificate(&domain, &ca_key, &ca_cert, &cert, &key)?;
+        }
+    }
+    Ok(())
+}
+
+fn generate_and_store_certificates(domain: &str, output_dir: &str) -> anyhow::Result<()> {
     let tmp_ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let kms_rpc_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
@@ -42,7 +91,7 @@ fn main() -> anyhow::Result<()> {
         .build()
         .self_signed()?;
 
-    let kms_domain = format!("kms.{}", args.domain);
+    let kms_domain = format!("kms.{domain}");
     // Sign WWW server cert with KMS cert
     let kms_rpc_cert = CertRequest::builder()
         .subject(&kms_domain)
@@ -51,7 +100,7 @@ fn main() -> anyhow::Result<()> {
         .build()
         .signed_by(&ca_cert, &ca_key)?;
 
-    let tproxy_domain = format!("tproxy.{}", args.domain);
+    let tproxy_domain = format!("tproxy.{domain}");
     let tproxy_rpc_cert = CertRequest::builder()
         .subject(&tproxy_domain)
         .alt_names(&[tproxy_domain.clone()])
@@ -59,7 +108,6 @@ fn main() -> anyhow::Result<()> {
         .build()
         .signed_by(&ca_cert, &ca_key)?;
 
-    let output_dir = &args.output_dir;
     store_cert(
         output_dir,
         "tmp-ca",
@@ -84,6 +132,7 @@ fn main() -> anyhow::Result<()> {
         &tproxy_rpc_cert.pem(),
         &tproxy_rpc_key.serialize_pem(),
     )?;
+
     Ok(())
 }
 
@@ -92,5 +141,29 @@ fn store_cert(path: &str, name: &str, cert: &str, key: &str) -> anyhow::Result<(
     let key_path = format!("{}/{}.key", path, name);
     fs::write(cert_path, cert)?;
     fs::write(key_path, key)?;
+    Ok(())
+}
+
+fn sign_certificate(
+    domain: &str,
+    ca_key_path: &str,
+    ca_cert_path: &str,
+    cert_path: &str,
+    key_path: &str,
+) -> anyhow::Result<()> {
+    let ca_key = fs::read_to_string(ca_key_path)?;
+    let ca_cert = fs::read_to_string(ca_cert_path)?;
+    let ca = CaCert::new(ca_cert, ca_key)?;
+    let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
+
+    let cert = CertRequest::builder()
+        .subject(domain)
+        .alt_names(&[domain.to_string()])
+        .key(&key)
+        .build()
+        .signed_by(&ca.cert, &ca.key)?;
+
+    fs::write(cert_path, cert.pem())?;
+    fs::write(key_path, key.serialize_pem())?;
     Ok(())
 }

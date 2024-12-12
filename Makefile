@@ -9,7 +9,7 @@ certs: ${TO}
 
 ${TO}:
 	mkdir -p ${TO}
-	cargo run --bin certgen -- --domain ${DOMAIN} --output-dir ${TO}
+	cargo run --bin certgen -- generate --domain ${DOMAIN} --output-dir ${TO}
 
 run:
 	$(MAKE) -C mkguest run
