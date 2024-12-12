@@ -42,6 +42,8 @@ async fn main() -> Result<()> {
     let figment = config::load_config_figment(args.config.as_deref());
 
     let config = figment.focus("core").extract::<Config>()?;
+    config::setup_wireguard(&config.wg)?;
+
     let proxy_config = config.proxy.clone();
     let pccs_url = config.pccs_url.clone();
     let state = main_service::AppState::new(config)?;
