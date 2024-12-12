@@ -4103,6 +4103,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "safe-write"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2a91448d36438f815f130716530ccdb3ea6ffec2e0c02f8d035ab66dd87209a"
+dependencies = [
+ "fs-err",
+]
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5065,6 +5074,7 @@ dependencies = [
  "rinja",
  "rocket",
  "rustls 0.23.19",
+ "safe-write",
  "serde",
  "serde_json",
  "shared_child",

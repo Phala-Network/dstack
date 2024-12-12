@@ -31,6 +31,7 @@ ra-rpc = { workspace = true, features = ["rocket"] }
 tproxy-rpc.workspace = true
 certbot.workspace = true
 bytes.workspace = true
+safe-write.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

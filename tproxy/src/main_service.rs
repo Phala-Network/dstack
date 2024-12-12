@@ -12,6 +12,7 @@ use fs_err as fs;
 use ra_rpc::{Attestation, RpcCall};
 use rand::seq::IteratorRandom;
 use rinja::Template as _;
+use safe_write::safe_write;
 use serde::{Deserialize, Serialize};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
@@ -147,7 +148,7 @@ impl AppStateInner {
 
     pub(crate) fn reconfigure(&mut self) -> Result<()> {
         let wg_config = self.generate_wg_config()?;
-        fs::write(&self.config.wg.config_path, wg_config).context("Failed to write wg config")?;
+        safe_write(&self.config.wg.config_path, wg_config).context("Failed to write wg config")?;
         // wg setconf <interface_name> <config_path>
         let output = Command::new("wg")
             .arg("syncconf")
@@ -161,7 +162,7 @@ impl AppStateInner {
             info!("wg config updated");
         }
         let state_str = serde_json::to_string(&self.state).context("Failed to serialize state")?;
-        fs::write(&self.config.state_path, state_str).context("Failed to write state")?;
+        safe_write(&self.config.state_path, state_str).context("Failed to write state")?;
         Ok(())
     }
 
