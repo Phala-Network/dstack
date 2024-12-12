@@ -156,6 +156,7 @@ impl VmConfig {
     pub fn config_qemu(&self, qemu: &Path, workdir: impl AsRef<Path>) -> Result<ProcessConfig> {
         let workdir = VmWorkDir::new(workdir);
         let serial_file = workdir.serial_file();
+        let serial_pty = workdir.serial_pty();
         let shared_dir = workdir.shared_dir();
         let disk_size = format!("{}G", self.manifest.disk_size);
         let hda_path = workdir.hda_path();
@@ -172,9 +173,12 @@ impl VmConfig {
         command.arg("-m").arg(format!("{}M", self.manifest.memory));
         command.arg("-nographic");
         command.arg("-nodefaults");
-        command
-            .arg("-serial")
-            .arg(format!("file:{}", serial_file.display()));
+        command.arg("-chardev").arg(format!(
+            "pty,id=com0,path={},logfile={}",
+            serial_pty.display(),
+            serial_file.display()
+        ));
+        command.arg("-serial").arg("chardev:com0");
         command.arg("-kernel").arg(&self.image.kernel);
         command.arg("-initrd").arg(&self.image.initrd);
         command
@@ -332,6 +336,10 @@ impl VmWorkDir {
 
     pub fn serial_file(&self) -> PathBuf {
         self.workdir.join("serial.log")
+    }
+
+    pub fn serial_pty(&self) -> PathBuf {
+        self.workdir.join("serial.pty")
     }
 
     pub fn stdout_file(&self) -> PathBuf {
