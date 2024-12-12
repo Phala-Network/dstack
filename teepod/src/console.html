@@ -568,7 +568,13 @@
                                 Remove
                             </button>
                         </div>
-                        <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
+                            <input type="file" ref="envFile" @change="loadEnvFile" style="display: none"
+                                accept=".env,.txt">
+                            <button type="button" class="action-btn" @click="$refs.envFile.click()">Load from
+                                file</button>
+                        </div>
                     </div>
 
                     <div class="form-group full-width">
@@ -756,14 +762,13 @@
                     <input type="checkbox" v-model="upgradeDialog.resetSecrets" style="width: 16px; height: 16px;">
                     <span style="margin-left: 8px;">Reset secrets</span>
                 </div>
-                <div v-if="upgradeDialog.vm.appCompose?.features?.includes('kms') && upgradeDialog.resetSecrets" style="margin-top: 16px;">
+                <div v-if="upgradeDialog.vm.appCompose?.features?.includes('kms') && upgradeDialog.resetSecrets"
+                    style="margin-top: 16px;">
                     <label>Encrypted Environment Variables</label>
                     <div v-for="(env, index) in vmForm.encrypted_envs" :key="index"
                         style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <input type="text" v-model="env.key" placeholder="Variable name" style="width: 200px;"
-                            required>
-                        <input type="password" v-model="env.value" placeholder="Value" style="flex-grow: 1;"
-                            required>
+                        <input type="text" v-model="env.key" placeholder="Variable name" style="width: 200px;" required>
+                        <input type="password" v-model="env.value" placeholder="Value" style="flex-grow: 1;" required>
                         <button type="button" class="action-btn danger" @click="removeEncryptedEnv(index)">
                             Remove
                         </button>
@@ -782,7 +787,8 @@
             <div class="dialog">
                 <h3>Derive VM</h3>
                 <p style="color: #f44336; margin: 0 0 12px 0;">
-                    This will create a new VM instance with the same app id, but the disk state will NOT migrate to the new instance.
+                    This will create a new VM instance with the same app id, but the disk state will NOT migrate to the
+                    new instance.
                 </p>
 
                 <div class="form-group">
@@ -806,8 +812,8 @@
                 </div>
                 <div class="form-group">
                     <label for="diskSize">Disk Size (GB)</label>
-                    <input id="diskSize" v-model.number="forkDialog.disk_size" type="number" placeholder="Disk size in GB"
-                        required>
+                    <input id="diskSize" v-model.number="forkDialog.disk_size" type="number"
+                        placeholder="Disk size in GB" required>
                 </div>
                 <div class="vm-actions">
                     <button class="action-btn upgrade" @click="forkVm">Derive</button>
@@ -893,7 +899,7 @@
                     const headers = {
                         'Content-Type': 'application/json',
                     };
-                    
+
                     if (teepodApiToken.value) {
                         headers['Authorization'] = `Bearer ${teepodApiToken.value}`;
                     }
@@ -1207,6 +1213,39 @@
                     vmForm.value.encrypted_envs.splice(index, 1);
                 };
 
+                const loadEnvFile = (event) => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const content = e.target.result;
+                            const lines = content.split('\n');
+
+                            vmForm.value.encrypted_envs = [];
+
+                            lines.forEach(line => {
+                                // Skip empty lines and comments
+                                if (!line.trim() || line.startsWith('#')) return;
+
+                                // Split on first = only
+                                const [key, ...valueParts] = line.split('=');
+                                const value = valueParts.join('=');
+
+                                if (key && value) {
+                                    vmForm.value.encrypted_envs.push({
+                                        key: key.trim(),
+                                        value: value.trim()
+                                    });
+                                }
+                            });
+
+                            // Reset the file input
+                            event.target.value = '';
+                        };
+                        reader.readAsText(file);
+                    }
+                };
+
                 watch(teepodApiToken, (newValue) => {
                     localStorage.setItem('teepodApiToken', newValue);
                 });
@@ -1274,6 +1313,7 @@
                     showForkVm,
                     forkDialog,
                     forkVm,
+                    loadEnvFile,
                 };
             }
         }).mount('#app');
