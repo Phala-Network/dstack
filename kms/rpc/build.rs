@@ -8,6 +8,7 @@ fn main() {
     let mut builder = prpc_build::configure()
         .out_dir(out_dir)
         .mod_prefix("super::")
+        .build_scale_ext(false)
         .disable_package_emission();
     builder = builder.type_attribute(".kms", "#[::prpc::serde_helpers::prpc_serde_bytes]");
     builder = builder.type_attribute(

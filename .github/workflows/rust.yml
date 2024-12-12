@@ -23,5 +23,8 @@ jobs:
     - name: Run Clippy
       run: cargo clippy -- -D warnings --allow unused_variables 
     
+    - name: Cargo fmt check
+      run: cargo fmt --check --all
+
     - name: Run tests
       run: cargo test
