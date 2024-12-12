@@ -1,11 +1,13 @@
+use anyhow::{anyhow, bail, Result};
 use ipnet::Ipv4Net;
 use rocket::figment::{
     providers::{Format, Toml},
     Figment,
 };
 use serde::{Deserialize, Serialize};
-use std::net::Ipv4Addr;
-use std::time::Duration;
+use std::{net::Ipv4Addr, process::Stdio};
+use std::{process::Command, time::Duration};
+use tracing::info;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct WgConfig {
@@ -137,4 +139,41 @@ pub fn load_config_figment(config_file: Option<&str>) -> Figment {
         .merge(Toml::string(DEFAULT_CONFIG))
         .merge(Toml::file(SYSTEM_CONFIG_FILENAME))
         .merge(leaf_config)
+}
+
+fn cmd(cmd: &str, args: &[&str]) -> Result<Vec<u8>> {
+    let output = Command::new(cmd)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| anyhow!("Failed to run command {cmd}: {e}"))?;
+    if !output.status.success() {
+        let error = String::from_utf8_lossy(&output.stderr);
+        bail!("Failed to run command {cmd}: {error}");
+    }
+    Ok(output.stdout)
+}
+
+pub fn setup_wireguard(config: &WgConfig) -> Result<()> {
+    info!("Setting up wireguard interface");
+
+    let ifname = &config.interface;
+
+    // Check if interface exists by trying to run ip link show
+    let exists = cmd("ip", &["link", "show", &config.interface]).is_ok();
+    if exists {
+        info!("WireGuard interface {ifname} already exists");
+        return Ok(());
+    }
+
+    let addr = format!("{}/{}", config.ip, config.client_ip_range.prefix_len());
+    // Interface doesn't exist, create and configure it
+    cmd("ip", &["link", "add", ifname, "type", "wireguard"])?;
+    cmd("ip", &["address", "add", &addr, "dev", ifname])?;
+    cmd("ip", &["link", "set", ifname, "up"])?;
+
+    info!("Created and configured WireGuard interface {ifname}");
+
+    Ok(())
 }
