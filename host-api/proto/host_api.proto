@@ -1,0 +1,14 @@
+
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package host_api;
+
+message HostInfo {
+  string version = 1;
+}
+
+service HostApi {
+  rpc Info(google.protobuf.Empty) returns (HostInfo);
+}

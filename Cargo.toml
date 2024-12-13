@@ -28,6 +28,7 @@ members = [
     "supervisor",
     "supervisor/client",
     "rocket-vsock-listener",
+    "host-api",
 ]
 resolver = "2"
 
@@ -46,6 +47,7 @@ tdx-attest = { path = "tdx-attest" }
 tdx-attest-sys = { path = "tdx-attest-sys" }
 certbot = { path = "certbot" }
 rocket-vsock-listener = { path = "rocket-vsock-listener" }
+host-api = { path = "host-api" }
 
 # Core dependencies
 anyhow = "1.0.94"
