@@ -149,6 +149,7 @@
                 <div class="info-label">Instance ID</div>
                 <div class="info-value">{{instance_id}}</div>
             </div>
+            {% if public_sysinfo %}
             <div class="info-row">
                 <div class="info-label">Operating System</div>
                 <div class="info-value">{{system_info.os_name}} {{system_info.os_version}}</div>
@@ -186,6 +187,7 @@
                 <div class="info-value">Free: {{disk.free_size|hsize}} / Total: {{disk.total_size|hsize}}</div>
             </div>
             {% endfor %}
+            {% endif %}
         </div>
     </div>
 
@@ -195,7 +197,9 @@
             <tr>
                 <th>Name</th>
                 <th>Status</th>
+                {% if public_logs %}
                 <th>Logs</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -204,9 +208,11 @@
             <tr>
                 <td>{{name|cname}}</td>
                 <td>{{container.status}}</td>
+                {% if public_logs %}
                 <td>
                     <a href="/logs/{{name|cname}}?text&bare&timestamps&follow&since=1d&tail=1000" target="_blank">View Logs</a>
                 </td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>

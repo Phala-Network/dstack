@@ -160,11 +160,13 @@ impl TeepodRpc for RpcHandler {
         Ok(ImageListResponse {
             images: self
                 .app
-                .list_image_names()?
+                .list_images()?
                 .into_iter()
-                .map(|name| RpcImageInfo {
+                .map(|(name, info)| RpcImageInfo {
                     name,
-                    description: "".to_string(),
+                    description: serde_json::to_string(&info).unwrap_or_default(),
+                    version: info.version,
+                    is_dev: info.is_dev,
                 })
                 .collect(),
         })
@@ -181,7 +183,6 @@ impl TeepodRpc for RpcHandler {
                     manifest_version: u32,
                     name: String,
                     version: String,
-                    features: Vec<String>,
                     runner: String,
                     docker_compose_file: Option<String>,
                 }

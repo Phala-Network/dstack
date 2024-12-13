@@ -23,4 +23,6 @@ pub fn load_config_figment(config_file: Option<&str>) -> Figment {
 pub struct Config {
     pub cert_file: String,
     pub key_file: String,
+    pub public_logs: bool,
+    pub public_sysinfo: bool,
 }

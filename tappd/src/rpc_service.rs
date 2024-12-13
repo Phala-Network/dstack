@@ -24,6 +24,7 @@ pub struct AppState {
 }
 
 struct AppStateInner {
+    config: Config,
     ca: CaCert,
 }
 
@@ -32,8 +33,12 @@ impl AppState {
         let ca = CaCert::load(&config.cert_file, &config.key_file)
             .context("Failed to load CA certificate")?;
         Ok(Self {
-            inner: Arc::new(AppStateInner { ca }),
+            inner: Arc::new(AppStateInner { config, ca }),
         })
+    }
+
+    pub fn config(&self) -> &Config {
+        &self.inner.config
     }
 }
 

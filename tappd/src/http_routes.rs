@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::guest_api_service::{list_containers, GuestApiHandler};
 use crate::rpc_service::{AppState, ExternalRpcHandler, InternalRpcHandler};
 use anyhow::Result;
@@ -66,6 +67,7 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
     let context = CallContext::builder().state(&**state).build();
     let handler = ExternalRpcHandler::construct(context.clone())
         .map_err(|e| format!("Failed to construct RPC handler: {}", e))?;
+    let config = state.config();
     let WorkerInfo {
         app_id,
         instance_id,
@@ -88,6 +90,8 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         tcb_info,
         containers,
         system_info,
+        public_sysinfo: config.public_sysinfo,
+        public_logs: config.public_logs,
     };
     match model.render() {
         Ok(html) => Ok(RawHtml(html)),
@@ -184,8 +188,12 @@ fn get_logs(
     }
 }
 
-pub fn external_routes() -> Vec<Route> {
-    routes![index, external_prpc_post, external_prpc_get, get_logs]
+pub fn external_routes(config: &Config) -> Vec<Route> {
+    let mut routes = routes![index, external_prpc_post, external_prpc_get];
+    if config.public_logs {
+        routes.extend(routes![get_logs]);
+    }
+    routes
 }
 
 mod docker_logs {

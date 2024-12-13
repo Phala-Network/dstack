@@ -247,14 +247,14 @@ impl App {
         Ok(lst)
     }
 
-    pub fn list_image_names(&self) -> Result<Vec<String>> {
+    pub fn list_images(&self) -> Result<Vec<(String, ImageInfo)>> {
         let image_path = self.config.image_path.clone();
         let images = fs::read_dir(image_path).context("Failed to read image directory")?;
         Ok(images
             .flat_map(|entry| {
                 let path = entry.ok()?.path();
-                let _ = Image::load(&path).ok()?;
-                Some(path.file_name()?.to_string_lossy().to_string())
+                let img = Image::load(&path).ok()?;
+                Some((path.file_name()?.to_string_lossy().to_string(), img.info))
             })
             .collect())
     }
