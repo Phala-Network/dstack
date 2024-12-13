@@ -1,6 +1,6 @@
 workers = 8
 max_blocking = 64
-ident = "Teepod Server"
+ident = "Teepod"
 temp_dir = "/tmp"
 keep_alive = 10
 log_level = "debug"
@@ -46,3 +46,8 @@ exe = "./supervisor"
 sock = "./run/supervisor.sock"
 pid_file = "./run/supervisor.pid"
 log_file = "./run/supervisor.log"
+
+[host-api]
+ident = "Teepod"
+address = "vsock:2"
+port = 10000

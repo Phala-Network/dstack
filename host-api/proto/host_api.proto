@@ -6,7 +6,8 @@ import "google/protobuf/empty.proto";
 package host_api;
 
 message HostInfo {
-  string version = 1;
+  string name = 1;
+  string version = 2;
 }
 
 service HostApi {

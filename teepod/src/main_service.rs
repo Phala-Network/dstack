@@ -359,7 +359,3 @@ impl RpcCall<App> for RpcHandler {
         Ok(RpcHandler { app: state.clone() })
     }
 }
-
-pub fn rpc_methods() -> &'static [&'static str] {
-    <TeepodServer<RpcHandler>>::supported_methods()
-}

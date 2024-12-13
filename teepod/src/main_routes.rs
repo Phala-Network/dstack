@@ -1,5 +1,5 @@
 use crate::app::App;
-use crate::main_service::{rpc_methods, RpcHandler};
+use crate::main_service::RpcHandler;
 use anyhow::Result;
 use fs_err as fs;
 use ra_rpc::rocket_helper::handle_prpc;
@@ -191,11 +191,4 @@ fn vm_logs(
 
 pub fn routes() -> Vec<Route> {
     routes![index, res, prpc_post, prpc_get, vm_logs]
-}
-
-pub fn print_endpoints() {
-    info!("  prpc endpoints:");
-    for m in rpc_methods() {
-        info!("    /prpc/{}", m);
-    }
 }

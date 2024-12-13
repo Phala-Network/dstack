@@ -1,5 +1,5 @@
 use derive_more::Display;
-use rocket::listener::{Bind, Connection, Endpoint, Listener};
+use rocket::listener::{Connection, Endpoint, Listener};
 use rocket::tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use rocket::{Ignite, Rocket};
 use std::pin::Pin;
@@ -50,14 +50,14 @@ impl<'de> Deserialize<'de> for VsockEndpoint {
         // address = "vsock:<cid>"
         // port = "<port>"
 
-        #[derive(Deserialize)]
+        #[derive(Deserialize, Debug)]
         struct Address {
             address: String,
             port: u32,
         }
         let address = Address::deserialize(deserializer)?;
         let (proto, cid) = address.address.split_once(':').ok_or(de::Error::custom(
-            VsockError::InvalidAddress("expect format: vsock:<cid>:<port>".into()),
+            VsockError::InvalidAddress("expect format: vsock:<cid>".into()),
         ))?;
         if proto != "vsock" {
             return Err(de::Error::custom(VsockError::InvalidProtocol));
@@ -160,25 +160,18 @@ impl VsockListener {
             endpoint: *endpoint,
         })
     }
-}
 
-impl Bind for VsockListener {
-    type Error = VsockError;
-
-    async fn bind(rocket: &Rocket<Ignite>) -> Result<Self, Self::Error> {
-        let endpoint = Self::bind_endpoint(rocket)?;
-        let vsock_endpoint = endpoint
-            .downcast::<VsockEndpoint>()
-            .expect("Self::bind_endpoint should return a VsockEndpoint");
-        Self::bind(vsock_endpoint)
-    }
-
-    fn bind_endpoint(rocket: &Rocket<Ignite>) -> Result<Endpoint, Self::Error> {
+    pub fn extract_endpoint(rocket: &Rocket<Ignite>) -> Result<VsockEndpoint, VsockError> {
         let figment = rocket.figment();
         let endpoint = figment
             .extract::<VsockEndpoint>()
             .map_err(|e| VsockError::InvalidAddress(e.to_string()))?;
-        Ok(Endpoint::new(endpoint))
+        Ok(endpoint)
+    }
+
+    pub fn bind_rocket(rocket: &Rocket<Ignite>) -> Result<Self, VsockError> {
+        let endpoint = Self::extract_endpoint(rocket)?;
+        Self::bind(&endpoint)
     }
 }
 
