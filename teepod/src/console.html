@@ -1000,9 +1000,11 @@
                     return Array.from(result).map(b => b.toString(16).padStart(2, '0')).join('');
                 };
 
-                const makeEncryptedEnv = async () => {
+                const makeEncryptedEnv = async (appId) => {
                     if ((!vmForm.value.features.kms) || vmForm.value.encrypted_envs.length === 0) return '';
-                    const appId = await appIdOf(vmForm.value.compose_file);
+                    if (!appId) {
+                        appId = await appIdOf(vmForm.value.compose_file);
+                    }
                     const response = await rpcCall('GetAppEnvEncryptPubKey', {
                         app_id: appId
                     });
@@ -1154,7 +1156,7 @@
                         }
 
                         if (upgradeDialog.value.resetSecrets) {
-                            body.encrypted_env = await makeEncryptedEnv();
+                            body.encrypted_env = await makeEncryptedEnv(upgradeDialog.value.vm.app_id);
                         }
 
                         const response = await rpcCall('UpgradeApp', body);
