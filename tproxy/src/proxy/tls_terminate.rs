@@ -118,9 +118,8 @@ impl TlsTerminateProxy {
         inbound: TcpStream,
         buffer: Vec<u8>,
         app_id: &str,
-        port: Option<u16>,
+        port: u16,
     ) -> Result<()> {
-        let port = port.unwrap_or(80);
         let addresses = self
             .app_state
             .lock()
