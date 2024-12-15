@@ -124,6 +124,7 @@ pub struct Config {
     pub pccs_url: String,
     pub recycle: RecycleConfig,
     pub state_path: String,
+    pub set_ulimit: bool,
 }
 
 pub const CONFIG_FILENAME: &str = "tproxy.toml";

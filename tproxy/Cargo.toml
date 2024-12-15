@@ -33,5 +33,8 @@ certbot.workspace = true
 bytes.workspace = true
 safe-write.workspace = true
 
+[target.'cfg(unix)'.dependencies]
+nix = { workspace = true, features = ["resource"] }
+
 [dev-dependencies]
 insta.workspace = true

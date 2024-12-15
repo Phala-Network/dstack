@@ -28,6 +28,16 @@ struct Args {
     config: Option<String>,
 }
 
+#[cfg(unix)]
+fn set_max_ulimit() -> Result<()> {
+    use nix::sys::resource::{getrlimit, setrlimit, Resource};
+    let (soft, hard) = getrlimit(Resource::RLIMIT_NOFILE)?;
+    if soft < hard {
+        setrlimit(Resource::RLIMIT_NOFILE, hard, hard)?;
+    }
+    Ok(())
+}
+
 #[rocket::main]
 async fn main() -> Result<()> {
     {
@@ -43,6 +53,11 @@ async fn main() -> Result<()> {
 
     let config = figment.focus("core").extract::<Config>()?;
     config::setup_wireguard(&config.wg)?;
+
+    #[cfg(unix)]
+    if config.set_ulimit {
+        set_max_ulimit()?;
+    }
 
     let proxy_config = config.proxy.clone();
     let pccs_url = config.pccs_url.clone();

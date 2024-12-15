@@ -9,6 +9,8 @@ port = 8010
 [core]
 pccs_url = "https://api.trustedservices.intel.com/tdx/certification/v4"
 state_path = "./tproxy-state.json"
+# auto set soft ulimit to hard ulimit
+set_ulimit = true
 
 [core.certbot]
 workdir = "/etc/certbot"
