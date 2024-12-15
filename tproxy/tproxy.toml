@@ -49,6 +49,8 @@ idle = "10m"
 write = "5s"
 # Timeout for shutting down a connection.
 shutdown = "5s"
+# Timeout for total connection duration.
+total = "5h"
 
 [core.recycle]
 enabled = true

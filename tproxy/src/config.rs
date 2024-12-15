@@ -47,6 +47,8 @@ pub struct Timeouts {
     pub write: Duration,
     #[serde(with = "serde_duration")]
     pub shutdown: Duration,
+    #[serde(with = "serde_duration")]
+    pub total: Duration,
 }
 
 #[derive(Debug, Clone, Deserialize)]

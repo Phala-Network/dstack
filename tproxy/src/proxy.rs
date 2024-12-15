@@ -153,20 +153,30 @@ pub async fn run(config: &ProxyConfig, app_state: AppState) -> Result<()> {
     loop {
         match listener.accept().await {
             Ok((inbound, addr)) => {
-                info!("new connection from {addr}");
+                info!(%addr, "new connection received");
                 let app_state = app_state.clone();
                 let dotted_base_domain = dotted_base_domain.clone();
                 let tls_terminate_proxy = tls_terminate_proxy.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = handle_connection(
-                        inbound,
-                        app_state,
-                        &dotted_base_domain,
-                        tls_terminate_proxy,
+                    let timeouts = &app_state.config.proxy.timeouts;
+                    let result = timeout(
+                        timeouts.total,
+                        handle_connection(
+                            inbound,
+                            app_state,
+                            &dotted_base_domain,
+                            tls_terminate_proxy,
+                        ),
                     )
-                    .await
-                    {
-                        error!("connection error: {e:?}");
+                    .await;
+                    match result {
+                        Ok(Ok(_)) => {}
+                        Ok(Err(e)) => {
+                            error!("connection error: {e:?}");
+                        }
+                        Err(_) => {
+                            info!(%addr, "connection kept too long");
+                        }
                     }
                 });
             }

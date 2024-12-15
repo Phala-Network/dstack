@@ -145,7 +145,7 @@ impl TlsTerminateProxy {
             TcpStream::connect((host.ip, port)),
         )
         .await
-        .map_err(|_| anyhow::anyhow!("connection timeout"))?
+        .map_err(|_| anyhow::anyhow!("connecting timeout"))?
         .context("failed to connect to app")?;
         bridge(
             IgnoreUnexpectedEofStream::new(tls_stream),

@@ -72,7 +72,7 @@ pub(crate) async fn proxy_to_app(
         TcpStream::connect((target_ip, port)),
     )
     .await
-    .context("connection timeout")?
+    .context("connecting timeout")?
     .context("failed to connect to tapp")?;
     outbound
         .write_all(&buffer)
