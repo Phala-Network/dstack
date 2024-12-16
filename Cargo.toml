@@ -140,3 +140,4 @@ tailf = "0.1.2"
 time = "0.3.37"
 uuid = { version = "1.11.0", features = ["v4"] }
 which = "7.0.0"
+smallvec = "1.13.2"

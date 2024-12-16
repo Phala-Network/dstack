@@ -33,12 +33,17 @@ listen_addr = "0.0.0.0"
 listen_port = 8443
 tappd_port = 8090
 buffer_size = 8192
+# number of hosts to try to connect to
+connect_top_n = 3
 
 [core.proxy.timeouts]
 # Timeout for establishing a connection to the target app.
 connect = "5s"
 # TLS-termination handshake timeout or SNI extraction timeout.
 handshake = "5s"
+
+# Timeout for top n hosts selection
+cache_top_n = "30s"
 
 # Enable data transfer timeouts below. This might impact performance. Turn off if
 # bad performance is observed.

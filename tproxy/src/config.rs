@@ -31,6 +31,7 @@ pub struct ProxyConfig {
     pub tappd_port: u16,
     pub timeouts: Timeouts,
     pub buffer_size: usize,
+    pub connect_top_n: usize,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -39,6 +40,11 @@ pub struct Timeouts {
     pub connect: Duration,
     #[serde(with = "serde_duration")]
     pub handshake: Duration,
+    #[serde(with = "serde_duration")]
+    pub total: Duration,
+
+    #[serde(with = "serde_duration")]
+    pub cache_top_n: Duration,
 
     pub data_timeout_enabled: bool,
     #[serde(with = "serde_duration")]
@@ -47,8 +53,6 @@ pub struct Timeouts {
     pub write: Duration,
     #[serde(with = "serde_duration")]
     pub shutdown: Duration,
-    #[serde(with = "serde_duration")]
-    pub total: Duration,
 }
 
 #[derive(Debug, Clone, Deserialize)]

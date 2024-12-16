@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use std::fmt::Debug;
-use tokio::{io::AsyncWriteExt, net::TcpStream, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpStream, task::JoinSet, time::timeout};
 use tracing::debug;
 
-use crate::main_service::AppState;
+use crate::main_service::Proxy;
 
-use super::io_bridge::bridge;
+use super::{io_bridge::bridge, AddressGroup};
 
 #[derive(Debug)]
 struct TappAddress {
@@ -43,7 +43,7 @@ async fn resolve_tapp_address(sni: &str) -> Result<TappAddress> {
 }
 
 pub(crate) async fn proxy_with_sni(
-    state: AppState,
+    state: Proxy,
     inbound: TcpStream,
     buffer: Vec<u8>,
     sni: &str,
@@ -55,25 +55,43 @@ pub(crate) async fn proxy_with_sni(
     proxy_to_app(state, inbound, buffer, &tapp_addr.app_id, tapp_addr.port).await
 }
 
+/// connect to multiple hosts simultaneously and return the first successful connection
+pub(crate) async fn connect_multiple_hosts(
+    addresses: AddressGroup,
+    port: u16,
+) -> Result<TcpStream> {
+    let mut join_set = JoinSet::new();
+    for addr in addresses {
+        debug!("connecting to {addr}:{port}");
+        let future = TcpStream::connect((addr, port));
+        join_set.spawn(future);
+    }
+    // select the first successful connection
+    let connection = join_set
+        .join_next()
+        .await
+        .context("No app address available")?
+        .context("Failed to join the connect task")?
+        .context("Failed to connect to tapp")?;
+    debug!("connected to {:?}", connection.peer_addr());
+    Ok(connection)
+}
+
 pub(crate) async fn proxy_to_app(
-    state: AppState,
+    state: Proxy,
     inbound: TcpStream,
     buffer: Vec<u8>,
     app_id: &str,
     port: u16,
 ) -> Result<()> {
-    let target_ip = state
-        .lock()
-        .select_a_host(app_id)
-        .context("tapp not found")?
-        .ip;
+    let addresses = state.lock().select_top_n_hosts(app_id)?;
     let mut outbound = timeout(
         state.config.proxy.timeouts.connect,
-        TcpStream::connect((target_ip, port)),
+        connect_multiple_hosts(addresses.clone(), port),
     )
     .await
-    .context("connecting timeout")?
-    .context("failed to connect to tapp")?;
+    .with_context(|| format!("connecting timeout to tapp {app_id}: {addresses:?}:{port}"))?
+    .with_context(|| format!("failed to connect to tapp {app_id}: {addresses:?}:{port}"))?;
     outbound
         .write_all(&buffer)
         .await

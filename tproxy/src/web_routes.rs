@@ -1,4 +1,4 @@
-use crate::main_service::{AppState, RpcHandler};
+use crate::main_service::{Proxy, RpcHandler};
 use anyhow::Result;
 use ra_rpc::rocket_helper::{handle_prpc, QuoteVerifier};
 use rocket::{
@@ -14,14 +14,14 @@ use rocket::{
 mod route_index;
 
 #[get("/")]
-async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
+async fn index(state: &State<Proxy>) -> Result<RawHtml<String>, String> {
     route_index::index(state).await.map_err(|e| format!("{e}"))
 }
 
 #[post("/prpc/<method>?<json>", data = "<data>")]
 #[allow(clippy::too_many_arguments)]
 async fn prpc_post(
-    state: &State<AppState>,
+    state: &State<Proxy>,
     cert: Option<Certificate<'_>>,
     quote_verifier: Option<&State<QuoteVerifier>>,
     method: &str,
@@ -45,7 +45,7 @@ async fn prpc_post(
 
 #[get("/prpc/<method>")]
 async fn prpc_get(
-    state: &State<AppState>,
+    state: &State<Proxy>,
     cert: Option<Certificate<'_>>,
     quote_verifier: Option<&State<QuoteVerifier>>,
     method: &str,
