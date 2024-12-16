@@ -1845,6 +1845,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-client"
+version = "0.3.2"
+dependencies = [
+ "anyhow",
+ "http-body-util",
+ "hyper 1.5.1",
+ "hyper-util",
+ "hyperlocal",
+ "log",
+ "pin-project-lite",
+ "tokio",
+ "tokio-vsock",
+ "tower-service",
+]
+
+[[package]]
 name = "httparse"
 version = "1.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2984,9 +3000,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.14"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bda66fc9667c18cb2758a2ac84d1167245054bcf85d5d1aaa6923f45801bdd02"
+checksum = "915a1e146535de9163f3987b8944ed8cf49a18bb0056bcebcdcece385cece4ff"
 
 [[package]]
 name = "pin-utils"
@@ -4594,6 +4610,7 @@ dependencies = [
  "futures",
  "http 1.2.0",
  "http-body-util",
+ "http-client",
  "hyper 1.5.1",
  "hyper-util",
  "hyperlocal",

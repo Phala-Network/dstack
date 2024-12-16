@@ -11,7 +11,6 @@ use rocket::{
     response::{status::Custom, stream::TextStream},
     routes, Route, State,
 };
-use rocket_apitoken::Authorized;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::time::timeout;
@@ -30,7 +29,6 @@ macro_rules! file_or_include_str {
 #[post("/<method>?<json>", data = "<data>")]
 #[allow(clippy::too_many_arguments)]
 async fn prpc_post(
-    _auth: Authorized,
     state: &State<App>,
     cert: Option<Certificate<'_>>,
     method: &str,
@@ -54,7 +52,6 @@ async fn prpc_post(
 
 #[get("/<method>")]
 async fn prpc_get(
-    _auth: Authorized,
     state: &State<App>,
     method: &str,
     limits: &Limits,

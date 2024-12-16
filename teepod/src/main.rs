@@ -66,7 +66,7 @@ async fn run_host_api(app: App, figment: Figment) -> Result<()> {
         .clone()
         .merge(Serialized::defaults(figment.find_value("host-api")?));
     let rocket = rocket::custom(figment)
-        .mount("/", host_api_routes::routes())
+        .mount("/api", host_api_routes::routes())
         .manage(app);
     let ignite = rocket
         .ignite()
