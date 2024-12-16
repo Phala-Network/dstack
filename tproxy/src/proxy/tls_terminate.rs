@@ -12,10 +12,12 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use tokio_rustls::{rustls, TlsAcceptor};
+use tracing::debug;
 
-use crate::main_service::AppState;
+use crate::main_service::Proxy;
 
 use super::io_bridge::bridge;
+use super::tls_passthough::connect_multiple_hosts;
 
 #[pin_project::pin_project]
 struct IgnoreUnexpectedEofStream<S> {
@@ -85,16 +87,12 @@ where
 }
 
 pub struct TlsTerminateProxy {
-    app_state: AppState,
+    app_state: Proxy,
     acceptor: TlsAcceptor,
 }
 
 impl TlsTerminateProxy {
-    pub fn new(
-        app_state: &AppState,
-        cert: impl AsRef<Path>,
-        key: impl AsRef<Path>,
-    ) -> Result<Self> {
+    pub fn new(app_state: &Proxy, cert: impl AsRef<Path>, key: impl AsRef<Path>) -> Result<Self> {
         let cert_pem = fs::read(cert.as_ref()).context("failed to read certificate")?;
         let key_pem = fs::read(key.as_ref()).context("failed to read private key")?;
         let certs = CertificateDer::pem_slice_iter(cert_pem.as_slice())
@@ -123,11 +121,12 @@ impl TlsTerminateProxy {
         port: Option<u16>,
     ) -> Result<()> {
         let port = port.unwrap_or(80);
-        let host = self
+        let addresses = self
             .app_state
             .lock()
-            .select_a_host(app_id)
-            .context(format!("tapp {app_id} not found"))?;
+            .select_top_n_hosts(app_id)
+            .with_context(|| format!("tapp {app_id} not found"))?;
+        debug!("selected top n hosts: {addresses:?}");
         let stream = MergedStream {
             buffer,
             buffer_cursor: 0,
@@ -142,7 +141,7 @@ impl TlsTerminateProxy {
         .context("failed to accept tls connection")?;
         let outbound = timeout(
             self.app_state.config.proxy.timeouts.connect,
-            TcpStream::connect((host.ip, port)),
+            connect_multiple_hosts(addresses, port),
         )
         .await
         .map_err(|_| anyhow::anyhow!("connecting timeout"))?

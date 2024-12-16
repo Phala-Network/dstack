@@ -1,9 +1,9 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     net::Ipv4Addr,
-    process::Command,
+    process::{Command, Stdio},
     sync::{Arc, Mutex, MutexGuard, Weak},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{bail, Context, Result};
@@ -14,38 +14,42 @@ use rand::seq::IteratorRandom;
 use rinja::Template as _;
 use safe_write::safe_write;
 use serde::{Deserialize, Serialize};
+use smallvec::{smallvec, SmallVec};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
     AcmeInfoResponse, GetInfoRequest, GetInfoResponse, HostInfo as PbHostInfo, ListResponse,
     RegisterCvmRequest, RegisterCvmResponse, TappdConfig, WireGuardConfig,
 };
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     config::Config,
     models::{InstanceInfo, WgConf},
+    proxy::AddressGroup,
 };
 
 #[derive(Clone)]
-pub struct AppState {
+pub struct Proxy {
     pub(crate) config: Arc<Config>,
-    inner: Arc<Mutex<AppStateInner>>,
+    inner: Arc<Mutex<ProxyState>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct State {
+struct ProxyStateMut {
     apps: BTreeMap<String, BTreeSet<String>>,
     instances: BTreeMap<String, InstanceInfo>,
     allocated_addresses: BTreeSet<Ipv4Addr>,
+    #[serde(skip)]
+    top_n: BTreeMap<String, (AddressGroup, Instant)>,
 }
 
-pub(crate) struct AppStateInner {
+pub(crate) struct ProxyState {
     config: Arc<Config>,
-    state: State,
+    state: ProxyStateMut,
 }
 
-impl AppState {
-    pub(crate) fn lock(&self) -> MutexGuard<AppStateInner> {
+impl Proxy {
+    pub(crate) fn lock(&self) -> MutexGuard<ProxyState> {
         self.inner.lock().expect("Failed to lock AppState")
     }
 
@@ -56,13 +60,14 @@ impl AppState {
             let state_str = fs::read_to_string(state_path).context("Failed to read state")?;
             serde_json::from_str(&state_str).context("Failed to load state")?
         } else {
-            State {
+            ProxyStateMut {
                 apps: BTreeMap::new(),
+                top_n: BTreeMap::new(),
                 instances: BTreeMap::new(),
                 allocated_addresses: BTreeSet::new(),
             }
         };
-        let inner = Arc::new(Mutex::new(AppStateInner {
+        let inner = Arc::new(Mutex::new(ProxyState {
             config: config.clone(),
             state,
         }));
@@ -71,7 +76,7 @@ impl AppState {
     }
 }
 
-fn start_recycle_thread(state: Weak<Mutex<AppStateInner>>, config: Arc<Config>) {
+fn start_recycle_thread(state: Weak<Mutex<ProxyState>>, config: Arc<Config>) {
     if !config.recycle.enabled {
         info!("recycle is disabled");
         return;
@@ -87,7 +92,7 @@ fn start_recycle_thread(state: Weak<Mutex<AppStateInner>>, config: Arc<Config>) 
     });
 }
 
-impl AppStateInner {
+impl ProxyState {
     fn alloc_ip(&mut self) -> Option<Ipv4Addr> {
         for ip in self.config.wg.client_ip_range.hosts() {
             if ip == self.config.wg.ip {
@@ -166,10 +171,49 @@ impl AppStateInner {
         Ok(())
     }
 
-    pub(crate) fn select_a_host(&self, id: &str) -> Option<InstanceInfo> {
+    pub(crate) fn select_top_n_hosts(&mut self, id: &str) -> Result<AddressGroup> {
+        let n = self.config.proxy.connect_top_n;
+        if let Some(instance) = self.state.instances.get(id) {
+            return Ok(smallvec![instance.ip]);
+        };
+        let app_instances = self.state.apps.get(id).context("app not found")?;
+        if n == 0 {
+            // fallback to random selection
+            return Ok(self.random_select_a_host(id).unwrap_or_default());
+        }
+        let (top_n, insert_time) = self
+            .state
+            .top_n
+            .entry(id.to_string())
+            .or_insert((SmallVec::new(), Instant::now()));
+        if !top_n.is_empty() && insert_time.elapsed() < self.config.proxy.timeouts.cache_top_n {
+            return Ok(top_n.clone());
+        }
+
+        let handshakes = self.latest_handshakes(None);
+        let mut instances = match handshakes {
+            Err(err) => {
+                warn!("Failed to get handshakes, fallback to random selection: {err}");
+                return Ok(self.random_select_a_host(id).unwrap_or_default());
+            }
+            Ok(handshakes) => app_instances
+                .iter()
+                .filter_map(|instance_id| {
+                    let instance = self.state.instances.get(instance_id)?;
+                    let (_, elapsed) = handshakes.get(&instance.public_key)?;
+                    Some((instance.ip, *elapsed))
+                })
+                .collect::<SmallVec<[_; 4]>>(),
+        };
+        instances.sort_by(|a, b| a.1.cmp(&b.1));
+        instances.truncate(n);
+        Ok(instances.into_iter().map(|(ip, _)| ip).collect())
+    }
+
+    fn random_select_a_host(&self, id: &str) -> Option<AddressGroup> {
         // Direct instance lookup first
         if let Some(info) = self.state.instances.get(id).cloned() {
-            return Some(info);
+            return Some(smallvec![info.ip]);
         }
 
         let app_instances = self.state.apps.get(id)?;
@@ -191,9 +235,15 @@ impl AppStateInner {
         });
 
         let selected = healthy_instances.choose(&mut rand::thread_rng())?;
-        self.state.instances.get(selected).cloned()
+        self.state
+            .instances
+            .get(selected)
+            .map(|info| smallvec![info.ip])
     }
 
+    /// Get latest handshakes
+    ///
+    /// Return a map of public key to (timestamp, elapsed)
     fn latest_handshakes(
         &self,
         stale_timeout: Option<Duration>,
@@ -211,6 +261,8 @@ impl AppStateInner {
             .arg("show")
             .arg(&self.config.wg.interface)
             .arg("latest-handshakes")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .output()
             .context("failed to execute wg show command")?;
 
@@ -304,7 +356,7 @@ impl AppStateInner {
 
 pub struct RpcHandler {
     attestation: Option<Attestation>,
-    state: AppState,
+    state: Proxy,
 }
 
 impl TproxyRpc for RpcHandler {
@@ -413,14 +465,14 @@ impl TproxyRpc for RpcHandler {
     }
 }
 
-impl RpcCall<AppState> for RpcHandler {
+impl RpcCall<Proxy> for RpcHandler {
     type PrpcService = TproxyServer<Self>;
 
     fn into_prpc_service(self) -> Self::PrpcService {
         TproxyServer::new(self)
     }
 
-    fn construct(state: &AppState, attestation: Option<Attestation>) -> Result<Self>
+    fn construct(state: &Proxy, attestation: Option<Attestation>) -> Result<Self>
     where
         Self: Sized,
     {

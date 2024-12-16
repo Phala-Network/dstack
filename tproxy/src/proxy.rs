@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{net::Ipv4Addr, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use sni::extract_sni;
@@ -10,7 +10,9 @@ use tokio::{
 };
 use tracing::{debug, error, info};
 
-use crate::{config::ProxyConfig, main_service::AppState};
+use crate::{config::ProxyConfig, main_service::Proxy};
+
+pub(crate) type AddressGroup = smallvec::SmallVec<[Ipv4Addr; 4]>;
 
 mod io_bridge;
 mod sni;
@@ -89,7 +91,7 @@ fn parse_destination(sni: &str, dotted_base_domain: &str) -> Result<DstInfo> {
 
 async fn handle_connection(
     mut inbound: TcpStream,
-    state: AppState,
+    state: Proxy,
     dotted_base_domain: &str,
     tls_terminate_proxy: Arc<TlsTerminateProxy>,
 ) -> Result<()> {
@@ -126,7 +128,7 @@ async fn handle_connection(
     }
 }
 
-pub async fn run(config: &ProxyConfig, app_state: AppState) -> Result<()> {
+pub async fn run(config: &ProxyConfig, app_state: Proxy) -> Result<()> {
     let dotted_base_domain = {
         let base_domain = config.base_domain.as_str();
         let base_domain = base_domain.strip_prefix(".").unwrap_or(base_domain);
@@ -187,7 +189,7 @@ pub async fn run(config: &ProxyConfig, app_state: AppState) -> Result<()> {
     }
 }
 
-pub fn start(config: ProxyConfig, app_state: AppState) {
+pub fn start(config: ProxyConfig, app_state: Proxy) {
     tokio::spawn(async move {
         if let Err(err) = run(&config, app_state).await {
             error!(
@@ -197,3 +199,8 @@ pub fn start(config: ProxyConfig, app_state: AppState) {
         }
     });
 }
+
+// async fn connect_to_app(state: &AppState, app_id: &str, port: u16) -> Result<TcpStream> {
+//     let host = state.lock().select_a_host(app_id).context(format!("tapp {app_id} not found"))?;
+//     TcpStream::connect((host.ip, port))
+// }

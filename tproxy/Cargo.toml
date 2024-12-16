@@ -32,6 +32,8 @@ tproxy-rpc.workspace = true
 certbot.workspace = true
 bytes.workspace = true
 safe-write.workspace = true
+smallvec.workspace = true
+futures.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 nix = { workspace = true, features = ["resource"] }

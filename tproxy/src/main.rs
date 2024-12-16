@@ -61,7 +61,7 @@ async fn main() -> Result<()> {
 
     let proxy_config = config.proxy.clone();
     let pccs_url = config.pccs_url.clone();
-    let state = main_service::AppState::new(config)?;
+    let state = main_service::Proxy::new(config)?;
     state.lock().reconfigure()?;
     proxy::start(proxy_config, state.clone());
 

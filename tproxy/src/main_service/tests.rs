@@ -1,10 +1,10 @@
 use super::*;
 use crate::config::{load_config_figment, Config};
 
-fn create_test_state() -> AppState {
+fn create_test_state() -> Proxy {
     let figment = load_config_figment(None);
     let config = figment.focus("core").extract::<Config>().unwrap();
-    AppState::new(config).expect("failed to create app state")
+    Proxy::new(config).expect("failed to create app state")
 }
 
 #[test]
