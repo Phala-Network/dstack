@@ -773,7 +773,13 @@
                             Remove
                         </button>
                     </div>
-                    <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
+                        <input type="file" ref="envFile" @change="loadEnvFile" style="display: none"
+                            accept=".env,.txt">
+                        <button type="button" class="action-btn" @click="$refs.envFile.click()">Load from
+                            file</button>
+                    </div>
                 </div>
 
                 <div class="vm-actions">
