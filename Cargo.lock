@@ -2538,6 +2538,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
+dependencies = [
+ "bitflags 2.6.0",
+ "cfg-if",
+ "cfg_aliases",
+ "libc",
+]
+
+[[package]]
 name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3206,9 +3218,9 @@ dependencies = [
 
 [[package]]
 name = "prpc-build"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aec877988347a156345356b96ed96f27baebe0454a42a398b1cb268e0895b95f"
+checksum = "c4155bf9e4977e408df247a4dafb118add3ab153957109ffc971e4fb597b72c2"
 dependencies = [
  "either",
  "fs-err",
@@ -5068,6 +5080,7 @@ dependencies = [
  "hickory-resolver",
  "insta",
  "ipnet",
+ "nix",
  "parcelona",
  "pin-project",
  "ra-rpc",
