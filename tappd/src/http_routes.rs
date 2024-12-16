@@ -137,6 +137,7 @@ async fn external_prpc_get(
 }
 
 #[get("/logs/<container_name>?<since>&<until>&<follow>&<text>&<timestamps>&<bare>&<tail>")]
+#[allow(clippy::too_many_arguments)]
 fn get_logs(
     container_name: String,
     since: Option<&str>,
@@ -149,7 +150,7 @@ fn get_logs(
 ) -> TextStream![String] {
     // default to 1 hour ago
     let since = parse_duration(since.unwrap_or("1h"));
-    let until = until.map_or(Ok(0), |u| parse_duration(u));
+    let until = until.map_or(Ok(0), parse_duration);
     let tail = tail.unwrap_or("1000".to_string());
     TextStream! {
         let Ok(since) = since else {
@@ -317,22 +318,28 @@ mod docker_logs {
         #[test]
         fn test_parse_duration_units() {
             let now = SystemTime::now();
-            let now_secs = now
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs() as i64;
+            let now_secs = now.duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
 
             // Test seconds
             assert_eq!(parse_duration_inner("30s", now).unwrap(), now_secs - 30);
 
             // Test minutes
-            assert_eq!(parse_duration_inner("5m", now).unwrap(), now_secs - (5 * 60));
+            assert_eq!(
+                parse_duration_inner("5m", now).unwrap(),
+                now_secs - (5 * 60)
+            );
 
             // Test hours
-            assert_eq!(parse_duration_inner("2h", now).unwrap(), now_secs - (2 * 3600));
+            assert_eq!(
+                parse_duration_inner("2h", now).unwrap(),
+                now_secs - (2 * 3600)
+            );
 
             // Test days
-            assert_eq!(parse_duration_inner("1d", now).unwrap(), now_secs - (24 * 3600));
+            assert_eq!(
+                parse_duration_inner("1d", now).unwrap(),
+                now_secs - (24 * 3600)
+            );
         }
 
         #[test]
