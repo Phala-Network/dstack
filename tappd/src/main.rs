@@ -76,7 +76,7 @@ async fn run_external(state: AppState, figment: Figment) -> Result<()> {
 
 async fn run_guest_api(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
-        .mount("/", guest_api_routes::routes())
+        .mount("/api", guest_api_routes::routes())
         .manage(state);
     let _ = rocket
         .launch()

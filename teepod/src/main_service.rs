@@ -3,13 +3,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use fs_err as fs;
+use guest_api::client::DefaultClient as GuestClient;
 use kms_rpc::kms_client::KmsClient;
 use ra_rpc::client::RaClient;
 use ra_rpc::{CallContext, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
-    AppId, GetInfoResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse, PublicKeyResponse,
-    ResizeVmRequest, StatusResponse, UpgradeAppRequest, VmConfiguration,
+    AppId, Gateway, GetInfoResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse, Interface,
+    IpAddress, NetworkInformation, PublicKeyResponse, ResizeVmRequest, StatusResponse,
+    UpgradeAppRequest, VmConfiguration,
 };
 use tracing::warn;
 
@@ -102,6 +104,13 @@ impl RpcHandler {
         let url = format!("{}/prpc", self.app.config.kms_url);
         let prpc_client = RaClient::new(url, true);
         Ok(KmsClient::new(prpc_client))
+    }
+
+    fn tappd_client(&self, id: &str) -> Option<GuestClient> {
+        let cid = self.app.lock().get(id)?.config.cid;
+        Some(guest_api::client::new_client(format!(
+            "vsock://{cid}:8000/api"
+        )))
     }
 }
 
@@ -343,6 +352,44 @@ impl TeepodRpc for RpcHandler {
             .await
             .context("Failed to load VM")?;
         Ok(())
+    }
+
+    async fn shutdown_vm(self, request: Id) -> Result<()> {
+        let tappd_client = self.tappd_client(&request.id).context("vm not found")?;
+        tappd_client.shutdown().await?;
+        Ok(())
+    }
+
+    async fn get_network_info(self, request: Id) -> Result<NetworkInformation> {
+        let tappd_client = self.tappd_client(&request.id).context("vm not found")?;
+        let info = tappd_client.network_info().await?;
+        Ok(NetworkInformation {
+            dns_servers: info.dns_servers,
+            gateways: info
+                .gateways
+                .into_iter()
+                .map(|g| Gateway { address: g.address })
+                .collect(),
+            interfaces: info
+                .interfaces
+                .into_iter()
+                .map(|i| Interface {
+                    name: i.name,
+                    addresses: i
+                        .addresses
+                        .into_iter()
+                        .map(|a| IpAddress {
+                            address: a.address,
+                            prefix: a.prefix,
+                        })
+                        .collect(),
+                    rx_bytes: i.rx_bytes,
+                    tx_bytes: i.tx_bytes,
+                    rx_errors: i.rx_errors,
+                    tx_errors: i.tx_errors,
+                })
+                .collect(),
+        })
     }
 }
 

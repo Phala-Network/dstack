@@ -69,20 +69,27 @@ impl GuestApiRpc for GuestApiHandler {
 fn get_interfaces() -> Vec<Interface> {
     sysinfo::Networks::new_with_refreshed_list()
         .into_iter()
-        .map(|(interface_name, network)| Interface {
-            name: interface_name.clone(),
-            addresses: network
-                .ip_networks()
-                .into_iter()
-                .map(|ip| IpAddress {
-                    address: ip.addr.to_string(),
-                    prefix: ip.prefix as u32,
-                })
-                .collect(),
-            rx_bytes: network.total_received(),
-            tx_bytes: network.total_transmitted(),
-            rx_errors: network.total_errors_on_received(),
-            tx_errors: network.total_errors_on_transmitted(),
+        .filter_map(|(interface_name, network)| {
+            if !(interface_name == "wg0" || interface_name.starts_with("enp")) {
+                // We only get wg0 and enp interfaces.
+                // Docker bridge is not included due to privacy concerns.
+                return None;
+            }
+            Some(Interface {
+                name: interface_name.clone(),
+                addresses: network
+                    .ip_networks()
+                    .into_iter()
+                    .map(|ip| IpAddress {
+                        address: ip.addr.to_string(),
+                        prefix: ip.prefix as u32,
+                    })
+                    .collect(),
+                rx_bytes: network.total_received(),
+                tx_bytes: network.total_transmitted(),
+                rx_errors: network.total_errors_on_received(),
+                tx_errors: network.total_errors_on_transmitted(),
+            })
         })
         .collect()
 }

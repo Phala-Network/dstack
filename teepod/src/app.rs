@@ -66,7 +66,7 @@ pub struct App {
 }
 
 impl App {
-    fn lock(&self) -> MutexGuard<AppState> {
+    pub(crate) fn lock(&self) -> MutexGuard<AppState> {
         self.state.lock().unwrap()
     }
 
@@ -307,7 +307,7 @@ impl App {
 
 #[derive(Clone)]
 pub struct VmState {
-    config: Arc<VmConfig>,
+    pub(crate) config: Arc<VmConfig>,
     state: VmStateMut,
 }
 

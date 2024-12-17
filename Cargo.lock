@@ -4933,6 +4933,7 @@ dependencies = [
  "dirs",
  "fs-err",
  "git-version",
+ "guest-api",
  "hex",
  "host-api",
  "humantime",
