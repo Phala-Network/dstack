@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use fde_setup::{cmd_setup_fde, SetupFdeArgs};
 use fs_err as fs;
 use getrandom::getrandom;
+use notify_client::NotifyClient;
 use ra_tls::{attestation::QuoteContentType, cert::CaCert};
 use scale::Decode;
 use std::{
@@ -16,6 +17,7 @@ use utils::{deserialize_json_file, extend_rtmr, run_command, AppCompose};
 
 mod crypto;
 mod fde_setup;
+mod notify_client;
 mod tboot;
 mod utils;
 
@@ -53,6 +55,8 @@ enum Commands {
     SetupFde(SetupFdeArgs),
     /// Boot the Tapp
     Tboot(TbootArgs),
+    /// Notify the host about the Tapp
+    NotifyHost(HostNotifyArgs),
 }
 
 #[derive(Parser)]
@@ -155,6 +159,19 @@ struct TestAppFeatureArgs {
     /// path to the app compose file
     #[arg(short, long)]
     compose: String,
+}
+
+#[derive(Parser)]
+/// Notify the host about the Tapp
+struct HostNotifyArgs {
+    #[arg(short, long)]
+    url: Option<String>,
+    /// event name
+    #[arg(short, long)]
+    event: String,
+    /// event payload
+    #[arg(short = 'd', long)]
+    payload: String,
 }
 
 fn cmd_quote() -> Result<()> {
@@ -360,6 +377,12 @@ fn cmd_test_app_feature(args: TestAppFeatureArgs) -> Result<()> {
     Ok(())
 }
 
+async fn cmd_notify_host(args: HostNotifyArgs) -> Result<()> {
+    let client = NotifyClient::load_or_default(args.url)?;
+    client.notify(&args.event, &args.payload).await?;
+    Ok(())
+}
+
 fn sha256(data: &[u8]) -> String {
     use sha2::Digest;
     let mut sha256 = sha2::Sha256::new();
@@ -413,6 +436,9 @@ async fn main() -> Result<()> {
                 }
                 bail!("Failed to boot the Tapp");
             }
+        }
+        Commands::NotifyHost(args) => {
+            cmd_notify_host(args).await?;
         }
     }
 

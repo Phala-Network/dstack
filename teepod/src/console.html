@@ -666,6 +666,20 @@
                         <tr v-if="expandedVMs.has(vm.id)" style="background-color: #f8f9fa;">
                             <td colspan="5" style="padding: 16px;">
                                 <div class="vm-details">
+                                    <h4 style="margin: 0 0 12px 0;">Boot Status</h4>
+                                    <div style="margin-bottom: 16px;">
+                                        <table style="width: 100%;">
+                                            <tr>
+                                                <td style="width: 30%;">Boot Progress:</td>
+                                                <td>{{ vm.boot_progress || 'N/A' }}</td>
+                                            </tr>
+                                            <tr v-if="vm.boot_error">
+                                                <td style="width: 30%;">Boot Error</td>
+                                                <td style="color: #f44336;">{{ vm.boot_error }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+
                                     <h4 style="margin: 0 0 12px 0;">VM Configuration</h4>
                                     <div class="details-grid">
                                         <div class="detail-item">

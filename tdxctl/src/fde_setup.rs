@@ -14,6 +14,7 @@ use tracing::{info, warn};
 use crate::{
     cmd_gen_app_keys, cmd_gen_ra_cert, cmd_show,
     crypto::dh_decrypt,
+    notify_client::NotifyClient,
     utils::{
         copy_dir_all, deserialize_json_file, extend_rtmr3, run_command, run_command_with_stdin,
         sha256, sha256_file, AppCompose, AppKeys, HashingFile, LocalConfig,
@@ -56,6 +57,10 @@ pub struct SetupFdeArgs {
     rootfs_encryption: std::primitive::bool,
 }
 
+fn umount(mount_point: &str) -> Result<()> {
+    run_command("umount", &[mount_point]).map(|_| ())
+}
+
 fn mount_9p(share_name: &str, mount_point: &str) -> Result<()> {
     run_command(
         "mount",
@@ -63,7 +68,7 @@ fn mount_9p(share_name: &str, mount_point: &str) -> Result<()> {
             "-t",
             "9p",
             "-o",
-            "trans=virtio,version=9p2000.L",
+            "trans=virtio,version=9p2000.L,ro",
             share_name,
             mount_point,
         ],
@@ -169,23 +174,23 @@ fn truncate(s: &[u8], len: usize) -> &[u8] {
 
 impl SetupFdeArgs {
     fn app_keys_file(&self) -> PathBuf {
-        self.work_dir.join("appkeys.json")
-    }
-
-    fn tapp_dir(&self) -> PathBuf {
-        self.rootfs_dir.join("tapp")
+        self.host_shared_copy.join("appkeys.json")
     }
 
     fn copy_host_shared(&self) -> Result<HostShared> {
         info!("Mounting host-shared");
-        fs::create_dir_all(&self.host_shared)
-            .context("Failed to create host-sharing mount point")?;
-        mount_9p("host-shared", &self.host_shared.display().to_string())
-            .context("Failed to mount host-sharing")?;
+        let shared_dir = self.host_shared.display().to_string();
+
+        fs::create_dir_all(&shared_dir).context("Failed to create host-sharing mount point")?;
+        mount_9p("host-shared", &shared_dir).context("Failed to mount host-sharing")?;
+
         fs::create_dir_all(&self.host_shared_copy)
             .context("Failed to create host-shared copy dir")?;
         copy_dir_all(&self.host_shared, &self.host_shared_copy)
             .context("Failed to copy host-shared dir")?;
+
+        umount(&shared_dir).context("Failed to unmount host-shared")?;
+
         let host_shared_dir = HostShareDir::new(&self.host_shared_copy);
         let host_shared = HostShared::load(&host_shared_dir)?;
         Ok(host_shared)
@@ -249,7 +254,7 @@ impl SetupFdeArgs {
         Ok(vars)
     }
 
-    fn mount_rootfs(&self, disk_crypt_key: &str) -> Result<()> {
+    fn mount_rootfs(&self, host_shared: &HostShared, disk_crypt_key: &str) -> Result<()> {
         if !self.rootfs_encryption {
             warn!("Rootfs encryption is disabled, skipping disk encryption");
             run_command(
@@ -281,6 +286,24 @@ impl SetupFdeArgs {
             ],
         )
         .context("Failed to mount rootfs")?;
+
+        let hash_file = self.rootfs_dir.join(".rootfs_hash");
+        let existing_rootfs_hash = match fs::read(&hash_file) {
+            Ok(rootfs_hash) => rootfs_hash,
+            Err(_) => {
+                // Old image touches .bootstraped instead of .rootfs_hash
+                if !self.rootfs_dir.join(".bootstraped").exists() {
+                    bail!("Rootfs is not bootstrapped");
+                }
+                Default::default()
+            }
+        };
+
+        if existing_rootfs_hash != host_shared.vm_config.rootfs_hash {
+            let todo = "do upgrade";
+            fs::remove_file(&hash_file).context("Failed to remove old rootfs hash file")?;
+            bail!("Rootfs hash mismatch");
+        }
         Ok(())
     }
 
@@ -325,7 +348,7 @@ impl SetupFdeArgs {
         host_shared: &HostShared,
         disk_crypt_key: &str,
         instance_info: &InstanceInfo,
-    ) -> Result<()> {
+    ) -> Result<InstanceInfo> {
         info!("Setting up disk encryption");
         fs::create_dir_all(&self.root_cdrom_mnt)
             .context("Failed to create rootfs cdrom mount point")?;
@@ -390,46 +413,28 @@ impl SetupFdeArgs {
         info!("Rootfs hash is valid");
         let mut instance_info = instance_info.clone();
         instance_info.bootstrapped = true;
-        // write instance info
-        let instance_info =
-            serde_json::to_string(&instance_info).context("Failed to serialize instance info")?;
-        let origin_host_shared_dir = HostShareDir::new(&self.host_shared);
-        fs::write(origin_host_shared_dir.instance_info_file(), instance_info)
-            .context("Failed to write instance info")?;
-        fs::File::create(self.rootfs_dir.join(".bootstraped"))
-            .context("Failed to touch bootstraped")?;
+        fs::write(self.rootfs_dir.join(".rootfs_hash"), &rootfs_hash)
+            .context("Failed to write rootfs hash")?;
         info!("Rootfs is ready");
-        Ok(())
+        Ok(instance_info)
     }
 
-    fn copy_files_to_rootfs(&self, decrypted_env: &BTreeMap<String, String>) -> Result<()> {
-        let tapp_dir = self.tapp_dir();
-        info!("Copying host-shared to tapp dir");
-        fs::remove_dir_all(&tapp_dir).ok();
-        copy_dir_all(&self.host_shared_copy, &tapp_dir).context("Failed to copy rootfs")?;
-        info!("Copying appkeys.json");
-        fs::copy(self.app_keys_file(), tapp_dir.join("appkeys.json"))
-            .context("Failed to copy appkeys.json")?;
-        info!("Copying config.json");
-        fs::copy(
-            self.host_shared_copy.join("config.json"),
-            tapp_dir.join("config.json"),
-        )
-        .context("Failed to copy config.json")?;
+    fn write_decrypted_env(&self, decrypted_env: &BTreeMap<String, String>) -> Result<()> {
+        info!("Writing env");
         fs::write(
-            tapp_dir.join("env"),
+            self.host_shared_copy.join("env"),
             env_process::convert_env_to_str(decrypted_env),
         )
         .context("Failed to write decrypted env file")?;
-        let env_json =
-            fs::File::create(tapp_dir.join("env.json")).context("Failed to create env file")?;
+        let env_json = fs::File::create(self.host_shared_copy.join("env.json"))
+            .context("Failed to create env file")?;
         serde_json::to_writer(env_json, &decrypted_env)
             .context("Failed to write decrypted env file")?;
         Ok(())
     }
 
-    async fn setup_rootfs(&self) -> Result<()> {
-        let host_shared = self.copy_host_shared()?;
+    async fn setup_rootfs(&self, nc: &NotifyClient, host_shared: &HostShared) -> Result<()> {
+        nc.notify_q("boot.progress", "loading host-shared").await;
         let rootfs_hash = &host_shared.vm_config.rootfs_hash;
         let compose_hash = sha256_file(host_shared.dir.app_compose_file())?;
         let truncated_compose_hash = truncate(&compose_hash, 20);
@@ -458,6 +463,9 @@ impl SetupFdeArgs {
         if !kms_enabled && instance_info.app_id != truncated_compose_hash {
             bail!("App upgrade is not supported without KMS");
         }
+
+        nc.notify_q("boot.progress", "extending RTMRs").await;
+
         extend_rtmr3("rootfs-hash", rootfs_hash)?;
         extend_rtmr3("app-id", &instance_info.app_id)?;
         extend_rtmr3("compose-hash", &compose_hash)?;
@@ -467,24 +475,41 @@ impl SetupFdeArgs {
         // Show the RTMR
         cmd_show()?;
 
+        nc.notify_q("boot.progress", "requesting app keys").await;
+
         let app_keys = self.request_app_keys(&host_shared).await?;
         if app_keys.disk_crypt_key.is_empty() {
             bail!("Failed to get valid key phrase from KMS");
         }
+        nc.notify_q("boot.progress", "decrypting env").await;
         // Decrypt env file
         let decrypted_env =
             self.decrypt_env_vars(&app_keys.env_crypt_key, &host_shared.encrypted_env)?;
         let disk_crypt_key = format!("{}\n", app_keys.disk_crypt_key);
         if instance_info.bootstrapped {
-            self.mount_rootfs(&disk_crypt_key)?;
+            nc.notify_q("boot.progress", "mounting rootfs").await;
+            self.mount_rootfs(&host_shared, &disk_crypt_key)?;
         } else {
-            self.bootstrap_rootfs(&host_shared, &disk_crypt_key, &instance_info)?;
+            nc.notify_q("boot.progress", "initializing rootfs").await;
+            let instance_info =
+                self.bootstrap_rootfs(&host_shared, &disk_crypt_key, &instance_info)?;
+            nc.notify_q("instance.info", &serde_json::to_string(&instance_info)?)
+                .await;
         }
-        self.copy_files_to_rootfs(&decrypted_env)?;
+        self.write_decrypted_env(&decrypted_env)?;
+        nc.notify_q("boot.progress", "rootfs ready").await;
         Ok(())
     }
 }
 
 pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
-    args.setup_rootfs().await
+    let host_shared = args.copy_host_shared()?;
+    let nc = NotifyClient::new(host_shared.vm_config.host_api_url.clone());
+    match args.setup_rootfs(&nc, &host_shared).await {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            nc.notify_q("boot.error", &format!("{err:?}")).await;
+            Err(err)
+        }
+    }
 }

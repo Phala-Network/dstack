@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use supervisor_client::SupervisorClient;
 use teepod_rpc as pb;
-use tracing::error;
+use tracing::{error, info};
 
 pub use image::{Image, ImageInfo};
 pub use qemu::{VmConfig, VmWorkDir};
@@ -118,6 +118,7 @@ impl App {
             image,
             cid,
             networking: self.config.networking.clone(),
+            workdir: vm_work_dir.path().to_path_buf(),
         };
         if vm_config.manifest.disk_size > self.config.cvm.max_disk_size {
             bail!(
@@ -135,18 +136,25 @@ impl App {
     }
 
     pub async fn start_vm(&self, id: &str) -> Result<()> {
-        let vm_state = self.lock().get(id).context("VM not found")?;
-        let work_dir = self.work_dir(id);
-        work_dir
-            .set_started(true)
-            .with_context(|| format!("Failed to set started for VM {id}"))?;
-        if work_dir.serial_pty().exists() {
-            // remove the existing pty
-            fs::remove_file(work_dir.serial_pty()).context("Failed to remove existing pty link")?;
-        }
-        let process_config = vm_state
-            .config
-            .config_qemu(&self.config.qemu_path, &work_dir)?;
+        let process_config = {
+            let mut state = self.lock();
+            let vm_state = state.get_mut(id).context("VM not found")?;
+            let work_dir = self.work_dir(id);
+            work_dir
+                .set_started(true)
+                .with_context(|| format!("Failed to set started for VM {id}"))?;
+            if work_dir.serial_pty().exists() {
+                // remove the existing pty
+                fs::remove_file(work_dir.serial_pty())
+                    .context("Failed to remove existing pty link")?;
+            }
+            let process_config = vm_state
+                .config
+                .config_qemu(&self.config.qemu_path, &work_dir)?;
+            vm_state.state.boot_error.clear();
+            vm_state.state.boot_progress.clear();
+            process_config
+        };
         self.supervisor
             .deploy(process_config)
             .await
@@ -255,7 +263,8 @@ impl App {
 
     pub async fn vm_info(&self, id: &str) -> Result<Option<pb::VmInfo>> {
         let proc_state = self.supervisor.info(id).await?;
-        let Some(vm_state) = self.lock().get(id) else {
+        let state = self.lock();
+        let Some(vm_state) = state.get(id) else {
             return Ok(None);
         };
         let info = vm_state
@@ -264,20 +273,27 @@ impl App {
         Ok(Some(info))
     }
 
-    pub(crate) fn vm_event_report(&self, cid: u32, event: &str, message: &str) -> Result<()> {
+    pub(crate) fn vm_event_report(&self, cid: u32, event: &str, body: String) -> Result<()> {
+        info!(cid, event, "VM event");
         let mut state = self.lock();
         let Some(vm) = state.vms.values_mut().find(|vm| vm.config.cid == cid) else {
             bail!("VM not found");
         };
         match event {
             "boot.progress" => {
-                vm.state.boot_progress = message.to_string();
+                vm.state.boot_progress = body;
             }
-            "net.eth0" => {
-                vm.state.eth0 = message.to_string();
+            "boot.error" => {
+                vm.state.boot_error = body;
             }
-            "net.wg0" => {
-                vm.state.wg0 = message.to_string();
+            "instance.info" => {
+                if body.len() > 1024 * 4 {
+                    error!("Instance info too large, skipping");
+                    return Ok(());
+                }
+                let workdir = VmWorkDir::new(vm.config.workdir.clone());
+                let instancd_info_path = workdir.instance_info_path();
+                safe_write::safe_write(&instancd_info_path, &body)?;
             }
             _ => {
                 error!("Guest reported unknown event: {event}");
@@ -296,8 +312,7 @@ pub struct VmState {
 #[derive(Debug, Clone, Default)]
 struct VmStateMut {
     boot_progress: String,
-    eth0: String,
-    wg0: String,
+    boot_error: String,
 }
 
 impl VmState {
@@ -319,8 +334,12 @@ impl AppState {
         self.vms.insert(vm.config.manifest.id.clone(), vm);
     }
 
-    pub fn get(&self, id: &str) -> Option<VmState> {
-        self.vms.get(id).cloned()
+    pub fn get(&self, id: &str) -> Option<&VmState> {
+        self.vms.get(id)
+    }
+
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut VmState> {
+        self.vms.get_mut(id)
     }
 
     pub fn remove(&mut self, id: &str) -> Option<VmState> {

@@ -5,6 +5,7 @@ use rocket::{
     data::{Data, Limits},
     get,
     http::ContentType,
+    listener::Endpoint,
     mtls::Certificate,
     post,
     response::status::Custom,
@@ -14,6 +15,7 @@ use rocket::{
 #[post("/<method>?<json>", data = "<data>")]
 #[allow(clippy::too_many_arguments)]
 async fn prpc_post(
+    endpoint: &Endpoint,
     state: &State<App>,
     cert: Option<Certificate<'_>>,
     method: &str,
@@ -24,6 +26,7 @@ async fn prpc_post(
 ) -> Custom<Vec<u8>> {
     PrpcHandler::builder()
         .state(&**state)
+        .remote_addr(endpoint.clone())
         .maybe_certificate(cert)
         .method(method)
         .data(data)
@@ -37,6 +40,7 @@ async fn prpc_post(
 
 #[get("/<method>")]
 async fn prpc_get(
+    endpoint: &Endpoint,
     state: &State<App>,
     method: &str,
     limits: &Limits,
@@ -44,6 +48,7 @@ async fn prpc_get(
 ) -> Custom<Vec<u8>> {
     PrpcHandler::builder()
         .state(&**state)
+        .remote_addr(endpoint.clone())
         .method(method)
         .limits(limits)
         .maybe_content_type(content_type)

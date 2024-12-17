@@ -31,8 +31,7 @@ pub struct VmInfo {
     pub exited_at: Option<String>,
     pub instance_id: Option<String>,
     pub boot_progress: String,
-    pub eth0: String,
-    pub wg0: String,
+    pub boot_error: String,
 }
 
 #[derive(Debug, Builder)]
@@ -41,6 +40,7 @@ pub struct VmConfig {
     pub image: Image,
     pub cid: u32,
     pub networking: Networking,
+    pub workdir: PathBuf,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -76,8 +76,7 @@ impl VmInfo {
             status: self.status.into(),
             uptime: self.uptime.clone(),
             boot_progress: self.boot_progress.clone(),
-            eth0: self.eth0.clone(),
-            wg0: self.wg0.clone(),
+            boot_error: self.boot_error.clone(),
             configuration: Some(pb::VmConfiguration {
                 name: self.manifest.name.clone(),
                 image: self.manifest.image.clone(),
@@ -151,8 +150,7 @@ impl VmState {
             uptime,
             exited_at: Some(exited_at),
             boot_progress: self.state.boot_progress.clone(),
-            eth0: self.state.eth0.clone(),
-            wg0: self.state.wg0.clone(),
+            boot_error: self.state.boot_error.clone(),
         }
     }
 }
@@ -229,9 +227,10 @@ impl VmConfig {
             .arg("-device")
             .arg(format!("vhost-vsock-pci,guest-cid={}", self.cid));
 
+        let ro = if self.image.shared_ro { "on" } else { "off" };
         command.arg("-virtfs").arg(format!(
-            "local,path={},mount_tag=host-shared,readonly=off,security_model=mapped,id=virtfs0",
-            shared_dir.display()
+            "local,path={},mount_tag=host-shared,readonly={ro},security_model=mapped,id=virtfs0",
+            shared_dir.display(),
         ));
         if let Some(cmdline) = &self.image.info.cmdline {
             command.arg("-append").arg(cmdline);

@@ -25,10 +25,8 @@ message VmInfo {
   optional string exited_at = 9;
   // Boot progress
   string boot_progress = 10;
-  // Network interface eth0
-  string eth0 = 11;
-  // Network interface wg0
-  string wg0 = 12;
+  // Boot error
+  string boot_error = 11;
 }
 
 message Id {

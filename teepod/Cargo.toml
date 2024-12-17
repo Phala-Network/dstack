@@ -35,3 +35,4 @@ teepod-rpc.workspace = true
 kms-rpc.workspace = true
 path-absolutize.workspace = true
 host-api.workspace = true
+safe-write.workspace = true

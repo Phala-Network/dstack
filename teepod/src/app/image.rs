@@ -14,11 +14,13 @@ pub struct ImageInfo {
     pub rootfs: Option<String>,
     pub bios: Option<String>,
     pub rootfs_hash: Option<String>,
+    #[serde(default)]
+    pub shared_ro: bool,
 }
 
 impl ImageInfo {
-    pub fn load(filename: PathBuf) -> Result<Self> {
-        let file = fs::File::open(filename).context("failed to open image info")?;
+    pub fn load(filename: impl AsRef<Path>) -> Result<Self> {
+        let file = fs::File::open(filename.as_ref()).context("failed to open image info")?;
         let info: ImageInfo =
             serde_json::from_reader(file).context("failed to parse image info")?;
         Ok(info)
@@ -33,6 +35,7 @@ pub struct Image {
     pub hda: Option<PathBuf>,
     pub rootfs: Option<PathBuf>,
     pub bios: Option<PathBuf>,
+    pub shared_ro: bool,
 }
 
 impl Image {
@@ -44,6 +47,7 @@ impl Image {
         let hda = info.hda.as_ref().map(|hda| base_path.join(hda));
         let rootfs = info.rootfs.as_ref().map(|rootfs| base_path.join(rootfs));
         let bios = info.bios.as_ref().map(|bios| base_path.join(bios));
+        let shared_ro = info.shared_ro;
         Self {
             info,
             hda,
@@ -51,6 +55,7 @@ impl Image {
             kernel,
             rootfs,
             bios,
+            shared_ro,
         }
         .ensure_exists()
     }

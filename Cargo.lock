@@ -4844,6 +4844,7 @@ dependencies = [
  "rocket",
  "rocket-apitoken",
  "rocket-vsock-listener",
+ "safe-write",
  "serde",
  "serde_json",
  "sha2",

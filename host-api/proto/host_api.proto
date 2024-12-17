@@ -12,7 +12,7 @@ message HostInfo {
 
 message Notification {
   string event = 1;
-  string message = 2;
+  string payload = 2;
 }
 
 service HostApi {
