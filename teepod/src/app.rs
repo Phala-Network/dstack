@@ -31,7 +31,7 @@ use teepod_rpc as pb;
 use tracing::error;
 
 pub use image::{Image, ImageInfo};
-pub use qemu::{TdxConfig, VmConfig, VmWorkDir};
+pub use qemu::{VmConfig, VmWorkDir};
 
 mod id_pool;
 mod image;
@@ -116,7 +116,7 @@ impl App {
         let vm_config = VmConfig {
             manifest,
             image,
-            tdx_config: Some(TdxConfig { cid }),
+            cid,
             networking: self.config.networking.clone(),
         };
         if vm_config.manifest.disk_size > self.config.cvm.max_disk_size {
@@ -126,7 +126,7 @@ impl App {
             );
         }
         let vm_id = vm_config.manifest.id.clone();
-        self.lock().add(vm_config);
+        self.lock().add(VmState::new(vm_config));
         let started = vm_work_dir.started().context("Failed to read VM state")?;
         if started {
             self.start_vm(&vm_id).await?;
@@ -135,7 +135,7 @@ impl App {
     }
 
     pub async fn start_vm(&self, id: &str) -> Result<()> {
-        let vm_config = self.lock().get(id).context("VM not found")?;
+        let vm_state = self.lock().get(id).context("VM not found")?;
         let work_dir = self.work_dir(id);
         work_dir
             .set_started(true)
@@ -144,7 +144,9 @@ impl App {
             // remove the existing pty
             fs::remove_file(work_dir.serial_pty()).context("Failed to remove existing pty link")?;
         }
-        let process_config = vm_config.config_qemu(&self.config.qemu_path, &work_dir)?;
+        let process_config = vm_state
+            .config
+            .config_qemu(&self.config.qemu_path, &work_dir)?;
         self.supervisor
             .deploy(process_config)
             .await
@@ -174,10 +176,8 @@ impl App {
 
         {
             let mut state = self.lock();
-            if let Some(config) = state.remove(id) {
-                if let Some(cfg) = &config.tdx_config {
-                    state.cid_pool.free(cfg.cid);
-                }
+            if let Some(vm_state) = state.remove(id) {
+                state.cid_pool.free(vm_state.config.cid);
             }
         }
 
@@ -226,7 +226,12 @@ impl App {
         let mut infos = self
             .lock()
             .iter_vms()
-            .map(|vm| vm.merge_info(vms.get(&vm.manifest.id), &self.work_dir(&vm.manifest.id)))
+            .map(|vm| {
+                vm.merged_info(
+                    vms.get(&vm.config.manifest.id),
+                    &self.work_dir(&vm.config.manifest.id),
+                )
+            })
             .collect::<Vec<_>>();
 
         infos.sort_by(|a, b| a.manifest.created_at_ms.cmp(&b.manifest.created_at_ms));
@@ -248,37 +253,81 @@ impl App {
             .collect())
     }
 
-    pub async fn get_vm(&self, id: &str) -> Result<Option<pb::VmInfo>> {
+    pub async fn vm_info(&self, id: &str) -> Result<Option<pb::VmInfo>> {
         let proc_state = self.supervisor.info(id).await?;
-        let Some(cfg) = self.lock().get(id) else {
+        let Some(vm_state) = self.lock().get(id) else {
             return Ok(None);
         };
-        let info = cfg
-            .merge_info(proc_state.as_ref(), &self.work_dir(id))
+        let info = vm_state
+            .merged_info(proc_state.as_ref(), &self.work_dir(id))
             .to_pb(&self.config.gateway);
         Ok(Some(info))
+    }
+
+    pub(crate) fn vm_event_report(&self, cid: u32, event: &str, message: &str) -> Result<()> {
+        let mut state = self.lock();
+        let Some(vm) = state.vms.values_mut().find(|vm| vm.config.cid == cid) else {
+            bail!("VM not found");
+        };
+        match event {
+            "boot.progress" => {
+                vm.state.boot_progress = message.to_string();
+            }
+            "net.eth0" => {
+                vm.state.eth0 = message.to_string();
+            }
+            "net.wg0" => {
+                vm.state.wg0 = message.to_string();
+            }
+            _ => {
+                error!("Guest reported unknown event: {event}");
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub struct VmState {
+    config: Arc<VmConfig>,
+    state: VmStateMut,
+}
+
+#[derive(Debug, Clone, Default)]
+struct VmStateMut {
+    boot_progress: String,
+    eth0: String,
+    wg0: String,
+}
+
+impl VmState {
+    pub fn new(config: VmConfig) -> Self {
+        Self {
+            config: Arc::new(config),
+            state: VmStateMut::default(),
+        }
     }
 }
 
 pub(crate) struct AppState {
     cid_pool: IdPool<u32>,
-    vms: HashMap<String, Arc<VmConfig>>,
+    vms: HashMap<String, VmState>,
 }
 
 impl AppState {
-    pub fn add(&mut self, vm: VmConfig) {
-        self.vms.insert(vm.manifest.id.clone(), Arc::new(vm));
+    pub fn add(&mut self, vm: VmState) {
+        self.vms.insert(vm.config.manifest.id.clone(), vm);
     }
 
-    pub fn get(&self, id: &str) -> Option<Arc<VmConfig>> {
+    pub fn get(&self, id: &str) -> Option<VmState> {
         self.vms.get(id).cloned()
     }
 
-    pub fn remove(&mut self, id: &str) -> Option<Arc<VmConfig>> {
+    pub fn remove(&mut self, id: &str) -> Option<VmState> {
         self.vms.remove(id)
     }
 
-    pub fn iter_vms(&self) -> impl Iterator<Item = &Arc<VmConfig>> {
+    pub fn iter_vms(&self) -> impl Iterator<Item = &VmState> {
         self.vms.values()
     }
 }

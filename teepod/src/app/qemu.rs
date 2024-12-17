@@ -10,7 +10,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use super::image::Image;
+use super::{image::Image, VmState};
 use anyhow::{Context, Result};
 use bon::Builder;
 use fs_err as fs;
@@ -30,19 +30,16 @@ pub struct VmInfo {
     pub uptime: String,
     pub exited_at: Option<String>,
     pub instance_id: Option<String>,
-}
-
-#[derive(Debug)]
-pub struct TdxConfig {
-    /// Guest CID for vhost-vsock
-    pub cid: u32,
+    pub boot_progress: String,
+    pub eth0: String,
+    pub wg0: String,
 }
 
 #[derive(Debug, Builder)]
 pub struct VmConfig {
     pub manifest: Manifest,
     pub image: Image,
-    pub tdx_config: Option<TdxConfig>,
+    pub cid: u32,
     pub networking: Networking,
 }
 
@@ -74,13 +71,16 @@ impl VmInfo {
     pub fn to_pb(&self, gw: &GatewayConfig) -> pb::VmInfo {
         let workdir = VmWorkDir::new(&self.workdir);
         pb::VmInfo {
-            id: self.manifest.id.as_str().into(),
-            name: self.manifest.name.as_str().into(),
+            id: self.manifest.id.clone(),
+            name: self.manifest.name.clone(),
             status: self.status.into(),
-            uptime: self.uptime.as_str().into(),
+            uptime: self.uptime.clone(),
+            boot_progress: self.boot_progress.clone(),
+            eth0: self.eth0.clone(),
+            wg0: self.wg0.clone(),
             configuration: Some(pb::VmConfiguration {
-                name: self.manifest.name.as_str().into(),
-                image: self.manifest.image.as_str().into(),
+                name: self.manifest.name.clone(),
+                image: self.manifest.image.clone(),
                 compose_file: {
                     fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
                 },
@@ -106,15 +106,15 @@ impl VmInfo {
                     gw.tappd_port, gw.base_domain, gw.port
                 )
             }),
-            app_id: self.manifest.app_id.as_str().into(),
+            app_id: self.manifest.app_id.clone(),
             instance_id: self.instance_id.as_deref().map(Into::into),
             exited_at: self.exited_at.clone(),
         }
     }
 }
 
-impl VmConfig {
-    pub fn merge_info(&self, proc_state: Option<&ProcessInfo>, workdir: &VmWorkDir) -> VmInfo {
+impl VmState {
+    pub fn merged_info(&self, proc_state: Option<&ProcessInfo>, workdir: &VmWorkDir) -> VmInfo {
         fn truncate(d: Duration) -> Duration {
             Duration::from_secs(d.as_secs())
         }
@@ -144,15 +144,20 @@ impl VmConfig {
         let exited_at = display_ts(proc_state.and_then(|info| info.state.stopped_at.as_ref()));
         let instance_id = workdir.instance_info().ok().map(|info| info.instance_id);
         VmInfo {
-            manifest: self.manifest.clone(),
+            manifest: self.config.manifest.clone(),
             workdir: workdir.path().to_path_buf(),
             instance_id,
             status,
             uptime,
             exited_at: Some(exited_at),
+            boot_progress: self.state.boot_progress.clone(),
+            eth0: self.state.eth0.clone(),
+            wg0: self.state.wg0.clone(),
         }
     }
+}
 
+impl VmConfig {
     pub fn config_qemu(&self, qemu: &Path, workdir: impl AsRef<Path>) -> Result<ProcessConfig> {
         let workdir = VmWorkDir::new(workdir);
         let serial_file = workdir.serial_file();
@@ -215,15 +220,15 @@ impl VmConfig {
         };
         command.arg("-netdev").arg(netdev);
         command.arg("-device").arg("virtio-net-pci,netdev=net0");
-        if let Some(tdx) = &self.tdx_config {
-            command
-                .arg("-machine")
-                .arg("q35,kernel-irqchip=split,confidential-guest-support=tdx,hpet=off");
-            command.arg("-object").arg("tdx-guest,id=tdx");
-            command
-                .arg("-device")
-                .arg(format!("vhost-vsock-pci,guest-cid={}", tdx.cid));
-        }
+
+        command
+            .arg("-machine")
+            .arg("q35,kernel-irqchip=split,confidential-guest-support=tdx,hpet=off");
+        command.arg("-object").arg("tdx-guest,id=tdx");
+        command
+            .arg("-device")
+            .arg(format!("vhost-vsock-pci,guest-cid={}", self.cid));
+
         command.arg("-virtfs").arg(format!(
             "local,path={},mount_tag=host-shared,readonly=off,security_model=mapped,id=virtfs0",
             shared_dir.display()
@@ -252,7 +257,7 @@ impl VmConfig {
             stdout: stdout_path.to_string_lossy().to_string(),
             stderr: stderr_path.to_string_lossy().to_string(),
             pidfile: pidfile_path.to_string_lossy().to_string(),
-            cid: self.tdx_config.as_ref().map(|cfg| cfg.cid),
+            cid: Some(self.cid),
             note: "".into(),
         };
         Ok(process_config)

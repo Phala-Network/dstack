@@ -297,7 +297,7 @@ impl TeepodRpc for RpcHandler {
     }
 
     async fn get_info(self, request: Id) -> Result<GetInfoResponse> {
-        if let Some(vm) = self.app.get_vm(&request.id).await? {
+        if let Some(vm) = self.app.vm_info(&request.id).await? {
             Ok(GetInfoResponse {
                 found: true,
                 info: Some(vm),
@@ -313,7 +313,7 @@ impl TeepodRpc for RpcHandler {
     async fn resize_vm(self, request: ResizeVmRequest) -> Result<()> {
         let vm = self
             .app
-            .get_vm(&request.id)
+            .vm_info(&request.id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("vm not found: {}", request.id))?;
         if vm.status != "stopped" {

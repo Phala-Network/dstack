@@ -44,6 +44,7 @@ impl HostApiRpc for HostApiHandler {
     }
 
     async fn notify(self, request: Notification) -> Result<()> {
-        todo!()
+        self.app
+            .vm_event_report(self.endpoint.cid, &request.event, &request.message)
     }
 }
