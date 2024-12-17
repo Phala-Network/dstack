@@ -27,6 +27,8 @@ message VmInfo {
   string boot_progress = 10;
   // Boot error
   string boot_error = 11;
+  // Shutdown progress
+  string shutdown_progress = 12;
 }
 
 message Id {

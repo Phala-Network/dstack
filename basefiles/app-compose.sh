@@ -12,4 +12,4 @@ if ! docker compose up -d; then
     exit 1
 fi
 
-tdxctl notify-host -e "boot.progress" -d "containers started" || true
+tdxctl notify-host -e "boot.progress" -d "done" || true

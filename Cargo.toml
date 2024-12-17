@@ -28,8 +28,9 @@ members = [
     "supervisor",
     "supervisor/client",
     "rocket-vsock-listener",
-    "host-api",
     "http-client",
+    "host-api",
+    "guest-api",
 ]
 resolver = "2"
 
@@ -49,6 +50,7 @@ tdx-attest-sys = { path = "tdx-attest-sys" }
 certbot = { path = "certbot" }
 rocket-vsock-listener = { path = "rocket-vsock-listener" }
 host-api = { path = "host-api", default-features = false }
+guest-api = { path = "guest-api", default-features = false }
 http-client = { path = "http-client", default-features = false }
 
 # Core dependencies
@@ -95,6 +97,8 @@ rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features =
 rocket-apitoken = { git = "https://github.com/kvinwang/rocket-apitoken", branch = "dev" }
 tokio = { version = "1.42.0" }
 tokio-vsock = "0.6.0"
+sysinfo = "0.33.0"
+default-net = "0.22.0"
 
 # Cryptography/Security
 aes-gcm = "0.10.3"

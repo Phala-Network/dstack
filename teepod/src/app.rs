@@ -151,8 +151,7 @@ impl App {
             let process_config = vm_state
                 .config
                 .config_qemu(&self.config.qemu_path, &work_dir)?;
-            vm_state.state.boot_error.clear();
-            vm_state.state.boot_progress.clear();
+            vm_state.state.clear();
             process_config
         };
         self.supervisor
@@ -286,6 +285,9 @@ impl App {
             "boot.error" => {
                 vm.state.boot_error = body;
             }
+            "shutdown.progress" => {
+                vm.state.shutdown_progress = body;
+            }
             "instance.info" => {
                 if body.len() > 1024 * 4 {
                     error!("Instance info too large, skipping");
@@ -313,6 +315,15 @@ pub struct VmState {
 struct VmStateMut {
     boot_progress: String,
     boot_error: String,
+    shutdown_progress: String,
+}
+
+impl VmStateMut {
+    pub fn clear(&mut self) {
+        self.boot_progress.clear();
+        self.boot_error.clear();
+        self.shutdown_progress.clear();
+    }
 }
 
 impl VmState {

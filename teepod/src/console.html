@@ -633,7 +633,7 @@
                             </td>
                             <td style="padding: 12px;">{{ vm.name }}</td>
                             <td style="padding: 12px;">
-                                <span :class="'status-' + vm.status.toLowerCase()">{{ vm.status }}</span>
+                                <span :class="'status-' + vm.status.toLowerCase()">{{ vmStatus(vm) }}</span>
                             </td>
                             <td style="padding: 12px;">{{ vm.uptime }}</td>
                             <td style="padding: 12px;">
@@ -789,8 +789,7 @@
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
-                        <input type="file" ref="envFile" @change="loadEnvFile" style="display: none"
-                            accept=".env,.txt">
+                        <input type="file" ref="envFile" @change="loadEnvFile" style="display: none" accept=".env,.txt">
                         <button type="button" class="action-btn" @click="$refs.envFile.click()">Load from
                             file</button>
                     </div>
@@ -1304,6 +1303,19 @@
                     }
                 };
 
+                const vmStatus = (vm) => {
+                    if (vm.status != 'running') {
+                        return vm.status;
+                    }
+                    if (vm.state.shutdown_progress) {
+                        return "shutting down";
+                    }
+                    if (vm.state.boot_progress != 'done') {
+                        return "booting";
+                    }
+                    return "running";
+                };
+
                 return {
                     vms,
                     vmForm,
@@ -1336,6 +1348,7 @@
                     forkDialog,
                     forkVm,
                     loadEnvFile,
+                    vmStatus
                 };
             }
         }).mount('#app');

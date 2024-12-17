@@ -10,6 +10,8 @@ use rocket::{
 use rpc_service::AppState;
 
 mod config;
+mod guest_api_routes;
+mod guest_api_service;
 mod http_routes;
 mod models;
 mod rpc_service;
@@ -72,6 +74,17 @@ async fn run_external(state: AppState, figment: Figment) -> Result<()> {
     Ok(())
 }
 
+async fn run_guest_api(state: AppState, figment: Figment) -> Result<()> {
+    let rocket = rocket::custom(figment)
+        .mount("/", guest_api_routes::routes())
+        .manage(state);
+    let _ = rocket
+        .launch()
+        .await
+        .map_err(|err| anyhow!("Failed to ignite rocket: {err}"))?;
+    Ok(())
+}
+
 #[rocket::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
@@ -81,11 +94,13 @@ async fn main() -> Result<()> {
 
     let internal_figment = figment.clone().select("internal");
     let external_figment = figment.clone().select("external");
-    let external_https_figment = figment.select("external-https");
+    let external_https_figment = figment.clone().select("external-https");
+    let guest_api_figment = figment.select("guest-api");
     tokio::select!(
         res = run_internal(state.clone(), internal_figment) => res?,
         res = run_external(state.clone(), external_figment) => res?,
-        res = run_external(state, external_https_figment) => res?
+        res = run_guest_api(state.clone(), guest_api_figment) => res?,
+        res = run_external(state, external_https_figment) => res?,
     );
     Ok(())
 }

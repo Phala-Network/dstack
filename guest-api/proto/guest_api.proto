@@ -1,0 +1,41 @@
+
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package guest_api;
+
+message GuestInfo {
+  string name = 1;
+  string version = 2;
+}
+
+message IpAddress {
+  string address = 1;
+  uint32 prefix = 2;
+}
+
+message Interface {
+  string name = 1;
+  repeated IpAddress addresses = 2;
+  uint64 rx_bytes = 3;
+  uint64 tx_bytes = 4;
+  uint64 rx_errors = 5;
+  uint64 tx_errors = 6;
+}
+
+message Gateway {
+  string address = 1;
+}
+
+message NetworkInformation {
+  repeated string dns_servers = 1;
+  repeated Gateway gateways = 2;
+  repeated Interface interfaces = 3;
+}
+
+service GuestApi {
+  rpc Info(google.protobuf.Empty) returns (GuestInfo);
+  rpc Shutdown(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc NetworkInfo(google.protobuf.Empty) returns (NetworkInformation);
+}

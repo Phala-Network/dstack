@@ -32,6 +32,7 @@ pub struct VmInfo {
     pub instance_id: Option<String>,
     pub boot_progress: String,
     pub boot_error: String,
+    pub shutdown_progress: String,
 }
 
 #[derive(Debug, Builder)]
@@ -77,6 +78,7 @@ impl VmInfo {
             uptime: self.uptime.clone(),
             boot_progress: self.boot_progress.clone(),
             boot_error: self.boot_error.clone(),
+            shutdown_progress: self.shutdown_progress.clone(),
             configuration: Some(pb::VmConfiguration {
                 name: self.manifest.name.clone(),
                 image: self.manifest.image.clone(),
@@ -151,6 +153,7 @@ impl VmState {
             exited_at: Some(exited_at),
             boot_progress: self.state.boot_progress.clone(),
             boot_error: self.state.boot_error.clone(),
+            shutdown_progress: self.state.shutdown_progress.clone(),
         }
     }
 }

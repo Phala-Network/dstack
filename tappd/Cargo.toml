@@ -28,4 +28,7 @@ ra-rpc = { workspace = true, features = ["rocket"] }
 tappd-rpc.workspace = true
 ra-tls.workspace = true
 tdx-attest.workspace = true
-sysinfo = "0.33.0"
+guest-api = { workspace = true, features = ["client"] }
+host-api = { workspace = true, features = ["client"] }
+sysinfo.workspace = true
+default-net.workspace = true
