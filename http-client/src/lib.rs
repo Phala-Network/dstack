@@ -9,6 +9,15 @@ use log::debug;
 
 mod hyper_vsock;
 
+#[cfg(feature = "prpc")]
+pub mod prpc;
+
+fn mk_url(base: &str, path: &str) -> String {
+    let base = base.trim_end_matches('/');
+    let path = path.trim_start_matches('/');
+    format!("{base}/{path}")
+}
+
 /// Sends an HTTP request to the supervisor.
 ///
 /// # Arguments
@@ -33,7 +42,7 @@ pub async fn http_request(
         client.request(req).await?
     } else if base.starts_with("vsock:") {
         let client = Client::vsock();
-        let uri = format!("{}{}", base, path).parse::<hyper::Uri>()?;
+        let uri = mk_url(base, path).parse::<hyper::Uri>()?;
         let req = Request::builder()
             .method(method)
             .uri(uri)
@@ -43,7 +52,7 @@ pub async fn http_request(
         let client =
             Client::builder(hyper_util::rt::TokioExecutor::new()).build(HttpConnector::new());
 
-        let uri = format!("{}{}", base, path).parse::<hyper::Uri>()?;
+        let uri = mk_url(base, path).parse::<hyper::Uri>()?;
         let req = Request::builder()
             .method(method)
             .uri(uri)

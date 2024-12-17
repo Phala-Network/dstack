@@ -1855,6 +1855,7 @@ dependencies = [
  "hyperlocal",
  "log",
  "pin-project-lite",
+ "prpc",
  "tokio",
  "tokio-vsock",
  "tower-service",

@@ -13,9 +13,14 @@ hyper-util.workspace = true
 hyperlocal.workspace = true
 log.workspace = true
 pin-project-lite = "0.2.15"
+prpc = { workspace = true, optional = true }
 tokio.workspace = true
 tokio-vsock.workspace = true
 tower-service = "0.3.3"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+
+[features]
+default = ["prpc"]
+prpc = ["dep:prpc"]
