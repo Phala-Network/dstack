@@ -149,7 +149,7 @@ fn get_logs(
     tail: Option<String>,
 ) -> TextStream![String] {
     // default to 1 hour ago
-    let since = parse_duration(since.unwrap_or("1h"));
+    let since = since.map_or(Ok(0), parse_duration);
     let until = until.map_or(Ok(0), parse_duration);
     let tail = tail.unwrap_or("1000".to_string());
     TextStream! {
