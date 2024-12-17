@@ -49,7 +49,7 @@ tdx-attest-sys = { path = "tdx-attest-sys" }
 certbot = { path = "certbot" }
 rocket-vsock-listener = { path = "rocket-vsock-listener" }
 host-api = { path = "host-api" }
-http-client = { path = "http-client" }
+http-client = { path = "http-client", default-features = false }
 
 # Core dependencies
 anyhow = "1.0.94"

@@ -11,6 +11,11 @@ prost.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 anyhow.workspace = true
+http-client = { workspace = true, optional = true, features = ["prpc"] }
 
 [build-dependencies]
 prpc-build.workspace = true
+
+[features]
+default = ["client"]
+client = ["dep:http-client"]

@@ -1770,6 +1770,7 @@ name = "host-api"
 version = "0.3.2"
 dependencies = [
  "anyhow",
+ "http-client",
  "prost 0.13.3",
  "prpc",
  "prpc-build",
