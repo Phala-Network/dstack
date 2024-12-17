@@ -47,7 +47,7 @@ sock = "./run/supervisor.sock"
 pid_file = "./run/supervisor.pid"
 log_file = "./run/supervisor.log"
 
-[host-api]
+[host_api]
 ident = "Teepod"
 address = "vsock:2"
 port = 10000

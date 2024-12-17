@@ -3348,10 +3348,12 @@ name = "ra-rpc"
 version = "0.3.2"
 dependencies = [
  "anyhow",
+ "bon",
  "prpc",
  "ra-tls",
  "reqwest 0.12.9",
  "rocket",
+ "rocket-vsock-listener",
  "serde_json",
  "tracing",
 ]
@@ -4803,6 +4805,7 @@ dependencies = [
  "getrandom 0.2.15",
  "hex",
  "hex_fmt",
+ "host-api",
  "kms-rpc",
  "parity-scale-codec",
  "ra-rpc",

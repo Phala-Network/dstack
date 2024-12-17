@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use fs_err as fs;
 use kms_rpc::kms_client::KmsClient;
 use ra_rpc::client::RaClient;
-use ra_rpc::{Attestation, RpcCall};
+use ra_rpc::{CallContext, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
     AppId, GetInfoResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse, PublicKeyResponse,
@@ -74,6 +74,7 @@ impl RpcHandler {
             "kms_url": cfg.cvm.kms_url,
             "tproxy_url": cfg.cvm.tproxy_url,
             "docker_registry": cfg.cvm.docker_registry,
+            "host_vsock_port": cfg.host_api.port,
         });
         let vm_config_str =
             serde_json::to_string(&vm_config).context("Failed to serialize vm config")?;
@@ -352,10 +353,12 @@ impl RpcCall<App> for RpcHandler {
         TeepodServer::new(self)
     }
 
-    fn construct(state: &App, _attestation: Option<Attestation>) -> Result<Self>
+    fn construct(context: CallContext<'_, App>) -> Result<Self>
     where
         Self: Sized,
     {
-        Ok(RpcHandler { app: state.clone() })
+        Ok(RpcHandler {
+            app: context.state.clone(),
+        })
     }
 }

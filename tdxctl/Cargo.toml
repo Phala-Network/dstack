@@ -31,6 +31,7 @@ ra-rpc = { workspace = true, features = ["client"] }
 ra-tls.workspace = true
 tproxy-rpc.workspace = true
 tdx-attest.workspace = true
+host-api = { workspace = true, features = ["client"] }
 
 [dev-dependencies]
 rand.workspace = true

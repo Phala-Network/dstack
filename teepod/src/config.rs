@@ -148,6 +148,9 @@ pub struct Config {
 
     /// Supervisor configuration
     pub supervisor: SupervisorConfig,
+
+    /// Host API configuration
+    pub host_api: HostApiConfig,
 }
 
 impl Config {
@@ -177,6 +180,12 @@ pub struct UserNetworking {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CustomNetworking {
     pub netdev: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct HostApiConfig {
+    pub address: String,
+    pub port: u32,
 }
 
 impl Config {

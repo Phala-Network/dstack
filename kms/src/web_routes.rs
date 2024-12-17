@@ -1,5 +1,5 @@
 use crate::{main_service::KmsState, main_service::RpcHandler};
-use ra_rpc::rocket_helper::{handle_prpc, QuoteVerifier};
+use ra_rpc::rocket_helper::{PrpcHandler, QuoteVerifier};
 use rocket::{
     data::{Data, Limits},
     get,
@@ -27,17 +27,18 @@ async fn prpc_post(
     content_type: Option<&ContentType>,
     json: bool,
 ) -> Custom<Vec<u8>> {
-    handle_prpc::<_, RpcHandler>(
-        state,
-        cert,
-        quote_verifier.map(|v| &**v),
-        method,
-        Some(data),
-        limits,
-        content_type,
-        json,
-    )
-    .await
+    PrpcHandler::builder()
+        .state(&**state)
+        .maybe_certificate(cert)
+        .maybe_quote_verifier(quote_verifier.map(|v| &**v))
+        .method(method)
+        .data(data)
+        .limits(limits)
+        .maybe_content_type(content_type)
+        .json(json)
+        .build()
+        .handle::<RpcHandler>()
+        .await
 }
 
 #[get("/prpc/<method>")]
@@ -49,17 +50,17 @@ async fn prpc_get(
     limits: &Limits,
     content_type: Option<&ContentType>,
 ) -> Custom<Vec<u8>> {
-    handle_prpc::<_, RpcHandler>(
-        state,
-        cert,
-        quote_verifier.map(|v| &**v),
-        method,
-        None,
-        limits,
-        content_type,
-        true,
-    )
-    .await
+    PrpcHandler::builder()
+        .state(&**state)
+        .maybe_certificate(cert)
+        .maybe_quote_verifier(quote_verifier.map(|v| &**v))
+        .method(method)
+        .limits(limits)
+        .maybe_content_type(content_type)
+        .json(true)
+        .build()
+        .handle::<RpcHandler>()
+        .await
 }
 
 pub fn routes() -> Vec<Route> {

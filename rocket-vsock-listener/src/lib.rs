@@ -3,6 +3,7 @@ use rocket::listener::{Connection, Endpoint, Listener};
 use rocket::tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use rocket::{Ignite, Rocket};
 use std::pin::Pin;
+use std::str::FromStr;
 use std::{io, task};
 use tokio_vsock as vsock;
 
@@ -21,7 +22,10 @@ pub enum VsockError {
     InvalidProtocol,
 
     #[error("Invalid CID: {0}")]
-    InvalidCid(#[from] std::num::ParseIntError),
+    InvalidCid(std::num::ParseIntError),
+
+    #[error("Invalid port: {0}")]
+    InvalidPort(std::num::ParseIntError),
 }
 
 pub struct VsockListener {
@@ -37,11 +41,38 @@ pub struct VsockConnection {
     addr: vsock::VsockAddr,
 }
 
-#[derive(Debug, Display, Clone, Copy)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq)]
 #[display("vsock://{cid}:{port}")]
 pub struct VsockEndpoint {
     pub cid: u32,
     pub port: u32,
+}
+
+impl FromStr for VsockEndpoint {
+    type Err = VsockError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s
+            .strip_prefix("vsock://")
+            .ok_or(VsockError::InvalidAddress(
+                "expect format: vsock://<cid>:<port>".into(),
+            ))?;
+
+        let (cid, port) = s.split_once(':').ok_or_else(|| {
+            VsockError::InvalidAddress("expect format: vsock://<cid>:<port>".into())
+        })?;
+
+        let cid = if cid.starts_with("0x") {
+            u32::from_str_radix(cid.trim_start_matches("0x"), 16)
+        } else {
+            cid.parse::<u32>()
+        }
+        .map_err(VsockError::InvalidCid)?;
+
+        let port = port.parse::<u32>().map_err(VsockError::InvalidPort)?;
+
+        Ok(VsockEndpoint { cid, port })
+    }
 }
 
 impl<'de> Deserialize<'de> for VsockEndpoint {

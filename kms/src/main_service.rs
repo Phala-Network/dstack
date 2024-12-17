@@ -5,7 +5,7 @@ use kms_rpc::{
     kms_server::{KmsRpc, KmsServer},
     AppId, AppKeyResponse, PublicKeyResponse,
 };
-use ra_rpc::RpcCall;
+use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{
     attestation::Attestation,
     cert::{CaCert, CertRequest},
@@ -201,13 +201,13 @@ impl RpcCall<KmsState> for RpcHandler {
         KmsServer::new(self)
     }
 
-    fn construct(state: &KmsState, attestation: Option<Attestation>) -> Result<Self>
+    fn construct(context: CallContext<'_, KmsState>) -> Result<Self>
     where
         Self: Sized,
     {
         Ok(RpcHandler {
-            state: state.clone(),
-            attestation,
+            state: context.state.clone(),
+            attestation: context.attestation,
         })
     }
 }

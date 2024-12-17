@@ -9,7 +9,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use certbot::WorkDir;
 use fs_err as fs;
-use ra_rpc::{Attestation, RpcCall};
+use ra_rpc::{Attestation, CallContext, RpcCall};
 use rand::seq::IteratorRandom;
 use rinja::Template as _;
 use safe_write::safe_write;
@@ -472,13 +472,13 @@ impl RpcCall<Proxy> for RpcHandler {
         TproxyServer::new(self)
     }
 
-    fn construct(state: &Proxy, attestation: Option<Attestation>) -> Result<Self>
+    fn construct(context: CallContext<'_, Proxy>) -> Result<Self>
     where
         Self: Sized,
     {
         Ok(RpcHandler {
-            attestation,
-            state: state.clone(),
+            attestation: context.attestation,
+            state: context.state.clone(),
         })
     }
 }

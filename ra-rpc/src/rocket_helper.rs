@@ -8,13 +8,15 @@ use ra_tls::{
 use rocket::{
     data::{ByteUnit, Limits, ToByteUnit},
     http::{ContentType, Status},
+    listener::Endpoint,
     mtls::{oid::Oid, Certificate},
     response::status::Custom,
     Data,
 };
+use rocket_vsock_listener::VsockEndpoint;
 use tracing::{info, warn};
 
-use crate::{encode_error, RpcCall};
+use crate::{encode_error, CallContext, RemoteEndpoint, RpcCall};
 
 #[derive(Debug, Clone)]
 pub struct QuoteVerifier {
@@ -71,18 +73,59 @@ fn limit_for_method(method: &str, limits: &Limits) -> ByteUnit {
     10.mebibytes()
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn handle_prpc<S, Call: RpcCall<S>>(
-    state: &S,
-    certificate: Option<Certificate<'_>>,
-    quote_verifier: Option<&QuoteVerifier>,
-    method: &str,
-    data: Option<Data<'_>>,
-    limits: &Limits,
-    content_type: Option<&ContentType>,
-    json: bool,
-) -> Custom<Vec<u8>> {
-    let result = handle_prpc_impl::<S, Call>(
+#[derive(bon::Builder)]
+pub struct PrpcHandler<'a, 'b, 'c, 'd, 'e, 'f, 'g, S> {
+    pub state: &'a S,
+    pub remote_addr: Option<Endpoint>,
+    pub certificate: Option<Certificate<'b>>,
+    pub quote_verifier: Option<&'c QuoteVerifier>,
+    pub method: &'d str,
+    pub data: Option<Data<'e>>,
+    pub limits: &'f Limits,
+    pub content_type: Option<&'g ContentType>,
+    pub json: bool,
+}
+
+impl<'a, 'b, 'c, 'd, 'e, 'f, 'g, S> PrpcHandler<'a, 'b, 'c, 'd, 'e, 'f, 'g, S> {
+    pub async fn handle<Call: RpcCall<S>>(self) -> Custom<Vec<u8>> {
+        let json = self.json;
+        let result = handle_prpc_impl::<S, Call>(self).await;
+        match result {
+            Ok(output) => output,
+            Err(e) => {
+                let estr = format!("{e:?}");
+                warn!("error handling prpc: {estr}");
+                let body = encode_error(json, estr);
+                Custom(Status::BadRequest, body)
+            }
+        }
+    }
+}
+
+impl From<Endpoint> for RemoteEndpoint {
+    fn from(endpoint: Endpoint) -> Self {
+        match endpoint {
+            Endpoint::Tcp(addr) => RemoteEndpoint::Tcp(addr),
+            Endpoint::Quic(addr) => RemoteEndpoint::Quic(addr),
+            Endpoint::Unix(path) => RemoteEndpoint::Unix(path),
+            _ => {
+                let address = endpoint.to_string();
+                match address.parse::<VsockEndpoint>() {
+                    Ok(addr) => RemoteEndpoint::Vsock {
+                        cid: addr.cid,
+                        port: addr.port,
+                    },
+                    Err(_) => RemoteEndpoint::Other(address),
+                }
+            }
+        }
+    }
+}
+
+pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
+    args: PrpcHandler<'_, '_, '_, '_, '_, '_, '_, S>,
+) -> Result<Custom<Vec<u8>>> {
+    let PrpcHandler {
         state,
         certificate,
         quote_verifier,
@@ -91,30 +134,8 @@ pub async fn handle_prpc<S, Call: RpcCall<S>>(
         limits,
         content_type,
         json,
-    )
-    .await;
-    match result {
-        Ok(output) => output,
-        Err(e) => {
-            let estr = format!("{e:?}");
-            warn!("error handling prpc: {estr}");
-            let body = encode_error(json, estr);
-            Custom(Status::BadRequest, body)
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
-    state: &S,
-    certificate: Option<Certificate<'_>>,
-    quote_verifier: Option<&QuoteVerifier>,
-    method: &str,
-    data: Option<Data<'_>>,
-    limits: &Limits,
-    content_type: Option<&ContentType>,
-    json: bool,
-) -> Result<Custom<Vec<u8>>> {
+        remote_addr,
+    } = args;
     let mut attestation = certificate.map(extract_attestation).transpose()?.flatten();
     let todo = "verified attestation needs to be a distinct type";
     if let (Some(quote_verifier), Some(attestation)) = (quote_verifier, &mut attestation) {
@@ -137,7 +158,12 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
         None => vec![],
     };
     let json = json || content_type.map(|t| t.is_json()).unwrap_or(false);
-    let call = Call::construct(state, attestation).context("failed to construct call")?;
+    let context = CallContext {
+        state,
+        attestation,
+        remote_endpoint: remote_addr.map(RemoteEndpoint::from),
+    };
+    let call = Call::construct(context).context("failed to construct call")?;
     let data = data.to_vec();
     let (status_code, output) = call.call(method.to_string(), data, json).await;
     Ok(Custom(Status::new(status_code), output))

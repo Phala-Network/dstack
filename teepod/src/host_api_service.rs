@@ -1,13 +1,15 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use host_api::{
     host_api_server::{HostApiRpc, HostApiServer},
-    HostInfo,
+    HostInfo, Notification,
 };
-use ra_rpc::{Attestation, RpcCall};
+use ra_rpc::{CallContext, RemoteEndpoint, RpcCall};
+use rocket_vsock_listener::VsockEndpoint;
 
 use crate::app::App;
 
 pub struct HostApiHandler {
+    endpoint: VsockEndpoint,
     app: App,
 }
 
@@ -18,11 +20,17 @@ impl RpcCall<App> for HostApiHandler {
         HostApiServer::new(self)
     }
 
-    fn construct(state: &App, _attestation: Option<Attestation>) -> Result<Self>
+    fn construct(context: CallContext<'_, App>) -> Result<Self>
     where
         Self: Sized,
     {
-        Ok(Self { app: state.clone() })
+        let Some(RemoteEndpoint::Vsock { cid, port }) = context.remote_endpoint else {
+            bail!("invalid remote endpoint: {:?}", context.remote_endpoint);
+        };
+        Ok(Self {
+            endpoint: VsockEndpoint { cid, port },
+            app: context.state.clone(),
+        })
     }
 }
 
@@ -33,5 +41,9 @@ impl HostApiRpc for HostApiHandler {
             version: env!("CARGO_PKG_VERSION").to_string(),
         };
         Ok(host_info)
+    }
+
+    async fn notify(self, request: Notification) -> Result<()> {
+        todo!()
     }
 }

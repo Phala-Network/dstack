@@ -64,7 +64,7 @@ async fn run_external_api(app: App, figment: Figment, api_auth: ApiToken) -> Res
 async fn run_host_api(app: App, figment: Figment) -> Result<()> {
     let figment = figment
         .clone()
-        .merge(Serialized::defaults(figment.find_value("host-api")?));
+        .merge(Serialized::defaults(figment.find_value("host_api")?));
     let rocket = rocket::custom(figment)
         .mount("/api", host_api_routes::routes())
         .manage(app);

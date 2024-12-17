@@ -5,4 +5,4 @@ pub use generated::*;
 mod generated;
 
 #[cfg(feature = "client")]
-mod client;
+pub mod client;

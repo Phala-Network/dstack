@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use bollard::{container::ListContainersOptions, Docker};
-use ra_rpc::{Attestation, RpcCall};
+use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{
     attestation::QuoteContentType,
     cert::{CaCert, CertRequest},
@@ -88,12 +88,12 @@ impl RpcCall<AppState> for InternalRpcHandler {
         TappdServer::new(self)
     }
 
-    fn construct(state: &AppState, _attestation: Option<Attestation>) -> Result<Self>
+    fn construct(context: CallContext<'_, AppState>) -> Result<Self>
     where
         Self: Sized,
     {
         Ok(InternalRpcHandler {
-            state: state.clone(),
+            state: context.state.clone(),
         })
     }
 }
@@ -229,12 +229,12 @@ impl RpcCall<AppState> for ExternalRpcHandler {
         WorkerServer::new(self)
     }
 
-    fn construct(state: &AppState, _attestation: Option<Attestation>) -> Result<Self>
+    fn construct(context: CallContext<'_, AppState>) -> Result<Self>
     where
         Self: Sized,
     {
         Ok(ExternalRpcHandler {
-            state: state.clone(),
+            state: context.state.clone(),
         })
     }
 }

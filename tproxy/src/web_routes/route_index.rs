@@ -3,17 +3,17 @@ use crate::{
     models::CvmList,
 };
 use anyhow::Context;
-use ra_rpc::RpcCall;
+use ra_rpc::{CallContext, RpcCall};
 use rinja::Template as _;
 use rocket::{response::content::RawHtml as Html, State};
 use tproxy_rpc::tproxy_server::TproxyRpc;
 
 pub async fn index(state: &State<Proxy>) -> anyhow::Result<Html<String>> {
+    let context = CallContext::builder().state(&**state).build();
     let rpc_handler =
-        RpcHandler::construct(state, None).context("Failed to construct RpcHandler")?;
+        RpcHandler::construct(context.clone()).context("Failed to construct RpcHandler")?;
     let response = rpc_handler.list().await.context("Failed to list hosts")?;
-    let rpc_handler =
-        RpcHandler::construct(state, None).context("Failed to construct RpcHandler")?;
+    let rpc_handler = RpcHandler::construct(context).context("Failed to construct RpcHandler")?;
     let acme_info = rpc_handler
         .acme_info()
         .await
