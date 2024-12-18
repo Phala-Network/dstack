@@ -3,6 +3,7 @@ Description=Tappd Service
 After=network.target
 
 [Service]
+ExecStartPre=-/bin/rm -f /var/run/tappd.sock
 ExecStart=/bin/tappd --watchdog
 Restart=always
 User=root

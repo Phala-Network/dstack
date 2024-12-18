@@ -117,10 +117,31 @@ async fn run_watchdog() {
     let heatbeat_interval = heatbeat_interval.max(Duration::from_secs(1));
     info!("Watchdog enabled, interval={watchdog_usec}us, heartbeat={heatbeat_interval:?}",);
     let mut interval = tokio::time::interval(heatbeat_interval);
+
+    // Create HTTP client for health checks
+    let client = reqwest::Client::new();
+
     loop {
         interval.tick().await;
-        if let Err(err) = sd_notify(false, &[NotifyState::Watchdog]) {
-            error!("Failed to notify systemd: {err}");
+
+        // Perform health check
+        match client
+            .get("http://localhost:8090/prpc/Worker.Version")
+            .send()
+            .await
+        {
+            Ok(response) if response.status().is_success() => {
+                // Only notify systemd if health check passes
+                if let Err(err) = sd_notify(false, &[NotifyState::Watchdog]) {
+                    error!("Failed to notify systemd: {err}");
+                }
+            }
+            Ok(response) => {
+                error!("Health check failed with status: {}", response.status());
+            }
+            Err(err) => {
+                error!("Health check request failed: {}", err);
+            }
         }
     }
 }

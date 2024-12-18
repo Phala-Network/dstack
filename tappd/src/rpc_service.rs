@@ -12,7 +12,7 @@ use serde_json::json;
 use tappd_rpc::{
     tappd_server::{TappdRpc, TappdServer},
     worker_server::{WorkerRpc, WorkerServer},
-    DeriveKeyArgs, DeriveKeyResponse, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo,
+    DeriveKeyArgs, DeriveKeyResponse, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo, WorkerVersion,
 };
 use tdx_attest::eventlog::read_event_logs;
 
@@ -150,6 +150,12 @@ impl WorkerRpc for ExternalRpcHandler {
             instance_id,
             app_cert: ca.pem_cert.clone(),
             tcb_info,
+        })
+    }
+
+    async fn version(self) -> Result<WorkerVersion> {
+        Ok(WorkerVersion {
+            version: env!("CARGO_PKG_VERSION").to_string(),
         })
     }
 }

@@ -34,3 +34,4 @@ sysinfo.workspace = true
 default-net.workspace = true
 rocket-vsock-listener.workspace = true
 sd-notify.workspace = true
+reqwest.workspace = true
