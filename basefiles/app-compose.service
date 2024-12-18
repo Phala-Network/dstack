@@ -9,7 +9,7 @@ RemainAfterExit=true
 EnvironmentFile=-/tapp/env
 WorkingDirectory=/tapp
 ExecStart=/usr/bin/env app-compose.sh
-ExecStop=/usr/bin/env docker compose down
+ExecStop=/usr/bin/env docker compose stop
 StandardOutput=journal+console
 StandardError=journal+console
 

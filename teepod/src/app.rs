@@ -66,7 +66,7 @@ pub struct App {
 }
 
 impl App {
-    fn lock(&self) -> MutexGuard<AppState> {
+    pub(crate) fn lock(&self) -> MutexGuard<AppState> {
         self.state.lock().unwrap()
     }
 
@@ -151,8 +151,12 @@ impl App {
             let process_config = vm_state
                 .config
                 .config_qemu(&self.config.qemu_path, &work_dir)?;
-            vm_state.state.boot_error.clear();
-            vm_state.state.boot_progress.clear();
+            // Older images does not support for progress reporting
+            if vm_state.config.image.info.shared_ro {
+                vm_state.state.clear();
+            } else {
+                vm_state.state.reset_na();
+            }
             process_config
         };
         self.supervisor
@@ -178,7 +182,10 @@ impl App {
             bail!("VM is running, stop it first");
         }
 
-        if info.is_some() {
+        if let Some(info) = info {
+            if !info.state.status.is_stopped() {
+                self.supervisor.stop(id).await?;
+            }
             self.supervisor.remove(id).await?;
         }
 
@@ -286,6 +293,9 @@ impl App {
             "boot.error" => {
                 vm.state.boot_error = body;
             }
+            "shutdown.progress" => {
+                vm.state.shutdown_progress = body;
+            }
             "instance.info" => {
                 if body.len() > 1024 * 4 {
                     error!("Instance info too large, skipping");
@@ -305,7 +315,7 @@ impl App {
 
 #[derive(Clone)]
 pub struct VmState {
-    config: Arc<VmConfig>,
+    pub(crate) config: Arc<VmConfig>,
     state: VmStateMut,
 }
 
@@ -313,6 +323,21 @@ pub struct VmState {
 struct VmStateMut {
     boot_progress: String,
     boot_error: String,
+    shutdown_progress: String,
+}
+
+impl VmStateMut {
+    pub fn clear(&mut self) {
+        self.boot_progress.clear();
+        self.boot_error.clear();
+        self.shutdown_progress.clear();
+    }
+
+    pub fn reset_na(&mut self) {
+        self.boot_progress = "N/A".to_string();
+        self.shutdown_progress = "N/A".to_string();
+        self.boot_error.clear();
+    }
 }
 
 impl VmState {

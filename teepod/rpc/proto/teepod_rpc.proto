@@ -27,6 +27,10 @@ message VmInfo {
   string boot_progress = 10;
   // Boot error
   string boot_error = 11;
+  // Shutdown progress
+  string shutdown_progress = 12;
+  // Image version
+  string image_version = 13;
 }
 
 message Id {
@@ -132,6 +136,8 @@ service Teepod {
   rpc RemoveVm(Id) returns (google.protobuf.Empty);
   // RPC to upgrade an app
   rpc UpgradeApp(UpgradeAppRequest) returns (Id);
+  // Shutdown a VM
+  rpc ShutdownVm(Id) returns (google.protobuf.Empty);
 
   // RPC to list all VMs
   rpc Status(google.protobuf.Empty) returns (StatusResponse);

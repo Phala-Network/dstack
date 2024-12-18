@@ -15,6 +15,8 @@ use supervisor_client::SupervisorClient;
 
 mod app;
 mod config;
+mod guest_api_routes;
+mod guest_api_service;
 mod host_api_routes;
 mod host_api_service;
 mod main_routes;
@@ -41,6 +43,7 @@ struct Args {
 async fn run_external_api(app: App, figment: Figment, api_auth: ApiToken) -> Result<()> {
     let external_api = rocket::custom(figment)
         .mount("/", main_routes::routes())
+        .mount("/guest", guest_api_routes::routes())
         .manage(app)
         .manage(api_auth)
         .attach(AdHoc::on_response("Add app rev header", |_req, res| {

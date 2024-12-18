@@ -1,7 +1,6 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use bollard::{container::ListContainersOptions, Docker};
 use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{
     attestation::QuoteContentType,
@@ -13,8 +12,7 @@ use serde_json::json;
 use tappd_rpc::{
     tappd_server::{TappdRpc, TappdServer},
     worker_server::{WorkerRpc, WorkerServer},
-    Container, DeriveKeyArgs, DeriveKeyResponse, DiskInfo, ListContainersResponse, SystemInfo,
-    TdxQuoteArgs, TdxQuoteResponse, WorkerInfo,
+    DeriveKeyArgs, DeriveKeyResponse, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo,
 };
 use tdx_attest::eventlog::read_event_logs;
 
@@ -102,6 +100,12 @@ pub struct ExternalRpcHandler {
     state: AppState,
 }
 
+impl ExternalRpcHandler {
+    pub(crate) fn new(state: AppState) -> Self {
+        Self { state }
+    }
+}
+
 impl WorkerRpc for ExternalRpcHandler {
     async fn info(self) -> Result<WorkerInfo> {
         let ca = &self.state.inner.ca;
@@ -148,78 +152,6 @@ impl WorkerRpc for ExternalRpcHandler {
             tcb_info,
         })
     }
-
-    async fn sys_info(self) -> Result<SystemInfo> {
-        use sysinfo::System;
-
-        let system = System::new_all();
-        let cpus = system.cpus();
-
-        let disks = sysinfo::Disks::new_with_refreshed_list();
-        let disks = disks
-            .list()
-            .iter()
-            .filter(|d| d.mount_point() == Path::new("/"))
-            .map(|d| DiskInfo {
-                name: d.name().to_string_lossy().to_string(),
-                mount_point: d.mount_point().to_string_lossy().to_string(),
-                total_size: d.total_space(),
-                free_size: d.available_space(),
-            })
-            .collect::<Vec<_>>();
-        let avg = System::load_average();
-        Ok(SystemInfo {
-            os_name: System::name().unwrap_or_default(),
-            os_version: System::os_version().unwrap_or_default(),
-            kernel_version: System::kernel_version().unwrap_or_default(),
-            cpu_model: cpus.first().map_or("".into(), |cpu| {
-                format!("{} @{} MHz", cpu.name(), cpu.frequency())
-            }),
-            num_cpus: cpus.len() as _,
-            total_memory: system.total_memory(),
-            available_memory: system.available_memory(),
-            used_memory: system.used_memory(),
-            free_memory: system.free_memory(),
-            total_swap: system.total_swap(),
-            used_swap: system.used_swap(),
-            free_swap: system.free_swap(),
-            uptime: System::uptime(),
-            loadavg_one: (avg.one * 100.0) as u32,
-            loadavg_five: (avg.five * 100.0) as u32,
-            loadavg_fifteen: (avg.fifteen * 100.0) as u32,
-            disks,
-        })
-    }
-
-    async fn list_containers(self) -> Result<ListContainersResponse> {
-        list_containers().await
-    }
-}
-
-pub(crate) async fn list_containers() -> Result<ListContainersResponse> {
-    let docker = Docker::connect_with_defaults().context("Failed to connect to Docker")?;
-    let containers = docker
-        .list_containers::<&str>(Some(ListContainersOptions {
-            all: true,
-            ..Default::default()
-        }))
-        .await
-        .context("Failed to list containers")?;
-    Ok(ListContainersResponse {
-        containers: containers
-            .into_iter()
-            .map(|c| Container {
-                id: c.id.unwrap_or_default(),
-                names: c.names.unwrap_or_default(),
-                image: c.image.unwrap_or_default(),
-                image_id: c.image_id.unwrap_or_default(),
-                command: c.command.unwrap_or_default(),
-                created: c.created.unwrap_or_default(),
-                state: c.state.unwrap_or_default(),
-                status: c.status.unwrap_or_default(),
-            })
-            .collect(),
-    })
 }
 
 impl RpcCall<AppState> for ExternalRpcHandler {

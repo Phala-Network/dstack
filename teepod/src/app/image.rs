@@ -16,6 +16,8 @@ pub struct ImageInfo {
     pub rootfs_hash: Option<String>,
     #[serde(default)]
     pub shared_ro: bool,
+    #[serde(default)]
+    pub version: String,
 }
 
 impl ImageInfo {
@@ -35,19 +37,21 @@ pub struct Image {
     pub hda: Option<PathBuf>,
     pub rootfs: Option<PathBuf>,
     pub bios: Option<PathBuf>,
-    pub shared_ro: bool,
 }
 
 impl Image {
     pub fn load(base_path: impl AsRef<Path>) -> Result<Self> {
         let base_path = base_path.as_ref().absolutize()?;
-        let info = ImageInfo::load(base_path.join("metadata.json"))?;
+        let mut info = ImageInfo::load(base_path.join("metadata.json"))?;
         let initrd = base_path.join(&info.initrd);
         let kernel = base_path.join(&info.kernel);
         let hda = info.hda.as_ref().map(|hda| base_path.join(hda));
         let rootfs = info.rootfs.as_ref().map(|rootfs| base_path.join(rootfs));
         let bios = info.bios.as_ref().map(|bios| base_path.join(bios));
-        let shared_ro = info.shared_ro;
+        if info.version.is_empty() {
+            // Older images does not have version field. Fallback to the version of the image folder name
+            info.version = guess_version(&base_path).unwrap_or_default();
+        }
         Self {
             info,
             hda,
@@ -55,7 +59,6 @@ impl Image {
             kernel,
             rootfs,
             bios,
-            shared_ro,
         }
         .ensure_exists()
     }
@@ -84,4 +87,17 @@ impl Image {
         }
         Ok(self)
     }
+}
+
+fn guess_version(base_path: &Path) -> Option<String> {
+    // name pattern: dstack-dev-0.2.3 or dstack-0.2.3
+    let basename = base_path.file_name()?.to_str()?.to_string();
+    let version = if basename.starts_with("dstack-dev-") {
+        basename.strip_prefix("dstack-dev-")?
+    } else if basename.starts_with("dstack-") {
+        basename.strip_prefix("dstack-")?
+    } else {
+        return None;
+    };
+    Some(version.to_string())
 }

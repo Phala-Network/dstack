@@ -25,3 +25,7 @@ port = 8043
 [external-https.tls]
 key = "/etc/tappd/tls.key"
 certs = "/etc/tappd/tls.cert"
+
+[guest-api]
+address = "vsock:0xffffffff"
+port = 8000

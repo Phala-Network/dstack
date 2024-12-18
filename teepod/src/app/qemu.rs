@@ -32,6 +32,8 @@ pub struct VmInfo {
     pub instance_id: Option<String>,
     pub boot_progress: String,
     pub boot_error: String,
+    pub shutdown_progress: String,
+    pub image_version: String,
 }
 
 #[derive(Debug, Builder)]
@@ -77,6 +79,8 @@ impl VmInfo {
             uptime: self.uptime.clone(),
             boot_progress: self.boot_progress.clone(),
             boot_error: self.boot_error.clone(),
+            shutdown_progress: self.shutdown_progress.clone(),
+            image_version: self.image_version.clone(),
             configuration: Some(pb::VmConfiguration {
                 name: self.manifest.name.clone(),
                 image: self.manifest.image.clone(),
@@ -151,6 +155,8 @@ impl VmState {
             exited_at: Some(exited_at),
             boot_progress: self.state.boot_progress.clone(),
             boot_error: self.state.boot_error.clone(),
+            shutdown_progress: self.state.shutdown_progress.clone(),
+            image_version: self.config.image.info.version.clone(),
         }
     }
 }
@@ -227,7 +233,11 @@ impl VmConfig {
             .arg("-device")
             .arg(format!("vhost-vsock-pci,guest-cid={}", self.cid));
 
-        let ro = if self.image.shared_ro { "on" } else { "off" };
+        let ro = if self.image.info.shared_ro {
+            "on"
+        } else {
+            "off"
+        };
         command.arg("-virtfs").arg(format!(
             "local,path={},mount_tag=host-shared,readonly={ro},security_model=mapped,id=virtfs0",
             shared_dir.display(),

@@ -1,8 +1,10 @@
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use fs_err as fs;
+use guest_api::client::DefaultClient as GuestClient;
 use kms_rpc::kms_client::KmsClient;
 use ra_rpc::client::RaClient;
 use ra_rpc::{CallContext, RpcCall};
@@ -26,21 +28,29 @@ pub struct RpcHandler {
     app: App,
 }
 
-impl RpcHandler {
-    fn compose_file_path(&self, id: &str) -> PathBuf {
+impl Deref for RpcHandler {
+    type Target = App;
+
+    fn deref(&self) -> &Self::Target {
+        &self.app
+    }
+}
+
+impl App {
+    pub(crate) fn compose_file_path(&self, id: &str) -> PathBuf {
         self.shared_dir(id).join("app-compose.json")
     }
 
-    fn encrypted_env_path(&self, id: &str) -> PathBuf {
+    pub(crate) fn encrypted_env_path(&self, id: &str) -> PathBuf {
         self.shared_dir(id).join("encrypted-env")
     }
 
-    fn shared_dir(&self, id: &str) -> PathBuf {
-        self.app.config.run_path.join(id).join("shared")
+    pub(crate) fn shared_dir(&self, id: &str) -> PathBuf {
+        self.config.run_path.join(id).join("shared")
     }
 
-    fn prepare_work_dir(&self, id: &str, req: &VmConfiguration) -> Result<VmWorkDir> {
-        let work_dir = self.app.work_dir(id);
+    pub(crate) fn prepare_work_dir(&self, id: &str, req: &VmConfiguration) -> Result<VmWorkDir> {
+        let work_dir = self.work_dir(id);
         if work_dir.exists() {
             anyhow::bail!("The instance is already exists at {}", work_dir.display());
         }
@@ -55,7 +65,7 @@ impl RpcHandler {
         let certs_dir = shared_dir.join("certs");
         fs::create_dir_all(&certs_dir).context("Failed to create certs directory")?;
 
-        let cfg = &self.app.config;
+        let cfg = &self.config;
         fs::copy(&cfg.cvm.ca_cert, certs_dir.join("ca.cert")).context("Failed to copy ca cert")?;
         fs::copy(&cfg.cvm.tmp_ca_cert, certs_dir.join("tmp-ca.cert"))
             .context("Failed to copy tmp ca cert")?;
@@ -95,13 +105,20 @@ impl RpcHandler {
         Ok(work_dir)
     }
 
-    fn kms_client(&self) -> Result<KmsClient<RaClient>> {
-        if self.app.config.kms_url.is_empty() {
+    pub(crate) fn kms_client(&self) -> Result<KmsClient<RaClient>> {
+        if self.config.kms_url.is_empty() {
             anyhow::bail!("KMS is not configured");
         }
-        let url = format!("{}/prpc", self.app.config.kms_url);
+        let url = format!("{}/prpc", self.config.kms_url);
         let prpc_client = RaClient::new(url, true);
         Ok(KmsClient::new(prpc_client))
+    }
+
+    pub(crate) fn tappd_client(&self, id: &str) -> Result<GuestClient> {
+        let cid = self.lock().get(id).context("vm not found")?.config.cid;
+        Ok(guest_api::client::new_client(format!(
+            "vsock://{cid}:8000/api"
+        )))
     }
 }
 
@@ -342,6 +359,11 @@ impl TeepodRpc for RpcHandler {
             .load_vm(work_dir, &Default::default())
             .await
             .context("Failed to load VM")?;
+        Ok(())
+    }
+
+    async fn shutdown_vm(self, request: Id) -> Result<()> {
+        self.tappd_client(&request.id)?.shutdown().await?;
         Ok(())
     }
 }

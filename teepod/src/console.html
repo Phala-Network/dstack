@@ -633,7 +633,7 @@
                             </td>
                             <td style="padding: 12px;">{{ vm.name }}</td>
                             <td style="padding: 12px;">
-                                <span :class="'status-' + vm.status.toLowerCase()">{{ vm.status }}</span>
+                                <span :class="'status-' + vm.status.toLowerCase()">{{ vmStatus(vm) }}</span>
                             </td>
                             <td style="padding: 12px;">{{ vm.uptime }}</td>
                             <td style="padding: 12px;">
@@ -641,8 +641,12 @@
                                     <button class="action-btn primary" @click="startVm(vm.id)" title="Start VM">
                                         <i class="fas fa-play"></i> Start
                                     </button>
-                                    <button class="action-btn danger" @click="stopVm(vm.id)" title="Stop VM">
+                                    <button v-if="imageFeatures(vm).graceful_shutdown" class="action-btn warning"
+                                        @click="shutdownVm(vm.id)" title="Shutdown VM">
                                         <i class="fas fa-stop"></i> Stop
+                                    </button>
+                                    <button class="action-btn danger" @click="stopVm(vm.id)" title="Stop VM">
+                                        <i class="fas fa-kill"></i> Kill
                                     </button>
                                     <button class="action-btn warning" @click="removeVm(vm.id)" title="Remove VM">
                                         <i class="fas fa-trash"></i> Remove
@@ -652,7 +656,7 @@
                                     </button>
                                     <button v-if="dashboardAvailable(vm)" class="action-btn" @click="showDashboard(vm)"
                                         title="View App Info">
-                                        <i class="fas fa-info-circle"></i> Dashboard
+                                        <i class="fas fa-info-circle"></i> Board
                                     </button>
                                     <button class="action-btn" @click="showUpgradeDialog(vm)" title="Upgrade VM">
                                         <i class="fas fa-arrow-up"></i> Update
@@ -678,6 +682,33 @@
                                                 <td style="color: #f44336;">{{ vm.boot_error }}</td>
                                             </tr>
                                         </table>
+                                    </div>
+                                    <div v-if="networkInfo[vm.id]">
+                                        <h4 style="margin: 0 0 12px 0;">Network Information</h4>
+                                        <div class="details-grid">
+                                            <div class="detail-item">
+                                                <span class="detail-label">DNS Servers:</span>
+                                                <span class="detail-value">{{ networkInfo[vm.id].dns_servers.join(', ')
+                                                    }}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="detail-label">Gateways:</span>
+                                                <span class="detail-value">{{ networkInfo[vm.id].gateways.map(gw =>
+                                                    gw.address).join(', ') }}</span>
+                                            </div>
+                                            <div v-for="iface in networkInfo[vm.id].interfaces" :key="iface.name"
+                                                class="detail-item">
+                                                <span class="detail-label">Interface {{ iface.name }}:</span>
+                                                <div class="interface-details">
+                                                    <div>IP: {{ iface.addresses.map(addr =>
+                                                        `${addr.address}/${addr.prefix}`).join(', ') }}</div>
+                                                    <div>RX: {{ iface.rx_bytes }} bytes ({{ iface.rx_errors }} errors)
+                                                    </div>
+                                                    <div>TX: {{ iface.tx_bytes }} bytes ({{ iface.tx_errors }} errors)
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <h4 style="margin: 0 0 12px 0;">VM Configuration</h4>
@@ -789,8 +820,7 @@
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
-                        <input type="file" ref="envFile" @change="loadEnvFile" style="display: none"
-                            accept=".env,.txt">
+                        <input type="file" ref="envFile" @change="loadEnvFile" style="display: none" accept=".env,.txt">
                         <button type="button" class="action-btn" @click="$refs.envFile.click()">Load from
                             file</button>
                     </div>
@@ -867,6 +897,7 @@
             setup() {
                 const vms = ref([]);
                 const expandedVMs = ref(new Set());
+                const networkInfo = ref({});
                 const vmForm = ref({
                     name: '',
                     image: '',
@@ -916,6 +947,14 @@
                 const teepodApiToken = ref(localStorage.getItem('teepodApiToken') || '');
 
                 const rpcCall = async (method, params) => {
+                    return await baseRpcCall(`/prpc/Teepod.${method}`, params)
+                }
+
+                const guestRpcCall = async (method, params) => {
+                    return await baseRpcCall(`/guest/${method}`, params)
+                }
+
+                const baseRpcCall = async (path, params) => {
                     const headers = {
                         'Content-Type': 'application/json',
                     };
@@ -924,7 +963,7 @@
                         headers['Authorization'] = `Bearer ${teepodApiToken.value}`;
                     }
 
-                    const response = await fetch(`/prpc/Teepod.${method}?json`, {
+                    const response = await fetch(`${path}?json`, {
                         method: 'POST',
                         headers,
                         body: JSON.stringify(params || {}),
@@ -1062,6 +1101,18 @@
                     } catch (error) {
                         console.error('Error stopping VM:', error);
                         alert('Failed to stop VM');
+                    }
+                };
+
+                const shutdownVm = async (id) => {
+                    try {
+                        const _response = await rpcCall('ShutdownVm', {
+                            id
+                        });
+                        loadVMList();
+                    } catch (error) {
+                        console.error('Error shutting down VM:', error);
+                        alert('Failed to shut down VM');
                     }
                 };
 
@@ -1221,7 +1272,16 @@
                         expandedVMs.value.delete(vmId);
                     } else {
                         expandedVMs.value.add(vmId);
+                        refreshNetworkInfo(vmId);
                     }
+                };
+
+                const refreshNetworkInfo = async (vmId) => {
+                    const response = await guestRpcCall('NetworkInfo', {
+                        id: vmId
+                    });
+                    const data = await response.json();
+                    networkInfo.value[vmId] = data;
                 };
 
                 const addEncryptedEnv = () => {
@@ -1304,6 +1364,41 @@
                     }
                 };
 
+                const imageFeatures = (vm) => {
+                    const features = {
+                        progress: false,
+                        graceful_shutdown: false,
+                        network_info: false,
+                    }
+                    if (!vm.image_version) {
+                        return features;
+                    }
+                    const version = vm.image_version.split('.').map(Number);
+                    if (version[0] >= 0 && version[1] >= 3 && version[2] >= 3) {
+                        features.progress = true;
+                        features.graceful_shutdown = true;
+                        features.network_info = true;
+                    }
+                    return features;
+                };
+
+                const vmStatus = (vm) => {
+                    const features = imageFeatures(vm);
+                    if (!features.progress) {
+                        return vm.status;
+                    }
+                    if (vm.status != 'running') {
+                        return vm.status;
+                    }
+                    if (vm.shutdown_progress) {
+                        return "shutting down";
+                    }
+                    if (vm.boot_progress != 'done') {
+                        return "booting";
+                    }
+                    return "running";
+                };
+
                 return {
                     vms,
                     vmForm,
@@ -1327,6 +1422,7 @@
                     config,
                     toggleDetails,
                     expandedVMs,
+                    networkInfo,
                     dashboardAvailable,
                     addEncryptedEnv,
                     removeEncryptedEnv,
@@ -1336,6 +1432,9 @@
                     forkDialog,
                     forkVm,
                     loadEnvFile,
+                    vmStatus,
+                    imageFeatures,
+                    shutdownVm,
                 };
             }
         }).mount('#app');
