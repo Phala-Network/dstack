@@ -244,7 +244,7 @@ impl TeepodRpc for RpcHandler {
             .vm_info(&request.id)
             .await?
             .context("vm not found")?;
-        if vm.status != "stopped" {
+        if !["stopped", "exited"].contains(&vm.status.as_str()) {
             return Err(anyhow!(
                 "vm should be stopped before resize: {}",
                 request.id
