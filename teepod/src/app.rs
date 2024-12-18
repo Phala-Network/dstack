@@ -136,6 +136,11 @@ impl App {
     }
 
     pub async fn start_vm(&self, id: &str) -> Result<()> {
+        let is_running = self
+            .supervisor
+            .info(id)
+            .await?
+            .map_or(false, |info| info.state.status.is_running());
         let process_config = {
             let mut state = self.lock();
             let vm_state = state.get_mut(id).context("VM not found")?;
@@ -153,7 +158,7 @@ impl App {
                 .config_qemu(&self.config.qemu_path, &work_dir)?;
             // Older images does not support for progress reporting
             if vm_state.config.image.info.shared_ro {
-                vm_state.state.clear();
+                vm_state.state.start(is_running);
             } else {
                 vm_state.state.reset_na();
             }
@@ -327,8 +332,12 @@ struct VmStateMut {
 }
 
 impl VmStateMut {
-    pub fn clear(&mut self) {
-        self.boot_progress.clear();
+    pub fn start(&mut self, already_running: bool) {
+        self.boot_progress = if already_running {
+            "running".to_string()
+        } else {
+            "booting".to_string()
+        };
         self.boot_error.clear();
         self.shutdown_progress.clear();
     }

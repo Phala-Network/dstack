@@ -1393,6 +1393,12 @@
                     if (vm.shutdown_progress) {
                         return "shutting down";
                     }
+                    // If boot_progress is 'running', it means the vm is already running before
+                    // teepod was started, so it's state is unknown to teepod.
+                    // TODO: read the status from the guest
+                    if (vm.boot_progress == 'running') {
+                        return "running";
+                    }
                     if (vm.boot_progress != 'done') {
                         return "booting";
                     }
