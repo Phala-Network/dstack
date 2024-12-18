@@ -162,7 +162,7 @@ fn get_interfaces() -> Vec<Interface> {
                 name: interface_name.clone(),
                 addresses: network
                     .ip_networks()
-                    .into_iter()
+                    .iter()
                     .map(|ip| IpAddress {
                         address: ip.addr.to_string(),
                         prefix: ip.prefix as u32,
