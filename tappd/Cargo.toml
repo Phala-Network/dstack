@@ -32,3 +32,4 @@ guest-api = { workspace = true, features = ["client"] }
 host-api = { workspace = true, features = ["client"] }
 sysinfo.workspace = true
 default-net.workspace = true
+rocket-vsock-listener.workspace = true

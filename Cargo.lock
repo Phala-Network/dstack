@@ -4840,6 +4840,7 @@ dependencies = [
  "rcgen",
  "rinja",
  "rocket",
+ "rocket-vsock-listener",
  "serde",
  "serde_json",
  "sha2",

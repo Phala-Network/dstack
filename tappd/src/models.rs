@@ -1,5 +1,5 @@
+use guest_api::{Container, SystemInfo};
 use rinja::Template;
-use tappd_rpc::{Container, SystemInfo};
 
 mod filters {
     use anyhow::Result;

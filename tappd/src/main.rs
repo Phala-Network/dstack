@@ -7,6 +7,7 @@ use rocket::{
     figment::Figment,
     listener::{Bind, DefaultListener},
 };
+use rocket_vsock_listener::VsockListener;
 use rpc_service::AppState;
 
 mod config;
@@ -78,10 +79,17 @@ async fn run_guest_api(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
         .mount("/api", guest_api_routes::routes())
         .manage(state);
-    let _ = rocket
-        .launch()
+
+    let ignite = rocket
+        .ignite()
         .await
         .map_err(|err| anyhow!("Failed to ignite rocket: {err}"))?;
+    let listener = VsockListener::bind_rocket(&ignite)
+        .map_err(|err| anyhow!("Failed to bind guest API : {err}"))?;
+    ignite
+        .launch_on(listener)
+        .await
+        .map_err(|err| anyhow!(err.to_string()))?;
     Ok(())
 }
 

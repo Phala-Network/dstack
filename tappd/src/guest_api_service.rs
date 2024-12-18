@@ -1,23 +1,28 @@
-use std::process::Command;
+use std::{path::Path, process::Command};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use bollard::{container::ListContainersOptions, Docker};
 use fs_err as fs;
 use guest_api::{
     guest_api_server::{GuestApiRpc, GuestApiServer},
-    Gateway, GuestInfo, Interface, IpAddress, NetworkInformation,
+    Container, DiskInfo, Gateway, GuestInfo, Interface, IpAddress, ListContainersResponse,
+    NetworkInformation, SystemInfo,
 };
 use host_api::Notification;
 use ra_rpc::{CallContext, RpcCall};
 use serde::Deserialize;
+use tappd_rpc::worker_server::WorkerRpc as _;
 
-use crate::AppState;
+use crate::{rpc_service::ExternalRpcHandler, AppState};
 
 #[derive(Deserialize)]
 struct LocalConfig {
     host_api_url: String,
 }
 
-pub struct GuestApiHandler;
+pub struct GuestApiHandler {
+    state: AppState,
+}
 
 impl RpcCall<AppState> for GuestApiHandler {
     type PrpcService = GuestApiServer<Self>;
@@ -26,28 +31,34 @@ impl RpcCall<AppState> for GuestApiHandler {
         GuestApiServer::new(self)
     }
 
-    fn construct(_context: CallContext<'_, AppState>) -> Result<Self>
+    fn construct(context: CallContext<'_, AppState>) -> Result<Self>
     where
         Self: Sized,
     {
-        Ok(Self)
+        Ok(Self {
+            state: context.state.clone(),
+        })
     }
 }
 
 impl GuestApiRpc for GuestApiHandler {
     async fn info(self) -> Result<GuestInfo> {
-        let guest_info = GuestInfo {
-            name: "Tappd".to_string(),
+        let ext_rpc = ExternalRpcHandler::new(self.state);
+        let info = ext_rpc.info().await?;
+        Ok(GuestInfo {
             version: env!("CARGO_PKG_VERSION").to_string(),
-        };
-        Ok(guest_info)
+            app_id: info.app_id,
+            instance_id: info.instance_id,
+            app_cert: info.app_cert,
+            tcb_info: info.tcb_info,
+        })
     }
 
     async fn shutdown(self) -> Result<()> {
         tokio::spawn(async move {
-            notify_q("shutdown.stopapp", "").await.ok();
+            notify_host("shutdown.progress", "stopping app").await.ok();
             run_command("systemctl stop app-compose").ok();
-            notify_q("shutdown", "").await.ok();
+            notify_host("shutdown.progress", "powering off").await.ok();
             run_command("systemctl poweroff").ok();
         });
         Ok(())
@@ -64,6 +75,78 @@ impl GuestApiRpc for GuestApiHandler {
             interfaces: get_interfaces(),
         })
     }
+
+    async fn sys_info(self) -> Result<SystemInfo> {
+        use sysinfo::System;
+
+        let system = System::new_all();
+        let cpus = system.cpus();
+
+        let disks = sysinfo::Disks::new_with_refreshed_list();
+        let disks = disks
+            .list()
+            .iter()
+            .filter(|d| d.mount_point() == Path::new("/"))
+            .map(|d| DiskInfo {
+                name: d.name().to_string_lossy().to_string(),
+                mount_point: d.mount_point().to_string_lossy().to_string(),
+                total_size: d.total_space(),
+                free_size: d.available_space(),
+            })
+            .collect::<Vec<_>>();
+        let avg = System::load_average();
+        Ok(SystemInfo {
+            os_name: System::name().unwrap_or_default(),
+            os_version: System::os_version().unwrap_or_default(),
+            kernel_version: System::kernel_version().unwrap_or_default(),
+            cpu_model: cpus.first().map_or("".into(), |cpu| {
+                format!("{} @{} MHz", cpu.name(), cpu.frequency())
+            }),
+            num_cpus: cpus.len() as _,
+            total_memory: system.total_memory(),
+            available_memory: system.available_memory(),
+            used_memory: system.used_memory(),
+            free_memory: system.free_memory(),
+            total_swap: system.total_swap(),
+            used_swap: system.used_swap(),
+            free_swap: system.free_swap(),
+            uptime: System::uptime(),
+            loadavg_one: (avg.one * 100.0) as u32,
+            loadavg_five: (avg.five * 100.0) as u32,
+            loadavg_fifteen: (avg.fifteen * 100.0) as u32,
+            disks,
+        })
+    }
+
+    async fn list_containers(self) -> Result<ListContainersResponse> {
+        list_containers().await
+    }
+}
+
+pub(crate) async fn list_containers() -> Result<ListContainersResponse> {
+    let docker = Docker::connect_with_defaults().context("Failed to connect to Docker")?;
+    let containers = docker
+        .list_containers::<&str>(Some(ListContainersOptions {
+            all: true,
+            ..Default::default()
+        }))
+        .await
+        .context("Failed to list containers")?;
+    Ok(ListContainersResponse {
+        containers: containers
+            .into_iter()
+            .map(|c| Container {
+                id: c.id.unwrap_or_default(),
+                names: c.names.unwrap_or_default(),
+                image: c.image.unwrap_or_default(),
+                image_id: c.image_id.unwrap_or_default(),
+                command: c.command.unwrap_or_default(),
+                created: c.created.unwrap_or_default(),
+                state: c.state.unwrap_or_default(),
+                status: c.status.unwrap_or_default(),
+            })
+            .collect(),
+    })
 }
 
 fn get_interfaces() -> Vec<Interface> {
@@ -122,7 +205,7 @@ fn get_dns_servers() -> Vec<String> {
     dns_servers
 }
 
-pub async fn notify_q(event: &str, payload: &str) -> Result<()> {
+pub async fn notify_host(event: &str, payload: &str) -> Result<()> {
     let local_config: LocalConfig =
         serde_json::from_str(&fs::read_to_string("/tapp/config.json")?)?;
     let nc = host_api::client::new_client(local_config.host_api_url);

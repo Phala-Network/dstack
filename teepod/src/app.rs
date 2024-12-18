@@ -151,7 +151,12 @@ impl App {
             let process_config = vm_state
                 .config
                 .config_qemu(&self.config.qemu_path, &work_dir)?;
-            vm_state.state.clear();
+            // Older images does not support for progress reporting
+            if vm_state.config.image.info.shared_ro {
+                vm_state.state.clear();
+            } else {
+                vm_state.state.reset_na();
+            }
             process_config
         };
         self.supervisor
@@ -177,7 +182,10 @@ impl App {
             bail!("VM is running, stop it first");
         }
 
-        if info.is_some() {
+        if let Some(info) = info {
+            if !info.state.status.is_stopped() {
+                self.supervisor.stop(id).await?;
+            }
             self.supervisor.remove(id).await?;
         }
 
@@ -323,6 +331,12 @@ impl VmStateMut {
         self.boot_progress.clear();
         self.boot_error.clear();
         self.shutdown_progress.clear();
+    }
+
+    pub fn reset_na(&mut self) {
+        self.boot_progress = "N/A".to_string();
+        self.shutdown_progress = "N/A".to_string();
+        self.boot_error.clear();
     }
 }
 

@@ -1,6 +1,8 @@
-use crate::rpc_service::{list_containers, AppState, ExternalRpcHandler, InternalRpcHandler};
+use crate::guest_api_service::{list_containers, GuestApiHandler};
+use crate::rpc_service::{AppState, ExternalRpcHandler, InternalRpcHandler};
 use anyhow::Result;
 use docker_logs::parse_duration;
+use guest_api::guest_api_server::GuestApiRpc;
 use ra_rpc::rocket_helper::PrpcHandler;
 use ra_rpc::{CallContext, RpcCall};
 use rinja::Template;
@@ -74,7 +76,7 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         .await
         .map_err(|e| format!("Failed to get worker info: {}", e))?;
 
-    let handler = ExternalRpcHandler::construct(context)
+    let handler = GuestApiHandler::construct(context)
         .map_err(|e| format!("Failed to construct RPC handler: {}", e))?;
     let system_info = handler.sys_info().await.unwrap_or_default();
 

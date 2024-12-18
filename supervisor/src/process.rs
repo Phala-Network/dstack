@@ -129,6 +129,10 @@ impl ProcessStatus {
     pub fn is_running(&self) -> bool {
         matches!(self, ProcessStatus::Running)
     }
+
+    pub fn is_stopped(&self) -> bool {
+        matches!(self, ProcessStatus::Stopped)
+    }
 }
 
 #[derive(Clone)]

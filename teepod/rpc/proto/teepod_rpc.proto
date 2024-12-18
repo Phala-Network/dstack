@@ -29,6 +29,8 @@ message VmInfo {
   string boot_error = 11;
   // Shutdown progress
   string shutdown_progress = 12;
+  // Image version
+  string image_version = 13;
 }
 
 message Id {
@@ -122,30 +124,6 @@ message ResizeVmRequest {
   optional uint32 disk_size = 4;
 }
 
-message IpAddress {
-  string address = 1;
-  uint32 prefix = 2;
-}
-
-message Interface {
-  string name = 1;
-  repeated IpAddress addresses = 2;
-  uint64 rx_bytes = 3;
-  uint64 tx_bytes = 4;
-  uint64 rx_errors = 5;
-  uint64 tx_errors = 6;
-}
-
-message Gateway {
-  string address = 1;
-}
-
-message NetworkInformation {
-  repeated string dns_servers = 1;
-  repeated Gateway gateways = 2;
-  repeated Interface interfaces = 3;
-}
-
 // Service definition for Teepod
 service Teepod {
   // RPC to create a VM
@@ -171,9 +149,6 @@ service Teepod {
 
   // Get VM info by ID
   rpc GetInfo(Id) returns (GetInfoResponse);
-
-  // Get VM Network Information
-  rpc GetNetworkInfo(Id) returns (NetworkInformation);
 
   // RPC to resize a VM
   rpc ResizeVm(ResizeVmRequest) returns (google.protobuf.Empty);
