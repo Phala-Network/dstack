@@ -1766,6 +1766,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "host-api"
+version = "0.3.2"
+dependencies = [
+ "anyhow",
+ "http-client",
+ "prost 0.13.3",
+ "prpc",
+ "prpc-build",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "hostname"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1830,6 +1843,23 @@ dependencies = [
  "http 1.2.0",
  "http-body 1.0.1",
  "pin-project-lite",
+]
+
+[[package]]
+name = "http-client"
+version = "0.3.2"
+dependencies = [
+ "anyhow",
+ "http-body-util",
+ "hyper 1.5.1",
+ "hyper-util",
+ "hyperlocal",
+ "log",
+ "pin-project-lite",
+ "prpc",
+ "tokio",
+ "tokio-vsock",
+ "tower-service",
 ]
 
 [[package]]
@@ -2547,6 +2577,7 @@ dependencies = [
  "cfg-if",
  "cfg_aliases",
  "libc",
+ "memoffset",
 ]
 
 [[package]]
@@ -2971,9 +3002,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.14"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bda66fc9667c18cb2758a2ac84d1167245054bcf85d5d1aaa6923f45801bdd02"
+checksum = "915a1e146535de9163f3987b8944ed8cf49a18bb0056bcebcdcece385cece4ff"
 
 [[package]]
 name = "pin-utils"
@@ -3317,10 +3348,12 @@ name = "ra-rpc"
 version = "0.3.2"
 dependencies = [
  "anyhow",
+ "bon",
  "prpc",
  "ra-tls",
  "reqwest 0.12.9",
  "rocket",
+ "rocket-vsock-listener",
  "serde_json",
  "tracing",
 ]
@@ -3769,6 +3802,20 @@ version = "0.1.0"
 source = "git+https://github.com/kvinwang/rocket-apitoken?branch=dev#7b5c1e864217b928e08913886c1a3ddd849e254c"
 dependencies = [
  "rocket",
+]
+
+[[package]]
+name = "rocket-vsock-listener"
+version = "0.3.2"
+dependencies = [
+ "anyhow",
+ "derive_more 1.0.0",
+ "pin-project",
+ "rocket",
+ "serde",
+ "thiserror 2.0.4",
+ "tokio",
+ "tokio-vsock",
 ]
 
 [[package]]
@@ -4567,6 +4614,7 @@ dependencies = [
  "futures",
  "http 1.2.0",
  "http-body-util",
+ "http-client",
  "hyper 1.5.1",
  "hyper-util",
  "hyperlocal",
@@ -4757,6 +4805,7 @@ dependencies = [
  "getrandom 0.2.15",
  "hex",
  "hex_fmt",
+ "host-api",
  "kms-rpc",
  "parity-scale-codec",
  "ra-rpc",
@@ -4787,12 +4836,15 @@ dependencies = [
  "fs-err",
  "git-version",
  "hex",
+ "host-api",
  "humantime",
  "kms-rpc",
  "path-absolutize",
  "ra-rpc",
  "rocket",
  "rocket-apitoken",
+ "rocket-vsock-listener",
+ "safe-write",
  "serde",
  "serde_json",
  "sha2",
@@ -5024,6 +5076,18 @@ dependencies = [
  "futures-sink",
  "pin-project-lite",
  "tokio",
+]
+
+[[package]]
+name = "tokio-vsock"
+version = "0.6.0"
+source = "git+https://github.com/kvinwang/tokio-vsock?branch=shared-self-accept#dd9778742ceb98ee39d68ad527b8d80f3178c172"
+dependencies = [
+ "bytes",
+ "futures",
+ "libc",
+ "tokio",
+ "vsock",
 ]
 
 [[package]]
@@ -5314,6 +5378,16 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "vsock"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e8b4d00e672f147fc86a09738fadb1445bd1c0a40542378dfb82909deeee688"
+dependencies = [
+ "libc",
+ "nix",
+]
 
 [[package]]
 name = "vte"

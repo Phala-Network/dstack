@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 rocket = { workspace = true, features = ["mtls"] }
+rocket-vsock-listener = { workspace = true }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 anyhow.workspace = true
@@ -33,3 +34,5 @@ ra-rpc = { workspace = true, features = ["client", "rocket"] }
 teepod-rpc.workspace = true
 kms-rpc.workspace = true
 path-absolutize.workspace = true
+host-api.workspace = true
+safe-write.workspace = true

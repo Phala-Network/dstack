@@ -14,8 +14,10 @@ tracing.workspace = true
 reqwest = { workspace = true, default-features = false, features = ["rustls-tls", "charset"], optional = true }
 
 ra-tls.workspace = true
+bon.workspace = true
+rocket-vsock-listener = { workspace = true, optional = true }
 
 [features]
 default = ["rocket", "client"]
-rocket = ["dep:rocket"]
+rocket = ["dep:rocket", "dep:rocket-vsock-listener"]
 client = ["reqwest"]

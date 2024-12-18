@@ -172,6 +172,7 @@ pub struct LocalConfig {
     pub kms_url: Option<String>,
     pub tproxy_url: Option<String>,
     pub docker_registry: Option<String>,
+    pub host_api_url: String,
 }
 
 #[derive(Deserialize)]

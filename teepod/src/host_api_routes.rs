@@ -1,29 +1,23 @@
-use crate::main_service::{Proxy, RpcHandler};
-use anyhow::Result;
-use ra_rpc::rocket_helper::{PrpcHandler, QuoteVerifier};
+use crate::app::App;
+use crate::host_api_service::HostApiHandler;
+use ra_rpc::rocket_helper::PrpcHandler;
 use rocket::{
     data::{Data, Limits},
     get,
     http::ContentType,
+    listener::Endpoint,
     mtls::Certificate,
     post,
-    response::{content::RawHtml, status::Custom},
+    response::status::Custom,
     routes, Route, State,
 };
 
-mod route_index;
-
-#[get("/")]
-async fn index(state: &State<Proxy>) -> Result<RawHtml<String>, String> {
-    route_index::index(state).await.map_err(|e| format!("{e}"))
-}
-
-#[post("/prpc/<method>?<json>", data = "<data>")]
+#[post("/<method>?<json>", data = "<data>")]
 #[allow(clippy::too_many_arguments)]
 async fn prpc_post(
-    state: &State<Proxy>,
+    endpoint: &Endpoint,
+    state: &State<App>,
     cert: Option<Certificate<'_>>,
-    quote_verifier: Option<&State<QuoteVerifier>>,
     method: &str,
     data: Data<'_>,
     limits: &Limits,
@@ -32,40 +26,38 @@ async fn prpc_post(
 ) -> Custom<Vec<u8>> {
     PrpcHandler::builder()
         .state(&**state)
+        .remote_addr(endpoint.clone())
         .maybe_certificate(cert)
-        .maybe_quote_verifier(quote_verifier.map(|v| &**v))
         .method(method)
         .data(data)
         .limits(limits)
         .maybe_content_type(content_type)
         .json(json)
         .build()
-        .handle::<RpcHandler>()
+        .handle::<HostApiHandler>()
         .await
 }
 
-#[get("/prpc/<method>")]
+#[get("/<method>")]
 async fn prpc_get(
-    state: &State<Proxy>,
-    cert: Option<Certificate<'_>>,
-    quote_verifier: Option<&State<QuoteVerifier>>,
+    endpoint: &Endpoint,
+    state: &State<App>,
     method: &str,
     limits: &Limits,
     content_type: Option<&ContentType>,
 ) -> Custom<Vec<u8>> {
     PrpcHandler::builder()
         .state(&**state)
-        .maybe_certificate(cert)
-        .maybe_quote_verifier(quote_verifier.map(|v| &**v))
+        .remote_addr(endpoint.clone())
         .method(method)
         .limits(limits)
         .maybe_content_type(content_type)
         .json(true)
         .build()
-        .handle::<RpcHandler>()
+        .handle::<HostApiHandler>()
         .await
 }
 
 pub fn routes() -> Vec<Route> {
-    routes![index, prpc_post, prpc_get]
+    routes![prpc_post, prpc_get]
 }

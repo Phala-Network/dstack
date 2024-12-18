@@ -1,5 +1,7 @@
 #![allow(async_fn_in_trait)]
 
+use std::{net::SocketAddr, path::PathBuf};
+
 use anyhow::Result;
 use prpc::{
     codec::encode_message_to_vec,
@@ -15,10 +17,26 @@ pub mod rocket_helper;
 #[cfg(feature = "client")]
 pub mod client;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RemoteEndpoint {
+    Tcp(SocketAddr),
+    Quic(SocketAddr),
+    Unix(PathBuf),
+    Vsock { cid: u32, port: u32 },
+    Other(String),
+}
+
+#[derive(Clone, bon::Builder)]
+pub struct CallContext<'a, State> {
+    pub state: &'a State,
+    pub attestation: Option<Attestation>,
+    pub remote_endpoint: Option<RemoteEndpoint>,
+}
+
 pub trait RpcCall<State> {
     type PrpcService: PrpcService + Send + 'static;
 
-    fn construct(state: &State, attestation: Option<Attestation>) -> Result<Self>
+    fn construct(context: CallContext<'_, State>) -> Result<Self>
     where
         Self: Sized;
     fn into_prpc_service(self) -> Self::PrpcService;

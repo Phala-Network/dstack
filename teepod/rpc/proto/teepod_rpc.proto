@@ -23,6 +23,10 @@ message VmInfo {
   VmConfiguration configuration = 8;
   // Exit time
   optional string exited_at = 9;
+  // Boot progress
+  string boot_progress = 10;
+  // Boot error
+  string boot_error = 11;
 }
 
 message Id {

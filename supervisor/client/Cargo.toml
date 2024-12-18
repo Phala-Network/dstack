@@ -27,6 +27,7 @@ fs-err.workspace = true
 futures.workspace = true
 
 supervisor.workspace = true
+http-client.workspace = true
 
 [features]
 cli = ["dep:clap", "tokio/full"]

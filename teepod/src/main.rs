@@ -1,17 +1,24 @@
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
+use app::App;
 use clap::Parser;
 use config::Config;
 use path_absolutize::Absolutize;
-use rocket::fairing::AdHoc;
+use rocket::{
+    fairing::AdHoc,
+    figment::{providers::Serialized, Figment},
+};
 use rocket_apitoken::ApiToken;
+use rocket_vsock_listener::VsockListener;
 use supervisor_client::SupervisorClient;
 
 mod app;
 mod config;
+mod host_api_routes;
+mod host_api_service;
+mod main_routes;
 mod main_service;
-mod web_routes;
 
 fn app_version() -> String {
     const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -29,6 +36,49 @@ struct Args {
     /// Path to the configuration file
     #[arg(short, long)]
     config: Option<String>,
+}
+
+async fn run_external_api(app: App, figment: Figment, api_auth: ApiToken) -> Result<()> {
+    let external_api = rocket::custom(figment)
+        .mount("/", main_routes::routes())
+        .manage(app)
+        .manage(api_auth)
+        .attach(AdHoc::on_response("Add app rev header", |_req, res| {
+            Box::pin(async move {
+                res.set_raw_header("X-App-Version", app_version());
+            })
+        }))
+        .attach(AdHoc::on_response("Disable buffering", |_req, res| {
+            Box::pin(async move {
+                res.set_raw_header("X-Accel-Buffering", "no");
+            })
+        }));
+
+    let _ = external_api
+        .launch()
+        .await
+        .map_err(|err| anyhow!(err.to_string()))?;
+    Ok(())
+}
+
+async fn run_host_api(app: App, figment: Figment) -> Result<()> {
+    let figment = figment
+        .clone()
+        .merge(Serialized::defaults(figment.find_value("host_api")?));
+    let rocket = rocket::custom(figment)
+        .mount("/api", host_api_routes::routes())
+        .manage(app);
+    let ignite = rocket
+        .ignite()
+        .await
+        .map_err(|err| anyhow!("Failed to ignite rocket: {err}"))?;
+    let listener = VsockListener::bind_rocket(&ignite)
+        .map_err(|err| anyhow!("Failed to bind host API : {err}"))?;
+    ignite
+        .launch_on(listener)
+        .await
+        .map_err(|err| anyhow!(err.to_string()))?;
+    Ok(())
 }
 
 #[rocket::main]
@@ -52,24 +102,14 @@ async fn main() -> Result<()> {
     };
     let state = app::App::new(config, supervisor);
     state.reload_vms().await.context("Failed to reload VMs")?;
-    let rocket = rocket::custom(figment)
-        .mount("/", web_routes::routes())
-        .manage(state)
-        .manage(api_auth)
-        .attach(AdHoc::on_response("Add app rev header", |_req, res| {
-            Box::pin(async move {
-                res.set_raw_header("X-App-Version", app_version());
-            })
-        }))
-        .attach(AdHoc::on_response("Disable buffering", |_req, res| {
-            Box::pin(async move {
-                res.set_raw_header("X-Accel-Buffering", "no");
-            })
-        }));
-    web_routes::print_endpoints();
-    rocket
-        .launch()
-        .await
-        .map_err(|err| anyhow!(err.to_string()))?;
+
+    tokio::select! {
+        result = run_external_api(state.clone(), figment.clone(), api_auth) => {
+            result.context("Failed to run external API")?;
+        }
+        result = run_host_api(state, figment) => {
+            result.context("Failed to run host API")?;
+        }
+    }
     Ok(())
 }

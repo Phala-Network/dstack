@@ -1,7 +1,8 @@
 use crate::rpc_service::{list_containers, AppState, ExternalRpcHandler, InternalRpcHandler};
 use anyhow::Result;
 use docker_logs::parse_duration;
-use ra_rpc::{rocket_helper::handle_prpc, RpcCall};
+use ra_rpc::rocket_helper::PrpcHandler;
+use ra_rpc::{CallContext, RpcCall};
 use rinja::Template;
 use rocket::futures::StreamExt;
 use rocket::response::stream::TextStream;
@@ -24,17 +25,16 @@ async fn prpc_post(
     content_type: Option<&ContentType>,
     json: bool,
 ) -> Custom<Vec<u8>> {
-    handle_prpc::<_, InternalRpcHandler>(
-        state,
-        None,
-        None,
-        method,
-        Some(data),
-        limits,
-        content_type,
-        json,
-    )
-    .await
+    PrpcHandler::builder()
+        .state(&**state)
+        .method(method)
+        .data(data)
+        .limits(limits)
+        .maybe_content_type(content_type)
+        .json(json)
+        .build()
+        .handle::<InternalRpcHandler>()
+        .await
 }
 
 #[get("/prpc/<method>")]
@@ -44,17 +44,15 @@ async fn prpc_get(
     limits: &Limits,
     content_type: Option<&ContentType>,
 ) -> Custom<Vec<u8>> {
-    handle_prpc::<_, InternalRpcHandler>(
-        state,
-        None,
-        None,
-        method,
-        None,
-        limits,
-        content_type,
-        true,
-    )
-    .await
+    PrpcHandler::builder()
+        .state(&**state)
+        .method(method)
+        .limits(limits)
+        .maybe_content_type(content_type)
+        .json(true)
+        .build()
+        .handle::<InternalRpcHandler>()
+        .await
 }
 
 pub fn internal_routes() -> Vec<Route> {
@@ -63,7 +61,8 @@ pub fn internal_routes() -> Vec<Route> {
 
 #[get("/")]
 async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
-    let handler = ExternalRpcHandler::construct(state, None)
+    let context = CallContext::builder().state(&**state).build();
+    let handler = ExternalRpcHandler::construct(context.clone())
         .map_err(|e| format!("Failed to construct RPC handler: {}", e))?;
     let WorkerInfo {
         app_id,
@@ -75,7 +74,7 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         .await
         .map_err(|e| format!("Failed to get worker info: {}", e))?;
 
-    let handler = ExternalRpcHandler::construct(state, None)
+    let handler = ExternalRpcHandler::construct(context)
         .map_err(|e| format!("Failed to construct RPC handler: {}", e))?;
     let system_info = handler.sys_info().await.unwrap_or_default();
 
@@ -103,17 +102,16 @@ async fn external_prpc_post(
     content_type: Option<&ContentType>,
     json: bool,
 ) -> Custom<Vec<u8>> {
-    handle_prpc::<_, ExternalRpcHandler>(
-        state,
-        None,
-        None,
-        method,
-        Some(data),
-        limits,
-        content_type,
-        json,
-    )
-    .await
+    PrpcHandler::builder()
+        .state(&**state)
+        .method(method)
+        .data(data)
+        .limits(limits)
+        .maybe_content_type(content_type)
+        .json(json)
+        .build()
+        .handle::<ExternalRpcHandler>()
+        .await
 }
 
 #[get("/prpc/<method>")]
@@ -123,17 +121,15 @@ async fn external_prpc_get(
     limits: &Limits,
     content_type: Option<&ContentType>,
 ) -> Custom<Vec<u8>> {
-    handle_prpc::<_, ExternalRpcHandler>(
-        state,
-        None,
-        None,
-        method,
-        None,
-        limits,
-        content_type,
-        true,
-    )
-    .await
+    PrpcHandler::builder()
+        .state(&**state)
+        .method(method)
+        .limits(limits)
+        .maybe_content_type(content_type)
+        .json(true)
+        .build()
+        .handle::<ExternalRpcHandler>()
+        .await
 }
 
 #[get("/logs/<container_name>?<since>&<until>&<follow>&<text>&<timestamps>&<bare>&<tail>")]

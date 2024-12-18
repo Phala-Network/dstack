@@ -1,12 +1,11 @@
 use std::{path::Path, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
+use http_client::http_request;
 use log::info;
 use supervisor::{ProcessConfig, ProcessInfo, Response};
 
 pub use supervisor;
-
-mod http;
 
 #[derive(Debug, Clone)]
 pub struct SupervisorClient {
@@ -77,7 +76,11 @@ impl SupervisorClient {
             "POST" | "PUT" | "PATCH" => serde_json::to_vec(&body)?,
             _ => vec![],
         };
-        let response_bytes = http::http_request(method, &self.base_url, path, &body_bytes).await?;
+        let (status, response_bytes) =
+            http_request(method, &self.base_url, path, &body_bytes).await?;
+        if status != 200 {
+            anyhow::bail!("Server returned error: {}", status);
+        }
         let response: Response<T> =
             serde_json::from_slice(&response_bytes).context("Failed to parse response")?;
         response.into_result().context("Server returned error")

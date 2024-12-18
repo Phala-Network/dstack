@@ -9,6 +9,7 @@ use tracing::info;
 
 use crate::{
     cmd_gen_ra_cert,
+    notify_client::NotifyClient,
     utils::{
         deserialize_json_file, run_command, run_command_with_stdin, AppCompose, AppKeys,
         LocalConfig,
@@ -60,9 +61,11 @@ impl<'a> Setup<'a> {
         self.args.resolve(path)
     }
 
-    async fn setup(&self) -> Result<()> {
+    async fn setup(&self, nc: &NotifyClient) -> Result<()> {
         self.prepare_certs()?;
+        nc.notify_q("boot.progress", "setting up tproxy net").await;
         self.setup_tproxy_net().await?;
+        nc.notify_q("boot.progress", "setting up docker").await;
         self.setup_docker_registry()?;
         self.setup_docker_account()?;
         self.prepare_docker_compose()?;
@@ -264,6 +267,16 @@ impl<'a> Setup<'a> {
 }
 
 pub async fn tboot(args: &TbootArgs) -> Result<()> {
-    Setup::load(args)?.setup().await?;
+    let nc = NotifyClient::load_or_default(None).unwrap_or_default();
+    if let Err(err) = tboot_inner(args, &nc).await {
+        nc.notify_q("boot.error", &format!("{err:?}")).await;
+        return Err(err);
+    }
+    Ok(())
+}
+
+pub async fn tboot_inner(args: &TbootArgs, nc: &NotifyClient) -> Result<()> {
+    nc.notify_q("boot.progress", "enter system").await;
+    Setup::load(args)?.setup(nc).await?;
     Ok(())
 }
