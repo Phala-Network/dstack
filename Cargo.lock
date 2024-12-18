@@ -4351,6 +4351,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sd-notify"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1be20c5f7f393ee700f8b2f28ea35812e4e212f40774b550cd2a93ea91684451"
+
+[[package]]
 name = "sec1"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4841,6 +4847,7 @@ dependencies = [
  "rinja",
  "rocket",
  "rocket-vsock-listener",
+ "sd-notify",
  "serde",
  "serde_json",
  "sha2",
