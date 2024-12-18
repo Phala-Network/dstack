@@ -1,33 +1,19 @@
-//! App related code
-//!
-//! Directory structure:
-//! ```text
-//! .teepod/
-//! ├── image
-//! │   └── ubuntu-24.04
-//! │       ├── hda.img
-//! │       ├── info.json
-//! │       ├── initrd.img
-//! │       ├── kernel
-//! │       └── rootfs.iso
-//! └── vm
-//!     └── e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-//!         └── shared
-//!             └── app-compose.json
-//! ```
 use crate::config::{Config, Protocol};
 
 use anyhow::{bail, Context, Result};
 use bon::Builder;
 use fs_err as fs;
+use guest_api::client::DefaultClient as GuestClient;
 use id_pool::IdPool;
+use kms_rpc::kms_client::KmsClient;
+use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use supervisor_client::SupervisorClient;
-use teepod_rpc as pb;
+use teepod_rpc::{self as pb, VmConfiguration};
 use tracing::{error, info};
 
 pub use image::{Image, ImageInfo};
@@ -102,40 +88,40 @@ impl App {
         let todo = "sanitize the image name";
         let image_path = self.config.image_path.join(&manifest.image);
         let image = Image::load(&image_path).context("Failed to load image")?;
-
-        let cid = cids_assigned.get(&manifest.id).cloned();
-        let cid = match cid {
-            Some(cid) => cid,
-            None => self
-                .lock()
-                .cid_pool
-                .allocate()
-                .context("CID pool exhausted")?,
+        let vm_id = manifest.id.clone();
+        {
+            let mut teapot = self.lock();
+            let cid = teapot
+                .get(&vm_id)
+                .map(|vm| vm.config.cid)
+                .or_else(|| cids_assigned.get(&vm_id).cloned())
+                .or_else(|| teapot.cid_pool.allocate())
+                .context("CID pool exhausted")?;
+            let vm_config = VmConfig {
+                manifest,
+                image,
+                cid,
+                networking: self.config.networking.clone(),
+                workdir: vm_work_dir.path().to_path_buf(),
+            };
+            if vm_config.manifest.disk_size > self.config.cvm.max_disk_size {
+                bail!(
+                    "disk size too large, max size is {}",
+                    self.config.cvm.max_disk_size
+                );
+            }
+            teapot.add(VmState::new(vm_config));
         };
-
-        let vm_config = VmConfig {
-            manifest,
-            image,
-            cid,
-            networking: self.config.networking.clone(),
-            workdir: vm_work_dir.path().to_path_buf(),
-        };
-        if vm_config.manifest.disk_size > self.config.cvm.max_disk_size {
-            bail!(
-                "disk size too large, max size is {}",
-                self.config.cvm.max_disk_size
-            );
-        }
-        let vm_id = vm_config.manifest.id.clone();
-        self.lock().add(VmState::new(vm_config));
         let started = vm_work_dir.started().context("Failed to read VM state")?;
         if started {
             self.start_vm(&vm_id).await?;
         }
+
         Ok(())
     }
 
     pub async fn start_vm(&self, id: &str) -> Result<()> {
+        self.sync_dynamic_config(id)?;
         let is_running = self
             .supervisor
             .info(id)
@@ -315,6 +301,93 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    pub(crate) fn compose_file_path(&self, id: &str) -> PathBuf {
+        self.shared_dir(id).join("app-compose.json")
+    }
+
+    pub(crate) fn encrypted_env_path(&self, id: &str) -> PathBuf {
+        self.shared_dir(id).join("encrypted-env")
+    }
+
+    pub(crate) fn shared_dir(&self, id: &str) -> PathBuf {
+        self.config.run_path.join(id).join("shared")
+    }
+
+    pub(crate) fn prepare_work_dir(&self, id: &str, req: &VmConfiguration) -> Result<VmWorkDir> {
+        let work_dir = self.work_dir(id);
+        if work_dir.exists() {
+            bail!("The instance is already exists at {}", work_dir.display());
+        }
+        let shared_dir = work_dir.join("shared");
+        fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
+        fs::write(shared_dir.join("app-compose.json"), &req.compose_file)
+            .context("Failed to write compose file")?;
+        if !req.encrypted_env.is_empty() {
+            fs::write(shared_dir.join("encrypted-env"), &req.encrypted_env)
+                .context("Failed to write encrypted env")?;
+        }
+        let app_id = req.app_id.clone().unwrap_or_default();
+        if !app_id.is_empty() {
+            let instance_info = serde_json::json!({
+                "app_id": app_id,
+            });
+            fs::write(
+                shared_dir.join(".instance_info"),
+                serde_json::to_string(&instance_info)?,
+            )
+            .context("Failed to write vm config")?;
+        }
+        Ok(work_dir)
+    }
+
+    pub(crate) fn sync_dynamic_config(&self, id: &str) -> Result<()> {
+        let work_dir = self.work_dir(id);
+        let shared_dir = self.shared_dir(id);
+        let manifest = work_dir.manifest().context("Failed to read manifest")?;
+        let certs_dir = shared_dir.join("certs");
+        fs::create_dir_all(&certs_dir).context("Failed to create certs directory")?;
+        let cfg = &self.config;
+        let image_path = cfg.image_path.join(&manifest.image);
+        let image_info = ImageInfo::load(image_path.join("metadata.json"))
+            .context("Failed to load image info")?;
+        let rootfs_hash = image_info
+            .rootfs_hash
+            .context("Rootfs hash not found in image info")?;
+        let vm_config = serde_json::json!({
+            "rootfs_hash": rootfs_hash,
+            "kms_url": cfg.cvm.kms_url,
+            "tproxy_url": cfg.cvm.tproxy_url,
+            "docker_registry": cfg.cvm.docker_registry,
+            "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
+        });
+        let vm_config_str =
+            serde_json::to_string(&vm_config).context("Failed to serialize vm config")?;
+        fs::write(shared_dir.join("config.json"), vm_config_str)
+            .context("Failed to write vm config")?;
+        fs::copy(&cfg.cvm.ca_cert, certs_dir.join("ca.cert")).context("Failed to copy ca cert")?;
+        fs::copy(&cfg.cvm.tmp_ca_cert, certs_dir.join("tmp-ca.cert"))
+            .context("Failed to copy tmp ca cert")?;
+        fs::copy(&cfg.cvm.tmp_ca_key, certs_dir.join("tmp-ca.key"))
+            .context("Failed to copy tmp ca key")?;
+        Ok(())
+    }
+
+    pub(crate) fn kms_client(&self) -> Result<KmsClient<RaClient>> {
+        if self.config.kms_url.is_empty() {
+            bail!("KMS is not configured");
+        }
+        let url = format!("{}/prpc", self.config.kms_url);
+        let prpc_client = RaClient::new(url, true);
+        Ok(KmsClient::new(prpc_client))
+    }
+
+    pub(crate) fn tappd_client(&self, id: &str) -> Result<GuestClient> {
+        let cid = self.lock().get(id).context("vm not found")?.config.cid;
+        Ok(guest_api::client::new_client(format!(
+            "vsock://{cid}:8000/api"
+        )))
     }
 }
 
