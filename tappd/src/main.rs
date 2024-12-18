@@ -113,7 +113,7 @@ async fn run_watchdog() {
     if let Err(err) = sd_notify(false, &[NotifyState::Ready]) {
         error!("Failed to notify systemd: {err}");
     }
-    let heatbeat_interval = Duration::from_micros(watchdog_usec as u64 / 2);
+    let heatbeat_interval = Duration::from_micros(watchdog_usec / 2);
     let heatbeat_interval = heatbeat_interval.max(Duration::from_secs(1));
     info!("Watchdog enabled, interval={watchdog_usec}us, heartbeat={heatbeat_interval:?}",);
     let mut interval = tokio::time::interval(heatbeat_interval);
