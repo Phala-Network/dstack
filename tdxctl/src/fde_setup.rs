@@ -264,7 +264,12 @@ impl SetupFdeArgs {
         Ok(())
     }
 
-    fn mount_rootfs(&self, host_shared: &HostShared, disk_crypt_key: &str) -> Result<()> {
+    async fn mount_rootfs(
+        &self,
+        host_shared: &HostShared,
+        disk_crypt_key: &str,
+        nc: &NotifyClient,
+    ) -> Result<()> {
         let rootfs_mountpoint = self.rootfs_dir.display().to_string();
         if !self.rootfs_encryption {
             warn!("Rootfs encryption is disabled, skipping disk encryption");
@@ -289,21 +294,12 @@ impl SetupFdeArgs {
         Self::mount_e2fs("/dev/mapper/rootfs_crypt", &rootfs_mountpoint)?;
 
         let hash_file = self.rootfs_dir.join(".rootfs_hash");
-        let existing_rootfs_hash = match fs::read(&hash_file) {
-            Ok(rootfs_hash) => rootfs_hash,
-            Err(_) => {
-                // Old image touches .bootstraped instead of .rootfs_hash
-                if !self.rootfs_dir.join(".bootstraped").exists() {
-                    bail!("Rootfs is not bootstrapped");
-                }
-                Default::default()
-            }
-        };
-
+        let existing_rootfs_hash = fs::read(&hash_file).unwrap_or_default();
         if existing_rootfs_hash != host_shared.vm_config.rootfs_hash {
-            let todo = "do upgrade";
             fs::remove_file(&hash_file).context("Failed to remove old rootfs hash file")?;
-            bail!("Rootfs hash mismatch");
+            nc.notify_q("boot.progress", "upgrading rootfs").await;
+            self.extract_rootfs(&host_shared.vm_config.rootfs_hash)
+                .await?;
         }
         Ok(())
     }
@@ -344,17 +340,14 @@ impl SetupFdeArgs {
         Ok(())
     }
 
-    fn bootstrap_rootfs(
+    async fn bootstrap_rootfs(
         &self,
         host_shared: &HostShared,
         disk_crypt_key: &str,
         instance_info: &InstanceInfo,
-    ) -> Result<InstanceInfo> {
+        nc: &NotifyClient,
+    ) -> Result<()> {
         info!("Setting up disk encryption");
-        fs::create_dir_all(&self.root_cdrom_mnt)
-            .context("Failed to create rootfs cdrom mount point")?;
-        mount_cdrom(&self.root_cdrom, &self.root_cdrom_mnt.display().to_string())
-            .context("Failed to mount rootfs cdrom")?;
         info!("Formatting rootfs");
         let rootfs_dev = if self.rootfs_encryption {
             self.luks_setup(disk_crypt_key)?;
@@ -370,9 +363,21 @@ impl SetupFdeArgs {
             &[rootfs_dev, &self.rootfs_dir.display().to_string()],
         )
         .context("Failed to mount rootfs")?;
+        self.extract_rootfs(&host_shared.vm_config.rootfs_hash)
+            .await?;
+        let mut instance_info = instance_info.clone();
+        instance_info.bootstrapped = true;
+        nc.notify_q("instance.info", &serde_json::to_string(&instance_info)?)
+            .await;
+        Ok(())
+    }
 
+    async fn extract_rootfs(&self, expected_rootfs_hash: &[u8]) -> Result<()> {
         info!("Extracting rootfs");
-
+        fs::create_dir_all(&self.root_cdrom_mnt)
+            .context("Failed to create rootfs cdrom mount point")?;
+        mount_cdrom(&self.root_cdrom, &self.root_cdrom_mnt.display().to_string())
+            .context("Failed to mount rootfs cdrom")?;
         let rootfs_cpio = self.root_cdrom_mnt.join("rootfs.cpio");
         if !rootfs_cpio.exists() {
             bail!("Rootfs cpio file not found on cdrom");
@@ -381,7 +386,7 @@ impl SetupFdeArgs {
             fs::File::open(rootfs_cpio).context("Failed to open rootfs cpio file")?;
         let mut hashing_rootfs_cpio = HashingFile::<sha2::Sha256, _>::new(rootfs_cpio_file);
         let mut status = Command::new("/usr/bin/env")
-            .args(["cpio", "-i"])
+            .args(["cpio", "-i", "-d", "-u"])
             .current_dir(&self.rootfs_dir)
             .stdin(Stdio::piped())
             .spawn()
@@ -408,16 +413,16 @@ impl SetupFdeArgs {
             bail!("Failed to extract rootfs, cpio returned {status:?}");
         }
         let rootfs_hash = hashing_rootfs_cpio.finalize();
-        if rootfs_hash[..] != host_shared.vm_config.rootfs_hash[..] {
+        if &rootfs_hash[..] != expected_rootfs_hash {
             bail!("Rootfs hash mismatch");
         }
         info!("Rootfs hash is valid");
-        let mut instance_info = instance_info.clone();
-        instance_info.bootstrapped = true;
         fs::write(self.rootfs_dir.join(".rootfs_hash"), rootfs_hash)
             .context("Failed to write rootfs hash")?;
+        umount(&self.root_cdrom_mnt.display().to_string())
+            .context("Failed to unmount rootfs cdrom")?;
         info!("Rootfs is ready");
-        Ok(instance_info)
+        Ok(())
     }
 
     fn write_decrypted_env(&self, decrypted_env: &BTreeMap<String, String>) -> Result<()> {
@@ -489,13 +494,11 @@ impl SetupFdeArgs {
         let disk_crypt_key = format!("{}\n", app_keys.disk_crypt_key);
         if instance_info.bootstrapped {
             nc.notify_q("boot.progress", "mounting rootfs").await;
-            self.mount_rootfs(host_shared, &disk_crypt_key)?;
+            self.mount_rootfs(host_shared, &disk_crypt_key, nc).await?;
         } else {
             nc.notify_q("boot.progress", "initializing rootfs").await;
-            let instance_info =
-                self.bootstrap_rootfs(host_shared, &disk_crypt_key, &instance_info)?;
-            nc.notify_q("instance.info", &serde_json::to_string(&instance_info)?)
-                .await;
+            self.bootstrap_rootfs(host_shared, &disk_crypt_key, &instance_info, nc)
+                .await?;
         }
         self.write_decrypted_env(&decrypted_env)?;
         nc.notify_q("boot.progress", "rootfs ready").await;
