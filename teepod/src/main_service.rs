@@ -349,8 +349,29 @@ impl TeepodRpc for RpcHandler {
             manifest.memory = memory;
         }
         if let Some(disk_size) = request.disk_size {
-            // it only updates the manifesta and does NOT affect the real storage alloc at this time.
+            let max_disk_size = self.app.config.cvm.max_disk_size;
+            if disk_size > max_disk_size {
+                bail!("Disk size is too large, max is {max_disk_size}GB");
+            }
+            if disk_size < manifest.disk_size {
+                bail!("Cannot shrink disk size");
+            }
             manifest.disk_size = disk_size;
+
+            // Run qemu-img resize to resize the disk
+            info!("Resizing disk to {}GB", disk_size);
+            let hda_path = vm_work_dir.hda_path();
+            let new_size_str = format!("{}G", disk_size);
+            let output = std::process::Command::new("qemu-img")
+                .args(&["resize", &hda_path.display().to_string(), &new_size_str])
+                .output()
+                .context("Failed to resize disk")?;
+            if !output.status.success() {
+                bail!(
+                    "Failed to resize disk: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
         }
         vm_work_dir
             .put_manifest(&manifest)
