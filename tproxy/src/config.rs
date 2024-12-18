@@ -5,7 +5,7 @@ use rocket::figment::{
     Figment,
 };
 use serde::{Deserialize, Serialize};
-use std::{net::Ipv4Addr, process::Stdio};
+use std::net::Ipv4Addr;
 use std::{process::Command, time::Duration};
 use tracing::info;
 
@@ -151,8 +151,6 @@ pub fn load_config_figment(config_file: Option<&str>) -> Figment {
 fn cmd(cmd: &str, args: &[&str]) -> Result<Vec<u8>> {
     let output = Command::new(cmd)
         .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
         .output()
         .map_err(|e| anyhow!("Failed to run command {cmd}: {e}"))?;
     if !output.status.success() {

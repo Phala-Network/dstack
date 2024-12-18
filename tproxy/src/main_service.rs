@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     net::Ipv4Addr,
-    process::{Command, Stdio},
+    process::Command,
     sync::{Arc, Mutex, MutexGuard, Weak},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -261,8 +261,6 @@ impl ProxyState {
             .arg("show")
             .arg(&self.config.wg.interface)
             .arg("latest-handshakes")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
             .output()
             .context("failed to execute wg show command")?;
 
