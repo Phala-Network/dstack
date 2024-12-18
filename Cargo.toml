@@ -71,6 +71,7 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 safe-write = "0.1.1"
 nix = "0.29.0"
+sd-notify = "0.4.3"
 
 # Serialization/Parsing
 bon = "3.2.0"

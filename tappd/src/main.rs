@@ -1,4 +1,4 @@
-use std::{fs::Permissions, os::unix::fs::PermissionsExt};
+use std::{fs::Permissions, future::pending, os::unix::fs::PermissionsExt};
 
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
@@ -9,6 +9,9 @@ use rocket::{
 };
 use rocket_vsock_listener::VsockListener;
 use rpc_service::AppState;
+use sd_notify::{notify as sd_notify, NotifyState};
+use std::time::Duration;
+use tracing::{error, info};
 
 mod config;
 mod guest_api_routes;
@@ -33,6 +36,10 @@ struct Args {
     /// Path to the configuration file
     #[arg(short, long)]
     config: Option<String>,
+
+    /// Enable systemd watchdog
+    #[arg(short, long)]
+    watchdog: bool,
 }
 
 async fn run_internal(state: AppState, figment: Figment) -> Result<()> {
@@ -93,13 +100,42 @@ async fn run_guest_api(state: AppState, figment: Figment) -> Result<()> {
     Ok(())
 }
 
+async fn run_watchdog() {
+    let mut watchdog_usec = 0;
+    let enabled = sd_notify::watchdog_enabled(false, &mut watchdog_usec);
+    if !enabled {
+        info!("Watchdog is not enabled in systemd service");
+        return pending::<()>().await;
+    }
+
+    info!("Starting watchdog");
+    // Notify systemd that we're ready
+    if let Err(err) = sd_notify(false, &[NotifyState::Ready]) {
+        error!("Failed to notify systemd: {err}");
+    }
+    let heatbeat_interval = Duration::from_micros(watchdog_usec as u64 / 2);
+    let heatbeat_interval = heatbeat_interval.max(Duration::from_secs(1));
+    info!("Watchdog enabled, interval={watchdog_usec}us, heartbeat={heatbeat_interval:?}",);
+    let mut interval = tokio::time::interval(heatbeat_interval);
+    loop {
+        interval.tick().await;
+        if let Err(err) = sd_notify(false, &[NotifyState::Watchdog]) {
+            error!("Failed to notify systemd: {err}");
+        }
+    }
+}
+
 #[rocket::main]
 async fn main() -> Result<()> {
+    {
+        use tracing_subscriber::{fmt, EnvFilter};
+        let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+        fmt().with_env_filter(filter).init();
+    }
     let args = Args::parse();
     let figment = config::load_config_figment(args.config.as_deref());
     let state =
         AppState::new(figment.focus("core").extract()?).context("Failed to create app state")?;
-
     let internal_figment = figment.clone().select("internal");
     let external_figment = figment.clone().select("external");
     let external_https_figment = figment.clone().select("external-https");
@@ -107,8 +143,15 @@ async fn main() -> Result<()> {
     tokio::select!(
         res = run_internal(state.clone(), internal_figment) => res?,
         res = run_external(state.clone(), external_figment) => res?,
+        res = run_external(state.clone(), external_https_figment) => res?,
         res = run_guest_api(state.clone(), guest_api_figment) => res?,
-        res = run_external(state, external_https_figment) => res?,
+        _ = async {
+            if args.watchdog {
+                run_watchdog().await;
+            } else {
+                pending::<()>().await;
+            }
+        } => {}
     );
     Ok(())
 }

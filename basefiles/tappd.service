@@ -3,10 +3,12 @@ Description=Tappd Service
 After=network.target
 
 [Service]
-ExecStart=/bin/tappd
+ExecStart=/bin/tappd --watchdog
 Restart=always
 User=root
 Group=root
+Type=notify
+WatchdogSec=30s
 
 [Install]
 WantedBy=multi-user.target
