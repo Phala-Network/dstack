@@ -624,7 +624,7 @@
                         <tr style="border-bottom: 1px solid #eee;">
                             <td style="padding: 12px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <button @click="toggleDetails(vm.id)" class="action-btn"
+                                    <button @click="toggleDetails(vm)" class="action-btn"
                                         style="padding: 2px 6px; min-width: 24px;">
                                         {{ expandedVMs.has(vm.id) ? '−' : '+' }}
                                     </button>
@@ -1267,21 +1267,23 @@
                     vmForm.value.ports.splice(index, 1);
                 };
 
-                const toggleDetails = (vmId) => {
-                    if (expandedVMs.value.has(vmId)) {
-                        expandedVMs.value.delete(vmId);
+                const toggleDetails = (vm) => {
+                    if (expandedVMs.value.has(vm.id)) {
+                        expandedVMs.value.delete(vm.id);
                     } else {
-                        expandedVMs.value.add(vmId);
-                        refreshNetworkInfo(vmId);
+                        expandedVMs.value.add(vm.id);
+                        if (vm.status == 'running') {
+                            refreshNetworkInfo(vm);
+                        }
                     }
                 };
 
-                const refreshNetworkInfo = async (vmId) => {
+                const refreshNetworkInfo = async (vm) => {
                     const response = await guestRpcCall('NetworkInfo', {
-                        id: vmId
+                        id: vm.id
                     });
                     const data = await response.json();
-                    networkInfo.value[vmId] = data;
+                    networkInfo.value[vm.id] = data;
                 };
 
                 const addEncryptedEnv = () => {
