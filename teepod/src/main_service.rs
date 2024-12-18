@@ -1,12 +1,8 @@
 use std::ops::Deref;
-use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, bail, Context, Result};
 use fs_err as fs;
-use guest_api::client::DefaultClient as GuestClient;
-use kms_rpc::kms_client::KmsClient;
-use ra_rpc::client::RaClient;
 use ra_rpc::{CallContext, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
@@ -15,7 +11,7 @@ use teepod_rpc::{
 };
 use tracing::{info, warn};
 
-use crate::app::{App, ImageInfo, Manifest, PortMapping, VmWorkDir};
+use crate::app::{App, Manifest, PortMapping, VmWorkDir};
 
 fn hex_sha256(data: &str) -> String {
     use sha2::Digest;
@@ -33,92 +29,6 @@ impl Deref for RpcHandler {
 
     fn deref(&self) -> &Self::Target {
         &self.app
-    }
-}
-
-impl App {
-    pub(crate) fn compose_file_path(&self, id: &str) -> PathBuf {
-        self.shared_dir(id).join("app-compose.json")
-    }
-
-    pub(crate) fn encrypted_env_path(&self, id: &str) -> PathBuf {
-        self.shared_dir(id).join("encrypted-env")
-    }
-
-    pub(crate) fn shared_dir(&self, id: &str) -> PathBuf {
-        self.config.run_path.join(id).join("shared")
-    }
-
-    pub(crate) fn prepare_work_dir(&self, id: &str, req: &VmConfiguration) -> Result<VmWorkDir> {
-        let work_dir = self.work_dir(id);
-        if work_dir.exists() {
-            bail!("The instance is already exists at {}", work_dir.display());
-        }
-        let shared_dir = work_dir.join("shared");
-        fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
-        fs::write(shared_dir.join("app-compose.json"), &req.compose_file)
-            .context("Failed to write compose file")?;
-        if !req.encrypted_env.is_empty() {
-            fs::write(shared_dir.join("encrypted-env"), &req.encrypted_env)
-                .context("Failed to write encrypted env")?;
-        }
-        let certs_dir = shared_dir.join("certs");
-        fs::create_dir_all(&certs_dir).context("Failed to create certs directory")?;
-
-        let cfg = &self.config;
-        fs::copy(&cfg.cvm.ca_cert, certs_dir.join("ca.cert")).context("Failed to copy ca cert")?;
-        fs::copy(&cfg.cvm.tmp_ca_cert, certs_dir.join("tmp-ca.cert"))
-            .context("Failed to copy tmp ca cert")?;
-        fs::copy(&cfg.cvm.tmp_ca_key, certs_dir.join("tmp-ca.key"))
-            .context("Failed to copy tmp ca key")?;
-
-        let image_path = cfg.image_path.join(&req.image);
-        let image_info = ImageInfo::load(image_path.join("metadata.json"))
-            .context("Failed to load image info")?;
-
-        let rootfs_hash = image_info
-            .rootfs_hash
-            .context("Rootfs hash not found in image info")?;
-        let vm_config = serde_json::json!({
-            "rootfs_hash": rootfs_hash,
-            "kms_url": cfg.cvm.kms_url,
-            "tproxy_url": cfg.cvm.tproxy_url,
-            "docker_registry": cfg.cvm.docker_registry,
-            "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
-        });
-        let vm_config_str =
-            serde_json::to_string(&vm_config).context("Failed to serialize vm config")?;
-        fs::write(shared_dir.join("config.json"), vm_config_str)
-            .context("Failed to write vm config")?;
-        let app_id = req.app_id.clone().unwrap_or_default();
-        if !app_id.is_empty() {
-            let instance_info = serde_json::json!({
-                "app_id": app_id,
-            });
-            fs::write(
-                shared_dir.join(".instance_info"),
-                serde_json::to_string(&instance_info)?,
-            )
-            .context("Failed to write vm config")?;
-        }
-
-        Ok(work_dir)
-    }
-
-    pub(crate) fn kms_client(&self) -> Result<KmsClient<RaClient>> {
-        if self.config.kms_url.is_empty() {
-            bail!("KMS is not configured");
-        }
-        let url = format!("{}/prpc", self.config.kms_url);
-        let prpc_client = RaClient::new(url, true);
-        Ok(KmsClient::new(prpc_client))
-    }
-
-    pub(crate) fn tappd_client(&self, id: &str) -> Result<GuestClient> {
-        let cid = self.lock().get(id).context("vm not found")?.config.cid;
-        Ok(guest_api::client::new_client(format!(
-            "vsock://{cid}:8000/api"
-        )))
     }
 }
 
@@ -176,27 +86,26 @@ impl TeepodRpc for RpcHandler {
             None => app_id_of(&request.compose_file),
         };
         let id = uuid::Uuid::new_v4().to_string();
-        let work_dir = self.prepare_work_dir(&id, &request)?;
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
         let manifest = Manifest::builder()
             .id(id.clone())
-            .name(request.name)
+            .name(request.name.clone())
             .app_id(app_id.clone())
-            .image(request.image)
+            .image(request.image.clone())
             .vcpu(request.vcpu)
             .memory(request.memory)
             .disk_size(request.disk_size)
             .port_map(port_map)
             .created_at_ms(now)
             .build();
-
-        let vm_work_dir = VmWorkDir::new(&work_dir);
+        let vm_work_dir = self.app.work_dir(&id);
         vm_work_dir
             .put_manifest(&manifest)
             .context("Failed to write manifest")?;
+        let work_dir = self.prepare_work_dir(&id, &request)?;
         if let Err(err) = vm_work_dir.set_started(true) {
             warn!("Failed to set started: {}", err);
         }
@@ -329,12 +238,13 @@ impl TeepodRpc for RpcHandler {
 
     #[tracing::instrument(skip(self, request), fields(id = request.id))]
     async fn resize_vm(self, request: ResizeVmRequest) -> Result<()> {
+        info!("Resizing VM: {:?}", request);
         let vm = self
             .app
             .vm_info(&request.id)
             .await?
             .context("vm not found")?;
-        if vm.status != "stopped" {
+        if !["stopped", "exited"].contains(&vm.status.as_str()) {
             return Err(anyhow!(
                 "vm should be stopped before resize: {}",
                 request.id
@@ -348,6 +258,9 @@ impl TeepodRpc for RpcHandler {
         }
         if let Some(memory) = request.memory {
             manifest.memory = memory;
+        }
+        if let Some(image) = request.image {
+            manifest.image = image;
         }
         if let Some(disk_size) = request.disk_size {
             let max_disk_size = self.app.config.cvm.max_disk_size;

@@ -320,6 +320,7 @@ impl VmWorkDir {
     }
 
     pub fn put_manifest(&self, manifest: &Manifest) -> Result<()> {
+        fs::create_dir_all(&self.workdir).context("Failed to create workdir")?;
         let manifest_path = self.manifest_path();
         fs::write(manifest_path, serde_json::to_string(manifest)?)
             .context("Failed to write manifest")

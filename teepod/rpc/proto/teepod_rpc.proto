@@ -122,6 +122,8 @@ message ResizeVmRequest {
   optional uint32 memory = 3;
   // Disk size in GB
   optional uint32 disk_size = 4;
+  // Image name
+  optional string image = 5;
 }
 
 // Service definition for Teepod
@@ -138,6 +140,8 @@ service Teepod {
   rpc UpgradeApp(UpgradeAppRequest) returns (Id);
   // Shutdown a VM
   rpc ShutdownVm(Id) returns (google.protobuf.Empty);
+  // RPC to resize a VM
+  rpc ResizeVm(ResizeVmRequest) returns (google.protobuf.Empty);
 
   // RPC to list all VMs
   rpc Status(google.protobuf.Empty) returns (StatusResponse);
@@ -149,7 +153,4 @@ service Teepod {
 
   // Get VM info by ID
   rpc GetInfo(Id) returns (GetInfoResponse);
-
-  // RPC to resize a VM
-  rpc ResizeVm(ResizeVmRequest) returns (google.protobuf.Empty);
 }
