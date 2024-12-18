@@ -641,12 +641,12 @@
                                     <button class="action-btn primary" @click="startVm(vm.id)" title="Start VM">
                                         <i class="fas fa-play"></i> Start
                                     </button>
-                                    <button v-if="imageFeatures(vm).graceful_shutdown" class="action-btn danger"
+                                    <button v-if="imageFeatures(vm).graceful_shutdown" class="action-btn warning"
                                         @click="shutdownVm(vm.id)" title="Shutdown VM">
-                                        <i class="fas fa-power-off"></i> Shutdown
+                                        <i class="fas fa-stop"></i> Stop
                                     </button>
                                     <button class="action-btn danger" @click="stopVm(vm.id)" title="Stop VM">
-                                        <i class="fas fa-stop"></i> Stop
+                                        <i class="fas fa-kill"></i> Kill
                                     </button>
                                     <button class="action-btn warning" @click="removeVm(vm.id)" title="Remove VM">
                                         <i class="fas fa-trash"></i> Remove
@@ -656,7 +656,7 @@
                                     </button>
                                     <button v-if="dashboardAvailable(vm)" class="action-btn" @click="showDashboard(vm)"
                                         title="View App Info">
-                                        <i class="fas fa-info-circle"></i> Dashboard
+                                        <i class="fas fa-info-circle"></i> Board
                                     </button>
                                     <button class="action-btn" @click="showUpgradeDialog(vm)" title="Upgrade VM">
                                         <i class="fas fa-arrow-up"></i> Update
