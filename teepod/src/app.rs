@@ -317,9 +317,6 @@ impl App {
 
     pub(crate) fn prepare_work_dir(&self, id: &str, req: &VmConfiguration) -> Result<VmWorkDir> {
         let work_dir = self.work_dir(id);
-        if work_dir.exists() {
-            bail!("The instance is already exists at {}", work_dir.display());
-        }
         let shared_dir = work_dir.join("shared");
         fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
         fs::write(shared_dir.join("app-compose.json"), &req.compose_file)

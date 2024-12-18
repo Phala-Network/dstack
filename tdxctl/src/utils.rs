@@ -139,7 +139,6 @@ pub fn run_command(command: &str, args: &[&str]) -> Result<Vec<u8>> {
 pub struct AppCompose {
     pub manifest_version: u32,
     pub name: String,
-    pub version: String,
     // Deprecated
     #[serde(default)]
     pub features: Vec<String>,

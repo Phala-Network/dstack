@@ -182,7 +182,6 @@ impl TeepodRpc for RpcHandler {
                 struct AppCompose {
                     manifest_version: u32,
                     name: String,
-                    version: String,
                     runner: String,
                     docker_compose_file: Option<String>,
                 }
