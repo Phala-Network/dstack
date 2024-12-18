@@ -122,8 +122,6 @@ pub fn run_command(command: &str, args: &[&str]) -> Result<Vec<u8>> {
     let output = Command::new("/usr/bin/env")
         .arg(command)
         .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
         .output()
         .context(format!("Failed to run {}", command))?;
     if !output.status.success() {

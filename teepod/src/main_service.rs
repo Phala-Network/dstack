@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use fs_err as fs;
 use guest_api::client::DefaultClient as GuestClient;
 use kms_rpc::kms_client::KmsClient;
@@ -13,7 +13,7 @@ use teepod_rpc::{
     AppId, GetInfoResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse, PublicKeyResponse,
     ResizeVmRequest, StatusResponse, UpgradeAppRequest, VmConfiguration,
 };
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::app::{App, ImageInfo, Manifest, PortMapping, VmWorkDir};
 
@@ -52,7 +52,7 @@ impl App {
     pub(crate) fn prepare_work_dir(&self, id: &str, req: &VmConfiguration) -> Result<VmWorkDir> {
         let work_dir = self.work_dir(id);
         if work_dir.exists() {
-            anyhow::bail!("The instance is already exists at {}", work_dir.display());
+            bail!("The instance is already exists at {}", work_dir.display());
         }
         let shared_dir = work_dir.join("shared");
         fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
@@ -107,7 +107,7 @@ impl App {
 
     pub(crate) fn kms_client(&self) -> Result<KmsClient<RaClient>> {
         if self.config.kms_url.is_empty() {
-            anyhow::bail!("KMS is not configured");
+            bail!("KMS is not configured");
         }
         let url = format!("{}/prpc", self.config.kms_url);
         let prpc_client = RaClient::new(url, true);
@@ -139,7 +139,7 @@ fn validate_label(label: &str) -> Result<()> {
         .chars()
         .any(|c| !c.is_alphanumeric() && c != '-' && c != '_')
     {
-        anyhow::bail!("Invalid name: {}", label);
+        bail!("Invalid name: {}", label);
     }
     Ok(())
 }
@@ -150,7 +150,7 @@ impl TeepodRpc for RpcHandler {
 
         let pm_cfg = &self.app.config.cvm.port_mapping;
         if !(request.ports.is_empty() || pm_cfg.enabled) {
-            anyhow::bail!("Port mapping is disabled");
+            bail!("Port mapping is disabled");
         }
         let port_map = request
             .ports
@@ -159,7 +159,7 @@ impl TeepodRpc for RpcHandler {
                 let from = p.host_port.try_into().context("Invalid host port")?;
                 let to = p.vm_port.try_into().context("Invalid vm port")?;
                 if !pm_cfg.is_allowed(&p.protocol, from) {
-                    anyhow::bail!("Port mapping is not allowed for {}:{}", p.protocol, from);
+                    bail!("Port mapping is not allowed for {}:{}", p.protocol, from);
                 }
                 let protocol = p.protocol.parse().context("Invalid protocol")?;
                 Ok(PortMapping {
@@ -279,12 +279,12 @@ impl TeepodRpc for RpcHandler {
                 let app_compose: AppCompose =
                     serde_json::from_str(&request.compose_file).context("Invalid compose file")?;
                 if app_compose.docker_compose_file.is_none() {
-                    anyhow::bail!("Docker compose file cannot be empty");
+                    bail!("Docker compose file cannot be empty");
                 }
             }
             let compose_file_path = self.compose_file_path(&request.id);
             if !compose_file_path.exists() {
-                anyhow::bail!("The instance {} not found", request.id);
+                bail!("The instance {} not found", request.id);
             }
             fs::write(compose_file_path, &request.compose_file)
                 .context("Failed to write compose file")?;
@@ -327,14 +327,15 @@ impl TeepodRpc for RpcHandler {
         }
     }
 
+    #[tracing::instrument(skip(self, request), fields(id = request.id))]
     async fn resize_vm(self, request: ResizeVmRequest) -> Result<()> {
         let vm = self
             .app
             .vm_info(&request.id)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("vm not found: {}", request.id))?;
+            .context("vm not found")?;
         if vm.status != "stopped" {
-            return Err(anyhow::anyhow!(
+            return Err(anyhow!(
                 "vm should be stopped before resize: {}",
                 request.id
             ));
@@ -349,8 +350,29 @@ impl TeepodRpc for RpcHandler {
             manifest.memory = memory;
         }
         if let Some(disk_size) = request.disk_size {
-            // it only updates the manifesta and does NOT affect the real storage alloc at this time.
+            let max_disk_size = self.app.config.cvm.max_disk_size;
+            if disk_size > max_disk_size {
+                bail!("Disk size is too large, max is {max_disk_size}GB");
+            }
+            if disk_size < manifest.disk_size {
+                bail!("Cannot shrink disk size");
+            }
             manifest.disk_size = disk_size;
+
+            // Run qemu-img resize to resize the disk
+            info!("Resizing disk to {}GB", disk_size);
+            let hda_path = vm_work_dir.hda_path();
+            let new_size_str = format!("{}G", disk_size);
+            let output = std::process::Command::new("qemu-img")
+                .args(["resize", &hda_path.display().to_string(), &new_size_str])
+                .output()
+                .context("Failed to resize disk")?;
+            if !output.status.success() {
+                bail!(
+                    "Failed to resize disk: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
         }
         vm_work_dir
             .put_manifest(&manifest)

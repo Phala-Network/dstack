@@ -254,14 +254,21 @@ impl SetupFdeArgs {
         Ok(vars)
     }
 
+    fn mount_e2fs(dev: &str, mount_point: &str) -> Result<()> {
+        info!("Checking filesystem");
+        run_command("e2fsck", &["-f", "-p", dev]).context("Failed to check filesystem")?;
+        info!("Trying to resize filesystem if needed");
+        run_command("resize2fs", &[dev]).context("Failed to resize rootfs")?;
+        info!("Mounting filesystem");
+        run_command("mount", &[dev, mount_point]).context("Failed to mount rootfs")?;
+        Ok(())
+    }
+
     fn mount_rootfs(&self, host_shared: &HostShared, disk_crypt_key: &str) -> Result<()> {
+        let rootfs_mountpoint = self.rootfs_dir.display().to_string();
         if !self.rootfs_encryption {
             warn!("Rootfs encryption is disabled, skipping disk encryption");
-            run_command(
-                "mount",
-                &[&self.root_hd, &self.rootfs_dir.display().to_string()],
-            )
-            .context("Failed to mount rootfs")?;
+            Self::mount_e2fs(&self.root_hd, &rootfs_mountpoint)?;
             return Ok(());
         }
         info!("Mounting encrypted rootfs");
@@ -278,14 +285,8 @@ impl SetupFdeArgs {
             disk_crypt_key,
         )
         .context("Failed to open encrypted rootfs")?;
-        run_command(
-            "mount",
-            &[
-                "/dev/mapper/rootfs_crypt",
-                &self.rootfs_dir.display().to_string(),
-            ],
-        )
-        .context("Failed to mount rootfs")?;
+
+        Self::mount_e2fs("/dev/mapper/rootfs_crypt", &rootfs_mountpoint)?;
 
         let hash_file = self.rootfs_dir.join(".rootfs_hash");
         let existing_rootfs_hash = match fs::read(&hash_file) {

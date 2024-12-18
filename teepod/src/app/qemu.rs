@@ -11,7 +11,7 @@ use std::{
 };
 
 use super::{image::Image, VmState};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use bon::Builder;
 use fs_err as fs;
 use serde::{Deserialize, Serialize};
@@ -65,7 +65,13 @@ fn create_hd(
     }
     command.arg(image_file.as_ref());
     command.arg(size);
-    command.spawn()?.wait()?;
+    let output = command.output()?;
+    if !output.status.success() {
+        bail!(
+            "Failed to create disk: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
     Ok(())
 }
 
