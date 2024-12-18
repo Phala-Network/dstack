@@ -413,7 +413,7 @@ impl SetupFdeArgs {
         info!("Rootfs hash is valid");
         let mut instance_info = instance_info.clone();
         instance_info.bootstrapped = true;
-        fs::write(self.rootfs_dir.join(".rootfs_hash"), &rootfs_hash)
+        fs::write(self.rootfs_dir.join(".rootfs_hash"), rootfs_hash)
             .context("Failed to write rootfs hash")?;
         info!("Rootfs is ready");
         Ok(instance_info)
@@ -477,7 +477,7 @@ impl SetupFdeArgs {
 
         nc.notify_q("boot.progress", "requesting app keys").await;
 
-        let app_keys = self.request_app_keys(&host_shared).await?;
+        let app_keys = self.request_app_keys(host_shared).await?;
         if app_keys.disk_crypt_key.is_empty() {
             bail!("Failed to get valid key phrase from KMS");
         }
@@ -488,11 +488,11 @@ impl SetupFdeArgs {
         let disk_crypt_key = format!("{}\n", app_keys.disk_crypt_key);
         if instance_info.bootstrapped {
             nc.notify_q("boot.progress", "mounting rootfs").await;
-            self.mount_rootfs(&host_shared, &disk_crypt_key)?;
+            self.mount_rootfs(host_shared, &disk_crypt_key)?;
         } else {
             nc.notify_q("boot.progress", "initializing rootfs").await;
             let instance_info =
-                self.bootstrap_rootfs(&host_shared, &disk_crypt_key, &instance_info)?;
+                self.bootstrap_rootfs(host_shared, &disk_crypt_key, &instance_info)?;
             nc.notify_q("instance.info", &serde_json::to_string(&instance_info)?)
                 .await;
         }
