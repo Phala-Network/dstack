@@ -164,17 +164,20 @@
             </div>
             <div class="info-row">
                 <div class="info-label">Memory Usage</div>
-                <div class="info-value">Used: {{system_info.used_memory|hsize}} / Total: {{system_info.total_memory|hsize}}
+                <div class="info-value">Used: {{system_info.used_memory|hsize}} / Total:
+                    {{system_info.total_memory|hsize}}
                     (Available: {{system_info.available_memory|hsize}})</div>
             </div>
             <div class="info-row">
                 <div class="info-label">Swap Usage</div>
-                <div class="info-value">Used: {{system_info.used_swap|hsize}} / Total: {{system_info.total_swap|hsize}} (Free:
+                <div class="info-value">Used: {{system_info.used_swap|hsize}} / Total: {{system_info.total_swap|hsize}}
+                    (Free:
                     {{system_info.free_swap|hsize}})</div>
             </div>
             <div class="info-row">
                 <div class="info-label">Load Average</div>
-                <div class="info-value">1min: {{system_info.loadavg_one as f32 / 100.0}}%, 5min: {{system_info.loadavg_five as f32 / 100.0}}%, 15min:
+                <div class="info-value">1min: {{system_info.loadavg_one as f32 / 100.0}}%, 5min:
+                    {{system_info.loadavg_five as f32 / 100.0}}%, 15min:
                     {{system_info.loadavg_fifteen as f32 / 100.0}}%</div>
             </div>
             <div class="info-row">
@@ -210,7 +213,8 @@
                 <td>{{container.status}}</td>
                 {% if public_logs %}
                 <td>
-                    <a href="/logs/{{name|cname}}?text&bare&timestamps&follow&since=1d&tail=1000" target="_blank">View Logs</a>
+                    <a href="/logs/{{name|cname}}?text&bare&timestamps&follow&since=1d&tail=20" target="_blank">View
+                        Logs</a>
                 </td>
                 {% endif %}
             </tr>
