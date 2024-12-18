@@ -635,7 +635,7 @@
                             <td style="padding: 12px;">
                                 <span :class="'status-' + vm.status.toLowerCase()">{{ vmStatus(vm) }}</span>
                             </td>
-                            <td style="padding: 12px;">{{ vm.uptime }}</td>
+                            <td style="padding: 12px;">{{ vm.status == 'running' ? vm.uptime : '' }}</td>
                             <td style="padding: 12px;">
                                 <div class="vm-actions">
                                     <button class="action-btn primary" @click="startVm(vm.id)" title="Start VM">
@@ -643,7 +643,7 @@
                                     </button>
                                     <button v-if="imageFeatures(vm).graceful_shutdown" class="action-btn warning"
                                         @click="shutdownVm(vm.id)" title="Shutdown VM">
-                                        <i class="fas fa-stop"></i> Stop
+                                        <i class="fas fa-stop"></i> Shutdown
                                     </button>
                                     <button class="action-btn danger" @click="stopVm(vm.id)" title="Stop VM">
                                         <i class="fas fa-kill"></i> Kill
