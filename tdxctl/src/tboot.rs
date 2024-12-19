@@ -123,17 +123,41 @@ impl<'a> Setup<'a> {
 
         // Create WireGuard config
         fs::create_dir_all(self.resolve("/etc/wireguard"))?;
+        let wg_listen_port = "9182";
         let config = format!(
             "[Interface]\n\
-        PrivateKey = {sk}\n\
-        Address = {client_ip}/24\n\n\
-        [Peer]\n\
-        PublicKey = {server_public_key}\n\
-        AllowedIPs = {server_ip}/24\n\
-        Endpoint = {server_endpoint}\n\
-        PersistentKeepalive = 25\n"
+            PrivateKey = {sk}\n\
+            ListenPort = {wg_listen_port}\n\
+            Address = {client_ip}/32\n\n\
+            [Peer]\n\
+            PublicKey = {server_public_key}\n\
+            AllowedIPs = {server_ip}/32\n\
+            Endpoint = {server_endpoint}\n\
+            PersistentKeepalive = 25\n"
         );
         fs::write(self.resolve("/etc/wireguard/wg0.conf"), config)?;
+        // Add iptables rule to only allow packets from the WireGuard endpoint
+        let endpoint_ip = server_endpoint
+            .split(':')
+            .next()
+            .context("Invalid wireguard endpoint")?;
+        run_command(
+            "iptables",
+            &[
+                "-A",
+                "INPUT",
+                "-p",
+                "udp",
+                "--dport",
+                wg_listen_port,
+                "!",
+                "-s",
+                endpoint_ip,
+                "-j",
+                "DROP",
+            ],
+        )
+        .context("Failed to add iptables rule")?;
 
         info!("Starting WireGuard");
         run_command("wg-quick", &["up", "wg0"]).context("Failed to start WireGuard")?;
@@ -188,11 +212,11 @@ impl<'a> Setup<'a> {
         info!("Setting up tappd config");
         let tappd_config = self.resolve("/etc/tappd/tappd.toml");
         let config = format!(
-            r#"
-            [default.core]
-            public_logs = {}
-            public_sysinfo = {}
-        "#,
+            "\
+            [default.core]\n\
+            public_logs = {}\n\
+            public_sysinfo = {}\n\
+        ",
             self.app_compose.public_logs, self.app_compose.public_sysinfo
         );
         fs::write(tappd_config, config)?;
