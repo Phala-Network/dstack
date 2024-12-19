@@ -97,8 +97,7 @@ struct InstanceInfo {
 
 impl InstanceInfo {
     fn is_bootstrapped(&self) -> bool {
-        self.bootstrapped
-            .unwrap_or_else(|| !self.instance_id.is_empty())
+        self.bootstrapped.unwrap_or(!self.instance_id.is_empty())
     }
 }
 
