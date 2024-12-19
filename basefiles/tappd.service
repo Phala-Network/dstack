@@ -1,6 +1,6 @@
 [Unit]
 Description=Tappd Service
-After=network.target
+After=network.target tboot.service
 
 [Service]
 ExecStartPre=-/bin/rm -f /var/run/tappd.sock

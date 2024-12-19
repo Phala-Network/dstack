@@ -9,6 +9,8 @@ log_level = "debug"
 [default.core]
 cert_file = "/etc/tappd/app-ca.cert"
 key_file = "/etc/tappd/app-ca.key"
+public_logs = false
+public_sysinfo = false
 
 [internal]
 address = "unix:/var/run/tappd.sock"

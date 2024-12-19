@@ -13,7 +13,7 @@ use std::{
 use tboot::TbootArgs;
 use tdx_attest as att;
 use tracing::error;
-use utils::{deserialize_json_file, extend_rtmr, run_command, AppCompose};
+use utils::{extend_rtmr, run_command};
 
 mod crypto;
 mod fde_setup;
@@ -49,8 +49,6 @@ enum Commands {
     GenAppKeys(GenAppKeysArgs),
     /// Generate random data
     Rand(RandArgs),
-    /// Test if an tapp feature is enabled given an app compose file
-    TestAppFeature(TestAppFeatureArgs),
     /// Setup Disk Encryption
     SetupFde(SetupFdeArgs),
     /// Boot the Tapp
@@ -371,12 +369,6 @@ fn cmd_gen_app_keys(args: GenAppKeysArgs) -> Result<()> {
     Ok(())
 }
 
-fn cmd_test_app_feature(args: TestAppFeatureArgs) -> Result<()> {
-    let app_compose: AppCompose = deserialize_json_file(&args.compose)?;
-    println!("{}", app_compose.feature_enabled(&args.feature));
-    Ok(())
-}
-
 async fn cmd_notify_host(args: HostNotifyArgs) -> Result<()> {
     let client = NotifyClient::load_or_default(args.url)?;
     client.notify(&args.event, &args.payload).await?;
@@ -421,9 +413,6 @@ async fn main() -> Result<()> {
         }
         Commands::GenAppKeys(args) => {
             cmd_gen_app_keys(args)?;
-        }
-        Commands::TestAppFeature(args) => {
-            cmd_test_app_feature(args)?;
         }
         Commands::SetupFde(args) => {
             cmd_setup_fde(args).await?;

@@ -139,12 +139,21 @@ pub fn run_command(command: &str, args: &[&str]) -> Result<Vec<u8>> {
 pub struct AppCompose {
     pub manifest_version: u32,
     pub name: String,
-    pub version: String,
+    // Deprecated
+    #[serde(default)]
     pub features: Vec<String>,
     pub runner: String,
     pub docker_compose_file: Option<String>,
     #[serde(default)]
     pub docker_config: DockerConfig,
+    #[serde(default)]
+    pub public_logs: bool,
+    #[serde(default)]
+    pub public_sysinfo: bool,
+    #[serde(default)]
+    pub kms_enabled: bool,
+    #[serde(default)]
+    pub tproxy_enabled: bool,
 }
 
 #[derive(Deserialize, Debug, Default)]
@@ -158,8 +167,16 @@ pub struct DockerConfig {
 }
 
 impl AppCompose {
-    pub fn feature_enabled(&self, feature: &str) -> bool {
+    fn feature_enabled(&self, feature: &str) -> bool {
         self.features.contains(&feature.to_string())
+    }
+
+    pub fn tproxy_enabled(&self) -> bool {
+        self.tproxy_enabled || self.feature_enabled("tproxy-net")
+    }
+
+    pub fn kms_enabled(&self) -> bool {
+        self.kms_enabled || self.feature_enabled("kms")
     }
 }
 

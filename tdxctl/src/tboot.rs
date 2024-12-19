@@ -64,6 +64,7 @@ impl<'a> Setup<'a> {
     async fn setup(&self, nc: &NotifyClient) -> Result<()> {
         self.prepare_certs()?;
         nc.notify_q("boot.progress", "setting up tproxy net").await;
+        self.setup_tappd_config()?;
         self.setup_tproxy_net().await?;
         nc.notify_q("boot.progress", "setting up docker").await;
         self.setup_docker_registry()?;
@@ -73,7 +74,7 @@ impl<'a> Setup<'a> {
     }
 
     async fn setup_tproxy_net(&self) -> Result<()> {
-        if !self.app_compose.feature_enabled("tproxy-net") {
+        if !self.app_compose.tproxy_enabled() {
             info!("tproxy is not enabled");
             return Ok(());
         }
@@ -180,6 +181,21 @@ impl<'a> Setup<'a> {
             .append(true)
             .open(self.resolve("/etc/tappd/tls.cert"))?;
         tls_cert.write_all(&fs::read(self.resolve("/etc/tappd/app-ca.cert"))?)?;
+        Ok(())
+    }
+
+    fn setup_tappd_config(&self) -> Result<()> {
+        info!("Setting up tappd config");
+        let tappd_config = self.resolve("/etc/tappd/tappd.toml");
+        let config = format!(
+            r#"
+            [default.core]
+            public_logs = {}
+            public_sysinfo = {}
+        "#,
+            self.app_compose.public_logs, self.app_compose.public_sysinfo
+        );
+        fs::write(tappd_config, config)?;
         Ok(())
     }
 

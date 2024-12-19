@@ -247,14 +247,14 @@ impl App {
         Ok(lst)
     }
 
-    pub fn list_image_names(&self) -> Result<Vec<String>> {
+    pub fn list_images(&self) -> Result<Vec<(String, ImageInfo)>> {
         let image_path = self.config.image_path.clone();
         let images = fs::read_dir(image_path).context("Failed to read image directory")?;
         Ok(images
             .flat_map(|entry| {
                 let path = entry.ok()?.path();
-                let _ = Image::load(&path).ok()?;
-                Some(path.file_name()?.to_string_lossy().to_string())
+                let img = Image::load(&path).ok()?;
+                Some((path.file_name()?.to_string_lossy().to_string(), img.info))
             })
             .collect())
     }
@@ -317,9 +317,6 @@ impl App {
 
     pub(crate) fn prepare_work_dir(&self, id: &str, req: &VmConfiguration) -> Result<VmWorkDir> {
         let work_dir = self.work_dir(id);
-        if work_dir.exists() {
-            bail!("The instance is already exists at {}", work_dir.display());
-        }
         let shared_dir = work_dir.join("shared");
         fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
         fs::write(shared_dir.join("app-compose.json"), &req.compose_file)

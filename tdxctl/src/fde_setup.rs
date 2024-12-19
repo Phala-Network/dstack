@@ -198,7 +198,7 @@ impl SetupFdeArgs {
 
     async fn request_app_keys(&self, host_shared: &HostShared) -> Result<AppKeys> {
         let kms_url = &host_shared.vm_config.kms_url;
-        let kms_enabled = host_shared.app_compose.feature_enabled("kms");
+        let kms_enabled = host_shared.app_compose.kms_enabled();
         if kms_enabled {
             let Some(kms_url) = kms_url else {
                 bail!("KMS URL is not set");
@@ -445,7 +445,7 @@ impl SetupFdeArgs {
         let rootfs_hash = &host_shared.vm_config.rootfs_hash;
         let compose_hash = sha256_file(host_shared.dir.app_compose_file())?;
         let truncated_compose_hash = truncate(&compose_hash, 20);
-        let kms_enabled = host_shared.app_compose.feature_enabled("kms");
+        let kms_enabled = host_shared.app_compose.kms_enabled();
         let ca_cert_hash = if kms_enabled {
             sha256_file(host_shared.dir.kms_ca_cert_file())?
         } else {

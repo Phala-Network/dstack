@@ -68,7 +68,7 @@ async fn run_internal(state: AppState, figment: Figment) -> Result<()> {
 
 async fn run_external(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
-        .mount("/", http_routes::external_routes())
+        .mount("/", http_routes::external_routes(state.config()))
         .attach(AdHoc::on_response("Add app version header", |_req, res| {
             Box::pin(async move {
                 res.set_raw_header("X-App-Version", app_version());

@@ -18,6 +18,8 @@ pub struct ImageInfo {
     pub shared_ro: bool,
     #[serde(default)]
     pub version: String,
+    #[serde(default)]
+    pub is_dev: bool,
 }
 
 impl ImageInfo {

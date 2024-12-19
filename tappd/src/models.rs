@@ -35,4 +35,6 @@ pub struct Dashboard {
     pub tcb_info: String,
     pub containers: Vec<Container>,
     pub system_info: SystemInfo,
+    pub public_sysinfo: bool,
+    pub public_logs: bool,
 }

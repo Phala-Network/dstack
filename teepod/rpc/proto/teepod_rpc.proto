@@ -98,6 +98,8 @@ message ImageListResponse {
 message ImageInfo {
   string name = 1;
   string description = 2;
+  string version = 3;
+  bool is_dev = 4;
 }
 
 message AppId {
