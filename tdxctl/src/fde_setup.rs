@@ -263,7 +263,7 @@ impl SetupFdeArgs {
 
     fn mount_e2fs(dev: &str, mount_point: &str) -> Result<()> {
         info!("Checking filesystem");
-        run_command("e2fsck", &["-f", "-p", dev]).context("Failed to check filesystem")?;
+        run_command("e2fsck", &["-f", "-p", dev]).ok();
         info!("Trying to resize filesystem if needed");
         run_command("resize2fs", &[dev]).context("Failed to resize rootfs")?;
         info!("Mounting filesystem");
