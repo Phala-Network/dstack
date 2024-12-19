@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use cmd_lib::run_cmd as cmd;
 use fde_setup::{cmd_setup_fde, SetupFdeArgs};
 use fs_err as fs;
 use getrandom::getrandom;
@@ -13,7 +14,7 @@ use std::{
 use tboot::TbootArgs;
 use tdx_attest as att;
 use tracing::error;
-use utils::{extend_rtmr, run_command};
+use utils::extend_rtmr;
 
 mod crypto;
 mod fde_setup;
@@ -421,7 +422,7 @@ async fn main() -> Result<()> {
             if let Err(err) = tboot::tboot(&args).await {
                 error!("{:?}", err);
                 if args.shutdown_on_fail {
-                    let _ = run_command("shutdown", &["-h", "now"]);
+                    cmd!(systemctl poweroff)?;
                 }
                 bail!("Failed to boot the Tapp");
             }

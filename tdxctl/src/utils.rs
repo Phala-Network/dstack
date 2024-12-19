@@ -1,10 +1,9 @@
 use std::{
-    io::{self, Read, Write},
+    io::{self, Read},
     path::Path,
-    process::{Command, Stdio},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use fs_err as fs;
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_human_bytes as hex_bytes;
@@ -30,20 +29,6 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
 pub fn sha256_file(path: impl AsRef<Path>) -> Result<[u8; 32]> {
     let data = fs::read(path).context("Failed to read file")?;
     Ok(sha256(&data))
-}
-
-pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
-    fs::create_dir_all(&dst)?;
-    for entry in fs::read_dir(src.as_ref())? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        if ty.is_dir() {
-            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        } else {
-            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        }
-    }
-    Ok(())
 }
 
 pub struct HashingFile<H, F> {
@@ -85,53 +70,6 @@ pub fn extend_rtmr(index: u32, event_type: u32, event: &str, payload: &[u8]) -> 
     println!("Extended RTMR{index}: event={event}, payload={hexed_payload}, digest={hexed_digest}");
     att::log_rtmr_event(&log).context("Failed to log RTMR extending event")?;
     Ok(())
-}
-
-pub fn run_command_with_stdin(
-    command: &str,
-    args: &[&str],
-    stdin: impl AsRef<[u8]>,
-) -> Result<Vec<u8>> {
-    let mut child = Command::new("/usr/bin/env")
-        .args([command])
-        .args(args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .context(format!("Failed to run {}", command))?;
-    let mut child_stdin = child.stdin.take().context("Failed to get stdin")?;
-    child_stdin
-        .write_all(stdin.as_ref())
-        .context("Failed to write to stdin")?;
-    drop(child_stdin);
-    let output = child
-        .wait_with_output()
-        .context(format!("Failed to wait for {}", command))?;
-    if !output.status.success() {
-        bail!(
-            "Command {} failed: {}",
-            command,
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    Ok(output.stdout)
-}
-
-pub fn run_command(command: &str, args: &[&str]) -> Result<Vec<u8>> {
-    let output = Command::new("/usr/bin/env")
-        .arg(command)
-        .args(args)
-        .output()
-        .context(format!("Failed to run {}", command))?;
-    if !output.status.success() {
-        bail!(
-            "Command {} failed: {}",
-            command,
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    Ok(output.stdout)
 }
 
 #[derive(Deserialize)]

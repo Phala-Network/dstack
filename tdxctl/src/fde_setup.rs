@@ -5,7 +5,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use fs_err as fs;
 use kms_rpc::GetAppKeyRequest;
 use ra_rpc::client::RaClient;
@@ -17,11 +17,12 @@ use crate::{
     crypto::dh_decrypt,
     notify_client::NotifyClient,
     utils::{
-        copy_dir_all, deserialize_json_file, extend_rtmr3, run_command, run_command_with_stdin,
-        sha256, sha256_file, AppCompose, AppKeys, HashingFile, LocalConfig,
+        deserialize_json_file, extend_rtmr3, sha256, sha256_file, AppCompose, AppKeys, HashingFile,
+        LocalConfig,
     },
     GenAppKeysArgs, GenRaCertArgs,
 };
+use cmd_lib::run_cmd as cmd;
 use serde_human_bytes as hex_bytes;
 
 mod env_process;
@@ -58,33 +59,6 @@ pub struct SetupFdeArgs {
     rootfs_encryption: std::primitive::bool,
 }
 
-fn umount(mount_point: &str) -> Result<()> {
-    run_command("umount", &[mount_point]).map(|_| ())
-}
-
-fn mount_9p(share_name: &str, mount_point: &str) -> Result<()> {
-    run_command(
-        "mount",
-        &[
-            "-t",
-            "9p",
-            "-o",
-            "trans=virtio,version=9p2000.L,ro",
-            share_name,
-            mount_point,
-        ],
-    )
-    .map(|_| ())
-}
-
-fn mount_cdrom(cdrom_device: &str, mount_point: &str) -> Result<()> {
-    run_command(
-        "mount",
-        &["-t", "iso9660", "-o", "ro", cdrom_device, mount_point],
-    )
-    .map(|_| ())
-}
-
 #[derive(Deserialize, Serialize, Clone, Default)]
 struct InstanceInfo {
     #[serde(default)]
@@ -104,6 +78,12 @@ impl InstanceInfo {
 #[derive(Clone)]
 pub struct HostShareDir {
     base_dir: PathBuf,
+}
+
+impl From<&Path> for HostShareDir {
+    fn from(host_shared_dir: &Path) -> Self {
+        Self::new(host_shared_dir)
+    }
 }
 
 impl HostShareDir {
@@ -151,7 +131,8 @@ struct HostShared {
 }
 
 impl HostShared {
-    fn load(host_shared_dir: &HostShareDir) -> Result<Self> {
+    fn load(host_shared_dir: impl Into<HostShareDir>) -> Result<Self> {
+        let host_shared_dir = host_shared_dir.into();
         let vm_config = deserialize_json_file(host_shared_dir.vm_config_file())?;
         let app_compose = deserialize_json_file(host_shared_dir.app_compose_file())?;
         let instance_info_file = host_shared_dir.instance_info_file();
@@ -185,22 +166,19 @@ impl SetupFdeArgs {
     }
 
     fn copy_host_shared(&self) -> Result<HostShared> {
-        info!("Mounting host-shared");
-        let shared_dir = self.host_shared.display().to_string();
-
-        fs::create_dir_all(&shared_dir).context("Failed to create host-sharing mount point")?;
-        mount_9p("host-shared", &shared_dir).context("Failed to mount host-sharing")?;
-
-        fs::create_dir_all(&self.host_shared_copy)
-            .context("Failed to create host-shared copy dir")?;
-        copy_dir_all(&self.host_shared, &self.host_shared_copy)
-            .context("Failed to copy host-shared dir")?;
-
-        umount(&shared_dir).context("Failed to unmount host-shared")?;
-
-        let host_shared_dir = HostShareDir::new(&self.host_shared_copy);
-        let host_shared = HostShared::load(&host_shared_dir)?;
-        Ok(host_shared)
+        let host_shared_dir = &self.host_shared;
+        let host_shared_copy_dir = &self.host_shared_copy;
+        cmd! {
+            info "Mounting host-shared";
+            mkdir -p $host_shared_dir;
+            mount -t 9p -o trans=virtio,version=9p2000.L,ro host-shared $host_shared_dir;
+            info "Copying host-shared";
+            mkdir -p $host_shared_copy_dir;
+            cp -r $host_shared_dir/. $host_shared_copy_dir;
+            info "Unmounting host-shared";
+            umount $host_shared_dir;
+        }?;
+        HostShared::load(host_shared_copy_dir.as_path())
     }
 
     async fn request_app_keys(&self, host_shared: &HostShared) -> Result<AppKeys> {
@@ -261,13 +239,15 @@ impl SetupFdeArgs {
         Ok(vars)
     }
 
-    fn mount_e2fs(dev: &str, mount_point: &str) -> Result<()> {
-        info!("Checking filesystem");
-        run_command("e2fsck", &["-f", "-p", dev]).ok();
-        info!("Trying to resize filesystem if needed");
-        run_command("resize2fs", &[dev]).context("Failed to resize rootfs")?;
-        info!("Mounting filesystem");
-        run_command("mount", &[dev, mount_point]).context("Failed to mount rootfs")?;
+    fn mount_e2fs(dev: &str, mount_point: &Path) -> Result<()> {
+        cmd! {
+            info "Checking filesystem";
+            e2fsck -f -p $dev;
+            info "Trying to resize filesystem if needed";
+            resize2fs $dev;
+            info "Mounting filesystem";
+            mount $dev $mount_point;
+        }?;
         Ok(())
     }
 
@@ -277,27 +257,19 @@ impl SetupFdeArgs {
         disk_crypt_key: &str,
         nc: &NotifyClient,
     ) -> Result<()> {
-        let rootfs_mountpoint = self.rootfs_dir.display().to_string();
-        if !self.rootfs_encryption {
-            warn!("Rootfs encryption is disabled, skipping disk encryption");
-            Self::mount_e2fs(&self.root_hd, &rootfs_mountpoint)?;
-        } else {
+        let rootfs_mountpoint = &self.rootfs_dir;
+        let rootfs_dev = if self.rootfs_encryption {
             info!("Mounting encrypted rootfs");
-            run_command_with_stdin(
-                "cryptsetup",
-                &[
-                    "luksOpen",
-                    "--type",
-                    "luks2",
-                    "-d-",
-                    &self.root_hd,
-                    "rootfs_crypt",
-                ],
-                disk_crypt_key,
-            )
-            .context("Failed to open encrypted rootfs")?;
-            Self::mount_e2fs("/dev/mapper/rootfs_crypt", &rootfs_mountpoint)?;
-        }
+            let root_hd = &self.root_hd;
+            let disk_crypt_key = disk_crypt_key.trim();
+            cmd!(echo -n $disk_crypt_key | cryptsetup luksOpen --type luks2 -d- $root_hd rootfs_crypt)
+                .or(Err(anyhow!("Failed to open encrypted rootfs")))?;
+            "/dev/mapper/rootfs_crypt"
+        } else {
+            warn!("Rootfs encryption is disabled, skipping disk encryption");
+            &self.root_hd
+        };
+        Self::mount_e2fs(rootfs_dev, rootfs_mountpoint)?;
 
         let hash_file = self.rootfs_dir.join(".rootfs_hash");
         let existing_rootfs_hash = fs::read(&hash_file).unwrap_or_default();
@@ -314,38 +286,21 @@ impl SetupFdeArgs {
     }
 
     fn luks_setup(&self, disk_crypt_key: &str) -> Result<()> {
-        let mut cmd_args = vec![
-            "luksFormat",
-            "--type",
-            "luks2",
-            "--cipher",
-            "aes-xts-plain64",
-            "--pbkdf",
-            "pbkdf2",
-            "-d-",
-        ];
-        if self.rootfs_integrity {
-            cmd_args.push("--integrity");
-            cmd_args.push("hmac-sha256");
-        }
-        cmd_args.push(&self.root_hd);
+        let opts = if self.rootfs_integrity {
+            vec!["--integrity", "hmac-sha256"]
+        } else {
+            vec![]
+        };
+        let root_hd = &self.root_hd;
+        cmd! {
+            info "Formatting encrypted rootfs";
+            echo -n $disk_crypt_key |
+                cryptsetup luksFormat --type luks2 --cipher aes-xts-plain64 --pbkdf pbkdf2 -d- $[opts] $root_hd rootfs_crypt;
 
-        run_command_with_stdin("cryptsetup", &cmd_args, disk_crypt_key)
-            .context("Failed to format encrypted rootfs")?;
-        info!("Formatting rootfs done, opening the device");
-        run_command_with_stdin(
-            "cryptsetup",
-            &[
-                "luksOpen",
-                "--type",
-                "luks2",
-                "-d-",
-                &self.root_hd,
-                "rootfs_crypt",
-            ],
-            disk_crypt_key,
-        )
-        .context("Failed to open encrypted rootfs")?;
+            info "Opening the device";
+            echo -n $disk_crypt_key |
+                cryptsetup luksOpen --type luks2 -d- $root_hd rootfs_crypt;
+        }.or(Err(anyhow!("Failed to setup luks volume")))?;
         Ok(())
     }
 
@@ -365,13 +320,10 @@ impl SetupFdeArgs {
             warn!("Rootfs encryption is disabled, skipping disk encryption");
             &self.root_hd
         };
-        run_command("mkfs.ext4", &["-L", "cloudimg-rootfs", rootfs_dev])
-            .context("Failed to create ext4 filesystem")?;
-        run_command(
-            "mount",
-            &[rootfs_dev, &self.rootfs_dir.display().to_string()],
-        )
-        .context("Failed to mount rootfs")?;
+        let rootfs_dir = &self.rootfs_dir;
+        cmd!(mkfs.ext4 -L dstack-rootfs $rootfs_dev)?;
+        cmd!(mount $rootfs_dev $rootfs_dir)?;
+
         self.extract_rootfs(&host_shared.vm_config.rootfs_hash)
             .await?;
         nc.notify_q("instance.info", &serde_json::to_string(instance_info)?)
@@ -383,9 +335,12 @@ impl SetupFdeArgs {
         info!("Extracting rootfs");
         fs::create_dir_all(&self.root_cdrom_mnt)
             .context("Failed to create rootfs cdrom mount point")?;
-        mount_cdrom(&self.root_cdrom, &self.root_cdrom_mnt.display().to_string())
-            .context("Failed to mount rootfs cdrom")?;
-        let rootfs_cpio = self.root_cdrom_mnt.join("rootfs.cpio");
+
+        let cdrom_device = &self.root_cdrom;
+        let cdrom_mnt = &self.root_cdrom_mnt;
+        cmd!(mount -t iso9660 -o ro $cdrom_device $cdrom_mnt)?;
+
+        let rootfs_cpio = cdrom_mnt.join("rootfs.cpio");
         if !rootfs_cpio.exists() {
             bail!("Rootfs cpio file not found on cdrom");
         }
@@ -426,8 +381,7 @@ impl SetupFdeArgs {
         info!("Rootfs hash is valid");
         fs::write(self.rootfs_dir.join(".rootfs_hash"), rootfs_hash)
             .context("Failed to write rootfs hash")?;
-        umount(&self.root_cdrom_mnt.display().to_string())
-            .context("Failed to unmount rootfs cdrom")?;
+        cmd!(umount $cdrom_mnt)?;
         info!("Rootfs is ready");
         Ok(())
     }
@@ -499,13 +453,13 @@ impl SetupFdeArgs {
         // Decrypt env file
         let decrypted_env =
             self.decrypt_env_vars(&app_keys.env_crypt_key, &host_shared.encrypted_env)?;
-        let disk_crypt_key = format!("{}\n", app_keys.disk_crypt_key);
         if is_bootstrapped {
             nc.notify_q("boot.progress", "mounting rootfs").await;
-            self.mount_rootfs(host_shared, &disk_crypt_key, nc).await?;
+            self.mount_rootfs(host_shared, &app_keys.disk_crypt_key, nc)
+                .await?;
         } else {
             nc.notify_q("boot.progress", "initializing rootfs").await;
-            self.bootstrap_rootfs(host_shared, &disk_crypt_key, &instance_info, nc)
+            self.bootstrap_rootfs(host_shared, &app_keys.disk_crypt_key, &instance_info, nc)
                 .await?;
         }
         self.write_decrypted_env(&decrypted_env)?;

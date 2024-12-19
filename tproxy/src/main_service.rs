@@ -1,13 +1,13 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     net::Ipv4Addr,
-    process::Command,
     sync::{Arc, Mutex, MutexGuard, Weak},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{bail, Context, Result};
 use certbot::WorkDir;
+use cmd_lib::run_cmd as cmd;
 use fs_err as fs;
 use ra_rpc::{Attestation, CallContext, RpcCall};
 use rand::seq::IteratorRandom;
@@ -155,16 +155,12 @@ impl ProxyState {
         let wg_config = self.generate_wg_config()?;
         safe_write(&self.config.wg.config_path, wg_config).context("Failed to write wg config")?;
         // wg setconf <interface_name> <config_path>
-        let output = Command::new("wg")
-            .arg("syncconf")
-            .arg(&self.config.wg.interface)
-            .arg(&self.config.wg.config_path)
-            .output()?;
+        let ifname = &self.config.wg.interface;
+        let config_path = &self.config.wg.config_path;
 
-        if !output.status.success() {
-            error!("failed to set wg config: {}", output.status);
-        } else {
-            info!("wg config updated");
+        match cmd!(wg syncconf $ifname $config_path) {
+            Ok(_) => info!("wg config updated"),
+            Err(e) => error!("failed to set wg config: {e}"),
         }
         let state_str = serde_json::to_string(&self.state).context("Failed to serialize state")?;
         safe_write(&self.config.state_path, state_str).context("Failed to write state")?;
@@ -257,28 +253,13 @@ impl ProxyState {
         oZppF/Rk7NgnuPkkfGUiBpY9HbThJvq3jACNGW2vnVA=    1731213485
         3OxwGWcnC+4TZ31rnmDpfgbLBi8DCWdEk4k/7gFG5HU=    1732085521
         */
-        let output = Command::new("wg")
-            .arg("show")
-            .arg(&self.config.wg.interface)
-            .arg("latest-handshakes")
-            .output()
-            .context("failed to execute wg show command")?;
-
-        if !output.status.success() {
-            bail!(
-                "wg show command failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-
+        let ifname = &self.config.wg.interface;
+        let output = cmd_lib::run_fun!(wg show $ifname latest-handshakes)?;
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .context("system time before Unix epoch")?;
-
-        let output_str = String::from_utf8_lossy(&output.stdout);
         let mut handshakes = BTreeMap::new();
-
-        for line in output_str.lines() {
+        for line in output.lines() {
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() != 2 {
                 continue;

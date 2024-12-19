@@ -1,19 +1,17 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
+use cmd_lib::run_fun as cmd;
 use fs_err as fs;
 use ra_rpc::client::RaClient;
 use serde_json::Value;
 use std::{collections::BTreeMap, io::Write};
-use tproxy_rpc::RegisterCvmRequest;
+use tproxy_rpc::{tproxy_client::TproxyClient, RegisterCvmRequest};
 use tracing::info;
 
 use crate::{
     cmd_gen_ra_cert,
     notify_client::NotifyClient,
-    utils::{
-        deserialize_json_file, run_command, run_command_with_stdin, AppCompose, AppKeys,
-        LocalConfig,
-    },
+    utils::{deserialize_json_file, AppCompose, AppKeys, LocalConfig},
     GenRaCertArgs,
 };
 
@@ -80,12 +78,8 @@ impl<'a> Setup<'a> {
         }
         info!("Setting up tproxy network");
         // Generate WireGuard keys
-        let sk = run_command("wg", &["genkey"])?;
-        let sk = String::from_utf8(sk).context("Failed to parse client private key")?;
-        let sk = sk.trim();
-        let pk = run_command_with_stdin("wg", &["pubkey"], sk)?;
-        let pk = String::from_utf8(pk).context("Failed to parse client public key")?;
-        let pk = pk.trim();
+        let sk = cmd!(wg genkey)?;
+        let pk = cmd!(echo $sk | wg pubkey).or(Err(anyhow!("Failed to generate public key")))?;
 
         // Read config and make API call
         let tproxy_url = self
@@ -101,7 +95,7 @@ impl<'a> Setup<'a> {
             fs::read_to_string(self.resolve("/etc/tappd/tls.cert"))?,
             fs::read_to_string(self.resolve("/etc/tappd/tls.key"))?,
         )?;
-        let tproxy_client = tproxy_rpc::tproxy_client::TproxyClient::new(client);
+        let tproxy_client = TproxyClient::new(client);
         let response = tproxy_client
             .register_cvm(RegisterCvmRequest {
                 client_public_key: pk.to_string(),
@@ -115,11 +109,6 @@ impl<'a> Setup<'a> {
         let server_endpoint = &wg_info.server_endpoint;
         let server_public_key = &wg_info.server_public_key;
         let server_ip = &wg_info.server_ip;
-
-        info!("WG CLIENT_IP: {}", client_ip);
-        info!("WG SERVER_ENDPOINT: {}", server_endpoint);
-        info!("WG SERVER_PUBLIC_KEY: {}", server_public_key);
-        info!("WG SERVER_IP: {}", server_ip);
 
         // Create WireGuard config
         fs::create_dir_all(self.resolve("/etc/wireguard"))?;
@@ -141,26 +130,10 @@ impl<'a> Setup<'a> {
             .split(':')
             .next()
             .context("Invalid wireguard endpoint")?;
-        run_command(
-            "iptables",
-            &[
-                "-A",
-                "INPUT",
-                "-p",
-                "udp",
-                "--dport",
-                wg_listen_port,
-                "!",
-                "-s",
-                endpoint_ip,
-                "-j",
-                "DROP",
-            ],
-        )
-        .context("Failed to add iptables rule")?;
+        cmd!(iptables -A INPUT -p udp --dport $wg_listen_port ! -s $endpoint_ip -j DROP)?;
 
         info!("Starting WireGuard");
-        run_command("wg-quick", &["up", "wg0"]).context("Failed to start WireGuard")?;
+        cmd!(wg-quick up wg0)?;
         Ok(())
     }
 
@@ -286,7 +259,7 @@ impl<'a> Setup<'a> {
         if token.is_empty() {
             bail!("Missing token for {username}");
         }
-        run_command("docker", &["login", "-u", username, "-p", token])?;
+        cmd!(docker login -u $username -p $token)?;
         Ok(())
     }
 

@@ -1,7 +1,8 @@
-use std::{path::Path, process::Command};
+use std::{fmt::Debug, path::Path};
 
 use anyhow::{Context, Result};
 use bollard::{container::ListContainersOptions, Docker};
+use cmd_lib::run_cmd as cmd;
 use fs_err as fs;
 use guest_api::{
     guest_api_server::{GuestApiRpc, GuestApiServer},
@@ -12,6 +13,7 @@ use host_api::Notification;
 use ra_rpc::{CallContext, RpcCall};
 use serde::Deserialize;
 use tappd_rpc::worker_server::WorkerRpc as _;
+use tracing::error;
 
 use crate::{rpc_service::ExternalRpcHandler, AppState};
 
@@ -57,9 +59,9 @@ impl GuestApiRpc for GuestApiHandler {
     async fn shutdown(self) -> Result<()> {
         tokio::spawn(async move {
             notify_host("shutdown.progress", "stopping app").await.ok();
-            run_command("systemctl stop app-compose").ok();
+            perr(cmd!(systemctl stop app-compose));
             notify_host("shutdown.progress", "powering off").await.ok();
-            run_command("systemctl poweroff").ok();
+            perr(cmd!(systemctl poweroff));
         });
         Ok(())
     }
@@ -217,10 +219,8 @@ pub async fn notify_host(event: &str, payload: &str) -> Result<()> {
     Ok(())
 }
 
-fn run_command(command: &str) -> Result<()> {
-    let output = Command::new("sh").arg("-c").arg(command).output()?;
-    if !output.status.success() {
-        return Err(anyhow::anyhow!("Command failed: {}", output.status));
+fn perr<T, E: Debug>(result: Result<T, E>) {
+    if let Err(e) = &result {
+        error!("{e:?}");
     }
-    Ok(())
 }

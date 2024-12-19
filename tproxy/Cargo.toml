@@ -34,6 +34,7 @@ bytes.workspace = true
 safe-write.workspace = true
 smallvec.workspace = true
 futures.workspace = true
+cmd_lib.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 nix = { workspace = true, features = ["resource"] }
