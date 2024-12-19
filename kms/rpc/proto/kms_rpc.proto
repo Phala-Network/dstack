@@ -4,10 +4,16 @@ import "google/protobuf/empty.proto";
 
 package kms;
 
+message GetAppKeyRequest {
+  // When upgradable is true, the disk encryption key is derived without the rootfs hash
+  // so that the app can upgrade the base image
+  bool upgradable = 1;
+}
+
 // The kms public RPC service.
 service KMS {
   // Request the app key given the app id and tdx quote
-  rpc GetAppKey(google.protobuf.Empty) returns (AppKeyResponse) {
+  rpc GetAppKey(GetAppKeyRequest) returns (AppKeyResponse) {
     // Retrieves the app key and certificate given the app id and tdx quote
   }
   // Request the app environment encryption public key given the app id

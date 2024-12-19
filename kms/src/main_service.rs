@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{bail, Context, Result};
 use kms_rpc::{
     kms_server::{KmsRpc, KmsServer},
-    AppId, AppKeyResponse, PublicKeyResponse,
+    AppId, AppKeyResponse, GetAppKeyRequest, PublicKeyResponse,
 };
 use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{
@@ -111,7 +111,7 @@ impl RpcHandler {
 }
 
 impl KmsRpc for RpcHandler {
-    async fn get_app_key(self) -> Result<AppKeyResponse> {
+    async fn get_app_key(self, request: GetAppKeyRequest) -> Result<AppKeyResponse> {
         let attest = self.ensure_attested()?;
         let app_id = attest.decode_app_id().context("Failed to decode app ID")?;
         let instance_id = attest
@@ -133,17 +133,18 @@ impl KmsRpc for RpcHandler {
             &[app_id.as_bytes(), "app-key".as_bytes()],
         )
         .context("Failed to derive app key")?;
-
-        let app_disk_key = derive_ecdsa_key_pair(
-            &state.root_ca.key,
-            &[
-                rootfs_hash.as_bytes(),
-                app_id.as_bytes(),
-                instance_id.as_bytes(),
-                "app-disk-crypt-key".as_bytes(),
-            ],
-        )
-        .context("Failed to derive app disk key")?;
+        let mut context_data = if request.upgradable {
+            vec![]
+        } else {
+            vec![rootfs_hash.as_bytes()]
+        };
+        context_data.extend(vec![
+            app_id.as_bytes(),
+            instance_id.as_bytes(),
+            "app-disk-crypt-key".as_bytes(),
+        ]);
+        let app_disk_key = derive_ecdsa_key_pair(&state.root_ca.key, &context_data)
+            .context("Failed to derive app disk key")?;
 
         let env_crypt_key = {
             let secret = derive_dh_secret(

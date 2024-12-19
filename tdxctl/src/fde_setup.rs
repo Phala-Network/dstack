@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use fs_err as fs;
+use kms_rpc::GetAppKeyRequest;
 use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
@@ -96,8 +97,7 @@ struct InstanceInfo {
 
 impl InstanceInfo {
     fn is_bootstrapped(&self) -> bool {
-        self.bootstrapped
-            .unwrap_or_else(|| !self.instance_id.is_empty())
+        self.bootstrapped.unwrap_or(!self.instance_id.is_empty())
     }
 }
 
@@ -228,7 +228,7 @@ impl SetupFdeArgs {
             )?;
             let kms_client = kms_rpc::kms_client::KmsClient::new(ra_client);
             let response = kms_client
-                .get_app_key()
+                .get_app_key(GetAppKeyRequest { upgradable: true })
                 .await
                 .context("Failed to get app key")?;
             let keys_json =
