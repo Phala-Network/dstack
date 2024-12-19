@@ -5,7 +5,7 @@ Before=app-compose.service tappd.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/env tboot.sh
+ExecStart=/bin/tboot.sh
 RemainAfterExit=yes
 StandardOutput=journal+console
 StandardError=journal+console
