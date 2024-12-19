@@ -1337,7 +1337,7 @@
                 };
 
                 const refreshNetworkInfo = async (vm) => {
-                    if (vm.status = 'running' || !imageFeatures(vm).network_info) {
+                    if (vm.status != 'running' || !imageFeatures(vm).network_info) {
                         return;
                     }
                     const response = await guestRpcCall('NetworkInfo', {
