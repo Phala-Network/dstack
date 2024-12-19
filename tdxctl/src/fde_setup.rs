@@ -87,11 +87,18 @@ fn mount_cdrom(cdrom_device: &str, mount_point: &str) -> Result<()> {
 #[derive(Deserialize, Serialize, Clone, Default)]
 struct InstanceInfo {
     #[serde(default)]
-    bootstrapped: bool,
+    bootstrapped: Option<bool>,
     #[serde(with = "hex_bytes", default)]
     instance_id: Vec<u8>,
     #[serde(with = "hex_bytes", default)]
     app_id: Vec<u8>,
+}
+
+impl InstanceInfo {
+    fn is_bootstrapped(&self) -> bool {
+        self.bootstrapped
+            .unwrap_or_else(|| !self.instance_id.is_empty())
+    }
 }
 
 #[derive(Clone)]
@@ -366,9 +373,7 @@ impl SetupFdeArgs {
         .context("Failed to mount rootfs")?;
         self.extract_rootfs(&host_shared.vm_config.rootfs_hash)
             .await?;
-        let mut instance_info = instance_info.clone();
-        instance_info.bootstrapped = true;
-        nc.notify_q("instance.info", &serde_json::to_string(&instance_info)?)
+        nc.notify_q("instance.info", &serde_json::to_string(instance_info)?)
             .await;
         Ok(())
     }
@@ -493,7 +498,7 @@ impl SetupFdeArgs {
         let decrypted_env =
             self.decrypt_env_vars(&app_keys.env_crypt_key, &host_shared.encrypted_env)?;
         let disk_crypt_key = format!("{}\n", app_keys.disk_crypt_key);
-        if instance_info.bootstrapped {
+        if instance_info.is_bootstrapped() {
             nc.notify_q("boot.progress", "mounting rootfs").await;
             self.mount_rootfs(host_shared, &disk_crypt_key, nc).await?;
         } else {
