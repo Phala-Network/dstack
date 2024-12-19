@@ -281,24 +281,23 @@ impl SetupFdeArgs {
         if !self.rootfs_encryption {
             warn!("Rootfs encryption is disabled, skipping disk encryption");
             Self::mount_e2fs(&self.root_hd, &rootfs_mountpoint)?;
-            return Ok(());
+        } else {
+            info!("Mounting encrypted rootfs");
+            run_command_with_stdin(
+                "cryptsetup",
+                &[
+                    "luksOpen",
+                    "--type",
+                    "luks2",
+                    "-d-",
+                    &self.root_hd,
+                    "rootfs_crypt",
+                ],
+                disk_crypt_key,
+            )
+            .context("Failed to open encrypted rootfs")?;
+            Self::mount_e2fs("/dev/mapper/rootfs_crypt", &rootfs_mountpoint)?;
         }
-        info!("Mounting encrypted rootfs");
-        run_command_with_stdin(
-            "cryptsetup",
-            &[
-                "luksOpen",
-                "--type",
-                "luks2",
-                "-d-",
-                &self.root_hd,
-                "rootfs_crypt",
-            ],
-            disk_crypt_key,
-        )
-        .context("Failed to open encrypted rootfs")?;
-
-        Self::mount_e2fs("/dev/mapper/rootfs_crypt", &rootfs_mountpoint)?;
 
         let hash_file = self.rootfs_dir.join(".rootfs_hash");
         let existing_rootfs_hash = fs::read(&hash_file).unwrap_or_default();
