@@ -905,6 +905,9 @@
                 <button class="close-btn" @click="errorMessage = ''">×</button>
             </div>
         </div>
+        <div class="version-info" style="color: #666; font-size: 12px; margin-top: 16px; text-align: center;">
+            Version: v{{ version.version }} ({{ version.commit }})
+        </div>
     </div>
 
 
@@ -918,6 +921,10 @@
 
         createApp({
             setup() {
+                const version = ref({
+                    version: '-',
+                    commit: ''
+                });
                 const vms = ref([]);
                 const expandedVMs = ref(new Set());
                 const networkInfo = ref({});
@@ -1407,7 +1414,14 @@
                         }
                     })();
                     loadImages();
+                    loadVersion();
                 });
+
+                const loadVersion = async () => {
+                    const response = await rpcCall('Version');
+                    const data = await response.json();
+                    version.value = data;
+                };
 
                 const showForkVm = (vm) => {
                     forkDialog.value = {
@@ -1517,7 +1531,8 @@
                     shutdownVm,
                     kmsEnabled,
                     tproxyEnabled,
-                    getFlags
+                    getFlags,
+                    version,
                 };
             }
         }).mount('#app');

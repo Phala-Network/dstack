@@ -7,7 +7,7 @@ use ra_rpc::{CallContext, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
     AppId, GetInfoResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse, PublicKeyResponse,
-    ResizeVmRequest, StatusResponse, UpgradeAppRequest, VmConfiguration,
+    ResizeVmRequest, StatusResponse, UpgradeAppRequest, VersionResponse, VmConfiguration,
 };
 use tracing::{info, warn};
 
@@ -300,6 +300,13 @@ impl TeepodRpc for RpcHandler {
     async fn shutdown_vm(self, request: Id) -> Result<()> {
         self.tappd_client(&request.id)?.shutdown().await?;
         Ok(())
+    }
+
+    async fn version(self) -> Result<VersionResponse> {
+        Ok(VersionResponse {
+            version: crate::CARGO_PKG_VERSION.to_string(),
+            commit: crate::GIT_VERSION.to_string(),
+        })
     }
 }
 
