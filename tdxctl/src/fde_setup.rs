@@ -304,7 +304,9 @@ impl SetupFdeArgs {
         let existing_rootfs_hash = fs::read(&hash_file).unwrap_or_default();
         if existing_rootfs_hash != host_shared.vm_config.rootfs_hash {
             info!("Rootfs hash changed, upgrading the rootfs");
-            fs::remove_file(&hash_file).context("Failed to remove old rootfs hash file")?;
+            if hash_file.exists() {
+                fs::remove_file(&hash_file).context("Failed to remove old rootfs hash file")?;
+            }
             nc.notify_q("boot.progress", "upgrading rootfs").await;
             self.extract_rootfs(&host_shared.vm_config.rootfs_hash)
                 .await?;
