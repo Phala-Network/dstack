@@ -460,6 +460,7 @@ impl SetupFdeArgs {
         };
 
         let mut instance_info = host_shared.instance_info.clone();
+        let is_bootstrapped = instance_info.is_bootstrapped();
 
         if instance_info.app_id.is_empty() {
             instance_info.app_id = truncated_compose_hash.to_vec();
@@ -500,7 +501,7 @@ impl SetupFdeArgs {
         let decrypted_env =
             self.decrypt_env_vars(&app_keys.env_crypt_key, &host_shared.encrypted_env)?;
         let disk_crypt_key = format!("{}\n", app_keys.disk_crypt_key);
-        if instance_info.is_bootstrapped() {
+        if is_bootstrapped {
             nc.notify_q("boot.progress", "mounting rootfs").await;
             self.mount_rootfs(host_shared, &disk_crypt_key, nc).await?;
         } else {
