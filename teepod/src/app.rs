@@ -127,41 +127,43 @@ impl App {
             .info(id)
             .await?
             .map_or(false, |info| info.state.status.is_running());
-        let process_config = {
+        self.set_started(id, true)?;
+        let vm_config = {
             let mut state = self.lock();
             let vm_state = state.get_mut(id).context("VM not found")?;
-            let work_dir = self.work_dir(id);
-            work_dir
-                .set_started(true)
-                .with_context(|| format!("Failed to set started for VM {id}"))?;
-            if work_dir.serial_pty().exists() {
-                // remove the existing pty
-                fs::remove_file(work_dir.serial_pty())
-                    .context("Failed to remove existing pty link")?;
-            }
-            let process_config = vm_state
-                .config
-                .config_qemu(&self.config.qemu_path, &work_dir)?;
             // Older images does not support for progress reporting
             if vm_state.config.image.info.shared_ro {
                 vm_state.state.start(is_running);
             } else {
                 vm_state.state.reset_na();
             }
-            process_config
+            vm_state.config.clone()
         };
-        self.supervisor
-            .deploy(process_config)
-            .await
-            .with_context(|| format!("Failed to start VM {id}"))?;
+        if !is_running {
+            let work_dir = self.work_dir(id);
+            for path in [work_dir.serial_pty(), work_dir.qmp_socket()] {
+                if path.exists() {
+                    fs::remove_file(path)?;
+                }
+            }
+            let process_config = vm_config.config_qemu(&self.config.qemu_path, &work_dir)?;
+            self.supervisor
+                .deploy(process_config)
+                .await
+                .with_context(|| format!("Failed to start VM {id}"))?;
+        }
         Ok(())
     }
 
-    pub async fn stop_vm(&self, id: &str) -> Result<()> {
+    fn set_started(&self, id: &str, started: bool) -> Result<()> {
         let work_dir = self.work_dir(id);
         work_dir
-            .set_started(false)
-            .context("Failed to set started")?;
+            .set_started(started)
+            .context("Failed to set started")
+    }
+
+    pub async fn stop_vm(&self, id: &str) -> Result<()> {
+        self.set_started(id, false)?;
         self.supervisor.stop(id).await?;
         Ok(())
     }
@@ -273,6 +275,10 @@ impl App {
 
     pub(crate) fn vm_event_report(&self, cid: u32, event: &str, body: String) -> Result<()> {
         info!(cid, event, "VM event");
+        if body.len() > 1024 * 4 {
+            error!("Event body too large, skipping");
+            return Ok(());
+        }
         let mut state = self.lock();
         let Some(vm) = state.vms.values_mut().find(|vm| vm.config.cid == cid) else {
             bail!("VM not found");
@@ -285,13 +291,12 @@ impl App {
                 vm.state.boot_error = body;
             }
             "shutdown.progress" => {
+                if body == "powering off" {
+                    self.set_started(&vm.config.manifest.id, false)?;
+                }
                 vm.state.shutdown_progress = body;
             }
             "instance.info" => {
-                if body.len() > 1024 * 4 {
-                    error!("Instance info too large, skipping");
-                    return Ok(());
-                }
                 let workdir = VmWorkDir::new(vm.config.workdir.clone());
                 let instancd_info_path = workdir.instance_info_path();
                 safe_write::safe_write(&instancd_info_path, &body)?;
