@@ -11,6 +11,7 @@ cert_file = "/etc/tappd/app-ca.cert"
 key_file = "/etc/tappd/app-ca.key"
 public_logs = false
 public_sysinfo = false
+compose_file = "/tapp/app-compose.json"
 
 [internal]
 address = "unix:/var/run/tappd.sock"

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
+use fs_err as fs;
 use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{
     attestation::QuoteContentType,
@@ -140,6 +141,7 @@ impl WorkerRpc for ExternalRpcHandler {
         let rtmr1 = hex::encode(report.rt_mr1);
         let rtmr2 = hex::encode(report.rt_mr2);
         let rtmr3 = hex::encode(report.rt_mr3);
+        let app_compose = fs::read_to_string(&self.state.config().compose_file).unwrap_or_default();
         let tcb_info = serde_json::to_string_pretty(&json!({
             "rootfs_hash": rootfs_hash,
             "mrtd": mrtd,
@@ -148,6 +150,7 @@ impl WorkerRpc for ExternalRpcHandler {
             "rtmr2": rtmr2,
             "rtmr3": rtmr3,
             "event_log": event_log,
+            "app_compose": app_compose,
         }))
         .unwrap_or_default();
         Ok(WorkerInfo {

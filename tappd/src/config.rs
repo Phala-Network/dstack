@@ -15,4 +15,5 @@ pub struct Config {
     pub key_file: String,
     pub public_logs: bool,
     pub public_sysinfo: bool,
+    pub compose_file: String,
 }
