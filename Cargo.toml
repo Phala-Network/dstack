@@ -31,6 +31,7 @@ members = [
     "http-client",
     "host-api",
     "guest-api",
+    "load_config",
 ]
 resolver = "2"
 
@@ -52,6 +53,7 @@ rocket-vsock-listener = { path = "rocket-vsock-listener" }
 host-api = { path = "host-api", default-features = false }
 guest-api = { path = "guest-api", default-features = false }
 http-client = { path = "http-client", default-features = false }
+load_config = { path = "load_config" }
 
 # Core dependencies
 anyhow = "1.0.94"
@@ -66,7 +68,6 @@ libc = "0.2.167"
 log = "0.4.22"
 notify = "7.0.0"
 rand = "0.8.5"
-serde = { version = "1.0.210", features = ["derive"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 safe-write = "0.1.1"
@@ -80,10 +81,14 @@ hex = "0.4.3"
 hex_fmt = "0.3.0"
 prost = "0.13.3"
 scale = { version = "3.6.12", package = "parity-scale-codec", features = ["derive"] }
+serde = { version = "1.0.210", features = ["derive"] }
+serde-human-bytes = "0.1.0"
 serde_json = "1.0"
+toml = "0.8.19"
 toml_edit = { version = "0.22.22", features = ["serde"] }
 yasna = "0.5.2"
 bytes = "1.9.0"
+figment = "0.10.19"
 
 # Networking/HTTP
 bollard = "0.18.1"
@@ -138,6 +143,7 @@ insta = "1.41.1"
 num_enum = "0.7.3"
 thiserror = "2.0.4"
 derive_more = "1.0.0"
+tempfile = "3.14.0"
 
 # Utilities
 dirs = "5.0.1"
@@ -146,7 +152,6 @@ parcelona = "0.4.3"
 pin-project = "1.1.7"
 regex = "1.11.1"
 rinja = "0.3.5"
-serde-human-bytes = "0.1.0"
 shared_child = "1.0.1"
 strip-ansi-escapes = "0.2.0"
 tailf = "0.1.2"

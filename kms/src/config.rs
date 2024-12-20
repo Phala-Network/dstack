@@ -1,23 +1,12 @@
 use anyhow::Result;
-use rocket::figment::{
-    providers::{Format, Toml},
-    Figment,
-};
+use load_config::load_config;
+use rocket::figment::Figment;
 use serde::Deserialize;
 
-pub const CONFIG_FILENAME: &str = "kms.toml";
-pub const SYSTEM_CONFIG_FILENAME: &str = "/etc/kms/kms.toml";
 pub const DEFAULT_CONFIG: &str = include_str!("../kms.toml");
 
 pub fn load_config_figment(config_file: Option<&str>) -> Figment {
-    let leaf_config = match config_file {
-        Some(path) => Toml::file(path),
-        None => Toml::file(CONFIG_FILENAME),
-    };
-    Figment::from(rocket::Config::default())
-        .merge(Toml::string(DEFAULT_CONFIG))
-        .merge(Toml::file(SYSTEM_CONFIG_FILENAME))
-        .merge(leaf_config)
+    load_config("kms", DEFAULT_CONFIG, config_file, false)
 }
 
 #[derive(Debug, Clone, Deserialize)]

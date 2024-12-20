@@ -1,10 +1,8 @@
 use anyhow::Result;
 use cmd_lib::run_cmd as cmd;
 use ipnet::Ipv4Net;
-use rocket::figment::{
-    providers::{Format, Toml},
-    Figment,
-};
+use load_config::load_config;
+use rocket::figment::Figment;
 use serde::{Deserialize, Serialize};
 use std::net::Ipv4Addr;
 use std::time::Duration;
@@ -134,19 +132,9 @@ pub struct Config {
     pub set_ulimit: bool,
 }
 
-pub const CONFIG_FILENAME: &str = "tproxy.toml";
-pub const SYSTEM_CONFIG_FILENAME: &str = "/etc/tproxy/tproxy.toml";
 pub const DEFAULT_CONFIG: &str = include_str!("../tproxy.toml");
-
 pub fn load_config_figment(config_file: Option<&str>) -> Figment {
-    let leaf_config = match config_file {
-        Some(path) => Toml::file(path),
-        None => Toml::file(CONFIG_FILENAME),
-    };
-    Figment::from(rocket::Config::default())
-        .merge(Toml::string(DEFAULT_CONFIG))
-        .merge(Toml::file(SYSTEM_CONFIG_FILENAME))
-        .merge(leaf_config)
+    load_config("tproxy", DEFAULT_CONFIG, config_file, false)
 }
 
 pub fn setup_wireguard(config: &WgConfig) -> Result<()> {

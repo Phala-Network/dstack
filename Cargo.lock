@@ -1330,12 +1330,12 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "errno"
-version = "0.3.9"
+version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "534c5cf6194dfab3db3242765c03bbe257cf92f22b38f6bc0c58d59108a820ba"
+checksum = "33d852cb9b869c2a9b3df2f71a3074817f01e1844f839a144f5fcef059a4eb5d"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1380,6 +1380,7 @@ dependencies = [
  "atomic",
  "pear",
  "serde",
+ "serde_json",
  "toml",
  "uncased",
  "version_check",
@@ -2390,6 +2391,7 @@ dependencies = [
  "hex",
  "hex_fmt",
  "kms-rpc",
+ "load_config",
  "ra-rpc",
  "ra-tls",
  "rocket",
@@ -2490,6 +2492,16 @@ name = "linux-raw-sys"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
+
+[[package]]
+name = "load_config"
+version = "0.3.3"
+dependencies = [
+ "figment",
+ "rocket",
+ "tempfile",
+ "tracing",
+]
 
 [[package]]
 name = "lock_api"
@@ -4069,15 +4081,15 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.37"
+version = "0.38.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8acb788b847c24f28525660c4d7758620a7210875711f79e7f663cc152726811"
+checksum = "f93dc38ecbab2eb790ff964bb77fa94faf256fd3e73285fd7ba0903b76bedb85"
 dependencies = [
  "bitflags 2.6.0",
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4778,6 +4790,7 @@ dependencies = [
  "fs-err",
  "git-version",
  "libc",
+ "load_config",
  "notify",
  "rocket",
  "serde",
@@ -4919,11 +4932,13 @@ dependencies = [
  "clap",
  "cmd_lib",
  "default-net",
+ "figment",
  "fs-err",
  "git-version",
  "guest-api",
  "hex",
  "host-api",
+ "load_config",
  "ra-rpc",
  "ra-tls",
  "rcgen",
@@ -5010,6 +5025,7 @@ dependencies = [
  "sha2",
  "tdx-attest",
  "tokio",
+ "toml",
  "tproxy-rpc",
  "tracing",
  "tracing-subscriber",
@@ -5031,6 +5047,7 @@ dependencies = [
  "host-api",
  "humantime",
  "kms-rpc",
+ "load_config",
  "path-absolutize",
  "ra-rpc",
  "rocket",
@@ -5067,9 +5084,9 @@ dependencies = [
 
 [[package]]
 name = "tempfile"
-version = "3.12.0"
+version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04cbcdd0c794ebb0d4cf35e88edd2f7d2c4c3e9a5a6dab322839b321c6a87a64"
+checksum = "28cce251fcbc87fac86a866eeb0d6c2d536fc16d06f184bb61aeae11aa4cee0c"
 dependencies = [
  "cfg-if",
  "fastrand",
@@ -5347,6 +5364,7 @@ dependencies = [
  "hickory-resolver",
  "insta",
  "ipnet",
+ "load_config",
  "nix",
  "parcelona",
  "pin-project",

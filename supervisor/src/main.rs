@@ -2,31 +2,20 @@ use std::path::Path;
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
+use load_config::load_config;
 use rocket::{
     fairing::AdHoc,
-    figment::{
-        providers::{Format, Toml},
-        Figment,
-    },
+    figment::Figment,
     listener::{Bind, DefaultListener},
 };
 use supervisor::web_api;
 use tracing::error;
 use tracing_subscriber::EnvFilter;
 
-pub const CONFIG_FILENAME: &str = "supervisor.toml";
-pub const SYSTEM_CONFIG_FILENAME: &str = "/etc/supervisor/supervisor.toml";
 pub const DEFAULT_CONFIG: &str = include_str!("../supervisor.toml");
 
 pub fn load_config_figment(config_file: Option<&str>) -> Figment {
-    let leaf_config = match config_file {
-        Some(path) => Toml::file(path).nested(),
-        None => Toml::file(CONFIG_FILENAME).nested(),
-    };
-    Figment::from(rocket::Config::default())
-        .merge(Toml::string(DEFAULT_CONFIG).nested())
-        .merge(Toml::file(SYSTEM_CONFIG_FILENAME).nested())
-        .merge(leaf_config)
+    load_config("supervisor", DEFAULT_CONFIG, config_file, true)
 }
 
 fn app_version() -> String {
