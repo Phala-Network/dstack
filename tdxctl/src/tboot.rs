@@ -183,16 +183,17 @@ impl<'a> Setup<'a> {
 
     fn setup_tappd_config(&self) -> Result<()> {
         info!("Setting up tappd config");
-        let tappd_config = self.resolve("/etc/tappd/tappd.toml");
-        let config = format!(
-            "\
-            [default.core]\n\
-            public_logs = {}\n\
-            public_sysinfo = {}\n\
-        ",
-            self.app_compose.public_logs, self.app_compose.public_sysinfo
-        );
-        fs::write(tappd_config, config)?;
+        let config = serde_json::json!({
+            "default": {
+                "core": {
+                    "app_name": self.app_compose.name,
+                    "public_logs": self.app_compose.public_logs,
+                    "public_sysinfo": self.app_compose.public_sysinfo,
+                }
+            }
+        });
+        let tappd_config = self.resolve("/etc/tappd/tappd.json");
+        fs::write(tappd_config, serde_json::to_string_pretty(&config)?)?;
         Ok(())
     }
 

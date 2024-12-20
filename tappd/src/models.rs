@@ -29,6 +29,7 @@ mod filters {
 #[derive(Template)]
 #[template(path = "dashboard.html")]
 pub struct Dashboard {
+    pub app_name: String,
     pub app_id: String,
     pub instance_id: String,
     pub app_cert: String,

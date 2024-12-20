@@ -151,6 +151,7 @@ impl WorkerRpc for ExternalRpcHandler {
         }))
         .unwrap_or_default();
         Ok(WorkerInfo {
+            app_name: self.state.config().app_name.clone(),
             app_id,
             instance_id,
             app_cert: ca.pem_cert.clone(),

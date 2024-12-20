@@ -10,6 +10,7 @@ pub fn load_config_figment(config_file: Option<&str>) -> Figment {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
+    pub app_name: String,
     pub cert_file: String,
     pub key_file: String,
     pub public_logs: bool,
