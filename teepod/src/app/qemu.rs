@@ -1,7 +1,7 @@
 //! QEMU related code
 use crate::{
     app::Manifest,
-    config::{GatewayConfig, Networking},
+    config::{CvmConfig, GatewayConfig, Networking},
 };
 use std::{
     ops::Deref,
@@ -168,7 +168,7 @@ impl VmState {
 }
 
 impl VmConfig {
-    pub fn config_qemu(&self, qemu: &Path, workdir: impl AsRef<Path>) -> Result<ProcessConfig> {
+    pub fn config_qemu(&self, workdir: impl AsRef<Path>, cfg: &CvmConfig) -> Result<ProcessConfig> {
         let workdir = VmWorkDir::new(workdir);
         let serial_file = workdir.serial_file();
         let serial_pty = workdir.serial_pty();
@@ -181,6 +181,7 @@ impl VmConfig {
         if !shared_dir.exists() {
             fs::create_dir_all(&shared_dir)?;
         }
+        let qemu = &cfg.qemu_path;
         let mut command = Command::new(qemu);
         command.arg("-accel").arg("kvm");
         command.arg("-cpu").arg("host");
@@ -194,6 +195,12 @@ impl VmConfig {
             serial_file.display()
         ));
         command.arg("-serial").arg("chardev:com0");
+        if cfg.qmp_socket {
+            command.arg("-qmp").arg(format!(
+                "unix:{},server,wait=off",
+                workdir.qmp_socket().display()
+            ));
+        }
         command.arg("-kernel").arg(&self.image.kernel);
         command.arg("-initrd").arg(&self.image.initrd);
         command
@@ -377,6 +384,10 @@ impl VmWorkDir {
 
     pub fn hda_path(&self) -> PathBuf {
         self.workdir.join("hda.img")
+    }
+
+    pub fn qmp_socket(&self) -> PathBuf {
+        self.workdir.join("qmp.sock")
     }
 
     pub fn path(&self) -> &Path {

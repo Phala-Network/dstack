@@ -24,6 +24,7 @@ docker_registry = ""
 max_disk_size = 100
 cid_start = 1000
 cid_pool_size = 1000
+qmp_socket = true
 
 [cvm.port_mapping]
 enabled = false

@@ -146,7 +146,7 @@ impl App {
                     fs::remove_file(path)?;
                 }
             }
-            let process_config = vm_config.config_qemu(&self.config.qemu_path, &work_dir)?;
+            let process_config = vm_config.config_qemu(&work_dir, &self.config.cvm)?;
             self.supervisor
                 .deploy(process_config)
                 .await

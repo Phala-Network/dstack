@@ -82,6 +82,8 @@ impl PortMappingConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CvmConfig {
+    #[serde(default)]
+    pub qemu_path: PathBuf,
     pub ca_cert: PathBuf,
     pub tmp_ca_cert: PathBuf,
     pub tmp_ca_key: PathBuf,
@@ -99,6 +101,8 @@ pub struct CvmConfig {
     pub cid_pool_size: u32,
     /// Port mapping configuration
     pub port_mapping: PortMappingConfig,
+    /// Enable qmp socket
+    pub qmp_socket: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -130,8 +134,6 @@ pub struct Config {
     pub image_path: PathBuf,
     #[serde(default)]
     pub run_path: PathBuf,
-    #[serde(default)]
-    pub qemu_path: PathBuf,
     /// The URL of the KMS server
     pub kms_url: String,
 
@@ -200,11 +202,11 @@ impl Config {
             if me.run_path == PathBuf::default() {
                 me.run_path = app_home.join("vm");
             }
-            if me.qemu_path == PathBuf::default() {
+            if me.cvm.qemu_path == PathBuf::default() {
                 let cpu_arch = std::env::consts::ARCH;
                 let qemu_path = which::which(format!("qemu-system-{}", cpu_arch))
-                    .context("Failed to find qemu-system-x86_64")?;
-                me.qemu_path = qemu_path;
+                    .context("Failed to find qemu executable")?;
+                me.cvm.qemu_path = qemu_path;
             }
         }
         Ok(me)
