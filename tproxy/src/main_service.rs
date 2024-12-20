@@ -306,7 +306,11 @@ impl ProxyState {
     fn recycle(&mut self) -> Result<()> {
         let stale_timeout = self.config.recycle.timeout;
         let stale_handshakes = self.latest_handshakes(Some(stale_timeout))?;
-        debug!("stale handshakes: {:#?}", stale_handshakes);
+        if tracing::enabled!(tracing::Level::DEBUG) {
+            for (pubkey, (ts, elapsed)) in &stale_handshakes {
+                debug!("stale instance: {pubkey} recent={ts} ({elapsed:?} ago)");
+            }
+        }
         // Find and remove instances with matching public keys
         let stale_instances: Vec<_> = self
             .state

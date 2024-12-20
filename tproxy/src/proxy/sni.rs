@@ -1,6 +1,6 @@
 use parcelona::parser_combinators::{Msg, PErr};
 use parcelona::u8::*;
-use tracing::debug;
+use tracing::trace;
 
 pub fn extract_sni(b: &[u8]) -> Option<&[u8]> {
     extract_sni_inner(b).ok().map(|r| r.1)
@@ -26,7 +26,7 @@ fn extract_sni_inner(b: &[u8]) -> Result<(usize, &[u8]), PErr<u8>> {
 
     // Handshake message length.
     let (b, c) = take_len_be_u24(b)?;
-    debug!("1. message len {:?}", c);
+    trace!("1. message len {:?}", c);
 
     // ProtocolVersion (2 bytes) & random (32 bytes).
     let (b, _) = take_record(b, 34)?;
@@ -40,13 +40,13 @@ fn extract_sni_inner(b: &[u8]) -> Result<(usize, &[u8]), PErr<u8>> {
     let (mut b, mut c) = take_len_be_u16(b)?;
     let mut ext_type: usize;
     let mut ext_leng: usize;
-    debug!("3. Extensions length {:?}", c);
+    trace!("3. Extensions length {:?}", c);
     loop {
         // Extension type & length.
         (b, ext_type) = take_len_be_u16(b)?;
         (b, ext_leng) = take_len_be_u16(b)?;
 
-        debug!("4. Ext type (0) {:?} len {:?}", ext_type, ext_leng);
+        trace!("4. Ext type (0) {:?} len {:?}", ext_type, ext_leng);
         if ext_type != EXTENSION_TYPE_SNI {
             if ext_leng > 0 {
                 (b, _) = take_record(b, ext_leng)?;
@@ -55,7 +55,7 @@ fn extract_sni_inner(b: &[u8]) -> Result<(usize, &[u8]), PErr<u8>> {
         }
         // ServerNameList length.
         (b, c) = take_len_be_u16(b)?;
-        debug!("5. ServerNameListmessag len {:?}", c);
+        trace!("5. ServerNameListmessag len {:?}", c);
         // ServerNameList.
         let mut sni: &[u8];
         let mut name_type: usize;
@@ -69,7 +69,7 @@ fn extract_sni_inner(b: &[u8]) -> Result<(usize, &[u8]), PErr<u8>> {
                 continue;
             }
             let sni_point: usize = origin_len - b.len();
-            debug!(
+            trace!(
                 "[sni] {:?} sni {:?}",
                 sni_point,
                 String::from_utf8_lossy(sni)

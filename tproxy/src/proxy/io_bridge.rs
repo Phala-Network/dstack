@@ -3,7 +3,9 @@ use anyhow::{Context, Result};
 use bytes::BytesMut;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::time::timeout;
+use tracing::{debug, trace};
 
+#[derive(Debug)]
 enum NextStep {
     Read,
     Write,
@@ -13,6 +15,7 @@ enum NextStep {
 }
 
 struct OneDirection<'a, R, W> {
+    dir: &'static str,
     cfg: &'a ProxyConfig,
     buf: BytesMut,
     reader: &'a mut R,
@@ -33,6 +36,7 @@ where
                     .ok()
                     .context("idle timeout")?
                     .context("read error")?;
+                trace!(direction = %self.dir, "read: {n} bytes");
                 if n == 0 {
                     self.next_step = NextStep::Shutdown;
                 } else {
@@ -89,6 +93,7 @@ where
 {
     let buf_size = config.buffer_size;
     if !config.timeouts.data_timeout_enabled {
+        debug!("copying bidirectionally");
         tokio::io::copy_bidirectional_with_sizes(&mut a, &mut b, buf_size, buf_size)
             .await
             .context("failed to copy")?;
@@ -99,6 +104,7 @@ where
     let (mut rb, mut wb) = tokio::io::split(b);
 
     let mut a2b = OneDirection {
+        dir: "a2b",
         cfg: config,
         buf: BytesMut::with_capacity(buf_size),
         reader: &mut ra,
@@ -106,6 +112,7 @@ where
         next_step: NextStep::Read,
     };
     let mut b2a = OneDirection {
+        dir: "b2a",
         cfg: config,
         buf: BytesMut::with_capacity(buf_size),
         reader: &mut rb,

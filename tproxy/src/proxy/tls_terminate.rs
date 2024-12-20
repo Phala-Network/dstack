@@ -151,7 +151,7 @@ impl TlsTerminateProxy {
             &self.app_state.config.proxy,
         )
         .await
-        .context("failed to bridge inbound and outbound")?;
+        .context("bridge error")?;
         Ok(())
     }
 }

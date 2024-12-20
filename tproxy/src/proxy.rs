@@ -1,4 +1,10 @@
-use std::{net::Ipv4Addr, sync::Arc};
+use std::{
+    net::Ipv4Addr,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 
 use anyhow::{bail, Context, Result};
 use sni::extract_sni;
@@ -8,7 +14,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
     time::timeout,
 };
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, info_span, Instrument};
 
 use crate::{config::ProxyConfig, main_service::Proxy};
 
@@ -48,6 +54,7 @@ fn is_subdomain(sni: &str, base_domain: &str) -> bool {
     sni.ends_with(base_domain)
 }
 
+#[derive(Debug)]
 struct DstInfo {
     app_id: String,
     port: u16,
@@ -120,20 +127,16 @@ async fn handle_connection(
     };
     if is_subdomain(&sni, dotted_base_domain) {
         let dst = parse_destination(&sni, dotted_base_domain)?;
+        debug!("dst: {dst:?}");
         if dst.is_tls {
-            tls_passthough::proxy_to_app(state, inbound, buffer, &dst.app_id, dst.port)
-                .await
-                .with_context(|| format!("error on connection {sni}"))
+            tls_passthough::proxy_to_app(state, inbound, buffer, &dst.app_id, dst.port).await
         } else {
             tls_terminate_proxy
                 .proxy(inbound, buffer, &dst.app_id, dst.port)
                 .await
-                .with_context(|| format!("error on connection {sni}"))
         }
     } else {
-        tls_passthough::proxy_with_sni(state, inbound, buffer, &sni)
-            .await
-            .with_context(|| format!("error on connection {sni}"))
+        tls_passthough::proxy_with_sni(state, inbound, buffer, &sni).await
     }
 }
 
@@ -163,39 +166,52 @@ pub async fn run(config: &ProxyConfig, app_state: Proxy) -> Result<()> {
 
     loop {
         match listener.accept().await {
-            Ok((inbound, addr)) => {
-                info!(%addr, "new connection received");
+            Ok((inbound, from)) => {
+                let span = info_span!("conn", id = next_connection_id());
+                let _enter = span.enter();
+
+                info!(%from, "new connection");
                 let app_state = app_state.clone();
                 let dotted_base_domain = dotted_base_domain.clone();
                 let tls_terminate_proxy = tls_terminate_proxy.clone();
-                tokio::spawn(async move {
-                    let timeouts = &app_state.config.proxy.timeouts;
-                    let result = timeout(
-                        timeouts.total,
-                        handle_connection(
-                            inbound,
-                            app_state,
-                            &dotted_base_domain,
-                            tls_terminate_proxy,
-                        ),
-                    )
-                    .await;
-                    match result {
-                        Ok(Ok(_)) => {}
-                        Ok(Err(e)) => {
-                            error!("connection error: {e:?}");
-                        }
-                        Err(_) => {
-                            info!(%addr, "connection kept too long");
+                tokio::spawn(
+                    async move {
+                        let timeouts = &app_state.config.proxy.timeouts;
+                        let result = timeout(
+                            timeouts.total,
+                            handle_connection(
+                                inbound,
+                                app_state,
+                                &dotted_base_domain,
+                                tls_terminate_proxy,
+                            ),
+                        )
+                        .await;
+                        match result {
+                            Ok(Ok(_)) => {
+                                info!("connection closed");
+                            }
+                            Ok(Err(e)) => {
+                                error!("connection error: {e:?}");
+                            }
+                            Err(_) => {
+                                error!("connection kept too long, force closing");
+                            }
                         }
                     }
-                });
+                    .in_current_span(),
+                );
             }
             Err(e) => {
                 error!("failed to accept connection: {e:?}");
             }
         }
     }
+}
+
+fn next_connection_id() -> usize {
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 
 pub fn start(config: ProxyConfig, app_state: Proxy) {
