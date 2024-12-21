@@ -1,4 +1,7 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    convert::Infallible,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use anyhow::{Context, Result};
 use ra_tls::{
@@ -6,12 +9,13 @@ use ra_tls::{
     qvl::{self, verify::VerifiedReport},
 };
 use rocket::{
-    data::{ByteUnit, Limits, ToByteUnit},
-    http::{uri::Query, ContentType, Status},
+    data::{ByteUnit, Data, Limits, ToByteUnit},
+    http::{uri::Origin, ContentType, Status},
     listener::Endpoint,
     mtls::{oid::Oid, Certificate},
+    request::{FromRequest, Outcome},
     response::status::Custom,
-    Data,
+    Request,
 };
 use rocket_vsock_listener::VsockEndpoint;
 use tracing::{info, warn};
@@ -22,6 +26,78 @@ use crate::{encode_error, CallContext, RemoteEndpoint, RpcCall};
 pub struct QuoteVerifier {
     pccs_url: String,
     timeout: Duration,
+}
+
+pub mod deps {
+    pub use super::{PrpcHandler, RpcRequest};
+    pub use rocket::response::status::Custom;
+    pub use rocket::{Data, State};
+}
+
+#[macro_export]
+macro_rules! declare_prpc_routes {
+    ($post:ident, $get:ident, $state:ty, $handler:ty) => {
+        $crate::declare_prpc_routes!(path: "/prpc/<method>?<json>", "/prpc/<method>", $post, $get, $state, $handler);
+    };
+    (bare: $post:ident, $get:ident, $state:ty, $handler:ty) => {
+        $crate::declare_prpc_routes!(path: "/<method>?<json>", "/<method>", $post, $get, $state, $handler);
+    };
+    (path: $post_path: literal, $get_path: literal, $post:ident, $get:ident, $state:ty, $handler:ty) => {
+        #[rocket::post($post_path, data = "<data>")]
+        async fn $post<'a: 'd, 'd>(
+            state: &'a $crate::rocket_helper::deps::State<$state>,
+            method: &'a str,
+            data: $crate::rocket_helper::deps::Data<'d>,
+            json: bool,
+            rpc_request: $crate::rocket_helper::deps::RpcRequest<'a>,
+        ) -> $crate::rocket_helper::deps::Custom<Vec<u8>> {
+            $crate::rocket_helper::deps::PrpcHandler::builder()
+                .state(&**state)
+                .request(rpc_request)
+                .method(method)
+                .data(data)
+                .json(json)
+                .build()
+                .handle::<$handler>()
+                .await
+        }
+
+        #[rocket::get("/<method>")]
+        async fn $get<'a: 'd, 'd>(
+            state: &'a $crate::rocket_helper::deps::State<$state>,
+            rpc_request: $crate::rocket_helper::deps::RpcRequest<'a>,
+            method: &'a str,
+        ) -> $crate::rocket_helper::deps::Custom<Vec<u8>> {
+            $crate::rocket_helper::deps::PrpcHandler::builder()
+                .state(&**state)
+                .request(rpc_request)
+                .method(method)
+                .json(true)
+                .build()
+                .handle::<$handler>()
+                .await
+        }
+    };
+}
+
+macro_rules! from_request {
+    ($request:expr) => {
+        match FromRequest::from_request($request).await {
+            Outcome::Success(v) => v,
+            Outcome::Error(e) => return Outcome::Error(e),
+            Outcome::Forward(f) => return Outcome::Forward(f),
+        }
+    };
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for &'r QuoteVerifier {
+    type Error = ();
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let state: &rocket::State<QuoteVerifier> = from_request!(request);
+        Outcome::Success(state)
+    }
 }
 
 impl QuoteVerifier {
@@ -74,20 +150,40 @@ fn limit_for_method(method: &str, limits: &Limits) -> ByteUnit {
 }
 
 #[derive(bon::Builder)]
-pub struct PrpcHandler<'a, 'b, 'c, 'd, 'e, 'f, 'g, S> {
-    pub state: &'a S,
-    pub remote_addr: Option<Endpoint>,
-    pub certificate: Option<Certificate<'b>>,
-    pub quote_verifier: Option<&'c QuoteVerifier>,
-    pub method: &'d str,
-    pub data: Option<Data<'e>>,
-    pub query: Option<Query<'e>>,
-    pub limits: &'f Limits,
-    pub content_type: Option<&'g ContentType>,
-    pub json: bool,
+pub struct PrpcHandler<'s, 'r, S> {
+    state: &'s S,
+    request: RpcRequest<'r>,
+    method: &'r str,
+    json: bool,
+    data: Option<Data<'r>>,
 }
 
-impl<'a, 'b, 'c, 'd, 'e, 'f, 'g, S> PrpcHandler<'a, 'b, 'c, 'd, 'e, 'f, 'g, S> {
+pub struct RpcRequest<'r> {
+    remote_addr: Option<&'r Endpoint>,
+    certificate: Option<Certificate<'r>>,
+    quote_verifier: Option<&'r QuoteVerifier>,
+    orgin: &'r Origin<'r>,
+    limits: &'r Limits,
+    content_type: Option<&'r ContentType>,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for RpcRequest<'r> {
+    type Error = Infallible;
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        Outcome::Success(Self {
+            remote_addr: from_request!(request),
+            certificate: from_request!(request),
+            quote_verifier: from_request!(request),
+            orgin: from_request!(request),
+            limits: from_request!(request),
+            content_type: from_request!(request),
+        })
+    }
+}
+
+impl<'s, 'r, S> PrpcHandler<'s, 'r, S> {
     pub async fn handle<Call: RpcCall<S>>(self) -> Custom<Vec<u8>> {
         let json = self.json;
         let result = handle_prpc_impl::<S, Call>(self).await;
@@ -124,23 +220,22 @@ impl From<Endpoint> for RemoteEndpoint {
 }
 
 pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
-    args: PrpcHandler<'_, '_, '_, '_, '_, '_, '_, S>,
+    args: PrpcHandler<'_, '_, S>,
 ) -> Result<Custom<Vec<u8>>> {
     let PrpcHandler {
         state,
-        certificate,
-        quote_verifier,
+        request,
         method,
-        data,
-        query,
-        limits,
-        content_type,
         json,
-        remote_addr,
+        data,
     } = args;
-    let mut attestation = certificate.map(extract_attestation).transpose()?.flatten();
+    let mut attestation = request
+        .certificate
+        .map(extract_attestation)
+        .transpose()?
+        .flatten();
     let todo = "verified attestation needs to be a distinct type";
-    if let (Some(quote_verifier), Some(attestation)) = (quote_verifier, &mut attestation) {
+    if let (Some(quote_verifier), Some(attestation)) = (request.quote_verifier, &mut attestation) {
         let verified_report = quote_verifier
             .verify_quote(attestation)
             .await
@@ -149,30 +244,28 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
     } else if attestation.is_some() {
         info!("the ra quote is not verified");
     }
-    let data = match data {
+    let is_get = data.is_none();
+    let payload = match data {
         Some(data) => {
-            let limit = limit_for_method(method, limits);
+            let limit = limit_for_method(method, request.limits);
             let todo = "confirm this would not truncate the data";
             read_data(data, limit)
                 .await
                 .context("failed to read data")?
         }
-        None => vec![],
+        None => request
+            .orgin
+            .query()
+            .map_or(vec![], |q| q.as_bytes().to_vec()),
     };
-    let json = json || content_type.map(|t| t.is_json()).unwrap_or(false);
+    let json = json || request.content_type.map(|t| t.is_json()).unwrap_or(false);
     let context = CallContext {
         state,
         attestation,
-        remote_endpoint: remote_addr.map(RemoteEndpoint::from),
+        remote_endpoint: request.remote_addr.cloned().map(RemoteEndpoint::from),
     };
     let call = Call::construct(context).context("failed to construct call")?;
-    let data = match query {
-        Some(query) => query.as_bytes().to_vec(),
-        None => data.to_vec(),
-    };
-    let (status_code, output) = call
-        .call(method.to_string(), data, json, query.is_some())
-        .await;
+    let (status_code, output) = call.call(method.to_string(), payload, json, is_get).await;
     Ok(Custom(Status::new(status_code), output))
 }
 

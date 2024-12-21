@@ -2,13 +2,9 @@ use crate::app::App;
 use crate::main_service::RpcHandler;
 use anyhow::Result;
 use fs_err as fs;
-use ra_rpc::rocket_helper::PrpcHandler;
 use rocket::{
-    data::{Data, Limits},
     get,
-    http::{uri::Origin, ContentType},
-    mtls::Certificate,
-    post,
+    http::ContentType,
     response::{status::Custom, stream::TextStream},
     routes, Route, State,
 };
@@ -44,51 +40,7 @@ async fn res(path: &str) -> Result<(ContentType, String), Custom<String>> {
     }
 }
 
-#[post("/prpc/<method>?<json>", data = "<data>")]
-#[allow(clippy::too_many_arguments)]
-async fn prpc_post(
-    _auth: Authorized,
-    state: &State<App>,
-    cert: Option<Certificate<'_>>,
-    method: &str,
-    data: Data<'_>,
-    limits: &Limits,
-    content_type: Option<&ContentType>,
-    json: bool,
-) -> Custom<Vec<u8>> {
-    PrpcHandler::builder()
-        .state(&**state)
-        .maybe_certificate(cert)
-        .method(method)
-        .data(data)
-        .limits(limits)
-        .maybe_content_type(content_type)
-        .json(json)
-        .build()
-        .handle::<RpcHandler>()
-        .await
-}
-
-#[get("/prpc/<method>")]
-async fn prpc_get(
-    _auth: Authorized,
-    state: &State<App>,
-    method: &str,
-    limits: &Limits,
-    content_type: Option<&ContentType>,
-    origin: &Origin<'_>,
-) -> Custom<Vec<u8>> {
-    PrpcHandler::builder()
-        .state(&**state)
-        .method(method)
-        .limits(limits)
-        .maybe_content_type(content_type)
-        .json(true)
-        .maybe_query(origin.query())
-        .build()
-        .handle::<RpcHandler>()
-        .await
-}
+ra_rpc::declare_prpc_routes!(prpc_post, prpc_get, App, RpcHandler);
 
 static STREAM_CREATED_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STREAM_DROPPED_COUNTER: AtomicUsize = AtomicUsize::new(0);
