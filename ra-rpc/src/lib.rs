@@ -40,11 +40,17 @@ pub trait RpcCall<State> {
     where
         Self: Sized;
     fn into_prpc_service(self) -> Self::PrpcService;
-    async fn call(self, method: String, payload: Vec<u8>, is_json: bool) -> (u16, Vec<u8>)
+    async fn call(
+        self,
+        method: String,
+        payload: Vec<u8>,
+        is_json: bool,
+        is_query: bool,
+    ) -> (u16, Vec<u8>)
     where
         Self: Sized,
     {
-        dispatch_prpc(method, payload, is_json, self.into_prpc_service()).await
+        dispatch_prpc(method, payload, is_json, is_query, self.into_prpc_service()).await
     }
 }
 
@@ -52,12 +58,13 @@ async fn dispatch_prpc(
     path: String,
     data: Vec<u8>,
     json: bool,
+    query: bool,
     server: impl PrpcService + Send + 'static,
 ) -> (u16, Vec<u8>) {
     use prpc::server::Error;
 
     info!("dispatching request: {}", path);
-    let result = server.dispatch_request(&path, data, json).await;
+    let result = server.dispatch_request(&path, data, json, query).await;
     let (code, data) = match result {
         Ok(data) => (200, data),
         Err(err) => {

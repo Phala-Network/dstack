@@ -7,7 +7,7 @@ use ra_tls::{
 };
 use rocket::{
     data::{ByteUnit, Limits, ToByteUnit},
-    http::{ContentType, Status},
+    http::{uri::Query, ContentType, Status},
     listener::Endpoint,
     mtls::{oid::Oid, Certificate},
     response::status::Custom,
@@ -81,6 +81,7 @@ pub struct PrpcHandler<'a, 'b, 'c, 'd, 'e, 'f, 'g, S> {
     pub quote_verifier: Option<&'c QuoteVerifier>,
     pub method: &'d str,
     pub data: Option<Data<'e>>,
+    pub query: Option<Query<'e>>,
     pub limits: &'f Limits,
     pub content_type: Option<&'g ContentType>,
     pub json: bool,
@@ -131,6 +132,7 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
         quote_verifier,
         method,
         data,
+        query,
         limits,
         content_type,
         json,
@@ -164,8 +166,13 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
         remote_endpoint: remote_addr.map(RemoteEndpoint::from),
     };
     let call = Call::construct(context).context("failed to construct call")?;
-    let data = data.to_vec();
-    let (status_code, output) = call.call(method.to_string(), data, json).await;
+    let data = match query {
+        Some(query) => query.as_bytes().to_vec(),
+        None => data.to_vec(),
+    };
+    let (status_code, output) = call
+        .call(method.to_string(), data, json, query.is_some())
+        .await;
     Ok(Custom(Status::new(status_code), output))
 }
 

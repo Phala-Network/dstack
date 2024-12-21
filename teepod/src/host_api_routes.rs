@@ -4,7 +4,7 @@ use ra_rpc::rocket_helper::PrpcHandler;
 use rocket::{
     data::{Data, Limits},
     get,
-    http::ContentType,
+    http::{uri::Origin, ContentType},
     listener::Endpoint,
     mtls::Certificate,
     post,
@@ -45,6 +45,7 @@ async fn prpc_get(
     method: &str,
     limits: &Limits,
     content_type: Option<&ContentType>,
+    origin: &Origin<'_>,
 ) -> Custom<Vec<u8>> {
     PrpcHandler::builder()
         .state(&**state)
@@ -53,6 +54,7 @@ async fn prpc_get(
         .limits(limits)
         .maybe_content_type(content_type)
         .json(true)
+        .maybe_query(origin.query())
         .build()
         .handle::<HostApiHandler>()
         .await

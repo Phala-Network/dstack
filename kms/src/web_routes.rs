@@ -3,7 +3,7 @@ use ra_rpc::rocket_helper::{PrpcHandler, QuoteVerifier};
 use rocket::{
     data::{Data, Limits},
     get,
-    http::ContentType,
+    http::{uri::Origin, ContentType},
     mtls::Certificate,
     post,
     response::status::Custom,
@@ -47,6 +47,7 @@ async fn prpc_get(
     quote_verifier: Option<&State<QuoteVerifier>>,
     cert: Option<Certificate<'_>>,
     method: &str,
+    origin: &Origin<'_>,
     limits: &Limits,
     content_type: Option<&ContentType>,
 ) -> Custom<Vec<u8>> {
@@ -57,6 +58,7 @@ async fn prpc_get(
         .method(method)
         .limits(limits)
         .maybe_content_type(content_type)
+        .maybe_query(origin.query())
         .json(true)
         .build()
         .handle::<RpcHandler>()

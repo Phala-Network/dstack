@@ -8,6 +8,7 @@ use ra_rpc::rocket_helper::PrpcHandler;
 use ra_rpc::{CallContext, RpcCall};
 use rinja::Template;
 use rocket::futures::StreamExt;
+use rocket::http::uri::Origin;
 use rocket::response::stream::TextStream;
 use rocket::{
     data::{Data, Limits},
@@ -46,6 +47,7 @@ async fn prpc_get(
     method: &str,
     limits: &Limits,
     content_type: Option<&ContentType>,
+    origin: &Origin<'_>,
 ) -> Custom<Vec<u8>> {
     PrpcHandler::builder()
         .state(&**state)
@@ -53,6 +55,7 @@ async fn prpc_get(
         .limits(limits)
         .maybe_content_type(content_type)
         .json(true)
+        .maybe_query(origin.query())
         .build()
         .handle::<InternalRpcHandler>()
         .await
@@ -128,6 +131,7 @@ async fn external_prpc_get(
     method: &str,
     limits: &Limits,
     content_type: Option<&ContentType>,
+    origin: &Origin<'_>,
 ) -> Custom<Vec<u8>> {
     PrpcHandler::builder()
         .state(&**state)
@@ -135,6 +139,7 @@ async fn external_prpc_get(
         .limits(limits)
         .maybe_content_type(content_type)
         .json(true)
+        .maybe_query(origin.query())
         .build()
         .handle::<ExternalRpcHandler>()
         .await
