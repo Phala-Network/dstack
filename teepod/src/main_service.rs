@@ -305,7 +305,7 @@ impl TeepodRpc for RpcHandler {
     async fn version(self) -> Result<VersionResponse> {
         Ok(VersionResponse {
             version: crate::CARGO_PKG_VERSION.to_string(),
-            commit: crate::GIT_VERSION.to_string(),
+            rev: crate::GIT_REV.to_string(),
         })
     }
 }

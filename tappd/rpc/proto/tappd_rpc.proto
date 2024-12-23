@@ -80,6 +80,8 @@ message WorkerInfo {
 message WorkerVersion {
   // Tappd version
   string version = 1;
+  // Git revision
+  string rev = 2;
 }
 
 service Worker {

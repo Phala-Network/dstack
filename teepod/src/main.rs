@@ -24,14 +24,14 @@ mod main_routes;
 mod main_service;
 
 const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
-const GIT_VERSION: &str = git_version::git_version!(
+const GIT_REV: &str = git_version::git_version!(
     args = ["--abbrev=20", "--always", "--dirty=-modified"],
     prefix = "git:",
     fallback = "unknown"
 );
 
 fn app_version() -> String {
-    format!("v{CARGO_PKG_VERSION} ({GIT_VERSION})")
+    format!("v{CARGO_PKG_VERSION} ({GIT_REV})")
 }
 
 #[derive(Parser)]

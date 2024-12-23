@@ -9,7 +9,7 @@ use rocket::{
     listener::{Bind, DefaultListener},
 };
 use rocket_vsock_listener::VsockListener;
-use rpc_service::{AppState, ExternalRpcHandler};
+use rpc_service::{AppState, ExternalRpcHandler, InternalRpcHandler};
 use sd_notify::{notify as sd_notify, NotifyState};
 use std::time::Duration;
 use tracing::{error, info};
@@ -20,14 +20,15 @@ mod http_routes;
 mod models;
 mod rpc_service;
 
+const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+const GIT_REV: &str = git_version::git_version!(
+    args = ["--abbrev=20", "--always", "--dirty=-modified"],
+    prefix = "git:",
+    fallback = "unknown"
+);
+
 fn app_version() -> String {
-    const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
-    const VERSION: &str = git_version::git_version!(
-        args = ["--abbrev=20", "--always", "--dirty=-modified"],
-        prefix = "git:",
-        fallback = "unknown"
-    );
-    format!("v{CARGO_PKG_VERSION} ({VERSION})")
+    format!("v{CARGO_PKG_VERSION} ({GIT_REV})")
 }
 
 #[derive(Parser)]
@@ -44,7 +45,7 @@ struct Args {
 
 async fn run_internal(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
-        .mount("/", http_routes::internal_routes())
+        .mount("/prpc/", ra_rpc::prpc_routes!(AppState, InternalRpcHandler))
         .manage(state);
     let ignite = rocket
         .ignite()
