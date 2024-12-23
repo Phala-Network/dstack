@@ -653,10 +653,10 @@
                                         @click="shutdownVm(vm.id)" title="Shutdown VM">
                                         <i class="fas fa-stop"></i> Shutdown
                                     </button>
-                                    <button class="action-btn danger" @click="stopVm(vm.id)" title="Stop VM">
+                                    <button class="action-btn danger" @click="stopVm(vm)" title="Stop VM">
                                         <i class="fas fa-kill"></i> Kill
                                     </button>
-                                    <button class="action-btn warning" @click="removeVm(vm.id)" title="Remove VM">
+                                    <button class="action-btn warning" @click="removeVm(vm)" title="Remove VM">
                                         <i class="fas fa-trash"></i> Remove
                                     </button>
                                     <button class="action-btn" @click="showLog(vm.id)" title="View Logs">
@@ -1131,10 +1131,13 @@
                     }
                 };
 
-                const stopVm = async (id) => {
+                const stopVm = async (vm) => {
+                    if (!confirm(`You are killing "${vm.name}". This might cause data corruption.`)) {
+                        return;
+                    }
                     try {
                         const _response = await rpcCall('StopVm', {
-                            id
+                            id: vm.id
                         });
                         loadVMList();
                     } catch (error) {
@@ -1167,10 +1170,13 @@
                     }
                 };
 
-                const removeVm = async (id) => {
+                const removeVm = async (vm) => {
+                    if (!confirm(`You are removing "${vm.name}". This action cannot be undone.`)) {
+                        return;
+                    }
                     try {
                         const _response = await rpcCall('RemoveVm', {
-                            id
+                            id: vm.id
                         });
                         loadVMList();
                     } catch (error) {
