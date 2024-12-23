@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use fs_err as fs;
 use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{
-    attestation::QuoteContentType,
+    attestation::{QuoteContentType, DEFAULT_HASH_ALGORITHM},
     cert::{CaCert, CertRequest},
     kdf::derive_ecdsa_key_pair,
     qvl::quote::Report,
@@ -70,14 +70,34 @@ impl TappdRpc for InternalRpcHandler {
     }
 
     async fn tdx_quote(self, request: TdxQuoteArgs) -> Result<TdxQuoteResponse> {
-        let report_data = QuoteContentType::AppData
-            .to_report_data_with_hash(&request.report_data, &request.hash_algorithm)?;
+        let content_type = if request.prefix.is_empty() {
+            QuoteContentType::AppData
+        } else {
+            QuoteContentType::Custom(&request.prefix)
+        };
+        let report_data =
+            content_type.to_report_data_with_hash(&request.report_data, &request.hash_algorithm)?;
         let event_log = read_event_logs().context("Failed to decode event log")?;
         let event_log =
             serde_json::to_string(&event_log).context("Failed to serialize event log")?;
         let (_, quote) =
             tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
-        Ok(TdxQuoteResponse { quote, event_log })
+        let hash_algorithm = if request.hash_algorithm.is_empty() {
+            DEFAULT_HASH_ALGORITHM
+        } else {
+            &request.hash_algorithm
+        };
+        let prefix = if hash_algorithm == "raw" {
+            "".into()
+        } else {
+            QuoteContentType::AppData.tag().to_string()
+        };
+        Ok(TdxQuoteResponse {
+            quote,
+            event_log,
+            hash_algorithm: hash_algorithm.to_string(),
+            prefix,
+        })
     }
 
     async fn info(self) -> Result<WorkerInfo> {
