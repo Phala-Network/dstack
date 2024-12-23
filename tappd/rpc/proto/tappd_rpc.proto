@@ -53,6 +53,8 @@ message TdxQuoteArgs {
   // - `keccak512`
   // - `raw`: Passes the report_data directly to the driver without any processing
   string hash_algorithm = 2;
+  // The prefix added to the report data before hashing. Default is `app-data:` if the hash algorithm is not `raw`.
+  string prefix = 3;
 }
 
 message TdxQuoteResponse {
@@ -60,6 +62,12 @@ message TdxQuoteResponse {
   bytes quote = 1;
   // Event log
   string event_log = 2;
+
+  // The following fields might be used for app debugging purposes
+  // Hash algorithm used to hash the caller passed in report data
+  string hash_algorithm = 3;
+  // Prefix added to the report data before hashing
+  string prefix = 4;
 }
 
 // The request to derive a key

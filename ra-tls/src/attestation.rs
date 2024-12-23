@@ -10,22 +10,28 @@ use cc_eventlog::TdxEventLog as EventLog;
 
 /// The content type of a quote. A CVM should only generate quotes for these types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QuoteContentType {
+pub enum QuoteContentType<'a> {
     /// The public key of KMS root CA
     KmsRootCa,
     /// The public key of the RA-TLS certificate
     RaTlsCert,
     /// App defined data
     AppData,
+    /// The custom content type
+    Custom(&'a str),
 }
 
-impl QuoteContentType {
+/// The default hash algorithm used to hash the report data.
+pub const DEFAULT_HASH_ALGORITHM: &str = "sha512";
+
+impl QuoteContentType<'_> {
     /// The tag of the content type used in the report data.
-    pub fn tag(&self) -> &'static str {
+    pub fn tag(&self) -> &str {
         match self {
             Self::KmsRootCa => "kms-root-ca",
             Self::RaTlsCert => "ratls-cert",
             Self::AppData => "app-data",
+            Self::Custom(tag) => tag,
         }
     }
 
@@ -52,11 +58,15 @@ impl QuoteContentType {
                 padded
             }};
         }
+        let hash = if hash.is_empty() {
+            DEFAULT_HASH_ALGORITHM
+        } else {
+            hash
+        };
         let output = match hash {
             "sha256" => do_hash!(sha2::Sha256),
             "sha384" => do_hash!(sha2::Sha384),
-            // Default to sha512
-            "" | "sha512" => do_hash!(sha2::Sha512),
+            "sha512" => do_hash!(sha2::Sha512),
             "sha3-256" => do_hash!(sha3::Sha3_256),
             "sha3-384" => do_hash!(sha3::Sha3_384),
             "sha3-512" => do_hash!(sha3::Sha3_512),
