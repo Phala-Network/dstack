@@ -158,6 +158,7 @@ impl WorkerRpc for ExternalRpcHandler {
     async fn version(self) -> Result<WorkerVersion> {
         Ok(WorkerVersion {
             version: env!("CARGO_PKG_VERSION").to_string(),
+            rev: super::GIT_REV.to_string(),
         })
     }
 }

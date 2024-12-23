@@ -130,7 +130,7 @@ message ResizeVmRequest {
 
 message VersionResponse {
   string version = 1;
-  string commit = 2;
+  string rev = 2;
 }
 
 // Service definition for Teepod

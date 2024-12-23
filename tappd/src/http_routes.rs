@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::guest_api_service::{list_containers, GuestApiHandler};
-use crate::rpc_service::{AppState, ExternalRpcHandler, InternalRpcHandler};
+use crate::rpc_service::{AppState, ExternalRpcHandler};
 use anyhow::Result;
 use docker_logs::parse_duration;
 use guest_api::guest_api_server::GuestApiRpc;
@@ -10,20 +10,6 @@ use rocket::futures::StreamExt;
 use rocket::response::stream::TextStream;
 use rocket::{get, response::content::RawHtml, routes, Route, State};
 use tappd_rpc::{worker_server::WorkerRpc, WorkerInfo};
-
-ra_rpc::declare_prpc_routes!(
-    path: "/prpc/<method>",
-    prpc_post,
-    prpc_get,
-    AppState,
-    InternalRpcHandler
-);
-
-ra_rpc::prpc_alias!(get: quote_get, "/quote" -> prpc_get("Tappd.TdxQuote", AppState));
-
-pub fn internal_routes() -> Vec<Route> {
-    routes![prpc_post, prpc_get, quote_get]
-}
 
 pub fn external_routes(config: &Config) -> Vec<Route> {
     let mut routes = routes![index];
