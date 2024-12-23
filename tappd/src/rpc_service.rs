@@ -182,6 +182,8 @@ impl WorkerRpc for ExternalRpcHandler {
             instance_id,
             app_cert: ca.pem_cert.clone(),
             tcb_info,
+            public_logs: self.state.config().public_logs,
+            public_sysinfo: self.state.config().public_sysinfo,
         })
     }
 

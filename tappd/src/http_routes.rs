@@ -31,6 +31,8 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         instance_id,
         tcb_info,
         app_cert,
+        public_logs,
+        public_sysinfo,
     } = handler
         .info()
         .await

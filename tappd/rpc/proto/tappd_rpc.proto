@@ -97,6 +97,10 @@ message WorkerInfo {
   string tcb_info = 4;
   // App name
   string app_name = 5;
+  // Whether the app logs are public
+  bool public_logs = 6;
+  // Whether the app sysinfo is public
+  bool public_sysinfo = 7;
 }
 
 // The response to a WorkerInfo request
