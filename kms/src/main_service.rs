@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{bail, Context, Result};
 use kms_rpc::{
     kms_server::{KmsRpc, KmsServer},
-    AppId, AppKeyResponse, GetAppKeyRequest, PublicKeyResponse, GetMetaResponse,
+    AppId, AppKeyResponse, GetAppKeyRequest, GetMetaResponse, PublicKeyResponse,
 };
 use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{

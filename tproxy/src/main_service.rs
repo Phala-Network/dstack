@@ -17,8 +17,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
-    AcmeInfoResponse, GetInfoRequest, GetInfoResponse, HostInfo as PbHostInfo, ListResponse,
-    RegisterCvmRequest, RegisterCvmResponse, TappdConfig, WireGuardConfig, GetMetaResponse,
+    AcmeInfoResponse, GetInfoRequest, GetInfoResponse, GetMetaResponse, HostInfo as PbHostInfo,
+    ListResponse, RegisterCvmRequest, RegisterCvmResponse, TappdConfig, WireGuardConfig,
 };
 use tracing::{debug, error, info, warn};
 
@@ -450,16 +450,16 @@ impl TproxyRpc for RpcHandler {
     async fn get_meta(self) -> Result<GetMetaResponse> {
         let state = self.state.lock();
         let handshakes = state.latest_handshakes(None)?;
-        
+
         // Total registered instances
         let registered = state.state.instances.len();
-        
+
         // Get current timestamp
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .context("system time before Unix epoch")?
             .as_secs();
-        
+
         // Count online instances (those with handshakes in last 5 minutes)
         let online = handshakes
             .values()

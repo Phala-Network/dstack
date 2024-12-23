@@ -6,9 +6,9 @@ use fs_err as fs;
 use ra_rpc::{CallContext, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
-    AppId, GetInfoResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse, PublicKeyResponse,
-    ResizeVmRequest, StatusResponse, UpgradeAppRequest, VersionResponse, VmConfiguration,
-    GetMetaResponse, KmsSettings, TProxySettings, ResourcesSettings,
+    AppId, GetInfoResponse, GetMetaResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse,
+    KmsSettings, PublicKeyResponse, ResizeVmRequest, ResourcesSettings, StatusResponse,
+    TProxySettings, UpgradeAppRequest, VersionResponse, VmConfiguration,
 };
 use tracing::{info, warn};
 
