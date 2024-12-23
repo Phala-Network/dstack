@@ -242,7 +242,7 @@ impl SetupFdeArgs {
     fn mount_e2fs(dev: &str, mount_point: &Path) -> Result<()> {
         cmd! {
             info "Checking filesystem";
-            e2fsck -f -p $dev;
+            sh -c "e2fsck -f -p $dev || [ $? -le 2 ]";
             info "Trying to resize filesystem if needed";
             resize2fs $dev;
             info "Mounting filesystem";
