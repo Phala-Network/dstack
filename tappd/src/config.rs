@@ -8,6 +8,11 @@ pub fn load_config_figment(config_file: Option<&str>) -> Figment {
     load_config("tappd", DEFAULT_CONFIG, config_file, true)
 }
 
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct BindAddr {
+    pub port: u16,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub app_name: String,

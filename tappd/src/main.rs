@@ -2,6 +2,7 @@ use std::{fs::Permissions, future::pending, os::unix::fs::PermissionsExt};
 
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
+use config::BindAddr;
 use guest_api_service::GuestApiHandler;
 use rocket::{
     fairing::AdHoc,
@@ -102,7 +103,7 @@ async fn run_guest_api(state: AppState, figment: Figment) -> Result<()> {
     Ok(())
 }
 
-async fn run_watchdog() {
+async fn run_watchdog(port: u16) {
     let mut watchdog_usec = 0;
     let enabled = sd_notify::watchdog_enabled(false, &mut watchdog_usec);
     if !enabled {
@@ -123,15 +124,12 @@ async fn run_watchdog() {
     // Create HTTP client for health checks
     let client = reqwest::Client::new();
 
+    let probe_url = format!("http://localhost:{port}/prpc/Worker.Version");
     loop {
         interval.tick().await;
 
         // Perform health check
-        match client
-            .get("http://localhost:8090/prpc/Worker.Version")
-            .send()
-            .await
-        {
+        match client.get(&probe_url).send().await {
             Ok(response) if response.status().is_success() => {
                 // Only notify systemd if health check passes
                 if let Err(err) = sd_notify(false, &[NotifyState::Watchdog]) {
@@ -161,6 +159,9 @@ async fn main() -> Result<()> {
         AppState::new(figment.focus("core").extract()?).context("Failed to create app state")?;
     let internal_figment = figment.clone().select("internal");
     let external_figment = figment.clone().select("external");
+    let bind_addr: BindAddr = external_figment
+        .extract()
+        .context("Failed to extract bind address")?;
     let external_https_figment = figment.clone().select("external-https");
     let guest_api_figment = figment.select("guest-api");
     tokio::select!(
@@ -170,7 +171,7 @@ async fn main() -> Result<()> {
         res = run_guest_api(state.clone(), guest_api_figment) => res?,
         _ = async {
             if args.watchdog {
-                run_watchdog().await;
+                run_watchdog(bind_addr.port).await;
             } else {
                 pending::<()>().await;
             }
