@@ -5,12 +5,19 @@ import "google/protobuf/empty.proto";
 package tappd;
 
 service Tappd {
-  // Derive a key from a key path
-  // Returns a key and a certificate chain
+  // Derives a cryptographic key from the specified key path.
+  // Returns the derived key along with its certificate chain.
   rpc DeriveKey(DeriveKeyArgs) returns (DeriveKeyResponse) {}
 
-  // Get a TDX quote
+  // Generates a TDX quote
   rpc TdxQuote(TdxQuoteArgs) returns (TdxQuoteResponse) {}
+
+  // Generates a TDX quote with raw report data.
+  // This is a low-level API that should be used with caution.
+  // When using quotes in multiple locations within your application,
+  // ensure proper quote differentiation by including a content type
+  // identifier in the report_data to avoid Quote Repurposing Attacks.
+  rpc RawQuote(RawQuoteArgs) returns (TdxQuoteResponse) {}
 
   // Get worker info
   rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
@@ -53,8 +60,16 @@ message TdxQuoteArgs {
   // - `keccak512`
   // - `raw`: Passes the report_data directly to the driver without any processing
   string hash_algorithm = 2;
-  // The prefix added to the report data before hashing. Default is `app-data:` if the hash algorithm is not `raw`.
+
+  // Custom prefix to prepend to report data before hashing.
+  // Defaults to 'app-data:' when hash_algorithm is not 'raw'.
   string prefix = 3;
+}
+
+// The request to get a raw TDX quote
+message RawQuoteArgs {
+  // 64 bytes of report data
+  bytes report_data = 1;
 }
 
 message TdxQuoteResponse {

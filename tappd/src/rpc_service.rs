@@ -13,7 +13,8 @@ use serde_json::json;
 use tappd_rpc::{
     tappd_server::{TappdRpc, TappdServer},
     worker_server::{WorkerRpc, WorkerServer},
-    DeriveKeyArgs, DeriveKeyResponse, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo, WorkerVersion,
+    DeriveKeyArgs, DeriveKeyResponse, RawQuoteArgs, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo,
+    WorkerVersion,
 };
 use tdx_attest::eventlog::read_event_logs;
 
@@ -98,6 +99,15 @@ impl TappdRpc for InternalRpcHandler {
             hash_algorithm: hash_algorithm.to_string(),
             prefix,
         })
+    }
+
+    async fn raw_quote(self, request: RawQuoteArgs) -> Result<TdxQuoteResponse> {
+        self.tdx_quote(TdxQuoteArgs {
+            report_data: request.report_data,
+            hash_algorithm: "raw".to_string(),
+            prefix: "".to_string(),
+        })
+        .await
     }
 
     async fn info(self) -> Result<WorkerInfo> {
