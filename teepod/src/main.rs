@@ -4,6 +4,9 @@ use anyhow::{anyhow, Context, Result};
 use app::App;
 use clap::Parser;
 use config::Config;
+use guest_api_service::GuestApiHandler;
+use host_api_service::HostApiHandler;
+use main_service::RpcHandler;
 use path_absolutize::Absolutize;
 use rocket::{
     fairing::AdHoc,
@@ -15,9 +18,7 @@ use supervisor_client::SupervisorClient;
 
 mod app;
 mod config;
-mod guest_api_routes;
 mod guest_api_service;
-mod host_api_routes;
 mod host_api_service;
 mod main_routes;
 mod main_service;
@@ -44,7 +45,9 @@ struct Args {
 async fn run_external_api(app: App, figment: Figment, api_auth: ApiToken) -> Result<()> {
     let external_api = rocket::custom(figment)
         .mount("/", main_routes::routes())
-        .mount("/guest", guest_api_routes::routes())
+        .mount("/guest", ra_rpc::prpc_routes!(App, GuestApiHandler))
+        .mount("/api", ra_rpc::prpc_routes!(App, HostApiHandler))
+        .mount("/prpc", ra_rpc::prpc_routes!(App, RpcHandler))
         .manage(app)
         .manage(api_auth)
         .attach(AdHoc::on_response("Add app rev header", |_req, res| {
@@ -70,7 +73,7 @@ async fn run_host_api(app: App, figment: Figment) -> Result<()> {
         .clone()
         .merge(Serialized::defaults(figment.find_value("host_api")?));
     let rocket = rocket::custom(figment)
-        .mount("/api", host_api_routes::routes())
+        .mount("/api", ra_rpc::prpc_routes!(App, HostApiHandler))
         .manage(app);
     let ignite = rocket
         .ignite()

@@ -10,7 +10,7 @@ use ra_tls::{
 };
 use rocket::{
     data::{ByteUnit, Data, Limits, ToByteUnit},
-    http::{uri::Origin, ContentType, Status},
+    http::{uri::Origin, ContentType, Method, Status},
     listener::Endpoint,
     mtls::{oid::Oid, Certificate},
     request::{FromRequest, Outcome},
@@ -34,48 +34,91 @@ pub mod deps {
     pub use rocket::{Data, State};
 }
 
+fn query_field_get_raw<'r>(req: &'r Request<'_>, field_name: &str) -> Option<&'r str> {
+    for field in req.query_fields() {
+        let raw = (field.name.source().as_str(), field.value);
+        let key = field.name.key_lossy().as_str();
+        if key == field_name {
+            return Some(field.value);
+        }
+    }
+    None
+}
+
+fn query_field_get_bool(req: &Request<'_>, field_name: &str) -> bool {
+    matches!(
+        query_field_get_raw(req, field_name),
+        Some("true" | "1" | "")
+    )
+}
+
+#[macro_export]
+macro_rules! prpc_routes {
+    ($state:ty, $handler:ty) => {{
+        ra_rpc::declare_prpc_routes!(prpc_post, prpc_get, $state, $handler);
+        rocket::routes![prpc_post, prpc_get]
+    }};
+}
+
 #[macro_export]
 macro_rules! declare_prpc_routes {
     ($post:ident, $get:ident, $state:ty, $handler:ty) => {
-        $crate::declare_prpc_routes!(path: "/prpc/<method>?<json>", "/prpc/<method>", $post, $get, $state, $handler);
+        $crate::declare_prpc_routes!(path: "/<method>", $post, $get, $state, $handler);
     };
-    (bare: $post:ident, $get:ident, $state:ty, $handler:ty) => {
-        $crate::declare_prpc_routes!(path: "/<method>?<json>", "/<method>", $post, $get, $state, $handler);
-    };
-    (path: $post_path: literal, $get_path: literal, $post:ident, $get:ident, $state:ty, $handler:ty) => {
-        #[rocket::post($post_path, data = "<data>")]
+    (path: $path: literal, $post:ident, $get:ident, $state:ty, $handler:ty) => {
+        #[rocket::post($path, data = "<data>")]
         async fn $post<'a: 'd, 'd>(
             state: &'a $crate::rocket_helper::deps::State<$state>,
             method: &'a str,
-            data: $crate::rocket_helper::deps::Data<'d>,
-            json: bool,
             rpc_request: $crate::rocket_helper::deps::RpcRequest<'a>,
+            data: $crate::rocket_helper::deps::Data<'d>,
         ) -> $crate::rocket_helper::deps::Custom<Vec<u8>> {
             $crate::rocket_helper::deps::PrpcHandler::builder()
                 .state(&**state)
                 .request(rpc_request)
                 .method(method)
                 .data(data)
-                .json(json)
                 .build()
                 .handle::<$handler>()
                 .await
         }
 
-        #[rocket::get("/<method>")]
-        async fn $get<'a: 'd, 'd>(
-            state: &'a $crate::rocket_helper::deps::State<$state>,
-            rpc_request: $crate::rocket_helper::deps::RpcRequest<'a>,
-            method: &'a str,
+        #[rocket::get($path)]
+        async fn $get(
+            state: &$crate::rocket_helper::deps::State<$state>,
+            method: &str,
+            rpc_request: $crate::rocket_helper::deps::RpcRequest<'_>,
         ) -> $crate::rocket_helper::deps::Custom<Vec<u8>> {
             $crate::rocket_helper::deps::PrpcHandler::builder()
                 .state(&**state)
                 .request(rpc_request)
                 .method(method)
-                .json(true)
                 .build()
                 .handle::<$handler>()
                 .await
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! prpc_alias {
+    (get: $name:ident, $alias:literal -> $prpc:ident($method:literal, $state:ty)) => {
+        #[rocket::get($alias)]
+        async fn $name(
+            state: &$crate::rocket_helper::deps::State<$state>,
+            rpc_request: $crate::rocket_helper::deps::RpcRequest<'_>,
+        ) -> $crate::rocket_helper::deps::Custom<Vec<u8>> {
+            $prpc(state, $method, rpc_request).await
+        }
+    };
+    (post: $name:ident, $alias:literal -> $prpc:ident($method:literal, $state:ty)) => {
+        #[rocket::post($alias, data = "<data>")]
+        async fn $name<'a: 'd, 'd>(
+            state: &'a $crate::rocket_helper::deps::State<$state>,
+            rpc_request: $crate::rocket_helper::deps::RpcRequest<'a>,
+            data: $crate::rocket_helper::deps::Data<'d>,
+        ) -> $crate::rocket_helper::deps::Custom<Vec<u8>> {
+            $prpc(state, $method, rpc_request, data).await
         }
     };
 }
@@ -154,7 +197,6 @@ pub struct PrpcHandler<'s, 'r, S> {
     state: &'s S,
     request: RpcRequest<'r>,
     method: &'r str,
-    json: bool,
     data: Option<Data<'r>>,
 }
 
@@ -162,9 +204,10 @@ pub struct RpcRequest<'r> {
     remote_addr: Option<&'r Endpoint>,
     certificate: Option<Certificate<'r>>,
     quote_verifier: Option<&'r QuoteVerifier>,
-    orgin: &'r Origin<'r>,
+    origin: &'r Origin<'r>,
     limits: &'r Limits,
     content_type: Option<&'r ContentType>,
+    json: bool,
 }
 
 #[rocket::async_trait]
@@ -176,16 +219,17 @@ impl<'r> FromRequest<'r> for RpcRequest<'r> {
             remote_addr: from_request!(request),
             certificate: from_request!(request),
             quote_verifier: from_request!(request),
-            orgin: from_request!(request),
+            origin: from_request!(request),
             limits: from_request!(request),
             content_type: from_request!(request),
+            json: request.method() == Method::Get || query_field_get_bool(request, "json"),
         })
     }
 }
 
 impl<'s, 'r, S> PrpcHandler<'s, 'r, S> {
     pub async fn handle<Call: RpcCall<S>>(self) -> Custom<Vec<u8>> {
-        let json = self.json;
+        let json = self.request.json;
         let result = handle_prpc_impl::<S, Call>(self).await;
         match result {
             Ok(output) => output,
@@ -226,7 +270,6 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
         state,
         request,
         method,
-        json,
         data,
     } = args;
     let mut attestation = request
@@ -254,11 +297,11 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
                 .context("failed to read data")?
         }
         None => request
-            .orgin
+            .origin
             .query()
             .map_or(vec![], |q| q.as_bytes().to_vec()),
     };
-    let json = json || request.content_type.map(|t| t.is_json()).unwrap_or(false);
+    let json = request.json || request.content_type.map(|t| t.is_json()).unwrap_or(false);
     let context = CallContext {
         state,
         attestation,

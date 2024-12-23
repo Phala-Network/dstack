@@ -33,24 +33,26 @@ pub struct CallContext<'a, State> {
     pub remote_endpoint: Option<RemoteEndpoint>,
 }
 
-pub trait RpcCall<State> {
-    type PrpcService: PrpcService + Send + 'static;
+pub trait RpcCall<State>: Sized {
+    type PrpcService: PrpcService + From<Self> + Send + 'static;
 
-    fn construct(context: CallContext<'_, State>) -> Result<Self>
-    where
-        Self: Sized;
-    fn into_prpc_service(self) -> Self::PrpcService;
+    fn construct(context: CallContext<'_, State>) -> Result<Self>;
+
     async fn call(
         self,
         method: String,
         payload: Vec<u8>,
         is_json: bool,
         is_query: bool,
-    ) -> (u16, Vec<u8>)
-    where
-        Self: Sized,
-    {
-        dispatch_prpc(method, payload, is_json, is_query, self.into_prpc_service()).await
+    ) -> (u16, Vec<u8>) {
+        dispatch_prpc(
+            method,
+            payload,
+            is_json,
+            is_query,
+            <Self::PrpcService as From<Self>>::from(self),
+        )
+        .await
     }
 }
 

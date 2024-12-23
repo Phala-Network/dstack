@@ -313,14 +313,7 @@ impl TeepodRpc for RpcHandler {
 impl RpcCall<App> for RpcHandler {
     type PrpcService = TeepodServer<Self>;
 
-    fn into_prpc_service(self) -> Self::PrpcService {
-        TeepodServer::new(self)
-    }
-
-    fn construct(context: CallContext<'_, App>) -> Result<Self>
-    where
-        Self: Sized,
-    {
+    fn construct(context: CallContext<'_, App>) -> Result<Self> {
         Ok(RpcHandler {
             app: context.state.clone(),
         })

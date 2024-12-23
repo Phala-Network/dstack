@@ -16,14 +16,7 @@ pub struct HostApiHandler {
 impl RpcCall<App> for HostApiHandler {
     type PrpcService = HostApiServer<Self>;
 
-    fn into_prpc_service(self) -> Self::PrpcService {
-        HostApiServer::new(self)
-    }
-
-    fn construct(context: CallContext<'_, App>) -> Result<Self>
-    where
-        Self: Sized,
-    {
+    fn construct(context: CallContext<'_, App>) -> Result<Self> {
         let Some(RemoteEndpoint::Vsock { cid, port }) = context.remote_endpoint else {
             bail!("invalid remote endpoint: {:?}", context.remote_endpoint);
         };

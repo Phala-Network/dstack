@@ -198,14 +198,7 @@ impl KmsRpc for RpcHandler {
 impl RpcCall<KmsState> for RpcHandler {
     type PrpcService = KmsServer<Self>;
 
-    fn into_prpc_service(self) -> Self::PrpcService {
-        KmsServer::new(self)
-    }
-
-    fn construct(context: CallContext<'_, KmsState>) -> Result<Self>
-    where
-        Self: Sized,
-    {
+    fn construct(context: CallContext<'_, KmsState>) -> Result<Self> {
         Ok(RpcHandler {
             state: context.state.clone(),
             attestation: context.attestation,

@@ -1,5 +1,4 @@
 use crate::app::App;
-use crate::main_service::RpcHandler;
 use anyhow::Result;
 use fs_err as fs;
 use rocket::{
@@ -39,8 +38,6 @@ async fn res(path: &str) -> Result<(ContentType, String), Custom<String>> {
         )),
     }
 }
-
-ra_rpc::declare_prpc_routes!(prpc_post, prpc_get, App, RpcHandler);
 
 static STREAM_CREATED_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STREAM_DROPPED_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -152,5 +149,5 @@ fn vm_logs(
 }
 
 pub fn routes() -> Vec<Route> {
-    routes![index, res, prpc_post, prpc_get, vm_logs]
+    routes![index, res, vm_logs]
 }

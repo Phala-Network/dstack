@@ -451,14 +451,7 @@ impl TproxyRpc for RpcHandler {
 impl RpcCall<Proxy> for RpcHandler {
     type PrpcService = TproxyServer<Self>;
 
-    fn into_prpc_service(self) -> Self::PrpcService {
-        TproxyServer::new(self)
-    }
-
-    fn construct(context: CallContext<'_, Proxy>) -> Result<Self>
-    where
-        Self: Sized,
-    {
+    fn construct(context: CallContext<'_, Proxy>) -> Result<Self> {
         Ok(RpcHandler {
             attestation: context.attestation,
             state: context.state.clone(),

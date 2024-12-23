@@ -11,19 +11,22 @@ use rocket::response::stream::TextStream;
 use rocket::{get, response::content::RawHtml, routes, Route, State};
 use tappd_rpc::{worker_server::WorkerRpc, WorkerInfo};
 
-ra_rpc::declare_prpc_routes!(prpc_post, prpc_get, AppState, InternalRpcHandler);
+ra_rpc::declare_prpc_routes!(
+    path: "/prpc/<method>",
+    prpc_post,
+    prpc_get,
+    AppState,
+    InternalRpcHandler
+);
+
+ra_rpc::prpc_alias!(get: quote_get, "/quote" -> prpc_get("Tappd.TdxQuote", AppState));
+
 pub fn internal_routes() -> Vec<Route> {
-    routes![prpc_post, prpc_get]
+    routes![prpc_post, prpc_get, quote_get]
 }
 
-ra_rpc::declare_prpc_routes!(
-    external_prpc_post,
-    external_prpc_get,
-    AppState,
-    ExternalRpcHandler
-);
 pub fn external_routes(config: &Config) -> Vec<Route> {
-    let mut routes = routes![index, external_prpc_post, external_prpc_get];
+    let mut routes = routes![index];
     if config.public_logs {
         routes.extend(routes![get_logs]);
     }
