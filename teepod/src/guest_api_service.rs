@@ -22,14 +22,7 @@ impl Deref for GuestApiHandler {
 impl RpcCall<AppState> for GuestApiHandler {
     type PrpcService = ProxiedGuestApiServer<Self>;
 
-    fn into_prpc_service(self) -> Self::PrpcService {
-        ProxiedGuestApiServer::new(self)
-    }
-
-    fn construct(context: CallContext<'_, AppState>) -> Result<Self>
-    where
-        Self: Sized,
-    {
+    fn construct(context: CallContext<'_, AppState>) -> Result<Self> {
         Ok(Self {
             state: context.state.clone(),
         })

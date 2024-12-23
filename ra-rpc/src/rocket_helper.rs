@@ -1,4 +1,7 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    convert::Infallible,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use anyhow::{Context, Result};
 use ra_tls::{
@@ -6,12 +9,13 @@ use ra_tls::{
     qvl::{self, verify::VerifiedReport},
 };
 use rocket::{
-    data::{ByteUnit, Limits, ToByteUnit},
-    http::{ContentType, Status},
+    data::{ByteUnit, Data, Limits, ToByteUnit},
+    http::{uri::Origin, ContentType, Method, Status},
     listener::Endpoint,
     mtls::{oid::Oid, Certificate},
+    request::{FromRequest, Outcome},
     response::status::Custom,
-    Data,
+    Request,
 };
 use rocket_vsock_listener::VsockEndpoint;
 use tracing::{info, warn};
@@ -22,6 +26,121 @@ use crate::{encode_error, CallContext, RemoteEndpoint, RpcCall};
 pub struct QuoteVerifier {
     pccs_url: String,
     timeout: Duration,
+}
+
+pub mod deps {
+    pub use super::{PrpcHandler, RpcRequest};
+    pub use rocket::response::status::Custom;
+    pub use rocket::{Data, State};
+}
+
+fn query_field_get_raw<'r>(req: &'r Request<'_>, field_name: &str) -> Option<&'r str> {
+    for field in req.query_fields() {
+        let raw = (field.name.source().as_str(), field.value);
+        let key = field.name.key_lossy().as_str();
+        if key == field_name {
+            return Some(field.value);
+        }
+    }
+    None
+}
+
+fn query_field_get_bool(req: &Request<'_>, field_name: &str) -> bool {
+    matches!(
+        query_field_get_raw(req, field_name),
+        Some("true" | "1" | "")
+    )
+}
+
+#[macro_export]
+macro_rules! prpc_routes {
+    ($state:ty, $handler:ty) => {{
+        ra_rpc::declare_prpc_routes!(prpc_post, prpc_get, $state, $handler);
+        rocket::routes![prpc_post, prpc_get]
+    }};
+}
+
+#[macro_export]
+macro_rules! declare_prpc_routes {
+    ($post:ident, $get:ident, $state:ty, $handler:ty) => {
+        $crate::declare_prpc_routes!(path: "/<method>", $post, $get, $state, $handler);
+    };
+    (path: $path: literal, $post:ident, $get:ident, $state:ty, $handler:ty) => {
+        #[rocket::post($path, data = "<data>")]
+        async fn $post<'a: 'd, 'd>(
+            state: &'a $crate::rocket_helper::deps::State<$state>,
+            method: &'a str,
+            rpc_request: $crate::rocket_helper::deps::RpcRequest<'a>,
+            data: $crate::rocket_helper::deps::Data<'d>,
+        ) -> $crate::rocket_helper::deps::Custom<Vec<u8>> {
+            $crate::rocket_helper::deps::PrpcHandler::builder()
+                .state(&**state)
+                .request(rpc_request)
+                .method(method)
+                .data(data)
+                .build()
+                .handle::<$handler>()
+                .await
+        }
+
+        #[rocket::get($path)]
+        async fn $get(
+            state: &$crate::rocket_helper::deps::State<$state>,
+            method: &str,
+            rpc_request: $crate::rocket_helper::deps::RpcRequest<'_>,
+        ) -> $crate::rocket_helper::deps::Custom<Vec<u8>> {
+            $crate::rocket_helper::deps::PrpcHandler::builder()
+                .state(&**state)
+                .request(rpc_request)
+                .method(method)
+                .build()
+                .handle::<$handler>()
+                .await
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! prpc_alias {
+    (get: $name:ident, $alias:literal -> $prpc:ident($method:literal, $state:ty)) => {
+        #[rocket::get($alias)]
+        async fn $name(
+            state: &$crate::rocket_helper::deps::State<$state>,
+            rpc_request: $crate::rocket_helper::deps::RpcRequest<'_>,
+        ) -> $crate::rocket_helper::deps::Custom<Vec<u8>> {
+            $prpc(state, $method, rpc_request).await
+        }
+    };
+    (post: $name:ident, $alias:literal -> $prpc:ident($method:literal, $state:ty)) => {
+        #[rocket::post($alias, data = "<data>")]
+        async fn $name<'a: 'd, 'd>(
+            state: &'a $crate::rocket_helper::deps::State<$state>,
+            rpc_request: $crate::rocket_helper::deps::RpcRequest<'a>,
+            data: $crate::rocket_helper::deps::Data<'d>,
+        ) -> $crate::rocket_helper::deps::Custom<Vec<u8>> {
+            $prpc(state, $method, rpc_request, data).await
+        }
+    };
+}
+
+macro_rules! from_request {
+    ($request:expr) => {
+        match FromRequest::from_request($request).await {
+            Outcome::Success(v) => v,
+            Outcome::Error(e) => return Outcome::Error(e),
+            Outcome::Forward(f) => return Outcome::Forward(f),
+        }
+    };
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for &'r QuoteVerifier {
+    type Error = ();
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let state: &rocket::State<QuoteVerifier> = from_request!(request);
+        Outcome::Success(state)
+    }
 }
 
 impl QuoteVerifier {
@@ -74,21 +193,43 @@ fn limit_for_method(method: &str, limits: &Limits) -> ByteUnit {
 }
 
 #[derive(bon::Builder)]
-pub struct PrpcHandler<'a, 'b, 'c, 'd, 'e, 'f, 'g, S> {
-    pub state: &'a S,
-    pub remote_addr: Option<Endpoint>,
-    pub certificate: Option<Certificate<'b>>,
-    pub quote_verifier: Option<&'c QuoteVerifier>,
-    pub method: &'d str,
-    pub data: Option<Data<'e>>,
-    pub limits: &'f Limits,
-    pub content_type: Option<&'g ContentType>,
-    pub json: bool,
+pub struct PrpcHandler<'s, 'r, S> {
+    state: &'s S,
+    request: RpcRequest<'r>,
+    method: &'r str,
+    data: Option<Data<'r>>,
 }
 
-impl<'a, 'b, 'c, 'd, 'e, 'f, 'g, S> PrpcHandler<'a, 'b, 'c, 'd, 'e, 'f, 'g, S> {
+pub struct RpcRequest<'r> {
+    remote_addr: Option<&'r Endpoint>,
+    certificate: Option<Certificate<'r>>,
+    quote_verifier: Option<&'r QuoteVerifier>,
+    origin: &'r Origin<'r>,
+    limits: &'r Limits,
+    content_type: Option<&'r ContentType>,
+    json: bool,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for RpcRequest<'r> {
+    type Error = Infallible;
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        Outcome::Success(Self {
+            remote_addr: from_request!(request),
+            certificate: from_request!(request),
+            quote_verifier: from_request!(request),
+            origin: from_request!(request),
+            limits: from_request!(request),
+            content_type: from_request!(request),
+            json: request.method() == Method::Get || query_field_get_bool(request, "json"),
+        })
+    }
+}
+
+impl<'s, 'r, S> PrpcHandler<'s, 'r, S> {
     pub async fn handle<Call: RpcCall<S>>(self) -> Custom<Vec<u8>> {
-        let json = self.json;
+        let json = self.request.json;
         let result = handle_prpc_impl::<S, Call>(self).await;
         match result {
             Ok(output) => output,
@@ -123,22 +264,21 @@ impl From<Endpoint> for RemoteEndpoint {
 }
 
 pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
-    args: PrpcHandler<'_, '_, '_, '_, '_, '_, '_, S>,
+    args: PrpcHandler<'_, '_, S>,
 ) -> Result<Custom<Vec<u8>>> {
     let PrpcHandler {
         state,
-        certificate,
-        quote_verifier,
+        request,
         method,
         data,
-        limits,
-        content_type,
-        json,
-        remote_addr,
     } = args;
-    let mut attestation = certificate.map(extract_attestation).transpose()?.flatten();
+    let mut attestation = request
+        .certificate
+        .map(extract_attestation)
+        .transpose()?
+        .flatten();
     let todo = "verified attestation needs to be a distinct type";
-    if let (Some(quote_verifier), Some(attestation)) = (quote_verifier, &mut attestation) {
+    if let (Some(quote_verifier), Some(attestation)) = (request.quote_verifier, &mut attestation) {
         let verified_report = quote_verifier
             .verify_quote(attestation)
             .await
@@ -147,25 +287,28 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
     } else if attestation.is_some() {
         info!("the ra quote is not verified");
     }
-    let data = match data {
+    let is_get = data.is_none();
+    let payload = match data {
         Some(data) => {
-            let limit = limit_for_method(method, limits);
+            let limit = limit_for_method(method, request.limits);
             let todo = "confirm this would not truncate the data";
             read_data(data, limit)
                 .await
                 .context("failed to read data")?
         }
-        None => vec![],
+        None => request
+            .origin
+            .query()
+            .map_or(vec![], |q| q.as_bytes().to_vec()),
     };
-    let json = json || content_type.map(|t| t.is_json()).unwrap_or(false);
+    let json = request.json || request.content_type.map(|t| t.is_json()).unwrap_or(false);
     let context = CallContext {
         state,
         attestation,
-        remote_endpoint: remote_addr.map(RemoteEndpoint::from),
+        remote_endpoint: request.remote_addr.cloned().map(RemoteEndpoint::from),
     };
     let call = Call::construct(context).context("failed to construct call")?;
-    let data = data.to_vec();
-    let (status_code, output) = call.call(method.to_string(), data, json).await;
+    let (status_code, output) = call.call(method.to_string(), payload, json, is_get).await;
     Ok(Custom(Status::new(status_code), output))
 }
 

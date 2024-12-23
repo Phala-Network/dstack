@@ -88,14 +88,7 @@ impl TappdRpc for InternalRpcHandler {
 impl RpcCall<AppState> for InternalRpcHandler {
     type PrpcService = TappdServer<Self>;
 
-    fn into_prpc_service(self) -> Self::PrpcService {
-        TappdServer::new(self)
-    }
-
-    fn construct(context: CallContext<'_, AppState>) -> Result<Self>
-    where
-        Self: Sized,
-    {
+    fn construct(context: CallContext<'_, AppState>) -> Result<Self> {
         Ok(InternalRpcHandler {
             state: context.state.clone(),
         })
@@ -172,14 +165,7 @@ impl WorkerRpc for ExternalRpcHandler {
 impl RpcCall<AppState> for ExternalRpcHandler {
     type PrpcService = WorkerServer<Self>;
 
-    fn into_prpc_service(self) -> Self::PrpcService {
-        WorkerServer::new(self)
-    }
-
-    fn construct(context: CallContext<'_, AppState>) -> Result<Self>
-    where
-        Self: Sized,
-    {
+    fn construct(context: CallContext<'_, AppState>) -> Result<Self> {
         Ok(ExternalRpcHandler {
             state: context.state.clone(),
         })

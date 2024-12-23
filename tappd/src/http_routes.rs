@@ -4,62 +4,33 @@ use crate::rpc_service::{AppState, ExternalRpcHandler, InternalRpcHandler};
 use anyhow::Result;
 use docker_logs::parse_duration;
 use guest_api::guest_api_server::GuestApiRpc;
-use ra_rpc::rocket_helper::PrpcHandler;
 use ra_rpc::{CallContext, RpcCall};
 use rinja::Template;
 use rocket::futures::StreamExt;
 use rocket::response::stream::TextStream;
-use rocket::{
-    data::{Data, Limits},
-    get,
-    http::ContentType,
-    post,
-    response::{content::RawHtml, status::Custom},
-    routes, Route, State,
-};
+use rocket::{get, response::content::RawHtml, routes, Route, State};
 use tappd_rpc::{worker_server::WorkerRpc, WorkerInfo};
 
-#[post("/prpc/<method>?<json>", data = "<data>")]
-async fn prpc_post(
-    state: &State<AppState>,
-    method: &str,
-    data: Data<'_>,
-    limits: &Limits,
-    content_type: Option<&ContentType>,
-    json: bool,
-) -> Custom<Vec<u8>> {
-    PrpcHandler::builder()
-        .state(&**state)
-        .method(method)
-        .data(data)
-        .limits(limits)
-        .maybe_content_type(content_type)
-        .json(json)
-        .build()
-        .handle::<InternalRpcHandler>()
-        .await
-}
+ra_rpc::declare_prpc_routes!(
+    path: "/prpc/<method>",
+    prpc_post,
+    prpc_get,
+    AppState,
+    InternalRpcHandler
+);
 
-#[get("/prpc/<method>")]
-async fn prpc_get(
-    state: &State<AppState>,
-    method: &str,
-    limits: &Limits,
-    content_type: Option<&ContentType>,
-) -> Custom<Vec<u8>> {
-    PrpcHandler::builder()
-        .state(&**state)
-        .method(method)
-        .limits(limits)
-        .maybe_content_type(content_type)
-        .json(true)
-        .build()
-        .handle::<InternalRpcHandler>()
-        .await
-}
+ra_rpc::prpc_alias!(get: quote_get, "/quote" -> prpc_get("Tappd.TdxQuote", AppState));
 
 pub fn internal_routes() -> Vec<Route> {
-    routes![prpc_post, prpc_get]
+    routes![prpc_post, prpc_get, quote_get]
+}
+
+pub fn external_routes(config: &Config) -> Vec<Route> {
+    let mut routes = routes![index];
+    if config.public_logs {
+        routes.extend(routes![get_logs]);
+    }
+    routes
 }
 
 #[get("/")]
@@ -99,45 +70,6 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         Ok(html) => Ok(RawHtml(html)),
         Err(err) => Err(format!("Failed to render template: {}", err)),
     }
-}
-
-#[post("/prpc/<method>?<json>", data = "<data>")]
-async fn external_prpc_post(
-    state: &State<AppState>,
-    method: &str,
-    data: Data<'_>,
-    limits: &Limits,
-    content_type: Option<&ContentType>,
-    json: bool,
-) -> Custom<Vec<u8>> {
-    PrpcHandler::builder()
-        .state(&**state)
-        .method(method)
-        .data(data)
-        .limits(limits)
-        .maybe_content_type(content_type)
-        .json(json)
-        .build()
-        .handle::<ExternalRpcHandler>()
-        .await
-}
-
-#[get("/prpc/<method>")]
-async fn external_prpc_get(
-    state: &State<AppState>,
-    method: &str,
-    limits: &Limits,
-    content_type: Option<&ContentType>,
-) -> Custom<Vec<u8>> {
-    PrpcHandler::builder()
-        .state(&**state)
-        .method(method)
-        .limits(limits)
-        .maybe_content_type(content_type)
-        .json(true)
-        .build()
-        .handle::<ExternalRpcHandler>()
-        .await
 }
 
 #[get("/logs/<container_name>?<since>&<until>&<follow>&<text>&<timestamps>&<bare>&<tail>")]
@@ -188,14 +120,6 @@ fn get_logs(
             }
         }
     }
-}
-
-pub fn external_routes(config: &Config) -> Vec<Route> {
-    let mut routes = routes![index, external_prpc_post, external_prpc_get];
-    if config.public_logs {
-        routes.extend(routes![get_logs]);
-    }
-    routes
 }
 
 mod docker_logs {

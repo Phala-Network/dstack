@@ -29,14 +29,7 @@ pub struct GuestApiHandler {
 impl RpcCall<AppState> for GuestApiHandler {
     type PrpcService = GuestApiServer<Self>;
 
-    fn into_prpc_service(self) -> Self::PrpcService {
-        GuestApiServer::new(self)
-    }
-
-    fn construct(context: CallContext<'_, AppState>) -> Result<Self>
-    where
-        Self: Sized,
-    {
+    fn construct(context: CallContext<'_, AppState>) -> Result<Self> {
         Ok(Self {
             state: context.state.clone(),
         })

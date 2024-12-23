@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use config::KmsConfig;
+use main_service::{KmsState, RpcHandler};
 use ra_rpc::rocket_helper::QuoteVerifier;
 use rocket::fairing::AdHoc;
 use tracing::info;
@@ -8,7 +9,6 @@ use tracing::info;
 mod config;
 mod ct_log;
 mod main_service;
-mod web_routes;
 
 fn app_version() -> String {
     const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
                 res.set_raw_header("X-App-Version", app_version());
             })
         }))
-        .mount("/", web_routes::routes())
+        .mount("/prpc", ra_rpc::prpc_routes!(KmsState, RpcHandler))
         .manage(state);
 
     if !pccs_url.is_empty() {

@@ -2,19 +2,19 @@ use std::{fs::Permissions, future::pending, os::unix::fs::PermissionsExt};
 
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
+use guest_api_service::GuestApiHandler;
 use rocket::{
     fairing::AdHoc,
     figment::Figment,
     listener::{Bind, DefaultListener},
 };
 use rocket_vsock_listener::VsockListener;
-use rpc_service::AppState;
+use rpc_service::{AppState, ExternalRpcHandler};
 use sd_notify::{notify as sd_notify, NotifyState};
 use std::time::Duration;
 use tracing::{error, info};
 
 mod config;
-mod guest_api_routes;
 mod guest_api_service;
 mod http_routes;
 mod models;
@@ -69,6 +69,7 @@ async fn run_internal(state: AppState, figment: Figment) -> Result<()> {
 async fn run_external(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
         .mount("/", http_routes::external_routes(state.config()))
+        .mount("/prpc", ra_rpc::prpc_routes!(AppState, ExternalRpcHandler))
         .attach(AdHoc::on_response("Add app version header", |_req, res| {
             Box::pin(async move {
                 res.set_raw_header("X-App-Version", app_version());
@@ -84,7 +85,7 @@ async fn run_external(state: AppState, figment: Figment) -> Result<()> {
 
 async fn run_guest_api(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
-        .mount("/api", guest_api_routes::routes())
+        .mount("/api", ra_rpc::prpc_routes!(AppState, GuestApiHandler))
         .manage(state);
 
     let ignite = rocket

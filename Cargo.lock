@@ -3420,9 +3420,9 @@ dependencies = [
 
 [[package]]
 name = "prpc"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e83ca4bb539b92a92f3320a41482346d66bc591acd41c52b4ca22aa6960f3259"
+checksum = "4bf27f5c46f289f99f68086d3a24b58c9f4f66c3143a1780d5c0589c79b17c81"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3434,13 +3434,14 @@ dependencies = [
  "prpc-serde-bytes",
  "serde",
  "serde_json",
+ "serde_qs",
 ]
 
 [[package]]
 name = "prpc-build"
-version = "0.3.6"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4155bf9e4977e408df247a4dafb118add3ab153957109ffc971e4fb597b72c2"
+checksum = "caf018aca01f6c5e7b0c312e484b29ebc63cf42404e4c35d105b1703e6350bfb"
 dependencies = [
  "either",
  "fs-err",
@@ -4543,6 +4544,17 @@ dependencies = [
  "memchr",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serde_qs"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd34f36fe4c5ba9654417139a9b3a20d2e1de6012ee678ad14d240c22c78d8d6"
+dependencies = [
+ "percent-encoding",
+ "serde",
+ "thiserror 1.0.65",
 ]
 
 [[package]]

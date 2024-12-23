@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use config::Config;
+use main_service::{Proxy, RpcHandler};
 use ra_rpc::rocket_helper::QuoteVerifier;
 use rocket::fairing::AdHoc;
 
@@ -67,6 +68,7 @@ async fn main() -> Result<()> {
 
     let mut rocket = rocket::custom(figment)
         .mount("/", web_routes::routes())
+        .mount("/prpc", ra_rpc::prpc_routes!(Proxy, RpcHandler))
         .attach(AdHoc::on_response("Add app version header", |_req, res| {
             Box::pin(async move {
                 res.set_raw_header("X-App-Version", app_version());

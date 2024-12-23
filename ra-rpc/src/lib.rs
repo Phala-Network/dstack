@@ -33,18 +33,26 @@ pub struct CallContext<'a, State> {
     pub remote_endpoint: Option<RemoteEndpoint>,
 }
 
-pub trait RpcCall<State> {
-    type PrpcService: PrpcService + Send + 'static;
+pub trait RpcCall<State>: Sized {
+    type PrpcService: PrpcService + From<Self> + Send + 'static;
 
-    fn construct(context: CallContext<'_, State>) -> Result<Self>
-    where
-        Self: Sized;
-    fn into_prpc_service(self) -> Self::PrpcService;
-    async fn call(self, method: String, payload: Vec<u8>, is_json: bool) -> (u16, Vec<u8>)
-    where
-        Self: Sized,
-    {
-        dispatch_prpc(method, payload, is_json, self.into_prpc_service()).await
+    fn construct(context: CallContext<'_, State>) -> Result<Self>;
+
+    async fn call(
+        self,
+        method: String,
+        payload: Vec<u8>,
+        is_json: bool,
+        is_query: bool,
+    ) -> (u16, Vec<u8>) {
+        dispatch_prpc(
+            method,
+            payload,
+            is_json,
+            is_query,
+            <Self::PrpcService as From<Self>>::from(self),
+        )
+        .await
     }
 }
 
@@ -52,12 +60,13 @@ async fn dispatch_prpc(
     path: String,
     data: Vec<u8>,
     json: bool,
+    query: bool,
     server: impl PrpcService + Send + 'static,
 ) -> (u16, Vec<u8>) {
     use prpc::server::Error;
 
     info!("dispatching request: {}", path);
-    let result = server.dispatch_request(&path, data, json).await;
+    let result = server.dispatch_request(&path, data, json, query).await;
     let (code, data) = match result {
         Ok(data) => (200, data),
         Err(err) => {
