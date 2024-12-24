@@ -1,0 +1,16 @@
+services:
+  gramine-sealing-key-provider:
+    container_name: gramine-sealing-key-provider
+    build:
+      context: .
+      dockerfile: Dockerfile
+    privileged: true
+    devices:
+      - "/dev/sgx_enclave:/dev/sgx_enclave"
+      - "/dev/sgx_provision:/dev/sgx_provision"
+    volumes:
+      - ./:/workspace
+    environment:
+      - SGX=1 
+    ports:
+      - "3443:3443"
