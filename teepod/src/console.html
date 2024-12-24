@@ -1098,8 +1098,8 @@
                     return Array.from(result).map(b => b.toString(16).padStart(2, '0')).join('');
                 };
 
-                const makeEncryptedEnv = async (appId) => {
-                    if (!vmForm.value.kms_enabled || vmForm.value.encrypted_envs.length === 0) return '';
+                const makeEncryptedEnv = async (envs, kmsEnabled, appId) => {
+                    if (!kmsEnabled || envs.length === 0) return '';
                     if (!appId) {
                         appId = await appIdOf(vmForm.value.compose_file);
                     }
@@ -1107,7 +1107,7 @@
                         app_id: appId
                     });
                     const encryptPubkey = await response.json();
-                    return await encryptEnv(vmForm.value.encrypted_envs, encryptPubkey.public_key);
+                    return await encryptEnv(envs, encryptPubkey.public_key);
                 };
 
                 const clearEncryptedEnv = () => {
@@ -1119,7 +1119,11 @@
                         const form = {
                             ...vmForm.value,
                             compose_file: makeAppComposeFile(),
-                            encrypted_env: await makeEncryptedEnv()
+                            encrypted_env: await makeEncryptedEnv(
+                                vmForm.value.encrypted_envs,
+                                vmForm.value.kms_enabled,
+                                vmForm.value.app_id
+                            )
                         };
                         const _response = await rpcCall('CreateVm', form);
                         loadVMList();
@@ -1300,7 +1304,11 @@
                         }
 
                         if (upgradeDialog.value.resetSecrets) {
-                            body.encrypted_env = await makeEncryptedEnv(upgradeDialog.value.vm.app_id);
+                            body.encrypted_env = await makeEncryptedEnv(
+                                vmForm.value.encrypted_envs,
+                                kmsEnabled(upgradeDialog.value.vm),
+                                upgradeDialog.value.vm.app_id
+                            );
                         }
 
                         const response = await rpcCall('UpgradeApp', body);
