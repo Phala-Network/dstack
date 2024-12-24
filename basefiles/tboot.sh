@@ -1,2 +1,2 @@
 #!/bin/sh
-tdxctl tboot --shutdown-on-fail
+tdxctl tboot
