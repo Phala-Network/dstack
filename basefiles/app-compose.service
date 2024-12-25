@@ -1,6 +1,6 @@
 [Unit]
 Description=App Compose Service
-Requires=docker.service
+Wants=docker.service
 After=docker.service tboot.service
 
 [Service]
