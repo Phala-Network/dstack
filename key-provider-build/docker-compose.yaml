@@ -1,6 +1,7 @@
 services:
   gramine-sealing-key-provider:
     container_name: gramine-sealing-key-provider
+    network_mode: host
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,7 +10,7 @@ services:
       - "/dev/sgx_enclave:/dev/sgx_enclave"
       - "/dev/sgx_provision:/dev/sgx_provision"
     volumes:
-      - ./:/workspace
+      - "/etc/sgx_default_qcnl.conf:/etc/sgx_default_qcnl.conf"
     environment:
       - SGX=1 
     ports:

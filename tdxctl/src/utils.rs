@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use fs_err as fs;
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_human_bytes as hex_bytes;
 use sha2::{digest::Output, Digest};
 use tdx_attest as att;
@@ -92,6 +92,24 @@ pub struct AppCompose {
     pub kms_enabled: bool,
     #[serde(default)]
     pub tproxy_enabled: bool,
+    #[serde(default)]
+    pub local_key_provider_enabled: bool,
+    #[serde(default)]
+    key_provider: Option<KeyProvider>,
+}
+
+#[derive(Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyProvider {
+    None,
+    Kms,
+    Local,
+}
+
+impl KeyProvider {
+    pub fn is_none(&self) -> bool {
+        matches!(self, KeyProvider::None)
+    }
 }
 
 #[derive(Deserialize, Debug, Default)]
@@ -116,6 +134,21 @@ impl AppCompose {
     pub fn kms_enabled(&self) -> bool {
         self.kms_enabled || self.feature_enabled("kms")
     }
+
+    pub fn key_provider(&self) -> KeyProvider {
+        match self.key_provider {
+            Some(p) => p,
+            None => {
+                if self.local_key_provider_enabled {
+                    KeyProvider::Local
+                } else if self.kms_enabled {
+                    KeyProvider::Kms
+                } else {
+                    KeyProvider::None
+                }
+            }
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -124,11 +157,12 @@ pub struct LocalConfig {
     pub rootfs_hash: Vec<u8>,
     pub kms_url: Option<String>,
     pub tproxy_url: Option<String>,
+    pub pccs_url: Option<String>,
     pub docker_registry: Option<String>,
     pub host_api_url: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct AppKeys {
     pub app_key: String,
     pub disk_crypt_key: String,

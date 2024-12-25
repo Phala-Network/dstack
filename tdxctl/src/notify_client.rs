@@ -1,5 +1,5 @@
 use crate::utils::{deserialize_json_file, LocalConfig};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use host_api::{
     client::{new_client, DefaultClient},
     Notification,
@@ -48,5 +48,14 @@ impl NotifyClient {
         if let Err(err) = self.notify(event, payload).await {
             warn!("Failed to notify event {event} to host: {:?}", err);
         }
+    }
+
+    pub async fn get_sealing_key(&self, quote: &[u8]) -> Result<host_api::GetSealingKeyResponse> {
+        self.client
+            .get_sealing_key(host_api::GetSealingKeyRequest {
+                quote: quote.to_vec(),
+            })
+            .await
+            .map_err(|err| anyhow!("Failed to get sealing key: {err:?}"))
     }
 }

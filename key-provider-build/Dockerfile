@@ -24,6 +24,7 @@ RUN apt update && apt install -y \
     wget \
     curl \
     libclang-dev \
+    rsyslog \
     xorriso
 
 # Runtime dependencies
@@ -34,13 +35,14 @@ RUN apt-get update && \
     libsgx-aesm-quote-ex-plugin \
     libsgx-aesm-ecdsa-plugin \
     libsgx-dcap-quote-verify \
+    libsgx-dcap-default-qpl \
     psmisc
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN git clone https://github.com/MoeMahhouk/gramine-sealing-key-provider.git
+RUN git clone -b patches https://github.com/kvinwang/gramine-sealing-key-provider
 
 WORKDIR /gramine-sealing-key-provider
 # Build gramine-sealing-key-provider binary

@@ -20,6 +20,8 @@ tmp_ca_cert = "../certs/tmp-ca.cert"
 tmp_ca_key = "../certs/tmp-ca.key"
 kms_url = "http://127.0.0.1:8081"
 tproxy_url = "http://127.0.0.1:8082"
+# PCCS URL used by guest to verify the quote from local key provider
+pccs_url = "https://localhost:8081/sgx/certification/v4/"
 docker_registry = ""
 max_disk_size = 100
 cid_start = 1000
@@ -54,3 +56,8 @@ log_file = "./run/supervisor.log"
 ident = "Teepod"
 address = "vsock:2"
 port = 10000
+
+[key_provider]
+enabled = true
+address = "127.0.0.1"
+port = 3443

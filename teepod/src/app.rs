@@ -361,6 +361,7 @@ impl App {
             "rootfs_hash": rootfs_hash,
             "kms_url": cfg.cvm.kms_url,
             "tproxy_url": cfg.cvm.tproxy_url,
+            "pccs_url": cfg.cvm.pccs_url,
             "docker_registry": cfg.cvm.docker_registry,
             "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
         });

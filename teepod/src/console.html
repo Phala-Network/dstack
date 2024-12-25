@@ -550,6 +550,10 @@
                                 KMS
                             </label>
                             <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" v-model="vmForm.local_key_provider_enabled">
+                                Local Key Provider
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
                                 <input type="checkbox" v-model="vmForm.tproxy_enabled">
                                 TProxy
                             </label>
@@ -943,6 +947,7 @@
                         token_key: ''
                     },
                     kms_enabled: true,
+                    local_key_provider_enabled: false,
                     tproxy_enabled: true,
                     public_logs: true,
                     public_sysinfo: true
@@ -1043,7 +1048,8 @@
                         "kms_enabled": vmForm.value.kms_enabled,
                         "tproxy_enabled": vmForm.value.tproxy_enabled,
                         "public_logs": vmForm.value.public_logs,
-                        "public_sysinfo": vmForm.value.public_sysinfo
+                        "public_sysinfo": vmForm.value.public_sysinfo,
+                        "local_key_provider_enabled": vmForm.value.local_key_provider_enabled
                     };
                     const imgFeatures = imageVersionFeatures(imageVersion(vmForm.value.image));
                     if (imgFeatures.compose_version < 2) {
