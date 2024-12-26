@@ -24,7 +24,6 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
     let context = CallContext::builder().state(&**state).build();
     let handler = ExternalRpcHandler::construct(context.clone())
         .map_err(|e| format!("Failed to construct RPC handler: {}", e))?;
-    let config = state.config();
     let WorkerInfo {
         app_name,
         app_id,
@@ -51,8 +50,8 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         tcb_info,
         containers,
         system_info,
-        public_sysinfo: config.public_sysinfo,
-        public_logs: config.public_logs,
+        public_sysinfo,
+        public_logs,
     };
     match model.render() {
         Ok(html) => Ok(RawHtml(html)),
