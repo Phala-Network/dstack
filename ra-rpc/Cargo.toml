@@ -16,6 +16,7 @@ reqwest = { workspace = true, default-features = false, features = ["rustls-tls"
 ra-tls.workspace = true
 bon.workspace = true
 rocket-vsock-listener = { workspace = true, optional = true }
+serde.workspace = true
 
 [features]
 default = ["rocket", "client"]

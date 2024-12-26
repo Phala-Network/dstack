@@ -1949,6 +1949,7 @@ dependencies = [
  "log",
  "pin-project-lite",
  "prpc",
+ "serde",
  "tokio",
  "tokio-vsock",
  "tower-service",
@@ -3420,9 +3421,9 @@ dependencies = [
 
 [[package]]
 name = "prpc"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bf27f5c46f289f99f68086d3a24b58c9f4f66c3143a1780d5c0589c79b17c81"
+checksum = "e36dbacc22fa64d2059cc8df1e929ab9100804ae2011548b6679f923c1172f42"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3439,9 +3440,9 @@ dependencies = [
 
 [[package]]
 name = "prpc-build"
-version = "0.4.1"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caf018aca01f6c5e7b0c312e484b29ebc63cf42404e4c35d105b1703e6350bfb"
+checksum = "5034baf630735948c9df3cd637f77c2897413934ba1f201068d168080ab4e510"
 dependencies = [
  "either",
  "fs-err",
@@ -3544,6 +3545,7 @@ dependencies = [
  "reqwest 0.12.9",
  "rocket",
  "rocket-vsock-listener",
+ "serde",
  "serde_json",
  "tracing",
 ]
