@@ -7,6 +7,7 @@ use prpc::{
     Message,
 };
 use reqwest::{Certificate, Client, Identity};
+use serde::{de::DeserializeOwned, Serialize};
 
 pub struct RaClient {
     remote_uri: String,
@@ -48,8 +49,13 @@ impl RaClient {
 }
 
 impl RequestClient for RaClient {
-    async fn request(&self, path: &str, body: Vec<u8>) -> Result<Vec<u8>, Error> {
-        let url = format!("{}/{}", self.remote_uri, path);
+    async fn request<T, R>(&self, path: &str, body: T) -> Result<R, Error>
+    where
+        T: Message + Serialize,
+        R: Message + DeserializeOwned,
+    {
+        let body = serde_json::to_vec(&body).context("Failed to serialize body")?;
+        let url = format!("{}/{}?json", self.remote_uri, path);
         let response = self
             .client
             .post(url)
@@ -72,6 +78,7 @@ impl RequestClient for RaClient {
             .await
             .map_err(|err| Error::RpcError(format!("failed to read response: {:?}", err)))?
             .to_vec();
-        Ok(body)
+        let response = serde_json::from_slice(&body).context("Failed to deserialize response")?;
+        Ok(response)
     }
 }
