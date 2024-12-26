@@ -1,8 +1,17 @@
 # Dstack
 
-Dstack is an highly experimental and evolving-fast SDK to deploy Docker-based TEE applications.
+Dstack is a **developer friendly** and **security first** SDK to simplify the deployment of arbitrary Docker-based apps into TEE.
 
-It was inspired by [Andrew's](https://github.com/amiller) (Flashbots team) design of [Dstack](https://collective.flashbots.net/t/dstack-speedrunning-a-p2p-confidential-vm). It was originally built as Phala's opinionated implementation. We aim to merge it into a production ready project eventually.
+Main features:
+
+- 🔒 Deploy Docker apps securely in TEE in minutes
+- 🛠️ Use familiar tools - just write a docker-compose.yaml
+- 🔑 Safely manage secrets and sensitive data
+- 📡 Expose services via built-in TLS termination
+
+Dstack is community driven. Open sourced and built by [Kevin Wang](https://github.com/kvinwang) and many others from [Phala Network](https://github.com/Phala-Network), inspired by [Andrew Miller](https://github.com/amiller) (Flashbots & Teleport), and contributed by [Neithermind](https://github.com/neithermind) and [many others](#contributors).
+
+![](./docs/assets/org-contributors-2024-12-26.png)
 
 # Overview
 
@@ -386,22 +395,22 @@ You may encounter this problem when upgrading from an older version of dstack, b
 
 # Contributors
 
-The inspiration for this work stems from [Andrew Miller](https://github.com/amiller)’s pioneering concept of a [Docker-based P2P TEE SDK](https://collective.flashbots.net/t/dstack-speedrunning-a-p2p-confidential-vm/3876).
+Dstack is proudly built by open source and Pi-rateship contributors:
 
-Special acknowledgment to [Flashbots](https://github.com/flashbots) for building a community around TEE. The TEE Hacker House initiative, organized by [Flashbots](https://github.com/flashbots) and led by [Tina](https://github.com/CarboClanC), has brought together TEE builders to develop tools for TEE-Web3 integration. This collaborative journey has generated invaluable insights for advancing secure, confidential environments within Web3.
-
-Special recognition goes to the Pi-rateship builders who contributed their expertise:
-
-- Teleport: [Sxy Sun](https://github.com/sxysun)
+- Phala Network: [Kevin Wang](https://github.com/kvinwang), [Shelven Zhou](https://github.com/shelvenzhou), [Leechael](https://github.com/leechael)
+- Teleport: [Andrew Miller](https://github.com/amiller), [Sxy Sun](https://github.com/sxysun)
 - Flashbots: [Tina](https://github.com/CarboClanC), [Mateusz](https://github.com/Ruteri), [Dmarz](https://github.com/dmarzzz), [Moe](https://github.com/MoeMahhouk)
 - Ithaca: [Georgios](https://github.com/gakonst)
 - Fabric: [@gaoist](https://x.com/gaoist)
-- Phala Network: [Kevin Wang](https://github.com/kvinwang), [Shelven Zhou](https://github.com/shelvenzhou)
 - And many more...
+
+The inspiration for this work stems from [Andrew Miller](https://github.com/amiller)’s pioneering concept of a [Docker-based P2P TEE SDK](https://collective.flashbots.net/t/dstack-speedrunning-a-p2p-confidential-vm/3876).
 
 This project cannot be built without standing on the shoulders of giants:
 
 - [konvera/meta-confidential-compute](https://github.com/konvera/meta-confidential-compute)
+
+Special acknowledgment to [Flashbots](https://github.com/flashbots) for building a community around TEE. The TEE Hacker House initiative, organized by [Flashbots](https://github.com/flashbots) and led by [Tina](https://github.com/CarboClanC), has brought together TEE builders to develop tools for TEE-Web3 integration. This collaborative journey has generated invaluable insights for advancing secure, confidential environments within Web3.
 
 Together, we’re shaping the future of TEE in Web3, paving the way for more secure and developer-accessible confidential computing!
 
