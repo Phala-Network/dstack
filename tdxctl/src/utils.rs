@@ -139,10 +139,10 @@ impl AppCompose {
         match self.key_provider {
             Some(p) => p,
             None => {
-                if self.local_key_provider_enabled {
-                    KeyProvider::Local
-                } else if self.kms_enabled {
+                if self.kms_enabled {
                     KeyProvider::Kms
+                } else if self.local_key_provider_enabled {
+                    KeyProvider::Local
                 } else {
                     KeyProvider::None
                 }
