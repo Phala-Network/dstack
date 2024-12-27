@@ -138,7 +138,9 @@ impl<'r> FromRequest<'r> for &'r QuoteVerifier {
     type Error = ();
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let state: &rocket::State<QuoteVerifier> = from_request!(request);
+        let Some(state) = rocket::State::<QuoteVerifier>::get(request.rocket()) else {
+            return Outcome::Error((Status::InternalServerError, ()));
+        };
         Outcome::Success(state)
     }
 }

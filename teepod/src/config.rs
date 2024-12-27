@@ -79,6 +79,8 @@ pub struct CvmConfig {
     pub kms_url: String,
     /// The URL of the TProxy server
     pub tproxy_url: String,
+    /// The URL of the PCCS server
+    pub pccs_url: String,
     /// The URL of the Docker registry
     pub docker_registry: String,
     /// The maximum disk size in GB
@@ -144,6 +146,9 @@ pub struct Config {
 
     /// Host API configuration
     pub host_api: HostApiConfig,
+
+    /// Key provider configuration
+    pub key_provider: KeyProviderConfig,
 }
 
 impl Config {
@@ -179,6 +184,13 @@ pub struct CustomNetworking {
 pub struct HostApiConfig {
     pub address: String,
     pub port: u32,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KeyProviderConfig {
+    pub enabled: bool,
+    pub address: IpAddr,
+    pub port: u16,
 }
 
 impl Config {

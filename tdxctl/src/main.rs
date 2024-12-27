@@ -4,8 +4,11 @@ use cmd_lib::run_cmd as cmd;
 use fde_setup::{cmd_setup_fde, SetupFdeArgs};
 use fs_err as fs;
 use getrandom::getrandom;
-use notify_client::NotifyClient;
-use ra_tls::{attestation::QuoteContentType, cert::CaCert};
+use host_api::HostApi;
+use ra_tls::{
+    attestation::QuoteContentType, cert::CaCert, kdf::derive_ecdsa_key_pair_from_bytes,
+    rcgen::KeyPair,
+};
 use scale::Decode;
 use std::{
     io::{self, Read, Write},
@@ -14,11 +17,11 @@ use std::{
 use tboot::TbootArgs;
 use tdx_attest as att;
 use tracing::error;
-use utils::extend_rtmr;
+use utils::{extend_rtmr, AppKeys};
 
 mod crypto;
 mod fde_setup;
-mod notify_client;
+mod host_api;
 mod tboot;
 mod utils;
 
@@ -339,12 +342,25 @@ fn cmd_gen_ca_cert(args: GenCaCertArgs) -> Result<()> {
 }
 
 fn cmd_gen_app_keys(args: GenAppKeysArgs) -> Result<()> {
-    use ra_tls::cert::CertRequest;
     use ra_tls::rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
 
     let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let disk_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
-    let pubkey = key.public_key_der();
+    let app_keys = make_app_keys(key, disk_key, args.ca_level)?;
+    let app_keys = serde_json::to_string(&app_keys).context("Failed to serialize app keys")?;
+    fs::write(&args.output, app_keys).context("Failed to write app keys")?;
+    Ok(())
+}
+
+fn gen_app_keys_from_seed(seed: &[u8]) -> Result<AppKeys> {
+    let key = derive_ecdsa_key_pair_from_bytes(seed, &["app-key".as_bytes()])?;
+    let disk_key = derive_ecdsa_key_pair_from_bytes(seed, &["app-disk-key".as_bytes()])?;
+    make_app_keys(key, disk_key, 1)
+}
+
+fn make_app_keys(app_key: KeyPair, disk_key: KeyPair, ca_level: u8) -> Result<AppKeys> {
+    use ra_tls::cert::CertRequest;
+    let pubkey = app_key.public_key_der();
     let report_data = QuoteContentType::RaTlsCert.to_report_data(&pubkey);
     let (_, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
     let event_logs = att::eventlog::read_event_logs().context("Failed to read event logs")?;
@@ -353,25 +369,23 @@ fn cmd_gen_app_keys(args: GenAppKeysArgs) -> Result<()> {
         .subject("App Root Cert")
         .quote(&quote)
         .event_log(&event_log)
-        .key(&key)
-        .ca_level(args.ca_level)
+        .key(&app_key)
+        .ca_level(ca_level)
         .build();
     let cert = req
         .self_signed()
         .context("Failed to self-sign certificate")?;
 
-    let app_keys = serde_json::json!({
-        "app_key": key.serialize_pem(),
-        "disk_crypt_key": sha256(&disk_key.serialize_der()),
-        "certificate_chain": vec![cert.pem()],
-    });
-    let app_keys = serde_json::to_string(&app_keys).context("Failed to serialize app keys")?;
-    fs::write(&args.output, app_keys).context("Failed to write app keys")?;
-    Ok(())
+    Ok(AppKeys {
+        app_key: app_key.serialize_pem(),
+        disk_crypt_key: sha256(&disk_key.serialize_der()),
+        certificate_chain: vec![cert.pem()],
+        env_crypt_key: vec![],
+    })
 }
 
 async fn cmd_notify_host(args: HostNotifyArgs) -> Result<()> {
-    let client = NotifyClient::load_or_default(args.url)?;
+    let client = HostApi::load_or_default(args.url)?;
     client.notify(&args.event, &args.payload).await?;
     Ok(())
 }
