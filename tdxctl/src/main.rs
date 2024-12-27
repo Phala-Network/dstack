@@ -4,7 +4,7 @@ use cmd_lib::run_cmd as cmd;
 use fde_setup::{cmd_setup_fde, SetupFdeArgs};
 use fs_err as fs;
 use getrandom::getrandom;
-use notify_client::NotifyClient;
+use host_api::HostApi;
 use ra_tls::{
     attestation::QuoteContentType, cert::CaCert, kdf::derive_ecdsa_key_pair_from_bytes,
     rcgen::KeyPair,
@@ -21,7 +21,7 @@ use utils::{extend_rtmr, AppKeys};
 
 mod crypto;
 mod fde_setup;
-mod notify_client;
+mod host_api;
 mod tboot;
 mod utils;
 
@@ -385,7 +385,7 @@ fn make_app_keys(app_key: KeyPair, disk_key: KeyPair, ca_level: u8) -> Result<Ap
 }
 
 async fn cmd_notify_host(args: HostNotifyArgs) -> Result<()> {
-    let client = NotifyClient::load_or_default(args.url)?;
+    let client = HostApi::load_or_default(args.url)?;
     client.notify(&args.event, &args.payload).await?;
     Ok(())
 }

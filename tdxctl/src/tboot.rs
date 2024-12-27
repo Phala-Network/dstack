@@ -10,7 +10,7 @@ use tracing::info;
 
 use crate::{
     cmd_gen_ra_cert,
-    notify_client::NotifyClient,
+    host_api::HostApi,
     utils::{deserialize_json_file, AppCompose, AppKeys, LocalConfig},
     GenRaCertArgs,
 };
@@ -59,7 +59,7 @@ impl<'a> Setup<'a> {
         self.args.resolve(path)
     }
 
-    async fn setup(&self, nc: &NotifyClient) -> Result<()> {
+    async fn setup(&self, nc: &HostApi) -> Result<()> {
         self.prepare_certs()?;
         nc.notify_q("boot.progress", "setting up tproxy net").await;
         self.setup_tappd_config()?;
@@ -281,7 +281,7 @@ impl<'a> Setup<'a> {
 }
 
 pub async fn tboot(args: &TbootArgs) -> Result<()> {
-    let nc = NotifyClient::load_or_default(None).unwrap_or_default();
+    let nc = HostApi::load_or_default(None).unwrap_or_default();
     if let Err(err) = tboot_inner(args, &nc).await {
         nc.notify_q("boot.error", &format!("{err:?}")).await;
         return Err(err);
@@ -289,7 +289,7 @@ pub async fn tboot(args: &TbootArgs) -> Result<()> {
     Ok(())
 }
 
-pub async fn tboot_inner(args: &TbootArgs, nc: &NotifyClient) -> Result<()> {
+pub async fn tboot_inner(args: &TbootArgs, nc: &HostApi) -> Result<()> {
     nc.notify_q("boot.progress", "enter system").await;
     Setup::load(args)?.setup(nc).await?;
     Ok(())

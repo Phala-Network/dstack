@@ -3,12 +3,10 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    time::{Duration, SystemTime},
 };
 
 use anyhow::{anyhow, bail, Context, Result};
 use fs_err as fs;
-use key_provider_client::guest::PUBLICKEYBYTES;
 use kms_rpc::GetAppKeyRequest;
 use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
@@ -18,7 +16,7 @@ use crate::{
     cmd_gen_app_keys, cmd_gen_ra_cert, cmd_show,
     crypto::dh_decrypt,
     gen_app_keys_from_seed,
-    notify_client::NotifyClient,
+    host_api::HostApi,
     utils::{
         deserialize_json_file, extend_rtmr3, sha256, sha256_file, AppCompose, AppKeys, HashingFile,
         KeyProvider, LocalConfig,
@@ -184,11 +182,7 @@ impl SetupFdeArgs {
         HostShared::load(host_shared_copy_dir.as_path())
     }
 
-    async fn request_app_keys_from_kms(
-        &self,
-        host_shared: &HostShared,
-        nc: &NotifyClient,
-    ) -> Result<()> {
+    async fn request_app_keys_from_kms(&self, host_shared: &HostShared) -> Result<()> {
         let Some(kms_url) = &host_shared.vm_config.kms_url else {
             bail!("KMS URL is not set");
         };
@@ -219,96 +213,32 @@ impl SetupFdeArgs {
         Ok(())
     }
 
-    async fn request_app_keys_from_local_key_provider(
-        &self,
-        host_shared: &HostShared,
-        nc: &NotifyClient,
-    ) -> Result<()> {
-        use key_provider_client::guest::{generate_keypair, open_sealed_box};
-
-        let Some(pccs_url) = &host_shared.vm_config.pccs_url else {
-            bail!("PCCS URL is not set");
-        };
-
-        let (pk, sk) = generate_keypair();
-        let provision = {
-            info!("Local key provider is enabled, requesting app keys from local key provider");
-
-            let mut report_data = [0u8; 64];
-            report_data[..PUBLICKEYBYTES].copy_from_slice(&pk.0);
-            let (_, quote) =
-                tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
-            nc.get_sealing_key(&quote)
-                .await
-                .context("Failed to get sealing key")?
-        };
-
-        let mr = {
-            // verify the key provider quote
-            let now = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .context("Invalid system time")?
-                .as_secs();
-            let quote_collateral = dcap_qvl::collateral::get_collateral(
-                pccs_url,
-                &provision.provider_quote,
-                Duration::from_secs(10),
-            )
+    async fn request_app_keys_from_local_key_provider(&self, host: &HostApi) -> Result<()> {
+        let provision = host
+            .get_sealing_key()
             .await
-            .context("Failed to get quote collateral")?;
-            let verified_report =
-                dcap_qvl::verify::verify(&provision.provider_quote, &quote_collateral, now)
-                    .ok()
-                    .context("Failed to verify key provider quote")?;
-            let mr = verified_report
-                .report
-                .as_sgx()
-                .map(|r| r.mr_enclave)
-                .context("Failed to get enclave MR")?;
-            hex::encode(mr)
-        };
+            .context("Failed to get sealing key")?;
+        // write to fs
+        let app_keys =
+            gen_app_keys_from_seed(&provision.sk).context("Failed to generate app keys")?;
+        let keys_json = serde_json::to_string(&app_keys).context("Failed to serialize app keys")?;
+        fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
 
-        {
-            // write to fs
-            let sealing_key = open_sealed_box(&provision.encrypted_key, &pk, &sk)
-                .ok()
-                .context("Failed to open sealing key")?;
-            if sealing_key.len() < 32 {
-                bail!("Invalid sealing key length");
-            }
-            info!("Key length: {}", sealing_key.len());
-            info!("Key hash: {}", hex::encode(sha256(&sealing_key)));
-            let app_keys =
-                gen_app_keys_from_seed(&sealing_key).context("Failed to generate app keys")?;
-            let keys_json =
-                serde_json::to_string(&app_keys).context("Failed to serialize app keys")?;
-            fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
-        }
-
-        {
-            // write to RTMR
-            let provider_info = serde_json::json!({
-                "name": "gramine-sealing-key-provider",
-                "mr": mr,
-            });
-            let provider_info_json = serde_json::to_vec(&provider_info)?;
-            extend_rtmr3("key-provider", &provider_info_json)?;
-        }
+        // write to RTMR
+        let provider_info = serde_json::json!({
+            "name": "gramine-sealing-key-provider",
+            "mr": hex::encode(provision.mr),
+        });
+        let provider_info_json = serde_json::to_vec(&provider_info)?;
+        extend_rtmr3("key-provider", &provider_info_json)?;
         Ok(())
     }
 
-    async fn request_app_keys(
-        &self,
-        host_shared: &HostShared,
-        nc: &NotifyClient,
-    ) -> Result<AppKeys> {
+    async fn request_app_keys(&self, host_shared: &HostShared, host: &HostApi) -> Result<AppKeys> {
         let key_provider = host_shared.app_compose.key_provider();
         match key_provider {
-            KeyProvider::Kms => self.request_app_keys_from_kms(host_shared, nc).await?,
-            KeyProvider::Local => {
-                self.request_app_keys_from_local_key_provider(host_shared, nc)
-                    .await?
-            }
+            KeyProvider::Kms => self.request_app_keys_from_kms(host_shared).await?,
+            KeyProvider::Local => self.request_app_keys_from_local_key_provider(host).await?,
             KeyProvider::None => {
                 info!("No key provider is enabled, generating temporary app keys");
                 cmd_gen_app_keys(GenAppKeysArgs {
@@ -355,7 +285,7 @@ impl SetupFdeArgs {
         &self,
         host_shared: &HostShared,
         disk_crypt_key: &str,
-        nc: &NotifyClient,
+        host: &HostApi,
     ) -> Result<()> {
         let rootfs_mountpoint = &self.rootfs_dir;
         let rootfs_dev = if self.rootfs_encryption {
@@ -378,7 +308,7 @@ impl SetupFdeArgs {
             if hash_file.exists() {
                 fs::remove_file(&hash_file).context("Failed to remove old rootfs hash file")?;
             }
-            nc.notify_q("boot.progress", "upgrading rootfs").await;
+            host.notify_q("boot.progress", "upgrading rootfs").await;
             self.extract_rootfs(&host_shared.vm_config.rootfs_hash)
                 .await?;
         }
@@ -409,7 +339,7 @@ impl SetupFdeArgs {
         host_shared: &HostShared,
         disk_crypt_key: &str,
         instance_info: &InstanceInfo,
-        nc: &NotifyClient,
+        host: &HostApi,
     ) -> Result<()> {
         info!("Setting up disk encryption");
         info!("Formatting rootfs");
@@ -426,7 +356,7 @@ impl SetupFdeArgs {
 
         self.extract_rootfs(&host_shared.vm_config.rootfs_hash)
             .await?;
-        nc.notify_q("instance.info", &serde_json::to_string(instance_info)?)
+        host.notify_q("instance.info", &serde_json::to_string(instance_info)?)
             .await;
         Ok(())
     }
@@ -500,19 +430,13 @@ impl SetupFdeArgs {
         Ok(())
     }
 
-    async fn setup_rootfs(&self, host_shared: &HostShared, nc: &NotifyClient) -> Result<()> {
-        nc.notify_q("boot.progress", "loading host-shared").await;
+    async fn setup_rootfs(&self, host_shared: &HostShared, host: &HostApi) -> Result<()> {
+        host.notify_q("boot.progress", "loading host-shared").await;
         let rootfs_hash = &host_shared.vm_config.rootfs_hash;
         let compose_hash = sha256_file(host_shared.dir.app_compose_file())?;
         let truncated_compose_hash = truncate(&compose_hash, 20);
         let kms_enabled = host_shared.app_compose.kms_enabled();
         let key_provider = host_shared.app_compose.key_provider();
-        let ca_cert_hash = if kms_enabled {
-            sha256_file(host_shared.dir.kms_ca_cert_file())?
-        } else {
-            sha256(b"")
-        };
-
         let mut instance_info = host_shared.instance_info.clone();
         let is_bootstrapped = instance_info.is_bootstrapped();
 
@@ -533,50 +457,66 @@ impl SetupFdeArgs {
             bail!("App upgrade is not supported without KMS");
         }
 
-        nc.notify_q("boot.progress", "extending RTMRs").await;
+        let device_id = if key_provider.is_none() {
+            Default::default()
+        } else {
+            let pre_key = host.get_sealing_key().await?;
+            sha256(&pre_key.sk)
+        };
 
+        host.notify_q("boot.progress", "extending RTMRs").await;
+
+        extend_rtmr3("system-preparing", &[])?;
+        extend_rtmr3("device-id", &device_id)?;
         extend_rtmr3("rootfs-hash", rootfs_hash)?;
         extend_rtmr3("app-id", &instance_info.app_id)?;
         extend_rtmr3("compose-hash", &compose_hash)?;
-        extend_rtmr3("ca-cert-hash", &ca_cert_hash)?;
         extend_rtmr3("instance-id", &instance_info.instance_id)?;
+
+        if kms_enabled {
+            let ca_cert_hash = sha256_file(host_shared.dir.kms_ca_cert_file())?;
+            extend_rtmr3("ca-cert-hash", &ca_cert_hash)?;
+        }
 
         // Show the RTMR
         cmd_show()?;
 
-        nc.notify_q("boot.progress", "requesting app keys").await;
+        host.notify_q("boot.progress", "requesting app keys").await;
 
-        let app_keys = self.request_app_keys(host_shared, nc).await?;
+        let app_keys = self.request_app_keys(host_shared, host).await?;
         if app_keys.disk_crypt_key.is_empty() {
             bail!("Failed to get valid key phrase from KMS");
         }
-        nc.notify_q("boot.progress", "decrypting env").await;
+        host.notify_q("boot.progress", "decrypting env").await;
         // Decrypt env file
         let decrypted_env =
             self.decrypt_env_vars(&app_keys.env_crypt_key, &host_shared.encrypted_env)?;
         if is_bootstrapped {
-            nc.notify_q("boot.progress", "mounting rootfs").await;
-            self.mount_rootfs(host_shared, &app_keys.disk_crypt_key, nc)
+            host.notify_q("boot.progress", "mounting rootfs").await;
+            self.mount_rootfs(host_shared, &app_keys.disk_crypt_key, host)
                 .await?;
         } else {
-            nc.notify_q("boot.progress", "initializing rootfs").await;
-            self.bootstrap_rootfs(host_shared, &app_keys.disk_crypt_key, &instance_info, nc)
+            host.notify_q("boot.progress", "initializing rootfs").await;
+            self.bootstrap_rootfs(host_shared, &app_keys.disk_crypt_key, &instance_info, host)
                 .await?;
         }
         self.write_decrypted_env(&decrypted_env)?;
         extend_rtmr3("system-ready", &[])?;
-        nc.notify_q("boot.progress", "rootfs ready").await;
+        host.notify_q("boot.progress", "rootfs ready").await;
         Ok(())
     }
 }
 
 pub async fn cmd_setup_fde(args: SetupFdeArgs) -> Result<()> {
     let host_shared = args.copy_host_shared()?;
-    let nc = NotifyClient::new(host_shared.vm_config.host_api_url.clone());
-    match args.setup_rootfs(&host_shared, &nc).await {
+    let host = HostApi::new(
+        host_shared.vm_config.host_api_url.clone(),
+        host_shared.vm_config.pccs_url.clone(),
+    );
+    match args.setup_rootfs(&host_shared, &host).await {
         Ok(_) => Ok(()),
         Err(err) => {
-            nc.notify_q("boot.error", &format!("{err:?}")).await;
+            host.notify_q("boot.error", &format!("{err:?}")).await;
             Err(err)
         }
     }
