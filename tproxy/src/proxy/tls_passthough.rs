@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::fmt::Debug;
 use tokio::{io::AsyncWriteExt, net::TcpStream, task::JoinSet, time::timeout};
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::main_service::Proxy;
 
@@ -64,15 +64,22 @@ pub(crate) async fn connect_multiple_hosts(
     for addr in addresses {
         debug!("connecting to {addr}:{port}");
         let future = TcpStream::connect((addr, port));
-        join_set.spawn(future);
+        join_set.spawn(async move { future.await.map_err(|e| (e, addr, port)) });
     }
     // select the first successful connection
-    let connection = join_set
-        .join_next()
-        .await
-        .context("No app address available")?
-        .context("Failed to join the connect task")?
-        .context("Failed to connect to tapp")?;
+    let connection = loop {
+        let result = join_set
+            .join_next()
+            .await
+            .context("No connection success")?
+            .context("Failed to join the connect task")?;
+        match result {
+            Ok(connection) => break connection,
+            Err((e, addr, port)) => {
+                info!("failed to connect to tapp@{addr}:{port}: {e}");
+            }
+        }
+    };
     debug!("connected to {:?}", connection.peer_addr());
     Ok(connection)
 }
