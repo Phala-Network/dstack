@@ -2,3 +2,4 @@
 /certs
 /build-config.sh
 /build
+generated/
