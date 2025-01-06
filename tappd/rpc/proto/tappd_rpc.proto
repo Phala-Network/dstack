@@ -88,9 +88,9 @@ message TdxQuoteResponse {
 // The request to derive a key
 message WorkerInfo {
   // App ID
-  string app_id = 1;
+  bytes app_id = 1;
   // App Instance ID
-  string instance_id = 2;
+  bytes instance_id = 2;
   // App certificate
   string app_cert = 3;
   // TCB info
@@ -101,6 +101,8 @@ message WorkerInfo {
   bool public_logs = 6;
   // Whether the app sysinfo is public
   bool public_sysinfo = 7;
+  // Device ID
+  bytes device_id = 8;
 }
 
 // The response to a WorkerInfo request

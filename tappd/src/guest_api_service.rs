@@ -44,6 +44,7 @@ impl GuestApiRpc for GuestApiHandler {
             version: env!("CARGO_PKG_VERSION").to_string(),
             app_id: info.app_id,
             instance_id: info.instance_id,
+            device_id: info.device_id,
             app_cert: info.app_cert,
             tcb_info: info.tcb_info,
         })

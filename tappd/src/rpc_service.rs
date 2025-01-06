@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use fs_err as fs;
 use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{
     attestation::{QuoteContentType, DEFAULT_HASH_ALGORITHM},
     cert::{CaCert, CertRequest},
     kdf::derive_ecdsa_key_pair,
-    qvl::quote::Report,
 };
 use serde_json::json;
 use tappd_rpc::{
@@ -141,45 +140,29 @@ impl WorkerRpc for ExternalRpcHandler {
         let Some(attestation) = ca.decode_attestation().ok().flatten() else {
             return Ok(WorkerInfo::default());
         };
-        let app_id = attestation
-            .decode_app_id()
-            .context("Failed to decode app id")?;
-        let instance_id = attestation
-            .decode_instance_id()
-            .context("Failed to decode instance_id")?;
-        let quote = attestation
-            .decode_quote()
-            .context("Failed to decode quote")?;
-        let rootfs_hash = attestation
-            .decode_rootfs_hash()
-            .context("Failed to decode rootfs hash")?;
-        let report = match &quote.report {
-            Report::SgxEnclave(_) => bail!("SGX reports are not supported"),
-            Report::TD10(tdreport10) => tdreport10,
-            Report::TD15(tdreport15) => &tdreport15.base,
-        };
+        let app_info = attestation
+            .decode_app_info()
+            .context("Failed to decode app info")?;
         let event_log = &attestation.event_log;
-        let mrtd = hex::encode(report.mr_td);
-        let rtmr0 = hex::encode(report.rt_mr0);
-        let rtmr1 = hex::encode(report.rt_mr1);
-        let rtmr2 = hex::encode(report.rt_mr2);
-        let rtmr3 = hex::encode(report.rt_mr3);
         let app_compose = fs::read_to_string(&self.state.config().compose_file).unwrap_or_default();
         let tcb_info = serde_json::to_string_pretty(&json!({
-            "rootfs_hash": rootfs_hash,
-            "mrtd": mrtd,
-            "rtmr0": rtmr0,
-            "rtmr1": rtmr1,
-            "rtmr2": rtmr2,
-            "rtmr3": rtmr3,
+            "mrtd": hex::encode(app_info.mrtd),
+            "rtmr0": hex::encode(app_info.rtmr0),
+            "rtmr1": hex::encode(app_info.rtmr1),
+            "rtmr2": hex::encode(app_info.rtmr2),
+            "rtmr3": hex::encode(app_info.rtmr3),
+            "mr_enclave": hex::encode(app_info.mr_enclave),
+            "mr_image": hex::encode(app_info.mr_image),
+            "compose_hash": hex::encode(app_info.compose_hash),
             "event_log": event_log,
             "app_compose": app_compose,
         }))
         .unwrap_or_default();
         Ok(WorkerInfo {
             app_name: self.state.config().app_name.clone(),
-            app_id,
-            instance_id,
+            app_id: app_info.app_id,
+            instance_id: app_info.instance_id,
+            device_id: app_info.device_id,
             app_cert: ca.pem_cert.clone(),
             tcb_info,
             public_logs: self.state.config().public_logs,

@@ -185,12 +185,29 @@ impl Attestation {
 
     /// Decode the app info from the event log
     pub fn decode_app_info(&self) -> Result<AppInfo> {
+        let quote = self.decode_quote()?;
+        let device_id = sha256(&[&quote.header.user_data]).to_vec();
+        let td_report = quote.report.as_td10().context("TDX report not found")?;
+        let mr_enclave = sha256(&[
+            &td_report.mr_td,
+            &td_report.rt_mr0,
+            &td_report.rt_mr1,
+            &td_report.rt_mr2,
+        ]);
+        let mr_image = sha256(&[&td_report.mr_td, &td_report.rt_mr1, &td_report.rt_mr2]);
         Ok(AppInfo {
             app_id: self.find_event_payload("app-id")?,
             compose_hash: self.find_event_payload("compose-hash")?,
             instance_id: self.find_event_payload("instance-id")?,
-            device_id: self.find_event_payload("device-id")?,
+            device_id,
             rootfs_hash: self.find_event_payload("rootfs-hash")?,
+            mrtd: td_report.mr_td,
+            rtmr0: td_report.rt_mr0,
+            rtmr1: td_report.rt_mr1,
+            rtmr2: td_report.rt_mr2,
+            rtmr3: td_report.rt_mr3,
+            mr_enclave,
+            mr_image,
         })
     }
 
@@ -232,6 +249,20 @@ pub struct AppInfo {
     pub device_id: Vec<u8>,
     /// Rootfs hash
     pub rootfs_hash: Vec<u8>,
+    /// TCB info
+    pub mrtd: [u8; 48],
+    /// Runtime MR0
+    pub rtmr0: [u8; 48],
+    /// Runtime MR1
+    pub rtmr1: [u8; 48],
+    /// Runtime MR2
+    pub rtmr2: [u8; 48],
+    /// Runtime MR3
+    pub rtmr3: [u8; 48],
+    /// Measurement of the entire vm execution environment
+    pub mr_enclave: [u8; 32],
+    /// Measurement of the app image
+    pub mr_image: [u8; 32],
 }
 
 /// Replay event logs
@@ -253,6 +284,15 @@ pub fn replay_event_logs(eventlog: &[EventLog]) -> Result<[[u8; 48]; 4]> {
     }
 
     Ok(rtmrs)
+}
+
+fn sha256(data: &[&[u8]]) -> [u8; 32] {
+    use sha2::{Digest as _, Sha256};
+    let mut hasher = Sha256::new();
+    for d in data {
+        hasher.update(d);
+    }
+    hasher.finalize().into()
 }
 
 #[cfg(test)]

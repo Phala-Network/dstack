@@ -460,17 +460,9 @@ impl SetupFdeArgs {
             bail!("App upgrade is not supported without KMS");
         }
 
-        let device_id = if key_provider.is_none() {
-            Default::default()
-        } else {
-            let pre_key = host.get_sealing_key().await?;
-            sha256(&pre_key.sk)
-        };
-
         host.notify_q("boot.progress", "extending RTMRs").await;
 
         extend_rtmr3("system-preparing", &[])?;
-        extend_rtmr3("device-id", &device_id)?;
         extend_rtmr3("rootfs-hash", &self.rootfs_hash)?;
         extend_rtmr3("app-id", &instance_info.app_id)?;
         extend_rtmr3("compose-hash", &compose_hash)?;
