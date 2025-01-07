@@ -27,19 +27,13 @@ rpc_cert = "/etc/kms/certs/rpc.cert"
 rpc_key = "/etc/kms/certs/rpc.key"
 k256_key = "/etc/kms/certs/app-k256.key"
 subject_postfix = ".local"
-allow_any_upgrade = false
-upgrade_registry_dir = "/var/run/kms/upgrade_registry"
 pccs_url = "https://api.trustedservices.intel.com/tdx/certification/v4"
 
-[core.allowed_mr]
-allow_all = false
-mrtd = []
-rtmr0 = []
-rtmr1 = []
-rtmr2 = []
-
-[core.boot_authority]
-type = "dev"
+[core.auth_api]
+# "dev" for local testing
+# "webhook" for production
+type = "webhook"
+url = "http://auth-api:8000"
 
 [core.onboard]
 enabled = true

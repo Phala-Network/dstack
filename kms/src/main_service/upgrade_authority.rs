@@ -1,4 +1,4 @@
-use crate::config::BootAuthority;
+use crate::config::AuthApi;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_human_bytes as hex_bytes;
@@ -37,14 +37,14 @@ pub(crate) struct BootResponse {
     pub reason: String,
 }
 
-impl BootAuthority {
+impl AuthApi {
     pub async fn is_app_allowed(&self, boot_info: &BootInfo, is_kms: bool) -> Result<BootResponse> {
         match self {
-            BootAuthority::Dev => Ok(BootResponse {
+            AuthApi::Dev => Ok(BootResponse {
                 is_allowed: true,
                 reason: "".to_string(),
             }),
-            BootAuthority::Webhook(webhook) => {
+            AuthApi::Webhook(webhook) => {
                 let client = reqwest::Client::new();
                 let url = if is_kms {
                     format!("{}{}", webhook.url, "/kms")

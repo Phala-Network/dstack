@@ -19,7 +19,7 @@ pub(crate) struct KmsConfig {
     pub k256_key: String,
     pub subject_postfix: String,
     pub pccs_url: String,
-    pub boot_authority: BootAuthority,
+    pub auth_api: AuthApi,
     pub onboard: OnboardConfig,
 }
 
@@ -37,16 +37,16 @@ impl KmsConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type")]
-pub(crate) enum BootAuthority {
+pub(crate) enum AuthApi {
     #[serde(rename = "dev")]
     Dev,
     #[serde(rename = "webhook")]
     Webhook(Webhook),
 }
 
-impl BootAuthority {
+impl AuthApi {
     pub fn is_dev(&self) -> bool {
-        matches!(self, BootAuthority::Dev)
+        matches!(self, AuthApi::Dev)
     }
 }
 

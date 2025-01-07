@@ -107,7 +107,7 @@ impl RpcHandler {
         let response = self
             .state
             .config
-            .boot_authority
+            .auth_api
             .is_app_allowed(&boot_info, is_kms)
             .await?;
         if !response.is_allowed {
@@ -199,7 +199,7 @@ impl KmsRpc for RpcHandler {
     async fn get_meta(self) -> Result<GetMetaResponse> {
         Ok(GetMetaResponse {
             ca_cert: self.state.inner.root_ca.cert.pem(),
-            allow_any_upgrade: self.state.inner.config.boot_authority.is_dev(),
+            allow_any_upgrade: self.state.inner.config.auth_api.is_dev(),
             k256_pubkey: self.state.inner.k256_key.to_bytes().to_vec(),
         })
     }
