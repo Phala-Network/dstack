@@ -1,6 +1,7 @@
 import fastify, { FastifyInstance } from 'fastify';
 import { EthereumBackend } from './ethereum';
 import { BootInfo, BootResponse } from './types';
+import { ethers } from 'ethers';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -41,7 +42,8 @@ export async function build(): Promise<FastifyInstance> {
   // Initialize backend
   const rpcUrl = process.env.ETH_RPC_URL || 'http://localhost:8545';
   const kmsContractAddr = process.env.KMS_CONTRACT_ADDR || '0x0000000000000000000000000000000000000000';
-  server.decorate('ethereum', new EthereumBackend(rpcUrl, kmsContractAddr));
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  server.decorate('ethereum', new EthereumBackend(provider, kmsContractAddr));
 
   // Define routes
   server.post<{

@@ -1,30 +1,38 @@
 import { ethers } from 'ethers';
-import { BootInfo, BootResponse, KMS_CONTRACT_ABI, APP_CONTRACT_ABI } from './types';
+import { BootInfo, BootResponse } from './types';
+import { KmsAuth__factory } from '../typechain-types/factories/KmsAuth__factory';
+import { KmsAuth } from '../typechain-types/KmsAuth';
+import { AppAuth__factory } from '../typechain-types/factories/AppAuth__factory';
+import { HardhatEthersProvider } from '@nomicfoundation/hardhat-ethers/internal/hardhat-ethers-provider';
 
 export class EthereumBackend {
-  private provider: ethers.JsonRpcProvider;
-  private kmsContract: ethers.Contract;
+  private provider: ethers.JsonRpcProvider | HardhatEthersProvider;
+  private kmsAuth: KmsAuth;
 
-  constructor(rpcUrl: string, kmsContractAddr: string) {
-    this.provider = new ethers.JsonRpcProvider(rpcUrl);
-    this.kmsContract = new ethers.Contract(
-      ethers.getAddress(kmsContractAddr),
-      KMS_CONTRACT_ABI,
+  constructor(provider: ethers.JsonRpcProvider | HardhatEthersProvider, kmsAuthAddr: string) {
+    this.provider = provider;
+    this.kmsAuth = KmsAuth__factory.connect(
+      ethers.getAddress(kmsAuthAddr),
       this.provider
     );
   }
 
-  private decodeHex32(hexStr: string): string {
-    // Remove 0x prefix if present and pad to 64 characters
-    hexStr = hexStr.replace('0x', '').padStart(64, '0');
-    return '0x' + hexStr;
+  private decodeHex(hex: string, sz: number = 32): string {
+    // Remove '0x' prefix if present
+    hex = hex.startsWith('0x') ? hex.slice(2) : hex;
+
+    // Pad hex string to 64 characters (32 bytes)
+    hex = hex.padStart(sz * 2, '0');
+
+    // Add '0x' prefix back
+    return '0x' + hex;
   }
 
   private async getAppController(appId: string): Promise<[string | null, string | null]> {
     try {
-      const controller = await this.kmsContract.appController(ethers.getAddress(appId));
+      const controller = await this.kmsAuth.appController(ethers.getAddress(appId));
       if (controller === ethers.ZeroAddress) {
-        return [null, "No controller set for app"];
+        return [null, 'No controller set for app'];
       }
       return [controller, null];
     } catch (e) {
@@ -34,48 +42,53 @@ export class EthereumBackend {
 
   async checkBoot(bootInfo: BootInfo, isKms: boolean): Promise<BootResponse> {
     try {
-      // If isKms, ensure the App ID matches the KMS App ID in the contract
+      // Create boot info struct for contract call
+      const bootInfoStruct = {
+        appId: bootInfo.appId,
+        composeHash: this.decodeHex(bootInfo.composeHash),
+        instanceId: bootInfo.instanceId,
+        deviceId: this.decodeHex(bootInfo.deviceId),
+        mrEnclave: this.decodeHex(bootInfo.mrEnclave),
+        mrImage: this.decodeHex(bootInfo.mrImage)
+      };
+
       if (isKms) {
-        const kmsAppId = await this.kmsContract.kmsAppId();
-        if (bootInfo.appId !== kmsAppId) {
-          return { isAllowed: false, reason: "App ID does not match KMS app ID" };
+        const kmsAppId = await this.kmsAuth.kmsAppId();
+        if (bootInfo.appId.toLowerCase() !== kmsAppId.toLowerCase()) {
+          return { isAllowed: false, reason: 'App ID does not match KMS app ID' };
         }
       }
 
-      // Create boot info tuple for contract call
-      const bootInfoTuple = [
-        ethers.getAddress(bootInfo.appId),
-        this.decodeHex32(bootInfo.composeHash),
-        ethers.getAddress(bootInfo.instanceId),
-        this.decodeHex32(bootInfo.deviceId),
-        this.decodeHex32(bootInfo.mrEnclave),
-        this.decodeHex32(bootInfo.mrImage)
-      ] as const;
-
-      // First check with KmsAuth if the app and measurements are allowed
-      const [kmsAllowed, kmsReason] = await this.kmsContract.isAppAllowed(bootInfoTuple);
-      if (!kmsAllowed) {
-        return { isAllowed: false, reason: `KMS check failed: ${kmsReason}` };
+      {
+        // First check with KmsAuth if the app and measurements are allowed
+        const [isAllowed, reason] = await this.kmsAuth.isAppAllowed(bootInfoStruct);
+        if (!isAllowed) {
+          return { isAllowed: false, reason: `KMS check failed: ${reason}` };
+        }
       }
 
       // Then check if app is registered and get AppAuth contract
       const [controllerAddr, error] = await this.getAppController(bootInfo.appId);
       if (!controllerAddr) {
-        return { isAllowed: false, reason: error || "Unknown error" };
+        return { isAllowed: false, reason: error || 'Unknown error getting app controller' };
       }
 
       // Initialize AppAuth contract
-      const appAuth = new ethers.Contract(
+      const appAuth = AppAuth__factory.connect(
         controllerAddr,
-        APP_CONTRACT_ABI,
         this.provider
       );
 
-      // Finally check with AppAuth contract
-      const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfoTuple);
-      return { isAllowed, reason };
+      {
+        // Finally check with AppAuth contract
+        const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfoStruct);
+        return { isAllowed, reason };
+      }
 
     } catch (e) {
+      if (e instanceof Error && e.message.includes('invalid address')) {
+        return { isAllowed: false, reason: 'Invalid address format' };
+      }
       throw new Error(`Error checking boot: ${e instanceof Error ? e.message : String(e)}`);
     }
   }

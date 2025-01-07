@@ -8,8 +8,11 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": ".",
+    "resolveJsonModule": true,
+    "types": ["node", "jest", "hardhat"],
+    "baseUrl": "."
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "test/**/*", "hardhat.config.ts", "typechain-types/**/*"],
   "exclude": ["node_modules"]
 }

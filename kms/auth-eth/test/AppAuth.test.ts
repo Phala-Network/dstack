@@ -77,9 +77,9 @@ describe("AppAuth", function () {
         mrImage: mrImage
       };
 
-      const [allowed, reason] = await appAuth.isAppAllowed(bootInfo);
-      expect(allowed).to.be.true;
+      const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);
       expect(reason).to.equal("");
+      expect(isAllowed).to.be.true;
     });
 
     it("Should reject invalid app ID", async function () {
@@ -92,8 +92,8 @@ describe("AppAuth", function () {
         mrImage: mrImage
       };
 
-      const [allowed, reason] = await appAuth.isAppAllowed(bootInfo);
-      expect(allowed).to.be.false;
+      const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);
+      expect(isAllowed).to.be.false;
       expect(reason).to.equal("Invalid app ID");
     });
 
@@ -107,8 +107,8 @@ describe("AppAuth", function () {
         mrImage: mrImage
       };
 
-      const [allowed, reason] = await appAuth.isAppAllowed(bootInfo);
-      expect(allowed).to.be.false;
+      const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);
+      expect(isAllowed).to.be.false;
       expect(reason).to.equal("Compose hash not allowed");
     });
   });

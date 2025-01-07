@@ -1,21 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract AppAuth {
+import "./IAppAuth.sol";
+
+contract AppAuth is IAppAuth {
     // Contract owner
     address public owner;
     // The app ID this contract controls
     address public appId;
-
-    // Struct to store boot information for an app
-    struct AppBootInfo {
-        address appId;
-        bytes32 composeHash;
-        address instanceId;
-        bytes32 deviceId;
-        bytes32 mrEnclave;
-        bytes32 mrImage;
-    }
 
     // Mapping of allowed compose hashes
     mapping(bytes32 => bool) public allowedComposeHashes;
@@ -54,13 +46,14 @@ contract AppAuth {
     }
 
     /**
-     * @dev Check if the app is allowed to run based on its boot information
-     * @param bootInfo The boot information of the app
-     * @return bool True if the app is allowed to run, false otherwise
+     * @notice Check if the app is allowed to run with the given boot info
+     * @param bootInfo The boot information to validate
+     * @return isAllowed Returns true if the app is allowed to run
+     * @return reason Returns a message explaining why the app is not allowed, if applicable
      */
     function isAppAllowed(
         AppBootInfo calldata bootInfo
-    ) external view returns (bool, string memory) {
+    ) external view override returns (bool isAllowed, string memory reason) {
         // Check if this is the correct app ID
         if (bootInfo.appId != appId) {
             return (false, "Invalid app ID");

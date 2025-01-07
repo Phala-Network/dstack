@@ -1,9 +1,9 @@
 import { FastifyInstance } from 'fastify';
-import { build } from './server';
-import { BootInfo } from './types';
+import { build } from '../src/server';
+import { BootInfo } from '../src/types';
 
 // Mock EthereumBackend
-jest.mock('./ethereum', () => {
+jest.mock('../src/ethereum', () => {
   return {
     EthereumBackend: jest.fn().mockImplementation(() => ({
       checkBoot: jest.fn()

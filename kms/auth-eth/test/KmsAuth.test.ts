@@ -135,12 +135,25 @@ describe("KmsAuth", function () {
     });
 
     it("Should reject unregistered enclave", async function () {
+      // First register an app properly
+      const salt = ethers.randomBytes(32);
+      const controller = ethers.Wallet.createRandom().address;
+      await kmsAuth.registerApp(salt, controller);
+      
+      const fullHash = ethers.keccak256(
+        ethers.solidityPacked(
+          ['address', 'bytes32'],
+          [owner.address, salt]
+        )
+      );
+      const appId = ethers.getAddress("0x" + fullHash.slice(26));
+
       const bootInfo = {
-        appId: ethers.Wallet.createRandom().address,
+        appId: appId,  // Use the properly registered appId
         composeHash: ethers.randomBytes(32),
         instanceId: ethers.Wallet.createRandom().address,
         deviceId: ethers.randomBytes(32),
-        mrEnclave: ethers.randomBytes(32),
+        mrEnclave: ethers.randomBytes(32),  // This is unregistered
         mrImage: ethers.randomBytes(32)
       };
 
@@ -150,16 +163,30 @@ describe("KmsAuth", function () {
     });
 
     it("Should reject unregistered image", async function () {
+      // First register an app properly
+      const salt = ethers.randomBytes(32);
+      const controller = ethers.Wallet.createRandom().address;
+      await kmsAuth.registerApp(salt, controller);
+      
+      const fullHash = ethers.keccak256(
+        ethers.solidityPacked(
+          ['address', 'bytes32'],
+          [owner.address, salt]
+        )
+      );
+      const appId = ethers.getAddress("0x" + fullHash.slice(26));
+
+      // Register enclave but not image
       const mrEnclave = ethers.randomBytes(32);
       await kmsAuth.registerEnclave(mrEnclave);
 
       const bootInfo = {
-        appId: ethers.Wallet.createRandom().address,
+        appId: appId,  // Use the properly registered appId
         composeHash: ethers.randomBytes(32),
         instanceId: ethers.Wallet.createRandom().address,
         deviceId: ethers.randomBytes(32),
         mrEnclave: mrEnclave,
-        mrImage: ethers.randomBytes(32)
+        mrImage: ethers.randomBytes(32)  // This is unregistered
       };
 
       const [allowed, reason] = await kmsAuth.isAppAllowed(bootInfo);

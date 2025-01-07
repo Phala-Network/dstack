@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_human_bytes as hex_bytes;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct BootInfo {
     #[serde(with = "hex_bytes")]
     pub mrtd: Vec<u8>,
