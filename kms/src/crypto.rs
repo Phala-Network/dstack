@@ -16,8 +16,7 @@ pub(crate) fn derive_k256_key(
     let derived_signing_key = SigningKey::from_bytes(&derived_key_bytes.into())?;
     let pubkey = derived_signing_key.verifying_key();
 
-    let todo = "Better format";
-    let prefix = b"phala-kms-issued:";
+    let prefix = b"dstack-kms-issued:";
     let msg = [prefix.as_slice(), &pubkey.to_sec1_bytes()].concat();
     let digest = Keccak256::new_with_prefix(msg);
 

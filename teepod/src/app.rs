@@ -85,7 +85,15 @@ impl App {
     ) -> Result<()> {
         let vm_work_dir = VmWorkDir::new(work_dir.as_ref());
         let manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
-        let todo = "sanitize the image name";
+        if manifest.image.len() > 64
+            || manifest.image.contains("..")
+            || !manifest
+                .image
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.')
+        {
+            bail!("Invalid image name");
+        }
         let image_path = self.config.image_path.join(&manifest.image);
         let image = Image::load(&image_path).context("Failed to load image")?;
         let vm_id = manifest.id.clone();

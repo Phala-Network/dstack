@@ -291,7 +291,6 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
     let payload = match data {
         Some(data) => {
             let limit = limit_for_method(method, request.limits);
-            let todo = "confirm this would not truncate the data";
             read_data(data, limit)
                 .await
                 .context("failed to read data")?

@@ -25,7 +25,9 @@ impl RequestClient for PrpcClient {
         let path = format!("{path}?json");
         let (status, body) = super::http_request("POST", &self.base_url, &path, &body).await?;
         if status != 200 {
-            return Err(Error::RpcError(format!("Invalid status code: {status}")));
+            return Err(Error::RpcError(format!(
+                "Invalid status code: {status}, path={path}"
+            )));
         }
         let response = serde_json::from_slice(&body).context("Failed to deserialize response")?;
         Ok(response)

@@ -9,21 +9,6 @@ message GetAppKeyRequest {
   string app_compose = 2;
 }
 
-// The kms public RPC service.
-service KMS {
-  // Request the app key given the app id and tdx quote
-  rpc GetAppKey(GetAppKeyRequest) returns (AppKeyResponse) {
-    // Retrieves the app key and certificate given the app id and tdx quote
-  }
-  // Request the app environment encryption public key given the app id
-  rpc GetAppEnvEncryptPubKey(AppId) returns (PublicKeyResponse) {
-    // Retrieves the app environment encryption public key given the app id
-  }
-  // Request the KMS instance metadata for use as a probe and health check.
-  rpc GetMeta(google.protobuf.Empty) returns (GetMetaResponse) {
-  }
-}
-
 message AppId {
   string app_id = 1;
 }
@@ -37,11 +22,69 @@ message AppKeyResponse {
   bytes disk_crypt_key = 2;
   bytes env_crypt_key = 3;
   repeated string certificate_chain = 4;
-  bytes app_ecdsa_key = 5;
-  bytes app_ecdsa_signature = 6;
+  bytes k256_app_key = 5;
+  bytes k256_signature = 6;
 }
 
 message GetMetaResponse {
   string ca_cert = 1;
   bool allow_any_upgrade = 2;
+  bytes k256_pubkey = 4;
+}
+
+message KmsKeys {
+  string ca_key = 1;
+  bytes k256_key = 2;
+}
+
+message KmsKeyResponse {
+  string tmp_ca_key = 1;
+  repeated KmsKeys keys = 2;
+}
+
+message GetTempCaCertResponse {
+  string temp_ca_cert = 1;
+  string temp_ca_key = 2;
+}
+
+// The kms public RPC service.
+service KMS {
+  // Request the app key given the app id and tdx quote
+  rpc GetAppKey(GetAppKeyRequest) returns (AppKeyResponse);
+  // KMS key handover
+  rpc GetKmsKey(google.protobuf.Empty) returns (KmsKeyResponse);
+  // Request the app environment encryption public key given the app id
+  rpc GetAppEnvEncryptPubKey(AppId) returns (PublicKeyResponse);
+  // Request the KMS instance metadata for use as a probe and health check.
+  rpc GetMeta(google.protobuf.Empty) returns (GetMetaResponse);
+  // Request the temporary CA certificate and key
+  rpc GetTempCaCert(google.protobuf.Empty) returns (GetTempCaCertResponse);
+}
+
+message BootstrapRequest {
+  string domain = 1;
+}
+
+message BootstrapResponse {
+  bytes ca_pubkey = 1;
+  bytes k256_pubkey = 2;
+  bytes quote = 3;
+}
+
+message OnboardRequest {
+  string source_url = 1;
+  string domain = 2;
+}
+
+message OnboardResponse {
+}
+
+// The Onboard RPC service.
+service Onboard {
+  // Bootstrap a new KMS
+  rpc Bootstrap(BootstrapRequest) returns (BootstrapResponse);
+  // Onboard from existing KMS
+  rpc Onboard(OnboardRequest) returns (OnboardResponse);
+  // Finish onboarding
+  rpc Finish(google.protobuf.Empty) returns (google.protobuf.Empty);
 }

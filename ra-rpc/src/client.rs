@@ -6,7 +6,7 @@ use prpc::{
     server::ProtoError,
     Message,
 };
-use reqwest::{Certificate, Client, Identity};
+use reqwest::{Client, Identity};
 use serde::{de::DeserializeOwned, Serialize};
 
 pub struct RaClient {
@@ -25,20 +25,14 @@ impl RaClient {
             .expect("failed to create client");
         Self { remote_uri, client }
     }
-    pub fn new_mtls(
-        remote_uri: String,
-        ca_cert: String,
-        cert_pem: String,
-        key_pem: String,
-    ) -> Result<Self> {
-        let root_ca =
-            Certificate::from_pem(ca_cert.as_bytes()).context("Failed to parse CA cert")?;
+
+    pub fn new_mtls(remote_uri: String, cert_pem: String, key_pem: String) -> Result<Self> {
         let identity_pem = format!("{cert_pem}\n{key_pem}");
         let identity =
             Identity::from_pem(identity_pem.as_bytes()).context("Failed to parse identity")?;
         let client = Client::builder()
             .tls_sni(true)
-            .add_root_certificate(root_ca)
+            .danger_accept_invalid_certs(true)
             .identity(identity)
             .connect_timeout(Duration::from_secs(5))
             .timeout(Duration::from_secs(60))

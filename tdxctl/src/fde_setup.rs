@@ -7,21 +7,22 @@ use std::{
 
 use anyhow::{anyhow, bail, Context, Result};
 use fs_err as fs;
+use k256::ecdsa::SigningKey;
 use kms_rpc::GetAppKeyRequest;
 use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
 use crate::{
-    cmd_gen_app_keys, cmd_gen_ra_cert, cmd_show,
+    cmd_gen_app_keys, cmd_show,
     crypto::dh_decrypt,
-    gen_app_keys_from_seed,
+    gen_app_keys_from_seed, gen_ra_cert,
     host_api::HostApi,
     utils::{
         deserialize_json_file, extend_rtmr3, sha256, sha256_file, AppCompose, AppKeys, HashingFile,
         KeyProvider, LocalConfig,
     },
-    GenAppKeysArgs, GenRaCertArgs,
+    GenAppKeysArgs,
 };
 use cmd_lib::run_cmd as cmd;
 use serde_human_bytes as hex_bytes;
@@ -122,14 +123,6 @@ impl HostShareDir {
     fn kms_ca_cert_file(&self) -> PathBuf {
         self.base_dir.join("certs").join("ca.cert")
     }
-
-    fn tmp_ca_cert_file(&self) -> PathBuf {
-        self.base_dir.join("certs").join("tmp-ca.cert")
-    }
-
-    fn tmp_ca_key_file(&self) -> PathBuf {
-        self.base_dir.join("certs").join("tmp-ca.key")
-    }
 }
 
 struct HostShared {
@@ -198,19 +191,21 @@ impl SetupFdeArgs {
         info!("KMS is enabled, generating RA-TLS cert");
         let gen_certs_dir = self.work_dir.join("certs");
         fs::create_dir_all(&gen_certs_dir).context("Failed to create certs dir")?;
-        cmd_gen_ra_cert(GenRaCertArgs {
-            ca_cert: host_shared.dir.tmp_ca_cert_file(),
-            ca_key: host_shared.dir.tmp_ca_key_file(),
-            cert_path: gen_certs_dir.join("cert.pem"),
-            key_path: gen_certs_dir.join("key.pem"),
-        })?;
+        let kms_url = format!("{kms_url}/prpc");
+
+        let tmp_ca = {
+            info!("Getting temp ca cert");
+            let client = RaClient::new(kms_url.clone(), true);
+            let kms_client = kms_rpc::kms_client::KmsClient::new(client);
+            kms_client
+                .get_temp_ca_cert()
+                .await
+                .context("Failed to get temp ca cert")?
+        };
+        let (ra_cert, ra_key) = gen_ra_cert(tmp_ca.temp_ca_cert, tmp_ca.temp_ca_key)?;
+
         info!("Requesting app keys from KMS: {kms_url}");
-        let ra_client = RaClient::new_mtls(
-            format!("{kms_url}/prpc"),
-            fs::read_to_string(host_shared.dir.kms_ca_cert_file())?,
-            fs::read_to_string(gen_certs_dir.join("cert.pem"))?,
-            fs::read_to_string(gen_certs_dir.join("key.pem"))?,
-        )?;
+        let ra_client = RaClient::new_mtls(format!("{kms_url}/prpc"), ra_cert, ra_key)?;
         let kms_client = kms_rpc::kms_client::KmsClient::new(ra_client);
         let response = kms_client
             .get_app_key(GetAppKeyRequest {
@@ -221,7 +216,16 @@ impl SetupFdeArgs {
             .context("Failed to get app key")?;
         let keys_json = serde_json::to_string(&response).context("Failed to serialize app keys")?;
         fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
-        extend_rtmr3("key-provider", b"{\"name\": \"kms\"}")?;
+        let provider_info_json = {
+            let key = SigningKey::from_slice(&response.app_ecdsa_key)
+                .context("Failed to parse app ecdsa key")?;
+            let provider_info = serde_json::json!({
+                "name": "kms",
+                "pubkey": hex::encode(key.verifying_key().to_sec1_bytes()),
+            });
+            serde_json::to_vec(&provider_info)?
+        };
+        extend_rtmr3("key-provider", &provider_info_json)?;
         Ok(())
     }
 

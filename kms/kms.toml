@@ -1,25 +1,32 @@
+[default]
 workers = 8
 max_blocking = 64
 ident = "Phala KMS"
 temp_dir = "/tmp"
 keep_alive = 10
 log_level = "info"
+
+[rpc]
 address = "0.0.0.0"
 port = 8043
 
-[tls]
+[rpc.tls]
 key = "/etc/kms/certs/key.pem"
 certs = "/etc/kms/certs/cert.pem"
 
-[tls.mutual]
+[rpc.tls.mutual]
 ca_certs = "/etc/kms/certs/ca.cert"
 mandatory = false
 
 [core]
 root_ca_cert = "/etc/kms/certs/ca.cert"
 root_ca_key = "/etc/kms/certs/ca.key"
+tmp_ca_cert = "/etc/kms/certs/tmp-ca.cert"
+tmp_ca_key = "/etc/kms/certs/tmp-ca.key"
+rpc_cert = "/etc/kms/certs/rpc.cert"
+rpc_key = "/etc/kms/certs/rpc.key"
+k256_key = "/etc/kms/certs/app-k256.key"
 subject_postfix = ".local"
-cert_log_dir = "/var/log/kms"
 allow_any_upgrade = false
 upgrade_registry_dir = "/var/run/kms/upgrade_registry"
 pccs_url = "https://api.trustedservices.intel.com/tdx/certification/v4"
@@ -30,3 +37,12 @@ mrtd = []
 rtmr0 = []
 rtmr1 = []
 rtmr2 = []
+
+[core.boot_authority]
+type = "dev"
+
+[core.onboard]
+enabled = true
+quote_enabled = true
+address = "0.0.0.0"
+port = 8080

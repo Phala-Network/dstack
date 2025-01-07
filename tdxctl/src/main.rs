@@ -290,10 +290,19 @@ fn cmd_hex(hex_args: HexCommand) -> Result<()> {
 }
 
 fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
+    let ca_cert = fs::read_to_string(args.ca_cert)?;
+    let ca_key = fs::read_to_string(args.ca_key)?;
+    let (cert, key) = gen_ra_cert(ca_cert, ca_key)?;
+    fs::write(&args.cert_path, cert).context("Failed to write certificate")?;
+    fs::write(&args.key_path, key).context("Failed to write private key")?;
+    Ok(())
+}
+
+fn gen_ra_cert(ca_cert_pem: String, ca_key_pem: String) -> Result<(String, String)> {
     use ra_tls::cert::CertRequest;
     use ra_tls::rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
 
-    let ca = CaCert::load(&args.ca_cert, &args.ca_key).context("Failed to read CA certificate")?;
+    let ca = CaCert::new(ca_cert_pem, ca_key_pem)?;
 
     let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let pubkey = key.public_key_der();
@@ -308,10 +317,7 @@ fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
         .key(&key)
         .build();
     let cert = ca.sign(req).context("Failed to sign certificate")?;
-
-    fs::write(&args.cert_path, cert.pem()).context("Failed to write certificate")?;
-    fs::write(&args.key_path, key.serialize_pem()).context("Failed to write private key")?;
-    Ok(())
+    Ok((cert.pem(), key.serialize_pem()))
 }
 
 fn cmd_gen_ca_cert(args: GenCaCertArgs) -> Result<()> {

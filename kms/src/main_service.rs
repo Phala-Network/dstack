@@ -5,7 +5,8 @@ use fs_err as fs;
 use k256::ecdsa::SigningKey;
 use kms_rpc::{
     kms_server::{KmsRpc, KmsServer},
-    AppId, AppKeyResponse, GetAppKeyRequest, GetMetaResponse, PublicKeyResponse,
+    AppId, AppKeyResponse, GetAppKeyRequest, GetMetaResponse, GetTempCaCertResponse,
+    KmsKeyResponse, KmsKeys, PublicKeyResponse,
 };
 use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{
@@ -35,22 +36,29 @@ impl std::ops::Deref for KmsState {
 pub struct KmsStateInner {
     config: KmsConfig,
     root_ca: CaCert,
-    ecdsa_root_key: SigningKey,
+    k256_key: SigningKey,
+    temp_ca_cert: String,
+    temp_ca_key: String,
 }
 
 impl KmsState {
     pub fn new(config: KmsConfig) -> Result<Self> {
         let root_ca = CaCert::load(&config.root_ca_cert, &config.root_ca_key)
             .context("Failed to load root CA certificate")?;
-        let key_bytes =
-            fs::read(&config.ecdsa_root_key).context("Failed to read ECDSA root key")?;
-        let ecdsa_root_key =
+        let key_bytes = fs::read(&config.k256_key).context("Failed to read ECDSA root key")?;
+        let k256_key =
             SigningKey::from_slice(&key_bytes).context("Failed to load ECDSA root key")?;
+        let temp_ca_key =
+            fs::read_to_string(&config.tmp_ca_key).context("Faeild to read temp ca key")?;
+        let temp_ca_cert =
+            fs::read_to_string(&config.tmp_ca_cert).context("Faeild to read temp ca cert")?;
         Ok(Self {
             inner: Arc::new(KmsStateInner {
                 config,
                 root_ca,
-                ecdsa_root_key,
+                k256_key: k256_key,
+                temp_ca_cert,
+                temp_ca_key,
             }),
         })
     }
@@ -69,7 +77,11 @@ impl RpcHandler {
         Ok(attestation)
     }
 
-    async fn ensure_app_allowed(&self) -> Result<BootInfo> {
+    async fn ensure_kms_allowed(&self) -> Result<BootInfo> {
+        self.ensure_app_allowed(true).await
+    }
+
+    async fn ensure_app_allowed(&self, is_kms: bool) -> Result<BootInfo> {
         let att = self.ensure_attested()?;
         let report = att.verified_report.as_ref().context("No verified report")?;
         let report = report
@@ -83,7 +95,8 @@ impl RpcHandler {
             rtmr1: report.rt_mr1.to_vec(),
             rtmr2: report.rt_mr2.to_vec(),
             rtmr3: report.rt_mr3.to_vec(),
-            rootfs_hash: app_info.rootfs_hash,
+            mr_enclave: app_info.mr_enclave.to_vec(),
+            mr_image: app_info.mr_image.to_vec(),
             app_id: app_info.app_id,
             compose_hash: app_info.compose_hash,
             instance_id: app_info.instance_id,
@@ -95,7 +108,7 @@ impl RpcHandler {
             .state
             .config
             .boot_authority
-            .is_allowed(&boot_info)
+            .is_app_allowed(&boot_info, is_kms)
             .await?;
         if !response.is_allowed {
             bail!("Boot denied: {}", response.reason);
@@ -107,7 +120,10 @@ impl RpcHandler {
 impl KmsRpc for RpcHandler {
     async fn get_app_key(self, _request: GetAppKeyRequest) -> Result<AppKeyResponse> {
         let attest = self.ensure_attested()?;
-        let boot_info = self.ensure_app_allowed().await.context("App not allowed")?;
+        let boot_info = self
+            .ensure_app_allowed(false)
+            .await
+            .context("App not allowed")?;
         let app_id = boot_info.app_id;
         let instance_id = boot_info.instance_id;
 
@@ -120,7 +136,6 @@ impl KmsRpc for RpcHandler {
         let context_data = vec![&app_id[..], &instance_id[..], b"app-disk-crypt-key"];
         let app_disk_key = kdf::derive_dh_secret(&self.state.root_ca.key, &context_data)
             .context("Failed to derive app disk key")?;
-        let todo = "TODO: Add ecdsa key";
         let env_crypt_key = {
             let secret =
                 kdf::derive_dh_secret(&self.state.root_ca.key, &[&app_id[..], b"env-encrypt-key"])
@@ -145,16 +160,16 @@ impl KmsRpc for RpcHandler {
             .context("Failed to sign certificate")?
             .pem();
 
-        let (app_ecdsa_key, app_ecdsa_signature) = {
-            let (app_ecdsa_key, signature, recid) = derive_k256_key(
-                &self.state.ecdsa_root_key,
+        let (k256_app_key, k256_signature) = {
+            let (k256_app_key, signature, recid) = derive_k256_key(
+                &self.state.k256_key,
                 &[&app_id[..], "app-key".as_bytes()],
             )
             .context("Failed to derive app ecdsa key")?;
 
             let mut signature = signature.to_vec();
             signature.push(recid.to_byte());
-            (app_ecdsa_key.to_bytes().to_vec(), signature)
+            (k256_app_key.to_bytes().to_vec(), signature)
         };
 
         Ok(AppKeyResponse {
@@ -162,8 +177,8 @@ impl KmsRpc for RpcHandler {
             env_crypt_key: env_crypt_key.to_vec(),
             app_key: app_key.serialize_pem(),
             certificate_chain: vec![cert, self.state.root_ca.cert.pem()],
-            app_ecdsa_key,
-            app_ecdsa_signature,
+            k256_app_key,
+            k256_signature,
         })
     }
 
@@ -184,6 +199,27 @@ impl KmsRpc for RpcHandler {
         Ok(GetMetaResponse {
             ca_cert: self.state.inner.root_ca.cert.pem(),
             allow_any_upgrade: self.state.inner.config.boot_authority.is_dev(),
+            k256_pubkey: self.state.inner.k256_key.to_bytes().to_vec(),
+        })
+    }
+
+    async fn get_kms_key(self) -> Result<KmsKeyResponse> {
+        if self.state.config.onboard.quote_enabled {
+            let _info = self.ensure_kms_allowed().await?;
+        }
+        Ok(KmsKeyResponse {
+            tmp_ca_key: self.state.inner.temp_ca_key.clone(),
+            keys: vec![KmsKeys {
+                ca_key: self.state.inner.root_ca.key.serialize_pem(),
+                k256_key: self.state.inner.k256_key.to_bytes().to_vec(),
+            }],
+        })
+    }
+
+    async fn get_temp_ca_cert(self) -> Result<GetTempCaCertResponse> {
+        Ok(GetTempCaCertResponse {
+            temp_ca_cert: self.state.inner.temp_ca_cert.clone(),
+            temp_ca_key: self.state.inner.temp_ca_key.clone(),
         })
     }
 }

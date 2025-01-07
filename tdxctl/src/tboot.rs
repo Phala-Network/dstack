@@ -91,7 +91,6 @@ impl<'a> Setup<'a> {
         let url = format!("{}/prpc", tproxy_url);
         let client = RaClient::new_mtls(
             url,
-            fs::read_to_string(self.resolve("/etc/tappd/ca.cert"))?,
             fs::read_to_string(self.resolve("/etc/tappd/tls.cert"))?,
             fs::read_to_string(self.resolve("/etc/tappd/tls.key"))?,
         )?;
