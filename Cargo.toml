@@ -33,6 +33,7 @@ members = [
     "guest-api",
     "load_config",
     "key-provider-client",
+    "dstack-types",
 ]
 resolver = "2"
 
@@ -56,6 +57,7 @@ guest-api = { path = "guest-api", default-features = false }
 http-client = { path = "http-client", default-features = false }
 load_config = { path = "load_config" }
 key-provider-client = { path = "key-provider-client" }
+dstack-types = { path = "dstack-types" }
 
 # Core dependencies
 anyhow = "1.0.94"

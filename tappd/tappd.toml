@@ -8,8 +8,7 @@ log_level = "debug"
 
 [default.core]
 app_name = ""
-cert_file = "/etc/tappd/app-ca.cert"
-key_file = "/etc/tappd/app-ca.key"
+keys_file = "/tapp/app-keys.json"
 public_logs = true
 public_sysinfo = true
 compose_file = "/tapp/app-compose.json"

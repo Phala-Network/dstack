@@ -37,6 +37,8 @@ toml.workspace = true
 key-provider-client.workspace = true
 dcap-qvl.workspace = true
 k256 = { workspace = true, features = ["ecdsa"] }
+dstack-types.workspace = true
+rand.workspace = true
 
 [dev-dependencies]
 rand.workspace = true

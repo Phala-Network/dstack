@@ -6,6 +6,7 @@ use ra_tls::kdf;
 
 pub(crate) fn derive_k256_key(
     parent_key: &SigningKey,
+    app_id: &[u8],
     context_data: &[&[u8]],
 ) -> Result<(SigningKey, Signature, RecoveryId)> {
     let derived_key_bytes: [u8; 32] =
@@ -17,7 +18,7 @@ pub(crate) fn derive_k256_key(
     let pubkey = derived_signing_key.verifying_key();
 
     let prefix = b"dstack-kms-issued:";
-    let msg = [prefix.as_slice(), &pubkey.to_sec1_bytes()].concat();
+    let msg = [prefix.as_slice(), app_id, &pubkey.to_sec1_bytes()].concat();
     let digest = Keccak256::new_with_prefix(msg);
 
     let (signature, recid) = parent_key.sign_digest_recoverable(digest)?;

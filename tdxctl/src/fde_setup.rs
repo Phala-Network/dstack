@@ -217,7 +217,7 @@ impl SetupFdeArgs {
         let keys_json = serde_json::to_string(&response).context("Failed to serialize app keys")?;
         fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
         let provider_info_json = {
-            let key = SigningKey::from_slice(&response.app_ecdsa_key)
+            let key = SigningKey::from_slice(&response.k256_key)
                 .context("Failed to parse app ecdsa key")?;
             let provider_info = serde_json::json!({
                 "name": "kms",

@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use dstack_types::AppKeys;
 use fs_err as fs;
+use k256::ecdsa::SigningKey;
 use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{
     attestation::{QuoteContentType, DEFAULT_HASH_ALGORITHM},
     cert::{CaCert, CertRequest},
-    kdf::derive_ecdsa_key_pair,
+    kdf::{derive_ecdsa_key, derive_ecdsa_key_pair},
 };
 use serde_json::json;
 use tappd_rpc::{
@@ -27,14 +29,29 @@ pub struct AppState {
 struct AppStateInner {
     config: Config,
     ca: CaCert,
+    k256_key: SigningKey,
+    k256_signature: Vec<u8>,
 }
 
 impl AppState {
     pub fn new(config: Config) -> Result<Self> {
-        let ca = CaCert::load(&config.cert_file, &config.key_file)
-            .context("Failed to load CA certificate")?;
+        let keys: AppKeys = serde_json::from_str(&fs::read_to_string(&config.keys_file)?)
+            .context("Failed to parse app keys")?;
+        let cert = keys
+            .certificate_chain
+            .first()
+            .cloned()
+            .context("Failed to get cert")?;
+        let ca = CaCert::new(cert, keys.app_key).context("Failed to load CA certificate")?;
+        let k256_key =
+            SigningKey::from_slice(&keys.k256_key).context("Failed to parse k256 key")?;
         Ok(Self {
-            inner: Arc::new(AppStateInner { config, ca }),
+            inner: Arc::new(AppStateInner {
+                config,
+                ca,
+                k256_key,
+                k256_signature: keys.k256_signature,
+            }),
         })
     }
 
@@ -63,9 +80,30 @@ impl TappdRpc for InternalRpcHandler {
             .ca
             .sign(req)
             .context("Failed to sign certificate")?;
+
+        let k256_app_key = &self.state.inner.k256_key;
+        let derived_k256_key =
+            derive_ecdsa_key(&k256_app_key.to_bytes(), &[request.path.as_bytes()], 32)
+                .context("Failed to derive k256 key")?;
+        let derived_k256_key =
+            SigningKey::from_slice(&derived_k256_key).context("Failed to parse k256 key")?;
+        let derived_k256_pubkey = derived_k256_key.verifying_key();
+        let msg_to_sign = format!(
+            "{}:{}",
+            request.path,
+            hex::encode(derived_k256_pubkey.to_sec1_bytes())
+        );
+        use sha3::{Digest, Keccak256};
+        let digest = Keccak256::new_with_prefix(msg_to_sign);
+        let (signature, recid) = derived_k256_key.sign_digest_recoverable(digest)?;
+        let mut signature = signature.to_vec();
+        signature.push(recid.to_byte());
+
         Ok(DeriveKeyResponse {
             key: derived_key.serialize_pem(),
             certificate_chain: vec![cert.pem(), self.state.inner.ca.cert.pem()],
+            k256_key: derived_k256_key.to_bytes().to_vec(),
+            k256_signature_chain: vec![signature, self.state.inner.k256_signature.clone()],
         })
     }
 

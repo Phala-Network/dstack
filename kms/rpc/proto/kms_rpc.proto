@@ -22,7 +22,7 @@ message AppKeyResponse {
   bytes disk_crypt_key = 2;
   bytes env_crypt_key = 3;
   repeated string certificate_chain = 4;
-  bytes k256_app_key = 5;
+  bytes k256_key = 5;
   bytes k256_signature = 6;
 }
 

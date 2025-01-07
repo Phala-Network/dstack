@@ -160,9 +160,10 @@ impl KmsRpc for RpcHandler {
             .context("Failed to sign certificate")?
             .pem();
 
-        let (k256_app_key, k256_signature) = {
+        let (k256_key, k256_signature) = {
             let (k256_app_key, signature, recid) = derive_k256_key(
                 &self.state.k256_key,
+                &app_id,
                 &[&app_id[..], "app-key".as_bytes()],
             )
             .context("Failed to derive app ecdsa key")?;
@@ -177,7 +178,7 @@ impl KmsRpc for RpcHandler {
             env_crypt_key: env_crypt_key.to_vec(),
             app_key: app_key.serialize_pem(),
             certificate_chain: vec![cert, self.state.root_ca.cert.pem()],
-            k256_app_key,
+            k256_key,
             k256_signature,
         })
     }

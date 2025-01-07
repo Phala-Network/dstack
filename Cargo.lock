@@ -1208,6 +1208,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "dstack-types"
+version = "0.3.3"
+dependencies = [
+ "serde",
+ "serde-human-bytes",
+]
+
+[[package]]
 name = "dunce"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4840,12 +4848,14 @@ dependencies = [
  "clap",
  "cmd_lib",
  "default-net",
+ "dstack-types",
  "figment",
  "fs-err",
  "git-version",
  "guest-api",
  "hex",
  "host-api",
+ "k256",
  "load_config",
  "ra-rpc",
  "ra-tls",
@@ -4858,6 +4868,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "sha3",
  "sysinfo",
  "tappd-rpc",
  "tdx-attest",
@@ -4916,6 +4927,7 @@ dependencies = [
  "cmd_lib",
  "curve25519-dalek",
  "dcap-qvl",
+ "dstack-types",
  "fs-err",
  "getrandom 0.2.15",
  "hex",

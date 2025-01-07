@@ -39,6 +39,10 @@ message DeriveKeyResponse {
   string key = 1;
   // Certificate chain
   repeated string certificate_chain = 2;
+  // Derived k256 key
+  bytes k256_key = 3;
+  // Derived k256 signature chain
+  repeated bytes k256_signature_chain = 4;
 }
 
 // The request to get a TDX quote
