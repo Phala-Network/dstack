@@ -107,6 +107,10 @@ message WorkerInfo {
   bool public_sysinfo = 7;
   // Device ID
   bytes device_id = 8;
+  // MR Enclave
+  bytes mr_enclave = 9;
+  // MR Image
+  bytes mr_image = 10;
 }
 
 // The response to a WorkerInfo request

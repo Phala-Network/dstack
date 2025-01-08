@@ -201,6 +201,8 @@ impl WorkerRpc for ExternalRpcHandler {
             app_id: app_info.app_id,
             instance_id: app_info.instance_id,
             device_id: app_info.device_id,
+            mr_enclave: app_info.mr_enclave.to_vec(),
+            mr_image: app_info.mr_image.to_vec(),
             app_cert: ca.pem_cert.clone(),
             tcb_info,
             public_logs: self.state.config().public_logs,

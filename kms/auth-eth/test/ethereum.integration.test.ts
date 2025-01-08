@@ -9,11 +9,12 @@ describe('Integration Tests', () => {
   let kmsAuth: KmsAuth;
   let owner: SignerWithAddress;
   let backend: EthereumBackend;
-  let kmsAppId: string;
+  let appId: string;
 
   beforeAll(async () => {
     owner = global.testContracts.owner;
     kmsAuth = global.testContracts.kmsAuth;
+    appId = global.testContracts.appId;
 
     // Initialize backend with the same provider
     const provider = owner.provider;
@@ -28,17 +29,13 @@ describe('Integration Tests', () => {
     let mockBootInfo: IAppAuth.AppBootInfoStruct;
 
     beforeEach(async () => {
-      // Get the current KMS app ID
-      const kmsAppIdHex = await kmsAuth.kmsAppId();
-      kmsAppId = kmsAppIdHex;
-
       mockBootInfo = {
-        appId: kmsAppId,
-        composeHash: ethers.encodeBytes32String('1234567890abcdef'),
+        appId,
         instanceId: ethers.Wallet.createRandom().address,
         deviceId: ethers.encodeBytes32String('123'),
-        mrEnclave: ethers.encodeBytes32String('1234'),
-        mrImage: ethers.encodeBytes32String('5678')
+        mrEnclave: ethers.encodeBytes32String('11'),
+        mrImage: ethers.encodeBytes32String('22'),
+        composeHash: ethers.encodeBytes32String('33'),
       };
     });
 
@@ -48,44 +45,54 @@ describe('Integration Tests', () => {
       expect(isAllowed).toBe(true);
     });
 
-    it('should return false when enclave is not registered', async () => {
+    it('should return true when enclave is not registered but image is registered', async () => {
       const badMrEnclave = ethers.encodeBytes32String('9999');
       const [isAllowed, reason] = await kmsAuth.isAppAllowed({
         ...mockBootInfo,
         mrEnclave: badMrEnclave
       });
 
-      expect(isAllowed).toBe(false);
-      expect(reason).toBe('Enclave not allowed');
+      expect(isAllowed).toBe(true);
+      expect(reason).toBe('');
     });
 
-    it('should return false when image is not registered', async () => {
+    it('should return true when image is not registered but enclave is registered', async () => {
       const badMrImage = ethers.encodeBytes32String('9999');
       const [isAllowed, reason] = await kmsAuth.isAppAllowed({
         ...mockBootInfo,
         mrImage: badMrImage
       });
 
-      expect(reason).toBe('Image hash not allowed');
+      expect(reason).toBe('');
+      expect(isAllowed).toBe(true);
+    });
+
+    it('should return false when enclave and image are not registered', async () => {
+      const badMrEnclave = ethers.encodeBytes32String('9999');
+      const badMrImage = ethers.encodeBytes32String('9999');
+      const [isAllowed, reason] = await kmsAuth.isAppAllowed({
+        ...mockBootInfo,
+        mrEnclave: badMrEnclave,
+        mrImage: badMrImage
+      });
+      expect(reason).toBe('Neither enclave nor image is allowed');
       expect(isAllowed).toBe(false);
     });
   });
 
   describe('EthereumBackend', () => {
+    let appId: string;
     let mockBootInfo: BootInfo;
 
     beforeEach(async () => {
-      // Get the current KMS app ID
-      const kmsAppIdHex = await kmsAuth.kmsAppId();
-      kmsAppId = kmsAppIdHex;
-
+      appId = global.testContracts.appId;
       mockBootInfo = {
-        appId: kmsAppId, 
-        composeHash: ethers.encodeBytes32String("1234567890abcdef"),
-        instanceId: ethers.Wallet.createRandom().address, 
+        appId,
+        composeHash: ethers.encodeBytes32String("33"),
+        instanceId: ethers.Wallet.createRandom().address,
         deviceId: ethers.encodeBytes32String("123"),
-        mrEnclave: ethers.encodeBytes32String("1234"), 
-        mrImage: ethers.encodeBytes32String("5678") 
+        mrEnclave: ethers.encodeBytes32String("11"),
+        mrImage: ethers.encodeBytes32String("22")
       };
     });
 
@@ -96,43 +103,44 @@ describe('Integration Tests', () => {
         expect(result.isAllowed).toBe(true);
       });
 
-      it('should return false when enclave is not allowed', async () => {
-        const badBootInfo = { 
-          ...mockBootInfo, 
+      it('should return true when enclave is not allowed but image is allowed', async () => {
+        const badBootInfo = {
+          ...mockBootInfo,
           mrEnclave: ethers.encodeBytes32String('9999')
         };
         const result = await backend.checkBoot(badBootInfo, false);
-        expect(result.reason).toBe('KMS check failed: Enclave not allowed');
-        expect(result.isAllowed).toBe(false);
+        expect(result.reason).toBe('');
+        expect(result.isAllowed).toBe(true);
       });
 
-      it('should return false when image is not allowed', async () => {
-        const badBootInfo = { 
-          ...mockBootInfo, 
+      it('should return true when image is not allowed but enclave is allowed', async () => {
+        const badBootInfo = {
+          ...mockBootInfo,
           mrImage: ethers.encodeBytes32String('9999')
         };
         const result = await backend.checkBoot(badBootInfo, false);
-        expect(result.reason).toBe('KMS check failed: Image hash not allowed');
+        expect(result.reason).toBe('');
+        expect(result.isAllowed).toBe(true);
+      });
+
+      it('should return false when enclave and image are not registered', async () => {
+        const badBootInfo = {
+          ...mockBootInfo,
+          mrEnclave: ethers.encodeBytes32String('9999'),
+          mrImage: ethers.encodeBytes32String('9999')
+        };
+        const result = await backend.checkBoot(badBootInfo, false);
+        expect(result.reason).toBe('Neither enclave nor image is allowed');
         expect(result.isAllowed).toBe(false);
       });
 
       it('should return false when app is not registered', async () => {
-        const badBootInfo = { 
-          ...mockBootInfo, 
+        const badBootInfo = {
+          ...mockBootInfo,
           appId: ethers.Wallet.createRandom().address
         };
         const result = await backend.checkBoot(badBootInfo, false);
-        expect(result.reason).toBe('KMS check failed: App not registered');
-        expect(result.isAllowed).toBe(false);
-      });
-
-      it('should validate KMS app ID when isKms is true', async () => {
-        const badBootInfo = { 
-          ...mockBootInfo, 
-          appId: ethers.Wallet.createRandom().address
-        };
-        const result = await backend.checkBoot(badBootInfo, true);
-        expect(result.reason).toBe('App ID does not match KMS app ID');
+        expect(result.reason).toBe('App not registered');
         expect(result.isAllowed).toBe(false);
       });
     });

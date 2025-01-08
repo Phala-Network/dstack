@@ -25,7 +25,7 @@ tmp_ca_cert = "/etc/kms/certs/tmp-ca.cert"
 tmp_ca_key = "/etc/kms/certs/tmp-ca.key"
 rpc_cert = "/etc/kms/certs/rpc.cert"
 rpc_key = "/etc/kms/certs/rpc.key"
-k256_key = "/etc/kms/certs/app-k256.key"
+k256_key = "/etc/kms/certs/root-k256.key"
 subject_postfix = ".local"
 pccs_url = "https://api.trustedservices.intel.com/tdx/certification/v4"
 

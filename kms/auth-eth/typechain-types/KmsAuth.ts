@@ -49,22 +49,43 @@ export declare namespace IAppAuth {
   };
 }
 
+export declare namespace KmsAuth {
+  export type KmsInfoStruct = {
+    k256Pubkey: BytesLike;
+    caPubkey: BytesLike;
+    quote: BytesLike;
+  };
+
+  export type KmsInfoStructOutput = [
+    k256Pubkey: string,
+    caPubkey: string,
+    quote: string
+  ] & { k256Pubkey: string; caPubkey: string; quote: string };
+}
+
 export interface KmsAuthInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "allowedEnclaves"
       | "allowedImages"
+      | "allowedKmsComposeHashes"
+      | "allowedKmsDeviceIds"
       | "appController"
       | "apps"
+      | "calculateAppId"
       | "deregisterEnclave"
       | "deregisterImage"
+      | "deregisterKmsComposeHash"
+      | "deregisterKmsDeviceId"
       | "isAppAllowed"
-      | "kmsAppId"
+      | "isKmsAllowed"
       | "kmsInfo"
       | "owner"
       | "registerApp"
       | "registerEnclave"
       | "registerImage"
+      | "registerKmsComposeHash"
+      | "registerKmsDeviceId"
       | "setKmsInfo"
       | "transferOwnership"
   ): FunctionFragment;
@@ -76,6 +97,10 @@ export interface KmsAuthInterface extends Interface {
       | "EnclaveRegistered"
       | "ImageDeregistered"
       | "ImageRegistered"
+      | "KmsComposeHashDeregistered"
+      | "KmsComposeHashRegistered"
+      | "KmsDeviceIdDeregistered"
+      | "KmsDeviceIdRegistered"
       | "KmsInfoSet"
   ): EventFragment;
 
@@ -88,10 +113,22 @@ export interface KmsAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "allowedKmsComposeHashes",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "allowedKmsDeviceIds",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "appController",
     values: [AddressLike]
   ): string;
   encodeFunctionData(functionFragment: "apps", values: [AddressLike]): string;
+  encodeFunctionData(
+    functionFragment: "calculateAppId",
+    values: [AddressLike, BytesLike]
+  ): string;
   encodeFunctionData(
     functionFragment: "deregisterEnclave",
     values: [BytesLike]
@@ -101,10 +138,21 @@ export interface KmsAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "deregisterKmsComposeHash",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "deregisterKmsDeviceId",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "isAppAllowed",
     values: [IAppAuth.AppBootInfoStruct]
   ): string;
-  encodeFunctionData(functionFragment: "kmsAppId", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "isKmsAllowed",
+    values: [IAppAuth.AppBootInfoStruct]
+  ): string;
   encodeFunctionData(functionFragment: "kmsInfo", values?: undefined): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
@@ -120,8 +168,16 @@ export interface KmsAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "registerKmsComposeHash",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "registerKmsDeviceId",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "setKmsInfo",
-    values: [AddressLike, BytesLike, string, string]
+    values: [KmsAuth.KmsInfoStruct]
   ): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
@@ -137,10 +193,22 @@ export interface KmsAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "allowedKmsComposeHashes",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "allowedKmsDeviceIds",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "appController",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "apps", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "calculateAppId",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "deregisterEnclave",
     data: BytesLike
@@ -150,10 +218,21 @@ export interface KmsAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "deregisterKmsComposeHash",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "deregisterKmsDeviceId",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "isAppAllowed",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "kmsAppId", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "isKmsAllowed",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "kmsInfo", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
@@ -166,6 +245,14 @@ export interface KmsAuthInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "registerImage",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "registerKmsComposeHash",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "registerKmsDeviceId",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "setKmsInfo", data: BytesLike): Result;
@@ -235,12 +322,59 @@ export namespace ImageRegisteredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace KmsInfoSetEvent {
-  export type InputTuple = [appId: AddressLike, publicKey: BytesLike];
-  export type OutputTuple = [appId: string, publicKey: string];
+export namespace KmsComposeHashDeregisteredEvent {
+  export type InputTuple = [composeHash: BytesLike];
+  export type OutputTuple = [composeHash: string];
   export interface OutputObject {
-    appId: string;
-    publicKey: string;
+    composeHash: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace KmsComposeHashRegisteredEvent {
+  export type InputTuple = [composeHash: BytesLike];
+  export type OutputTuple = [composeHash: string];
+  export interface OutputObject {
+    composeHash: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace KmsDeviceIdDeregisteredEvent {
+  export type InputTuple = [deviceId: BytesLike];
+  export type OutputTuple = [deviceId: string];
+  export interface OutputObject {
+    deviceId: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace KmsDeviceIdRegisteredEvent {
+  export type InputTuple = [deviceId: BytesLike];
+  export type OutputTuple = [deviceId: string];
+  export interface OutputObject {
+    deviceId: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace KmsInfoSetEvent {
+  export type InputTuple = [k256Pubkey: BytesLike];
+  export type OutputTuple = [k256Pubkey: string];
+  export interface OutputObject {
+    k256Pubkey: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -295,11 +429,29 @@ export interface KmsAuth extends BaseContract {
 
   allowedImages: TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
 
+  allowedKmsComposeHashes: TypedContractMethod<
+    [arg0: BytesLike],
+    [boolean],
+    "view"
+  >;
+
+  allowedKmsDeviceIds: TypedContractMethod<
+    [arg0: BytesLike],
+    [boolean],
+    "view"
+  >;
+
   appController: TypedContractMethod<[appId: AddressLike], [string], "view">;
 
   apps: TypedContractMethod<
     [arg0: AddressLike],
     [[boolean, string] & { isRegistered: boolean; controller: string }],
+    "view"
+  >;
+
+  calculateAppId: TypedContractMethod<
+    [sender: AddressLike, salt: BytesLike],
+    [string],
     "view"
   >;
 
@@ -315,22 +467,37 @@ export interface KmsAuth extends BaseContract {
     "nonpayable"
   >;
 
+  deregisterKmsComposeHash: TypedContractMethod<
+    [composeHash: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
+  deregisterKmsDeviceId: TypedContractMethod<
+    [deviceId: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
   isAppAllowed: TypedContractMethod<
     [bootInfo: IAppAuth.AppBootInfoStruct],
     [[boolean, string] & { isAllowed: boolean; reason: string }],
     "view"
   >;
 
-  kmsAppId: TypedContractMethod<[], [string], "view">;
+  isKmsAllowed: TypedContractMethod<
+    [bootInfo: IAppAuth.AppBootInfoStruct],
+    [[boolean, string] & { isAllowed: boolean; reason: string }],
+    "view"
+  >;
 
   kmsInfo: TypedContractMethod<
     [],
     [
-      [string, string, string, string] & {
-        appId: string;
-        publicKey: string;
-        rootCa: string;
-        raReport: string;
+      [string, string, string] & {
+        k256Pubkey: string;
+        caPubkey: string;
+        quote: string;
       }
     ],
     "view"
@@ -356,13 +523,20 @@ export interface KmsAuth extends BaseContract {
     "nonpayable"
   >;
 
+  registerKmsComposeHash: TypedContractMethod<
+    [composeHash: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
+  registerKmsDeviceId: TypedContractMethod<
+    [deviceId: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
   setKmsInfo: TypedContractMethod<
-    [
-      appId: AddressLike,
-      publicKey: BytesLike,
-      rootCa: string,
-      raReport: string
-    ],
+    [info: KmsAuth.KmsInfoStruct],
     [void],
     "nonpayable"
   >;
@@ -384,6 +558,12 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "allowedImages"
   ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
   getFunction(
+    nameOrSignature: "allowedKmsComposeHashes"
+  ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "allowedKmsDeviceIds"
+  ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
+  getFunction(
     nameOrSignature: "appController"
   ): TypedContractMethod<[appId: AddressLike], [string], "view">;
   getFunction(
@@ -394,11 +574,24 @@ export interface KmsAuth extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "calculateAppId"
+  ): TypedContractMethod<
+    [sender: AddressLike, salt: BytesLike],
+    [string],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "deregisterEnclave"
   ): TypedContractMethod<[mrEnclave: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "deregisterImage"
   ): TypedContractMethod<[mrImage: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "deregisterKmsComposeHash"
+  ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "deregisterKmsDeviceId"
+  ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "isAppAllowed"
   ): TypedContractMethod<
@@ -407,18 +600,21 @@ export interface KmsAuth extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "kmsAppId"
-  ): TypedContractMethod<[], [string], "view">;
+    nameOrSignature: "isKmsAllowed"
+  ): TypedContractMethod<
+    [bootInfo: IAppAuth.AppBootInfoStruct],
+    [[boolean, string] & { isAllowed: boolean; reason: string }],
+    "view"
+  >;
   getFunction(
     nameOrSignature: "kmsInfo"
   ): TypedContractMethod<
     [],
     [
-      [string, string, string, string] & {
-        appId: string;
-        publicKey: string;
-        rootCa: string;
-        raReport: string;
+      [string, string, string] & {
+        k256Pubkey: string;
+        caPubkey: string;
+        quote: string;
       }
     ],
     "view"
@@ -440,17 +636,14 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "registerImage"
   ): TypedContractMethod<[mrImage: BytesLike], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "registerKmsComposeHash"
+  ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "registerKmsDeviceId"
+  ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "setKmsInfo"
-  ): TypedContractMethod<
-    [
-      appId: AddressLike,
-      publicKey: BytesLike,
-      rootCa: string,
-      raReport: string
-    ],
-    [void],
-    "nonpayable"
-  >;
+  ): TypedContractMethod<[info: KmsAuth.KmsInfoStruct], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
@@ -489,6 +682,34 @@ export interface KmsAuth extends BaseContract {
     ImageRegisteredEvent.InputTuple,
     ImageRegisteredEvent.OutputTuple,
     ImageRegisteredEvent.OutputObject
+  >;
+  getEvent(
+    key: "KmsComposeHashDeregistered"
+  ): TypedContractEvent<
+    KmsComposeHashDeregisteredEvent.InputTuple,
+    KmsComposeHashDeregisteredEvent.OutputTuple,
+    KmsComposeHashDeregisteredEvent.OutputObject
+  >;
+  getEvent(
+    key: "KmsComposeHashRegistered"
+  ): TypedContractEvent<
+    KmsComposeHashRegisteredEvent.InputTuple,
+    KmsComposeHashRegisteredEvent.OutputTuple,
+    KmsComposeHashRegisteredEvent.OutputObject
+  >;
+  getEvent(
+    key: "KmsDeviceIdDeregistered"
+  ): TypedContractEvent<
+    KmsDeviceIdDeregisteredEvent.InputTuple,
+    KmsDeviceIdDeregisteredEvent.OutputTuple,
+    KmsDeviceIdDeregisteredEvent.OutputObject
+  >;
+  getEvent(
+    key: "KmsDeviceIdRegistered"
+  ): TypedContractEvent<
+    KmsDeviceIdRegisteredEvent.InputTuple,
+    KmsDeviceIdRegisteredEvent.OutputTuple,
+    KmsDeviceIdRegisteredEvent.OutputObject
   >;
   getEvent(
     key: "KmsInfoSet"
@@ -554,7 +775,51 @@ export interface KmsAuth extends BaseContract {
       ImageRegisteredEvent.OutputObject
     >;
 
-    "KmsInfoSet(address,bytes32)": TypedContractEvent<
+    "KmsComposeHashDeregistered(bytes32)": TypedContractEvent<
+      KmsComposeHashDeregisteredEvent.InputTuple,
+      KmsComposeHashDeregisteredEvent.OutputTuple,
+      KmsComposeHashDeregisteredEvent.OutputObject
+    >;
+    KmsComposeHashDeregistered: TypedContractEvent<
+      KmsComposeHashDeregisteredEvent.InputTuple,
+      KmsComposeHashDeregisteredEvent.OutputTuple,
+      KmsComposeHashDeregisteredEvent.OutputObject
+    >;
+
+    "KmsComposeHashRegistered(bytes32)": TypedContractEvent<
+      KmsComposeHashRegisteredEvent.InputTuple,
+      KmsComposeHashRegisteredEvent.OutputTuple,
+      KmsComposeHashRegisteredEvent.OutputObject
+    >;
+    KmsComposeHashRegistered: TypedContractEvent<
+      KmsComposeHashRegisteredEvent.InputTuple,
+      KmsComposeHashRegisteredEvent.OutputTuple,
+      KmsComposeHashRegisteredEvent.OutputObject
+    >;
+
+    "KmsDeviceIdDeregistered(bytes32)": TypedContractEvent<
+      KmsDeviceIdDeregisteredEvent.InputTuple,
+      KmsDeviceIdDeregisteredEvent.OutputTuple,
+      KmsDeviceIdDeregisteredEvent.OutputObject
+    >;
+    KmsDeviceIdDeregistered: TypedContractEvent<
+      KmsDeviceIdDeregisteredEvent.InputTuple,
+      KmsDeviceIdDeregisteredEvent.OutputTuple,
+      KmsDeviceIdDeregisteredEvent.OutputObject
+    >;
+
+    "KmsDeviceIdRegistered(bytes32)": TypedContractEvent<
+      KmsDeviceIdRegisteredEvent.InputTuple,
+      KmsDeviceIdRegisteredEvent.OutputTuple,
+      KmsDeviceIdRegisteredEvent.OutputObject
+    >;
+    KmsDeviceIdRegistered: TypedContractEvent<
+      KmsDeviceIdRegisteredEvent.InputTuple,
+      KmsDeviceIdRegisteredEvent.OutputTuple,
+      KmsDeviceIdRegisteredEvent.OutputObject
+    >;
+
+    "KmsInfoSet(bytes)": TypedContractEvent<
       KmsInfoSetEvent.InputTuple,
       KmsInfoSetEvent.OutputTuple,
       KmsInfoSetEvent.OutputObject

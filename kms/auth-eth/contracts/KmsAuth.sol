@@ -9,10 +9,9 @@ contract KmsAuth is IAppAuth {
 
     // Struct for KMS information
     struct KmsInfo {
-        address appId;
-        bytes32 publicKey;
-        string rootCa;
-        string raReport;
+        bytes k256Pubkey;
+        bytes caPubkey;
+        bytes quote;
     }
 
     // KMS information
@@ -33,13 +32,23 @@ contract KmsAuth is IAppAuth {
     // Mapping of allowed image measurements
     mapping(bytes32 => bool) public allowedImages;
 
+    // Mapping of allowed KMS compose hashes
+    mapping(bytes32 => bool) public allowedKmsComposeHashes;
+
+    // Mapping of allowed KMS device IDs
+    mapping(bytes32 => bool) public allowedKmsDeviceIds;
+
     // Events
     event AppRegistered(address appId);
-    event KmsInfoSet(address appId, bytes32 publicKey);
+    event KmsInfoSet(bytes k256Pubkey);
     event EnclaveRegistered(bytes32 mrEnclave);
     event EnclaveDeregistered(bytes32 mrEnclave);
     event ImageRegistered(bytes32 mrImage);
     event ImageDeregistered(bytes32 mrImage);
+    event KmsComposeHashRegistered(bytes32 composeHash);
+    event KmsComposeHashDeregistered(bytes32 composeHash);
+    event KmsDeviceIdRegistered(bytes32 deviceId);
+    event KmsDeviceIdDeregistered(bytes32 deviceId);
 
     // Constructor
     constructor() {
@@ -53,29 +62,24 @@ contract KmsAuth is IAppAuth {
     }
 
     // Function to set KMS information
-    function setKmsInfo(
-        address appId,
-        bytes32 publicKey,
-        string memory rootCa,
-        string memory raReport
-    ) external onlyOwner {
-        kmsInfo.appId = appId;
-        kmsInfo.publicKey = publicKey;
-        kmsInfo.rootCa = rootCa;
-        kmsInfo.raReport = raReport;
-        // allow the app id to run
-        apps[appId].isRegistered = true;
-        apps[appId].controller = address(this);
-        emit KmsInfoSet(appId, publicKey);
+    function setKmsInfo(KmsInfo memory info) external onlyOwner {
+        kmsInfo = info;
+        emit KmsInfoSet(info.k256Pubkey);
+    }
+
+    // Function to calculate the app ID
+    function calculateAppId(
+        address sender,
+        bytes32 salt
+    ) public pure returns (address appId) {
+        bytes32 fullHash = keccak256(abi.encodePacked(sender, salt));
+        return address(uint160(uint256(fullHash)));
     }
 
     // Function to register an app
     function registerApp(bytes32 salt, address controller) external {
-        bytes32 fullHash = keccak256(abi.encodePacked(msg.sender, salt));
-        address appId = address(uint160(uint256(fullHash)));
-
+        address appId = calculateAppId(msg.sender, salt);
         require(!apps[appId].isRegistered, "App already registered");
-
         apps[appId].isRegistered = true;
         apps[appId].controller = controller;
         emit AppRegistered(appId);
@@ -105,39 +109,82 @@ contract KmsAuth is IAppAuth {
         emit ImageDeregistered(mrImage);
     }
 
+    // Function to register a KMS compose hash
+    function registerKmsComposeHash(bytes32 composeHash) external onlyOwner {
+        allowedKmsComposeHashes[composeHash] = true;
+        emit KmsComposeHashRegistered(composeHash);
+    }
+
+    // Function to deregister a KMS compose hash
+    function deregisterKmsComposeHash(bytes32 composeHash) external onlyOwner {
+        allowedKmsComposeHashes[composeHash] = false;
+        emit KmsComposeHashDeregistered(composeHash);
+    }
+
+    // Function to register a KMS device ID
+    function registerKmsDeviceId(bytes32 deviceId) external onlyOwner {
+        allowedKmsDeviceIds[deviceId] = true;
+        emit KmsDeviceIdRegistered(deviceId);
+    }
+
+    // Function to deregister a KMS device ID
+    function deregisterKmsDeviceId(bytes32 deviceId) external onlyOwner {
+        allowedKmsDeviceIds[deviceId] = false;
+        emit KmsDeviceIdDeregistered(deviceId);
+    }
+
     // Function to get app controller
-    function appController(address appId) external view returns (address controller) {
+    function appController(
+        address appId
+    ) external view returns (address controller) {
         return apps[appId].controller;
     }
 
-    // Function to get KMS app ID
-    function kmsAppId() external view returns (address) {
-        return kmsInfo.appId;
+    // Function to check if KMS is allowed to boot
+    function isKmsAllowed(
+        AppBootInfo calldata bootInfo
+    ) external view returns (bool isAllowed, string memory reason) {
+        // Check if the enclave is allowed
+        if (!allowedEnclaves[bootInfo.mrEnclave]) {
+            return (false, "Enclave not allowed");
+        }
+
+        // Check if the KMS compose hash is allowed
+        if (!allowedKmsComposeHashes[bootInfo.composeHash]) {
+            return (false, "KMS compose hash not allowed");
+        }
+
+        // Check if the KMS device ID is allowed
+        if (!allowedKmsDeviceIds[bootInfo.deviceId]) {
+            return (false, "KMS is not allowed to boot on this device");
+        }
+
+        return (true, "");
     }
 
     // Function to check if an app is allowed to boot
-    function isAppAllowed(AppBootInfo calldata bootInfo) 
-        external 
-        view 
-        override 
-        returns (bool isAllowed, string memory reason) 
-    {
+    function isAppAllowed(
+        AppBootInfo calldata bootInfo
+    ) external view override returns (bool isAllowed, string memory reason) {
         // Check if app is registered
         if (!apps[bootInfo.appId].isRegistered) {
             return (false, "App not registered");
         }
 
-        // Check enclave measurement
-        if (!allowedEnclaves[bootInfo.mrEnclave]) {
-            return (false, "Enclave not allowed");
+        // Check enclave and image measurements
+        if (
+            !allowedEnclaves[bootInfo.mrEnclave] &&
+            !allowedImages[bootInfo.mrImage]
+        ) {
+            return (false, "Neither enclave nor image is allowed");
         }
 
-        // Check image measurement
-        if (!allowedImages[bootInfo.mrImage]) {
-            return (false, "Image hash not allowed");
+        // Ask the app controller if the app is allowed to boot
+        address controller = apps[bootInfo.appId].controller;
+        if (controller == address(0)) {
+            return (false, "App controller not set");
         }
-
-        return (true, "");
+        return IAppAuth(controller).isAppAllowed(bootInfo);
     }
 
     // Transfer ownership

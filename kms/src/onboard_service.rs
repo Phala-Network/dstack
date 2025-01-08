@@ -2,6 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use fs_err as fs;
+use http_client::prpc::PrpcClient;
 use k256::ecdsa::SigningKey;
 use kms_rpc::{
     kms_client::KmsClient,
@@ -14,7 +15,7 @@ use ra_tls::{
     cert::{CaCert, CertRequest},
     rcgen::{Certificate, KeyPair, PKCS_ECDSA_P256_SHA256},
 };
-use tappd_rpc::{RawQuoteArgs, TdxQuoteResponse};
+use tappd_rpc::{tappd_client::TappdClient, RawQuoteArgs, TdxQuoteResponse};
 
 use crate::config::KmsConfig;
 
@@ -49,15 +50,20 @@ impl OnboardRpc for OnboardHandler {
 
         let k256_pubkey = keys.k256_key.verifying_key().to_sec1_bytes().to_vec();
         let ca_pubkey = keys.ca_key.public_key_der();
-        let quote = if self.state.config.onboard.quote_enabled {
-            quote_keys(&hex::encode(&ca_pubkey), &hex::encode(&k256_pubkey)).await?
+        let app_id;
+        let quote;
+        if self.state.config.onboard.quote_enabled {
+            app_id = tappd_client()?.info().await?.app_id;
+            quote = quote_keys(&ca_pubkey, &k256_pubkey).await?
         } else {
-            vec![]
+            app_id = vec![];
+            quote = vec![];
         };
 
         keys.store(&self.state.config)?;
 
         Ok(BootstrapResponse {
+            app_id,
             ca_pubkey,
             k256_pubkey,
             quote,
@@ -200,15 +206,23 @@ fn fs_write(path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> Result<()> {
     Ok(())
 }
 
+fn tappd_client() -> Result<TappdClient<PrpcClient>> {
+    let http_client = PrpcClient::new("unix:/var/run/tappd.sock".into());
+    let tappd_client = TappdClient::new(http_client);
+    Ok(tappd_client)
+}
+
 async fn tapp_quote(report_data: Vec<u8>) -> Result<TdxQuoteResponse> {
-    let http_client = http_client::prpc::PrpcClient::new("unix:/var/run/tappd.sock".into());
-    let tappd_client = tappd_rpc::tappd_client::TappdClient::new(http_client);
-    let quote = tappd_client.raw_quote(RawQuoteArgs { report_data }).await?;
+    let quote = tappd_client()?
+        .raw_quote(RawQuoteArgs { report_data })
+        .await?;
     Ok(quote)
 }
 
-async fn quote_keys(p256_pubkey: &str, k256_pubkey: &str) -> Result<Vec<u8>> {
-    let content_to_quote = format!("dstack-kms-genereted-keys-v1:{p256_pubkey}\n{k256_pubkey}\n");
+async fn quote_keys(p256_pubkey: &[u8], k256_pubkey: &[u8]) -> Result<Vec<u8>> {
+    let p256_hex = hex::encode(p256_pubkey);
+    let k256_hex = hex::encode(k256_pubkey);
+    let content_to_quote = format!("dstack-kms-genereted-keys-v1:{p256_hex};{k256_hex};");
     let hash = keccak256(content_to_quote.as_bytes());
     let report_data = pad64(hash);
     let res = tapp_quote(report_data).await?;

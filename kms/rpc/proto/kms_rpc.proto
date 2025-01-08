@@ -66,9 +66,10 @@ message BootstrapRequest {
 }
 
 message BootstrapResponse {
-  bytes ca_pubkey = 1;
-  bytes k256_pubkey = 2;
-  bytes quote = 3;
+  bytes app_id = 1;
+  bytes ca_pubkey = 2;
+  bytes k256_pubkey = 3;
+  bytes quote = 4;
 }
 
 message OnboardRequest {
