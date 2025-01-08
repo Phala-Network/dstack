@@ -29,6 +29,10 @@ use serde_human_bytes as hex_bytes;
 
 mod env_process;
 
+// Workaround for clap mis-infer the arg type according the type name
+type Bool = bool;
+type Bytes = Vec<u8>;
+
 #[derive(clap::Parser)]
 /// Prepare full disk encryption
 pub struct SetupFdeArgs {
@@ -58,11 +62,10 @@ pub struct SetupFdeArgs {
     rootfs_integrity: bool,
     /// Enabled rootfs encryption
     #[arg(long, default_value_t = true)]
-    rootfs_encryption: std::primitive::bool,
-
+    rootfs_encryption: Bool,
     /// Rootfs hash
     #[arg(long, value_parser = parse_hex_bytes)]
-    rootfs_hash: Vec<u8>,
+    rootfs_hash: Bytes,
 }
 
 fn parse_hex_bytes(s: &str) -> Result<Vec<u8>> {

@@ -21,7 +21,7 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      sepolia: 'J5JH45HXJJHHXIQ8QDP466MG15Y6X6TQJD'
+      sepolia: process.env.ETHERSCAN_API_KEY || 'NO_API_KEY'
     }
   },
   paths: {
