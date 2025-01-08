@@ -191,7 +191,7 @@ impl WorkerRpc for ExternalRpcHandler {
             "rtmr3": hex::encode(app_info.rtmr3),
             "mr_enclave": hex::encode(app_info.mr_enclave),
             "mr_image": hex::encode(app_info.mr_image),
-            "compose_hash": hex::encode(app_info.compose_hash),
+            "compose_hash": hex::encode(&app_info.compose_hash),
             "event_log": event_log,
             "app_compose": app_compose,
         }))
@@ -203,6 +203,7 @@ impl WorkerRpc for ExternalRpcHandler {
             device_id: app_info.device_id,
             mr_enclave: app_info.mr_enclave.to_vec(),
             mr_image: app_info.mr_image.to_vec(),
+            compose_hash: app_info.compose_hash.clone(),
             app_cert: ca.pem_cert.clone(),
             tcb_info,
             public_logs: self.state.config().public_logs,

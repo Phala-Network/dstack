@@ -111,6 +111,8 @@ message WorkerInfo {
   bytes mr_enclave = 9;
   // MR Image
   bytes mr_image = 10;
+  // Compose hash
+  bytes compose_hash = 11;
 }
 
 // The response to a WorkerInfo request
