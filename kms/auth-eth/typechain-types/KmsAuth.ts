@@ -70,7 +70,6 @@ export interface KmsAuthInterface extends Interface {
       | "allowedImages"
       | "allowedKmsComposeHashes"
       | "allowedKmsDeviceIds"
-      | "appController"
       | "apps"
       | "calculateAppId"
       | "deregisterEnclave"
@@ -119,10 +118,6 @@ export interface KmsAuthInterface extends Interface {
   encodeFunctionData(
     functionFragment: "allowedKmsDeviceIds",
     values: [BytesLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "appController",
-    values: [AddressLike]
   ): string;
   encodeFunctionData(functionFragment: "apps", values: [AddressLike]): string;
   encodeFunctionData(
@@ -198,10 +193,6 @@ export interface KmsAuthInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "allowedKmsDeviceIds",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "appController",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "apps", data: BytesLike): Result;
@@ -441,8 +432,6 @@ export interface KmsAuth extends BaseContract {
     "view"
   >;
 
-  appController: TypedContractMethod<[appId: AddressLike], [string], "view">;
-
   apps: TypedContractMethod<
     [arg0: AddressLike],
     [[boolean, string] & { isRegistered: boolean; controller: string }],
@@ -563,9 +552,6 @@ export interface KmsAuth extends BaseContract {
   getFunction(
     nameOrSignature: "allowedKmsDeviceIds"
   ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
-  getFunction(
-    nameOrSignature: "appController"
-  ): TypedContractMethod<[appId: AddressLike], [string], "view">;
   getFunction(
     nameOrSignature: "apps"
   ): TypedContractMethod<

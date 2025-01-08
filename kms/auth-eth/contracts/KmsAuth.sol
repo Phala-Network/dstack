@@ -61,6 +61,12 @@ contract KmsAuth is IAppAuth {
         _;
     }
 
+    // Transfer ownership
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "Invalid new owner address");
+        owner = newOwner;
+    }
+
     // Function to set KMS information
     function setKmsInfo(KmsInfo memory info) external onlyOwner {
         kmsInfo = info;
@@ -133,13 +139,6 @@ contract KmsAuth is IAppAuth {
         emit KmsDeviceIdDeregistered(deviceId);
     }
 
-    // Function to get app controller
-    function appController(
-        address appId
-    ) external view returns (address controller) {
-        return apps[appId].controller;
-    }
-
     // Function to check if KMS is allowed to boot
     function isKmsAllowed(
         AppBootInfo calldata bootInfo
@@ -185,11 +184,5 @@ contract KmsAuth is IAppAuth {
             return (false, "App controller not set");
         }
         return IAppAuth(controller).isAppAllowed(bootInfo);
-    }
-
-    // Transfer ownership
-    function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "Invalid new owner address");
-        owner = newOwner;
     }
 }

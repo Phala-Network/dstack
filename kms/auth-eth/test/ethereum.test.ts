@@ -45,9 +45,9 @@ describe('EthereumBackend', () => {
 
     // Set up KMS info
     await kmsAuth.setKmsInfo({
-      k256Pubkey: ethers.encodeBytes32String("0x1234"),
-      caPubkey: ethers.encodeBytes32String("test-root-ca"),
-      quote: ethers.encodeBytes32String("test-ra-report")
+      k256Pubkey: "0x" + "1234".padEnd(66, '0'),
+      caPubkey: "0x" + "5678".padEnd(192, '0'),
+      quote: "0x" + "9012".padEnd(8192, '0')
     });
 
     // Register enclave and image
