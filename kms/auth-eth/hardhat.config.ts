@@ -3,6 +3,11 @@ import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-toolbox";
 import process from "process";
 
+let accounts: string[] = [];
+if (process.env.PRIVATE_KEY) {
+  accounts = [process.env.PRIVATE_KEY];
+}
+
 const config: HardhatUserConfig = {
   solidity: "0.8.19",
   networks: {
@@ -11,7 +16,7 @@ const config: HardhatUserConfig = {
     },
     sepolia: {
       url: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-      accounts: [process.env.PRIVATE_KEY || ""]
+      accounts,
     }
   },
   etherscan: {
