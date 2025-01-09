@@ -1,5 +1,5 @@
 use crate::config::AuthApi;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_human_bytes as hex_bytes;
 
@@ -36,6 +36,7 @@ pub(crate) struct BootInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct BootResponse {
     pub is_allowed: bool,
     pub reason: String,
@@ -57,6 +58,9 @@ impl AuthApi {
                 };
                 let url = url_join(&webhook.url, path);
                 let response = client.post(&url).json(&boot_info).send().await?;
+                if !response.status().is_success() {
+                    bail!("Failed to check boot auth: {}", response.text().await?);
+                }
                 Ok(response.json().await?)
             }
         }

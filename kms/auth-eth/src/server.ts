@@ -60,9 +60,9 @@ export async function build(): Promise<FastifyInstance> {
     try {
       return await server.ethereum.checkBoot(request.body, false);
     } catch (error) {
-      reply.code(500).send({
+      reply.code(200).send({
         isAllowed: false,
-        reason: `Error: ${error instanceof Error ? error.message : String(error)}`
+        reason: `${error instanceof Error ? error.message : String(error)}`
       });
     }
   });
@@ -81,9 +81,9 @@ export async function build(): Promise<FastifyInstance> {
     try {
       return await server.ethereum.checkBoot(request.body, true);
     } catch (error) {
-      reply.code(500).send({
+      reply.code(200).send({
         isAllowed: false,
-        reason: `Error: ${error instanceof Error ? error.message : String(error)}`
+        reason: `${error instanceof Error ? error.message : String(error)}`
       });
     }
   });

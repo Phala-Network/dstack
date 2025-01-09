@@ -203,7 +203,7 @@ impl WorkerRpc for ExternalRpcHandler {
             "mr_image": hex::encode(app_info.mr_image),
             "mr_key_provider": hex::encode(app_info.mr_key_provider),
             "compose_hash": hex::encode(&app_info.compose_hash),
-            "device_id": hex::encode(app_info.device_id),
+            "device_id": hex::encode(&app_info.device_id),
             "event_log": event_log,
             "app_compose": app_compose,
         }))

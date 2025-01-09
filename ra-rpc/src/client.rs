@@ -59,12 +59,9 @@ impl RequestClient for RaClient {
             .map_err(|err| Error::RpcError(format!("failed to send request: {:?}", err)))?;
         let status = response.status();
         if !status.is_success() {
-            let body = response.bytes().await.unwrap_or_default();
-            let error = ProtoError::decode(body.as_ref())
-                .unwrap_or_default()
-                .message;
+            let body = response.text().await.unwrap_or_default();
             return Err(Error::RpcError(format!(
-                "request failed with status={status}, error={error}",
+                "request failed with status={status}, error={body}",
             )));
         }
         let body = response
