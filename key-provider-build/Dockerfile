@@ -38,11 +38,13 @@ RUN apt-get update && \
     libsgx-dcap-default-qpl \
     psmisc
 
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+# Install Rust 1.80
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.80 -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN git clone -b patches https://github.com/kvinwang/gramine-sealing-key-provider
+RUN git clone https://github.com/MoeMahhouk/gramine-sealing-key-provider && \
+    cd gramine-sealing-key-provider && \
+    git checkout 6b4658d3d2158615b6c78879ad61612885372712
 
 WORKDIR /gramine-sealing-key-provider
 # Build gramine-sealing-key-provider binary
@@ -51,6 +53,8 @@ RUN make target/release/gramine-sealing-key-provider
 RUN gramine-sgx-gen-private-key
 # Build gramine manifest
 RUN make RUST_LOG=info
+
+RUN gramine-sgx-sigstruct-view --output-format json gramine-sealing-key-provider.sig
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
