@@ -188,7 +188,7 @@ impl KmsRpc for RpcHandler {
     async fn get_app_env_encrypt_pub_key(self, request: AppId) -> Result<PublicKeyResponse> {
         let secret = kdf::derive_dh_secret(
             &self.state.root_ca.key,
-            &[request.app_id.as_bytes(), "env-encrypt-key".as_bytes()],
+            &[&request.app_id[..], "env-encrypt-key".as_bytes()],
         )
         .context("Failed to derive env encrypt key")?;
         let secret = x25519_dalek::StaticSecret::from(secret);
