@@ -85,6 +85,28 @@
             color: #28a745;
             margin-top: 10px;
         }
+
+        .initial-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .initial-buttons button {
+            padding: 20px 40px;
+            font-size: 1.1em;
+        }
+
+        .fade-enter-active,
+        .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+
+        .fade-enter-from,
+        .fade-leave-to {
+            opacity: 0;
+        }
     </style>
 </head>
 
@@ -92,46 +114,58 @@
     <div id="app" class="container">
         <h1>DStack KMS Setup</h1>
 
-        <div class="setup-options">
-            <div class="option">
-                <h2>Bootstrap New KMS</h2>
-                <p>Initialize a new KMS instance as the first node.</p>
-                <form @submit.prevent="handleBootstrap">
-                    <div class="form-group">
-                        <label for="domain">Domain Name:</label>
-                        <input type="text" id="domain" v-model="bootstrapDomain" required
-                            placeholder="The domain name serving this KMS RPC">
-                    </div>
-                    <button type="submit">Bootstrap</button>
-                </form>
+        <div v-if="!setupFinished">
+            <div v-if="!selectedOption" class="initial-buttons">
+                <button @click="selectedOption = 'bootstrap'">Bootstrap</button>
+                <button @click="selectedOption = 'onboard'">Onboard</button>
             </div>
 
-            <div class="option">
-                <h2>Onboard from Existing KMS</h2>
-                <p>Join an existing KMS network by connecting to a peer node.</p>
-                <form @submit.prevent="handleOnboard">
-                    <div class="form-group">
-                        <label for="source_url">Source KMS URL:</label>
-                        <input type="url" id="source_url" v-model="sourceUrl" required
-                            placeholder="RPC URL of the existing KMS">
+            <Transition name="fade">
+                <div v-if="selectedOption" class="setup-options">
+                    <div v-if="selectedOption === 'bootstrap'" class="option">
+                        <h2>Bootstrap A New KMS Instance</h2>
+                        <form @submit.prevent="handleBootstrap">
+                            <div class="form-group">
+                                <label for="domain">Domain Name:</label>
+                                <input type="text" id="domain" v-model="bootstrapDomain" required
+                                    placeholder="The domain name serving this KMS RPC">
+                            </div>
+                            <button type="submit">Bootstrap</button>
+                        </form>
+                        <button @click="selectedOption = null; error = ''; success = ''"
+                            style="margin-top: 10px; background-color: #6c757d;">Back</button>
                     </div>
-                    <div class="form-group">
-                        <label for="domain">Domain Name:</label>
-                        <input type="text" id="domain" v-model="onboardDomain" required
-                            placeholder="The domain name serving this KMS RPC">
+
+                    <div v-if="selectedOption === 'onboard'" class="option">
+                        <h2>Onboard from an Existing KMS Instance</h2>
+                        <form @submit.prevent="handleOnboard">
+                            <div class="form-group">
+                                <label for="source_url">Source KMS URL:</label>
+                                <input type="url" id="source_url" v-model="sourceUrl" required
+                                    placeholder="RPC URL of the existing KMS">
+                            </div>
+                            <div class="form-group">
+                                <label for="domain">Domain Name:</label>
+                                <input type="text" id="domain" v-model="onboardDomain" required
+                                    placeholder="The domain name serving this KMS RPC">
+                            </div>
+                            <button type="submit">Onboard</button>
+                        </form>
+                        <button @click="selectedOption = null; error = ''; success = ''"
+                            style="margin-top: 10px; background-color: #6c757d;">Back</button>
                     </div>
-                    <button type="submit">Onboard</button>
-                </form>
-            </div>
+                </div>
+            </Transition>
         </div>
 
         <div v-if="error" class="error">{{ error }}</div>
         <div v-if="success" class="success">
             {{ success }}
-            <textarea v-if="result" readonly style="width: 100%; margin-top: 10px; height: 100px;">{{ result }}</textarea>
+            <textarea v-if="result" readonly
+                style="width: 100%; margin-top: 10px; height: 100px;">{{ result }}</textarea>
         </div>
 
-        <div v-if="success" style="margin-top: 20px; text-align: center;">
+        <div v-if="success && !setupFinished" style="margin-top: 20px; text-align: center;">
             <button @click="handleFinish">Finish Setup</button>
         </div>
     </div>
@@ -153,12 +187,14 @@
         createApp({
             data() {
                 return {
+                    selectedOption: null,
                     bootstrapDomain: '',
                     sourceUrl: '',
                     onboardDomain: '',
                     error: '',
                     success: '',
-                    result: ''
+                    result: '',
+                    setupFinished: false
                 }
             },
             methods: {
@@ -201,6 +237,7 @@
 
                         this.success = 'Setup completed. You can close this window.';
                         this.error = '';
+                        this.setupFinished = true;
                     } catch (err) {
                         this.error = err.message;
                         this.success = '';
