@@ -66,7 +66,7 @@ services:
       - kms-volume:/etc/kms
       - /var/run/tappd.sock:/var/run/tappd.sock
     ports:
-      - 8043:8043
+      - 8000:8000
     depends_on:
       - auth-api
 

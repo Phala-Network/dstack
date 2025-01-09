@@ -8,7 +8,7 @@ log_level = "info"
 
 [rpc]
 address = "0.0.0.0"
-port = 8043
+port = 8000
 
 [rpc.tls]
 key = "/etc/kms/certs/rpc.key"
@@ -39,4 +39,4 @@ url = "http://auth-api:8000"
 enabled = true
 quote_enabled = true
 address = "0.0.0.0"
-port = 8043
+port = 8000
