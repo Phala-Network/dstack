@@ -50,14 +50,24 @@ impl AuthApi {
             }),
             AuthApi::Webhook(webhook) => {
                 let client = reqwest::Client::new();
-                let url = if is_kms {
-                    format!("{}{}", webhook.url, "/kms")
+                let path = if is_kms {
+                    "bootAuth/kms"
                 } else {
-                    format!("{}{}", webhook.url, "/app")
+                    "bootAuth/app"
                 };
+                let url = url_join(&webhook.url, path);
                 let response = client.post(&url).json(&boot_info).send().await?;
                 Ok(response.json().await?)
             }
         }
     }
+}
+
+fn url_join(url: &str, path: &str) -> String {
+    let mut url = url.to_string();
+    if !url.ends_with('/') {
+        url.push('/');
+    }
+    url.push_str(path);
+    url
 }
