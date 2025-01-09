@@ -16,11 +16,9 @@ pub(crate) fn derive_k256_key(
             .context("Invalid derived key len")?;
     let derived_signing_key = SigningKey::from_bytes(&derived_key_bytes.into())?;
     let pubkey = derived_signing_key.verifying_key();
-
-    let prefix = b"dstack-kms-issued:";
-    let msg = [prefix.as_slice(), app_id, &pubkey.to_sec1_bytes()].concat();
-    let digest = Keccak256::new_with_prefix(msg);
-
+    let digest = Keccak256::new_with_prefix(
+        [b"dstack-kms-issued:", app_id, &pubkey.to_sec1_bytes()].concat(),
+    );
     let (signature, recid) = parent_key.sign_digest_recoverable(digest)?;
 
     Ok((derived_signing_key, signature, recid))

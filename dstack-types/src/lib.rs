@@ -100,3 +100,15 @@ pub struct AppKeys {
     #[serde(with = "hex_bytes")]
     pub k256_signature: Vec<u8>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct KeyProviderInfo {
+    pub name: String,
+    pub id: String,
+}
+
+impl KeyProviderInfo {
+    pub fn new(name: String, id: String) -> Self {
+        Self { name, id }
+    }
+}

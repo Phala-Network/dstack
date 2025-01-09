@@ -21,6 +21,8 @@ pub(crate) struct BootInfo {
     #[serde(with = "hex_bytes")]
     pub mr_image: Vec<u8>,
     #[serde(with = "hex_bytes")]
+    pub mr_key_provider: Vec<u8>,
+    #[serde(with = "hex_bytes")]
     pub app_id: Vec<u8>,
     #[serde(with = "hex_bytes")]
     pub compose_hash: Vec<u8>,
@@ -28,6 +30,8 @@ pub(crate) struct BootInfo {
     pub instance_id: Vec<u8>,
     #[serde(with = "hex_bytes")]
     pub device_id: Vec<u8>,
+    #[serde(with = "hex_bytes")]
+    pub key_provider_info: Vec<u8>,
     pub event_log: String,
 }
 

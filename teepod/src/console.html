@@ -1470,6 +1470,12 @@
                     return image?.version;
                 };
 
+                const verGE = (versionStr, otherVersionStr) => {
+                    const version = versionStr.split('.').map(Number);
+                    const otherVersion = otherVersionStr.split('.').map(Number);
+                    return version[0] > otherVersion[0] || (version[0] == otherVersion[0] && version[1] > otherVersion[1]) || (version[0] == otherVersion[0] && version[1] == otherVersion[1] && version[2] >= otherVersion[2]);
+                };
+
                 const imageVersionFeatures = (versionStr) => {
                     const features = {
                         progress: false,
@@ -1481,7 +1487,7 @@
                         return features;
                     }
                     const version = versionStr.split('.').map(Number);
-                    if (version[0] >= 0 && version[1] >= 3 && version[2] >= 3) {
+                    if (verGE(versionStr, '0.3.3')) {
                         features.progress = true;
                         features.graceful_shutdown = true;
                         features.network_info = true;

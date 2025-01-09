@@ -7,11 +7,25 @@ use serde::{de::DeserializeOwned, Serialize};
 
 pub struct PrpcClient {
     base_url: String,
+    path_append: String,
 }
 
 impl PrpcClient {
     pub fn new(base_url: String) -> Self {
-        Self { base_url }
+        Self {
+            base_url,
+            path_append: String::new(),
+        }
+    }
+
+    pub fn new_unix(socket_path: String, mut path: String) -> Self {
+        if !path.ends_with('/') {
+            path.push('/');
+        }
+        Self {
+            base_url: format!("unix:{socket_path}"),
+            path_append: path,
+        }
     }
 }
 
@@ -22,7 +36,7 @@ impl RequestClient for PrpcClient {
         R: Message + DeserializeOwned,
     {
         let body = serde_json::to_vec(&body).context("Failed to serialize body")?;
-        let path = format!("{path}?json");
+        let path = format!("{}{path}?json", self.path_append);
         let (status, body) = super::http_request("POST", &self.base_url, &path, &body).await?;
         if status != 200 {
             return Err(Error::RpcError(format!(

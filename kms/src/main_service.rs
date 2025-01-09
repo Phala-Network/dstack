@@ -97,10 +97,12 @@ impl RpcHandler {
             rtmr3: report.rt_mr3.to_vec(),
             mr_enclave: app_info.mr_enclave.to_vec(),
             mr_image: app_info.mr_image.to_vec(),
+            mr_key_provider: app_info.mr_key_provider.to_vec(),
             app_id: app_info.app_id,
             compose_hash: app_info.compose_hash,
             instance_id: app_info.instance_id,
             device_id: app_info.device_id,
+            key_provider_info: app_info.key_provider_info,
             event_log: String::from_utf8(att.raw_event_log.clone())
                 .context("Failed to serialize event log")?,
         };

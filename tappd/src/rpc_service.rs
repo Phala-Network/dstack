@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use dstack_types::AppKeys;
 use fs_err as fs;
 use k256::ecdsa::SigningKey;
-use ra_rpc::{CallContext, RpcCall};
+use ra_rpc::{Attestation, CallContext, RpcCall};
 use ra_tls::{
     attestation::{QuoteContentType, DEFAULT_HASH_ALGORITHM},
     cert::{CaCert, CertRequest},
@@ -175,7 +175,17 @@ impl ExternalRpcHandler {
 impl WorkerRpc for ExternalRpcHandler {
     async fn info(self) -> Result<WorkerInfo> {
         let ca = &self.state.inner.ca;
-        let Some(attestation) = ca.decode_attestation().ok().flatten() else {
+        let response = InternalRpcHandler {
+            state: self.state.clone(),
+        }
+        .raw_quote(RawQuoteArgs {
+            report_data: [0; 64].to_vec(),
+        })
+        .await;
+        let Ok(response) = response else {
+            return Ok(WorkerInfo::default());
+        };
+        let Ok(attestation) = Attestation::new(response.quote, response.event_log.into()) else {
             return Ok(WorkerInfo::default());
         };
         let app_info = attestation
@@ -191,7 +201,9 @@ impl WorkerRpc for ExternalRpcHandler {
             "rtmr3": hex::encode(app_info.rtmr3),
             "mr_enclave": hex::encode(app_info.mr_enclave),
             "mr_image": hex::encode(app_info.mr_image),
+            "mr_key_provider": hex::encode(app_info.mr_key_provider),
             "compose_hash": hex::encode(&app_info.compose_hash),
+            "device_id": hex::encode(app_info.device_id),
             "event_log": event_log,
             "app_compose": app_compose,
         }))
@@ -203,6 +215,8 @@ impl WorkerRpc for ExternalRpcHandler {
             device_id: app_info.device_id,
             mr_enclave: app_info.mr_enclave.to_vec(),
             mr_image: app_info.mr_image.to_vec(),
+            mr_key_provider: app_info.mr_key_provider.to_vec(),
+            key_provider_info: String::from_utf8(app_info.key_provider_info).unwrap_or_default(),
             compose_hash: app_info.compose_hash.clone(),
             app_cert: ca.pem_cert.clone(),
             tcb_info,

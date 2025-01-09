@@ -111,8 +111,12 @@ message WorkerInfo {
   bytes mr_enclave = 9;
   // MR Image
   bytes mr_image = 10;
+  // MR Key Provider
+  bytes mr_key_provider = 11;
+  // Key provider info
+  string key_provider_info = 12;
   // Compose hash
-  bytes compose_hash = 11;
+  bytes compose_hash = 13;
 }
 
 // The response to a WorkerInfo request

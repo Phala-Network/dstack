@@ -39,6 +39,8 @@ pub struct Dashboard {
     pub device_id: Vec<u8>,
     pub mr_enclave: Vec<u8>,
     pub mr_image: Vec<u8>,
+    pub mr_key_provider: Vec<u8>,
+    pub key_provider_info: String,
     pub compose_hash: Vec<u8>,
     pub app_cert: String,
     pub tcb_info: String,

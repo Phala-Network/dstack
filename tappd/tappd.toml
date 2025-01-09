@@ -8,7 +8,7 @@ log_level = "debug"
 
 [default.core]
 app_name = ""
-keys_file = "/tapp/app-keys.json"
+keys_file = "/tapp/appkeys.json"
 public_logs = true
 public_sysinfo = true
 compose_file = "/tapp/app-compose.json"

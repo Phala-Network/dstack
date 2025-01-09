@@ -207,7 +207,7 @@ fn fs_write(path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> Result<()> {
 }
 
 fn tappd_client() -> Result<TappdClient<PrpcClient>> {
-    let http_client = PrpcClient::new("unix:/var/run/tappd.sock".into());
+    let http_client = PrpcClient::new_unix("/var/run/tappd.sock".into(), "/prpc".into());
     let tappd_client = TappdClient::new(http_client);
     Ok(tappd_client)
 }
