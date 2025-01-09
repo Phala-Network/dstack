@@ -3,7 +3,6 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use prpc::{
     client::{Error, RequestClient},
-    server::ProtoError,
     Message,
 };
 use reqwest::{Client, Identity};

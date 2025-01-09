@@ -100,7 +100,7 @@
                     <div class="form-group">
                         <label for="domain">Domain Name:</label>
                         <input type="text" id="domain" v-model="bootstrapDomain" required
-                            placeholder="e.g., kms.example.com">
+                            placeholder="The domain name serving this KMS RPC">
                     </div>
                     <button type="submit">Bootstrap</button>
                 </form>
@@ -113,12 +113,12 @@
                     <div class="form-group">
                         <label for="source_url">Source KMS URL:</label>
                         <input type="url" id="source_url" v-model="sourceUrl" required
-                            placeholder="e.g., https://kms.example.com">
+                            placeholder="RPC URL of the existing KMS">
                     </div>
                     <div class="form-group">
                         <label for="domain">Domain Name:</label>
                         <input type="text" id="domain" v-model="onboardDomain" required
-                            placeholder="e.g., kms.example.com">
+                            placeholder="The domain name serving this KMS RPC">
                     </div>
                     <button type="submit">Onboard</button>
                 </form>

@@ -30,12 +30,12 @@ export class EthereumBackend {
   async checkBoot(bootInfo: BootInfo, isKms: boolean): Promise<BootResponse> {
     // Create boot info struct for contract call
     const bootInfoStruct = {
-      appId: bootInfo.appId,
-      composeHash: this.decodeHex(bootInfo.composeHash),
-      instanceId: bootInfo.instanceId,
-      deviceId: this.decodeHex(bootInfo.deviceId),
-      mrEnclave: this.decodeHex(bootInfo.mrEnclave),
-      mrImage: this.decodeHex(bootInfo.mrImage)
+      appId: this.decodeHex(bootInfo.appId, 20),
+      instanceId: this.decodeHex(bootInfo.instanceId, 20),
+      composeHash: this.decodeHex(bootInfo.composeHash, 32),
+      deviceId: this.decodeHex(bootInfo.deviceId, 32),
+      mrEnclave: this.decodeHex(bootInfo.mrEnclave, 32),
+      mrImage: this.decodeHex(bootInfo.mrImage, 32)
     };
 
     if (isKms) {
