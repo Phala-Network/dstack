@@ -9,6 +9,7 @@ export interface BootInfo {
 
 export interface BootResponse {
   isAllowed: boolean;
+  tproxyAppId: string;
   reason: string;
 }
 

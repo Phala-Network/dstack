@@ -4,6 +4,7 @@ use anyhow::{anyhow, Context, Result};
 use dcap_qvl::quote::Quote;
 use qvl::{quote::Report, verify::VerifiedReport};
 use sha2::{Digest as _, Sha384};
+use x509_parser::parse_x509_certificate;
 
 use crate::{oids, traits::CertExt};
 use cc_eventlog::TdxEventLog as EventLog;
@@ -80,9 +81,12 @@ impl QuoteContentType<'_> {
     }
 }
 
+/// Represents a verified attestation
+pub type VerifiedAttestation = Attestation<VerifiedReport>;
+
 /// Attestation data
 #[derive(Debug, Clone)]
-pub struct Attestation {
+pub struct Attestation<R = ()> {
     /// Quote
     pub quote: Vec<u8>,
     /// Raw event log
@@ -90,50 +94,10 @@ pub struct Attestation {
     /// Event log
     pub event_log: Vec<EventLog>,
     /// Verified report
-    pub verified_report: Option<VerifiedReport>,
+    pub report: R,
 }
 
-impl Attestation {
-    /// Create a new attestation
-    pub fn new(quote: Vec<u8>, raw_event_log: Vec<u8>) -> Result<Self> {
-        let event_log: Vec<EventLog> = if !raw_event_log.is_empty() {
-            serde_json::from_slice(&raw_event_log).context("invalid event log")?
-        } else {
-            vec![]
-        };
-        Ok(Self {
-            quote,
-            raw_event_log,
-            event_log,
-            verified_report: None,
-        })
-    }
-
-    /// Extract attestation data from a certificate
-    pub fn from_cert(cert: &impl CertExt) -> Result<Option<Self>> {
-        Self::from_ext_getter(|oid| cert.get_extension(oid))
-    }
-
-    /// From an extension getter
-    pub fn from_ext_getter(
-        get_ext: impl Fn(&[u64]) -> Result<Option<Vec<u8>>>,
-    ) -> Result<Option<Self>> {
-        macro_rules! read_ext_bytes {
-            ($oid:expr) => {
-                get_ext($oid)?
-                    .map(|v| yasna::parse_der(&v, |reader| reader.read_bytes()))
-                    .transpose()?
-            };
-        }
-
-        let quote = match read_ext_bytes!(oids::PHALA_RATLS_QUOTE) {
-            Some(v) => v,
-            None => return Ok(None),
-        };
-        let raw_event_log = read_ext_bytes!(oids::PHALA_RATLS_EVENT_LOG).unwrap_or_default();
-        Self::new(quote, raw_event_log).map(Some)
-    }
-
+impl<T> Attestation<T> {
     /// Decode the quote
     pub fn decode_quote(&self) -> Result<Quote> {
         Quote::parse(&self.quote)
@@ -151,11 +115,6 @@ impl Attestation {
     /// Replay event logs
     pub fn replay_event_logs(&self) -> Result<[[u8; 48]; 4]> {
         replay_event_logs(&self.event_log)
-    }
-
-    /// Return true if the quote is verified
-    pub fn is_verified(&self) -> bool {
-        self.verified_report.is_some()
     }
 
     fn find_event_payload(&self, event: &str) -> Result<Vec<u8>> {
@@ -245,6 +204,87 @@ impl Attestation {
         Ok(())
     }
 }
+
+impl Attestation {
+    /// Create a new attestation
+    pub fn new(quote: Vec<u8>, raw_event_log: Vec<u8>) -> Result<Self> {
+        let event_log: Vec<EventLog> = if !raw_event_log.is_empty() {
+            serde_json::from_slice(&raw_event_log).context("invalid event log")?
+        } else {
+            vec![]
+        };
+        Ok(Self {
+            quote,
+            raw_event_log,
+            event_log,
+            report: (),
+        })
+    }
+
+    /// Extract attestation data from a certificate
+    pub fn from_cert(cert: &impl CertExt) -> Result<Option<Self>> {
+        Self::from_ext_getter(|oid| cert.get_extension(oid))
+    }
+
+    /// From an extension getter
+    pub fn from_ext_getter(
+        get_ext: impl Fn(&[u64]) -> Result<Option<Vec<u8>>>,
+    ) -> Result<Option<Self>> {
+        macro_rules! read_ext_bytes {
+            ($oid:expr) => {
+                get_ext($oid)?
+                    .map(|v| yasna::parse_der(&v, |reader| reader.read_bytes()))
+                    .transpose()?
+            };
+        }
+
+        let quote = match read_ext_bytes!(oids::PHALA_RATLS_QUOTE) {
+            Some(v) => v,
+            None => return Ok(None),
+        };
+        let raw_event_log = read_ext_bytes!(oids::PHALA_RATLS_EVENT_LOG).unwrap_or_default();
+        Self::new(quote, raw_event_log).map(Some)
+    }
+
+    /// Extract attestation from x509 certificate
+    pub fn from_der(cert: &[u8]) -> Result<Option<Self>> {
+        let (_, cert) = parse_x509_certificate(cert).context("Failed to parse certificate")?;
+        Self::from_cert(&cert)
+    }
+
+    /// Extract attestation from x509 certificate in PEM format
+    pub fn from_pem(cert: &[u8]) -> Result<Option<Self>> {
+        let (_, pem) =
+            x509_parser::pem::parse_x509_pem(cert).context("Failed to parse certificate")?;
+        let cert = pem.parse_x509().context("Failed to parse certificate")?;
+        Self::from_cert(&cert)
+    }
+
+    /// Verify the quote
+    pub async fn verify(self, pccs_url: Option<&str>) -> Result<VerifiedAttestation> {
+        let quote = &self.quote;
+        let report = qvl::collateral::get_collateral_and_verify(quote, pccs_url)
+            .await
+            .context("Failed to get collateral")?;
+        if let Some(report) = report.report.as_td10() {
+            // Replay the event logs
+            let rtmrs = self
+                .replay_event_logs()
+                .context("Failed to replay event logs")?;
+            if rtmrs != [report.rt_mr0, report.rt_mr1, report.rt_mr2, report.rt_mr3] {
+                anyhow::bail!("RTMR mismatch");
+            }
+        }
+        Ok(VerifiedAttestation {
+            quote: self.quote,
+            raw_event_log: self.raw_event_log,
+            event_log: self.event_log,
+            report,
+        })
+    }
+}
+
+impl Attestation<VerifiedReport> {}
 
 /// Information about the app extracted from event log
 pub struct AppInfo {

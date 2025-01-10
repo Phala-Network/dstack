@@ -24,6 +24,7 @@ message AppKeyResponse {
   repeated string certificate_chain = 4;
   bytes k256_key = 5;
   bytes k256_signature = 6;
+  string tproxy_app_id = 7;
 }
 
 message GetMetaResponse {

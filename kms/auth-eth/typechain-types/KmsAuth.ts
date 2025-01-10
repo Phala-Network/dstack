@@ -86,6 +86,8 @@ export interface KmsAuthInterface extends Interface {
       | "registerKmsComposeHash"
       | "registerKmsDeviceId"
       | "setKmsInfo"
+      | "setTProxyAppId"
+      | "tproxyAppId"
       | "transferOwnership"
   ): FunctionFragment;
 
@@ -101,6 +103,8 @@ export interface KmsAuthInterface extends Interface {
       | "KmsDeviceIdDeregistered"
       | "KmsDeviceIdRegistered"
       | "KmsInfoSet"
+      | "OwnershipTransferred"
+      | "TProxyAppIdSet"
   ): EventFragment;
 
   encodeFunctionData(
@@ -175,6 +179,14 @@ export interface KmsAuthInterface extends Interface {
     values: [KmsAuth.KmsInfoStruct]
   ): string;
   encodeFunctionData(
+    functionFragment: "setTProxyAppId",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "tproxyAppId",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
@@ -247,6 +259,14 @@ export interface KmsAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "setKmsInfo", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setTProxyAppId",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "tproxyAppId",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "transferOwnership",
     data: BytesLike
@@ -366,6 +386,31 @@ export namespace KmsInfoSetEvent {
   export type OutputTuple = [k256Pubkey: string];
   export interface OutputObject {
     k256Pubkey: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace OwnershipTransferredEvent {
+  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+  export type OutputTuple = [previousOwner: string, newOwner: string];
+  export interface OutputObject {
+    previousOwner: string;
+    newOwner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace TProxyAppIdSetEvent {
+  export type InputTuple = [tproxyAppId: AddressLike];
+  export type OutputTuple = [tproxyAppId: string];
+  export interface OutputObject {
+    tproxyAppId: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -530,6 +575,14 @@ export interface KmsAuth extends BaseContract {
     "nonpayable"
   >;
 
+  setTProxyAppId: TypedContractMethod<
+    [appId: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
+  tproxyAppId: TypedContractMethod<[], [string], "view">;
+
   transferOwnership: TypedContractMethod<
     [newOwner: AddressLike],
     [void],
@@ -631,6 +684,12 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "setKmsInfo"
   ): TypedContractMethod<[info: KmsAuth.KmsInfoStruct], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "setTProxyAppId"
+  ): TypedContractMethod<[appId: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "tproxyAppId"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
 
@@ -703,6 +762,20 @@ export interface KmsAuth extends BaseContract {
     KmsInfoSetEvent.InputTuple,
     KmsInfoSetEvent.OutputTuple,
     KmsInfoSetEvent.OutputObject
+  >;
+  getEvent(
+    key: "OwnershipTransferred"
+  ): TypedContractEvent<
+    OwnershipTransferredEvent.InputTuple,
+    OwnershipTransferredEvent.OutputTuple,
+    OwnershipTransferredEvent.OutputObject
+  >;
+  getEvent(
+    key: "TProxyAppIdSet"
+  ): TypedContractEvent<
+    TProxyAppIdSetEvent.InputTuple,
+    TProxyAppIdSetEvent.OutputTuple,
+    TProxyAppIdSetEvent.OutputObject
   >;
 
   filters: {
@@ -814,6 +887,28 @@ export interface KmsAuth extends BaseContract {
       KmsInfoSetEvent.InputTuple,
       KmsInfoSetEvent.OutputTuple,
       KmsInfoSetEvent.OutputObject
+    >;
+
+    "OwnershipTransferred(address,address)": TypedContractEvent<
+      OwnershipTransferredEvent.InputTuple,
+      OwnershipTransferredEvent.OutputTuple,
+      OwnershipTransferredEvent.OutputObject
+    >;
+    OwnershipTransferred: TypedContractEvent<
+      OwnershipTransferredEvent.InputTuple,
+      OwnershipTransferredEvent.OutputTuple,
+      OwnershipTransferredEvent.OutputObject
+    >;
+
+    "TProxyAppIdSet(address)": TypedContractEvent<
+      TProxyAppIdSetEvent.InputTuple,
+      TProxyAppIdSetEvent.OutputTuple,
+      TProxyAppIdSetEvent.OutputObject
+    >;
+    TProxyAppIdSet: TypedContractEvent<
+      TProxyAppIdSetEvent.InputTuple,
+      TProxyAppIdSetEvent.OutputTuple,
+      TProxyAppIdSetEvent.OutputObject
     >;
   };
 }

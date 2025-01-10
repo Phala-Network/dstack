@@ -30,10 +30,13 @@ subject_postfix = ".dstack"
 pccs_url = "https://api.trustedservices.intel.com/tdx/certification/v4"
 
 [core.auth_api]
-# "dev" for local testing
-# "webhook" for production
 type = "webhook"
+
+[core.auth_api.webhook]
 url = "http://auth-api:8000"
+
+[core.auth_api.dev]
+tproxy_app_id = "any"
 
 [core.onboard]
 enabled = true

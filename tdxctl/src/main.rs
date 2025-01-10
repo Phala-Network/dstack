@@ -395,11 +395,12 @@ fn make_app_keys(
 
     Ok(AppKeys {
         app_key: app_key.serialize_pem(),
-        disk_crypt_key: sha256(&disk_key.serialize_der()),
+        disk_crypt_key: sha256(&disk_key.serialize_der()).to_vec(),
         certificate_chain: vec![cert.pem()],
         env_crypt_key: vec![],
         k256_key: k256_key.to_bytes().to_vec(),
         k256_signature: vec![],
+        tproxy_app_id: "".to_string(),
     })
 }
 
@@ -409,11 +410,11 @@ async fn cmd_notify_host(args: HostNotifyArgs) -> Result<()> {
     Ok(())
 }
 
-fn sha256(data: &[u8]) -> String {
+fn sha256(data: &[u8]) -> [u8; 32] {
     use sha2::Digest;
     let mut sha256 = sha2::Sha256::new();
     sha256.update(data);
-    hex::encode(sha256.finalize())
+    sha256.finalize().into()
 }
 
 #[tokio::main]

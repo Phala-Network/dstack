@@ -39,20 +39,25 @@ impl KmsConfig {
 #[serde(tag = "type")]
 pub(crate) enum AuthApi {
     #[serde(rename = "dev")]
-    Dev,
+    Dev { dev: Dev },
     #[serde(rename = "webhook")]
-    Webhook(Webhook),
+    Webhook { webhook: Webhook },
 }
 
 impl AuthApi {
     pub fn is_dev(&self) -> bool {
-        matches!(self, AuthApi::Dev)
+        matches!(self, AuthApi::Dev { .. })
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct Webhook {
     pub url: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct Dev {
+    pub tproxy_app_id: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

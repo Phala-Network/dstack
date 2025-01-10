@@ -978,9 +978,7 @@ checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 
 [[package]]
 name = "dcap-qvl"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "964e66fcbdc7a51362e4e8a11c42ae7e76c7403daf5bcfb9b8a7ac1ea43c7e8a"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "asn1_der",
@@ -5213,8 +5211,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-vsock"
-version = "0.6.0"
-source = "git+https://github.com/kvinwang/tokio-vsock?branch=shared-self-accept#dd9778742ceb98ee39d68ad527b8d80f3178c172"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "074885a713a0e1e8f2cc6855a004c7c882572d980d4f8262523dc2b094c96da8"
 dependencies = [
  "bytes",
  "futures",

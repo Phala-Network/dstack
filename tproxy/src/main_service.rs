@@ -9,7 +9,7 @@ use anyhow::{bail, Context, Result};
 use certbot::WorkDir;
 use cmd_lib::run_cmd as cmd;
 use fs_err as fs;
-use ra_rpc::{Attestation, CallContext, RpcCall};
+use ra_rpc::{CallContext, RpcCall, VerifiedAttestation};
 use rand::seq::IteratorRandom;
 use rinja::Template as _;
 use safe_write::safe_write;
@@ -338,7 +338,7 @@ impl ProxyState {
 }
 
 pub struct RpcHandler {
-    attestation: Option<Attestation>,
+    attestation: Option<VerifiedAttestation>,
     state: Proxy,
 }
 

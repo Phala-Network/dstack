@@ -62,6 +62,7 @@ export async function build(): Promise<FastifyInstance> {
     } catch (error) {
       reply.code(200).send({
         isAllowed: false,
+        tproxyAppId: '',
         reason: `${error instanceof Error ? error.message : String(error)}`
       });
     }
@@ -83,6 +84,7 @@ export async function build(): Promise<FastifyInstance> {
     } catch (error) {
       reply.code(200).send({
         isAllowed: false,
+        tproxyAppId: '',
         reason: `${error instanceof Error ? error.message : String(error)}`
       });
     }

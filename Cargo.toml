@@ -106,14 +106,14 @@ reqwest = { version = "0.12.9", default-features = false, features = ["json", "r
 rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
 rocket-apitoken = { git = "https://github.com/kvinwang/rocket-apitoken", branch = "dev" }
 tokio = { version = "1.42.0" }
-tokio-vsock = "0.6.0"
+tokio-vsock = "0.7.0"
 sysinfo = "0.33.0"
 default-net = "0.22.0"
 
 # Cryptography/Security
 aes-gcm = "0.10.3"
 curve25519-dalek = "4.1.3"
-dcap-qvl = "0.2.0"
+dcap-qvl = "0.2.1"
 elliptic-curve = { version = "0.13.8", features = ["pkcs8"] }
 getrandom = "0.2.15"
 hkdf = "0.12.4"
@@ -168,4 +168,4 @@ smallvec = "1.13.2"
 cmd_lib = "1.9.5"
 
 [patch.crates-io]
-tokio-vsock = { git = "https://github.com/kvinwang/tokio-vsock", branch = "shared-self-accept" }
+dcap-qvl = { path = "/home/kvin/codes/dcap-qvl" }

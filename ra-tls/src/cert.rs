@@ -10,9 +10,9 @@ use rcgen::{
     IsCa, KeyPair, SanType,
 };
 use x509_parser::der_parser::Oid;
+use x509_parser::prelude::X509Certificate;
 
 use crate::{
-    attestation::Attestation,
     oids::{PHALA_RATLS_EVENT_LOG, PHALA_RATLS_QUOTE},
     traits::CertExt,
 };
@@ -55,28 +55,6 @@ impl CaCert {
         let params = req.into_cert_params()?;
         let cert = params.signed_by(key, &self.cert, &self.key)?;
         Ok(cert)
-    }
-
-    /// Decode the attestation extension if present.
-    pub fn decode_attestation(&self) -> Result<Option<Attestation>> {
-        use x509_parser::pem::Pem;
-        let Some(pem) = Pem::iter_from_buffer(self.pem_cert.as_bytes())
-            .next()
-            .transpose()
-            .context("Invalid pem")?
-        else {
-            return Ok(None);
-        };
-        let cert = pem.parse_x509().context("Invalid x509 certificate")?;
-        let externsions = cert.tbs_certificate.extensions();
-        let attestation = Attestation::from_ext_getter(|oid| {
-            let oid = Oid::from(oid).or(Err(anyhow!("Invalid oid")))?;
-            let Some(ext) = externsions.iter().find(|ext| ext.oid == oid) else {
-                return Ok(None);
-            };
-            Ok(Some(ext.value.to_vec()))
-        })?;
-        Ok(attestation)
     }
 }
 
@@ -168,6 +146,17 @@ impl CertExt for Certificate {
             .iter()
             .find(|ext| ext.oid_components().collect::<Vec<_>>() == oid)
             .map(|ext| ext.content().to_vec());
+        Ok(found)
+    }
+}
+
+impl CertExt for X509Certificate<'_> {
+    fn get_extension(&self, oid: &[u64]) -> Result<Option<Vec<u8>>> {
+        let oid = Oid::from(oid).or(Err(anyhow!("Invalid oid")))?;
+        let found = self
+            .get_extension_unique(&oid)
+            .context("failt to decode der")?
+            .map(|ext| ext.value.to_vec());
         Ok(found)
     }
 }

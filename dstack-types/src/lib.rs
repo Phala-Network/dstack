@@ -91,7 +91,8 @@ pub struct LocalConfig {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppKeys {
     pub app_key: String,
-    pub disk_crypt_key: String,
+    #[serde(with = "hex_bytes")]
+    pub disk_crypt_key: Vec<u8>,
     #[serde(with = "hex_bytes", default)]
     pub env_crypt_key: Vec<u8>,
     pub certificate_chain: Vec<String>,
@@ -99,6 +100,7 @@ pub struct AppKeys {
     pub k256_key: Vec<u8>,
     #[serde(with = "hex_bytes")]
     pub k256_signature: Vec<u8>,
+    pub tproxy_app_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

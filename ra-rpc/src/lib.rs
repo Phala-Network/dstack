@@ -9,7 +9,7 @@ use prpc::{
 };
 use tracing::{error, info};
 
-pub use ra_tls::attestation::Attestation;
+pub use ra_tls::attestation::{Attestation, VerifiedAttestation};
 
 #[cfg(feature = "rocket")]
 pub mod rocket_helper;
@@ -29,7 +29,7 @@ pub enum RemoteEndpoint {
 #[derive(Clone, bon::Builder)]
 pub struct CallContext<'a, State> {
     pub state: &'a State,
-    pub attestation: Option<Attestation>,
+    pub attestation: Option<VerifiedAttestation>,
     pub remote_endpoint: Option<RemoteEndpoint>,
 }
 

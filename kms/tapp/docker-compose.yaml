@@ -34,7 +34,7 @@ services:
         RUN apk add --no-cache git
         RUN git clone https://github.com/Dstack-TEE/dstack.git && \
             cd dstack && \
-            git checkout 00829daa25228d987368ecd830506905a567124c
+            git checkout 4d9011d027af993e17a3fb8182a7249409b78a2e
         WORKDIR /app/dstack/kms/auth-eth
         RUN npm install && \
             npx hardhat typechain && \
@@ -43,7 +43,7 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=8000
-      - ETH_RPC_URL=http://helios:8545
+      - ETH_RPC_URL=${ETH_RPC_URL:-http://helios:8545}
       - KMS_CONTRACT_ADDR=0x515cd0dd984Adc75EE8625131FcC3d2D91f7F140
     depends_on:
       - helios
@@ -58,7 +58,7 @@ services:
         RUN apk add --no-cache git build-base openssl-dev protobuf protobuf-dev
         RUN git clone https://github.com/Dstack-TEE/dstack.git && \
             cd dstack && \
-            git checkout 00829daa25228d987368ecd830506905a567124c
+            git checkout 4d9011d027af993e17a3fb8182a7249409b78a2e
         RUN cd dstack/kms && cargo build --release -p kms
         WORKDIR /app/dstack
         CMD ["./target/release/kms"]

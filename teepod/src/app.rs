@@ -390,7 +390,7 @@ impl App {
             bail!("KMS is not configured");
         }
         let url = format!("{}/prpc", self.config.kms_url);
-        let prpc_client = RaClient::new(url, true);
+        let prpc_client = RaClient::new(url, true)?;
         Ok(KmsClient::new(prpc_client))
     }
 

@@ -204,7 +204,7 @@ impl SetupFdeArgs {
 
         let tmp_ca = {
             info!("Getting temp ca cert");
-            let client = RaClient::new(kms_url.clone(), true);
+            let client = RaClient::new(kms_url.clone(), true)?;
             let kms_client = kms_rpc::kms_client::KmsClient::new(client);
             kms_client
                 .get_temp_ca_cert()
@@ -221,21 +221,30 @@ impl SetupFdeArgs {
             })
             .await
             .context("Failed to get app key")?;
-        let keys_json = serde_json::to_string(&response).context("Failed to serialize app keys")?;
+        let keys = AppKeys {
+            app_key: response.app_key,
+            disk_crypt_key: response.disk_crypt_key,
+            env_crypt_key: response.env_crypt_key,
+            certificate_chain: response.certificate_chain,
+            k256_key: response.k256_key,
+            k256_signature: response.k256_signature,
+            tproxy_app_id: response.tproxy_app_id,
+        };
+        let keys_json = serde_json::to_string(&keys).context("Failed to serialize app keys")?;
         fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
         {
-            let pubkey = SigningKey::from_slice(&response.k256_key)
+            let pubkey = SigningKey::from_slice(&keys.k256_key)
                 .context("Failed to parse app ecdsa key")?
                 .verifying_key()
                 .to_sec1_bytes()
                 .to_vec();
-            let sig_len = response.k256_signature.len();
+            let sig_len = keys.k256_signature.len();
             if sig_len == 0 {
                 bail!("No k256 signature");
             }
-            let signature = Signature::from_slice(&response.k256_signature[..sig_len - 1])
+            let signature = Signature::from_slice(&keys.k256_signature[..sig_len - 1])
                 .context("Failed to parse app k256 signature")?;
-            let recid = RecoveryId::try_from(response.k256_signature[sig_len - 1])
+            let recid = RecoveryId::try_from(keys.k256_signature[sig_len - 1])
                 .context("Failed to parse app k256 recovery id")?;
             let msg_digest = Keccak256::new_with_prefix(
                 [b"dstack-kms-issued:", my_app_id, pubkey.as_slice()].concat(),
@@ -523,12 +532,13 @@ impl SetupFdeArgs {
         // Decrypt env file
         let decrypted_env =
             self.decrypt_env_vars(&app_keys.env_crypt_key, &host_shared.encrypted_env)?;
+        let disk_key = hex::encode(&app_keys.disk_crypt_key);
         if is_bootstrapped {
             host.notify_q("boot.progress", "mounting rootfs").await;
-            self.mount_rootfs(&app_keys.disk_crypt_key, host).await?;
+            self.mount_rootfs(&disk_key, host).await?;
         } else {
             host.notify_q("boot.progress", "initializing rootfs").await;
-            self.bootstrap_rootfs(&app_keys.disk_crypt_key, &instance_info, host)
+            self.bootstrap_rootfs(&disk_key, &instance_info, host)
                 .await?;
         }
         self.write_decrypted_env(&decrypted_env)?;

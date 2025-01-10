@@ -17,6 +17,9 @@ contract KmsAuth is IAppAuth {
     // KMS information
     KmsInfo public kmsInfo;
 
+    // TProxy App ID
+    address public tproxyAppId;
+
     // Struct to store App configuration
     struct AppConfig {
         bool isRegistered;
@@ -49,6 +52,11 @@ contract KmsAuth is IAppAuth {
     event KmsComposeHashDeregistered(bytes32 composeHash);
     event KmsDeviceIdRegistered(bytes32 deviceId);
     event KmsDeviceIdDeregistered(bytes32 deviceId);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
+    event TProxyAppIdSet(address tproxyAppId);
 
     // Constructor
     constructor() {
@@ -64,13 +72,21 @@ contract KmsAuth is IAppAuth {
     // Transfer ownership
     function transferOwnership(address newOwner) external onlyOwner {
         require(newOwner != address(0), "Invalid new owner address");
+        address oldOwner = owner;
         owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
     }
 
     // Function to set KMS information
     function setKmsInfo(KmsInfo memory info) external onlyOwner {
         kmsInfo = info;
         emit KmsInfoSet(info.k256Pubkey);
+    }
+
+    // Function to set trusted TProxy App ID
+    function setTProxyAppId(address appId) external onlyOwner {
+        tproxyAppId = appId;
+        emit TProxyAppIdSet(appId);
     }
 
     // Function to calculate the app ID

@@ -10,7 +10,7 @@ use kms_rpc::{
 };
 use ra_rpc::{CallContext, RpcCall};
 use ra_tls::{
-    attestation::Attestation,
+    attestation::VerifiedAttestation as Attestation,
     cert::{CaCert, CertRequest},
     kdf,
 };
@@ -56,7 +56,7 @@ impl KmsState {
             inner: Arc::new(KmsStateInner {
                 config,
                 root_ca,
-                k256_key: k256_key,
+                k256_key,
                 temp_ca_cert,
                 temp_ca_key,
             }),
@@ -69,6 +69,11 @@ pub struct RpcHandler {
     attestation: Option<Attestation>,
 }
 
+struct BootConfig {
+    boot_info: BootInfo,
+    tproxy_app_id: String,
+}
+
 impl RpcHandler {
     fn ensure_attested(&self) -> Result<&Attestation> {
         let Some(attestation) = &self.attestation else {
@@ -78,13 +83,13 @@ impl RpcHandler {
     }
 
     async fn ensure_kms_allowed(&self) -> Result<BootInfo> {
-        self.ensure_app_allowed(true).await
+        self.ensure_app_allowed(true).await.map(|b| b.boot_info)
     }
 
-    async fn ensure_app_allowed(&self, is_kms: bool) -> Result<BootInfo> {
+    async fn ensure_app_allowed(&self, is_kms: bool) -> Result<BootConfig> {
         let att = self.ensure_attested()?;
-        let report = att.verified_report.as_ref().context("No verified report")?;
-        let report = report
+        let report = att
+            .report
             .report
             .as_td10()
             .context("Failed to decode TD report")?;
@@ -115,14 +120,20 @@ impl RpcHandler {
         if !response.is_allowed {
             bail!("Boot denied: {}", response.reason);
         }
-        Ok(boot_info)
+        Ok(BootConfig {
+            boot_info,
+            tproxy_app_id: response.tproxy_app_id,
+        })
     }
 }
 
 impl KmsRpc for RpcHandler {
     async fn get_app_key(self, _request: GetAppKeyRequest) -> Result<AppKeyResponse> {
         let attest = self.ensure_attested()?;
-        let boot_info = self
+        let BootConfig {
+            boot_info,
+            tproxy_app_id,
+        } = self
             .ensure_app_allowed(false)
             .await
             .context("App not allowed")?;
@@ -182,6 +193,7 @@ impl KmsRpc for RpcHandler {
             certificate_chain: vec![cert, self.state.root_ca.cert.pem()],
             k256_key,
             k256_signature,
+            tproxy_app_id,
         })
     }
 

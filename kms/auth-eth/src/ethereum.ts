@@ -37,11 +37,17 @@ export class EthereumBackend {
       mrEnclave: this.decodeHex(bootInfo.mrEnclave, 32),
       mrImage: this.decodeHex(bootInfo.mrImage, 32)
     };
-
+    const tproxyAppId = await this.kmsAuth.tproxyAppId();
     if (isKms) {
-      return await this.kmsAuth.isKmsAllowed(bootInfoStruct);
+      return {
+        ... await this.kmsAuth.isKmsAllowed(bootInfoStruct),
+        tproxyAppId: tproxyAppId.toString()
+      }
     } else {
-      return await this.kmsAuth.isAppAllowed(bootInfoStruct);
+      return {
+        ... await this.kmsAuth.isAppAllowed(bootInfoStruct),
+        tproxyAppId: tproxyAppId.toString()
+      }
     }
   }
 }

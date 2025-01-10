@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use cmd_lib::run_fun as cmd;
 use fs_err as fs;
-use ra_rpc::client::RaClient;
+use ra_rpc::{client::RaClientConfig, VerifiedAttestation};
 use serde_json::Value;
 use std::{collections::BTreeMap, io::Write};
 use tproxy_rpc::{tproxy_client::TproxyClient, RegisterCvmRequest};
@@ -29,6 +29,28 @@ pub(crate) struct TbootArgs {
 impl TbootArgs {
     pub(crate) fn resolve(&self, path: &str) -> String {
         format!("{}/{}", self.prefix, path)
+    }
+}
+
+struct RaValidator {
+    remote_app_id: String,
+}
+
+impl RaValidator {
+    fn validate(&self, attestation: Option<VerifiedAttestation>) -> Result<()> {
+        if self.remote_app_id == "any" {
+            return Ok(());
+        }
+        let Some(attestation) = attestation else {
+            bail!("Missing attestation");
+        };
+        let app_id = attestation
+            .decode_app_id()
+            .context("Failed to decode app id")?;
+        if app_id != self.remote_app_id {
+            bail!("Invalid app id: {}", app_id);
+        }
+        Ok(())
     }
 }
 
@@ -76,6 +98,10 @@ impl<'a> Setup<'a> {
             info!("tproxy is not enabled");
             return Ok(());
         }
+        if self.app_keys.tproxy_app_id.is_empty() {
+            bail!("Missing allowed tproxy app id");
+        }
+
         info!("Setting up tproxy network");
         // Generate WireGuard keys
         let sk = cmd!(wg genkey)?;
@@ -89,11 +115,31 @@ impl<'a> Setup<'a> {
             .context("Missing tproxy_url")?;
 
         let url = format!("{}/prpc", tproxy_url);
-        let client = RaClient::new_mtls(
-            url,
-            fs::read_to_string(self.resolve("/etc/tappd/tls.cert"))?,
-            fs::read_to_string(self.resolve("/etc/tappd/tls.key"))?,
-        )?;
+        let ra_validator = RaValidator {
+            remote_app_id: self.app_keys.tproxy_app_id.clone(),
+        };
+        let client_cert = fs::read_to_string(self.resolve("/etc/tappd/tls.cert"))?;
+        let client_key = fs::read_to_string(self.resolve("/etc/tappd/tls.key"))?;
+        let ca_cert = self
+            .app_keys
+            .certificate_chain
+            .last()
+            .cloned()
+            .context("Missing CA cert")?;
+        let client = RaClientConfig::builder()
+            .remote_uri(url)
+            .maybe_pccs_url(self.local_config.pccs_url.clone())
+            .tls_client_cert(client_cert)
+            .tls_client_key(client_key)
+            .tls_ca_cert(ca_cert)
+            .tls_built_in_root_certs(false)
+            .tls_no_check(false)
+            .attestation_validator(Box::new(move |attestation| {
+                ra_validator.validate(attestation)
+            }))
+            .build()
+            .into_client()
+            .context("Failed to create RA client")?;
         let tproxy_client = TproxyClient::new(client);
         let response = tproxy_client
             .register_cvm(RegisterCvmRequest {
