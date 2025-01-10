@@ -189,19 +189,19 @@ impl Attestation {
         let device_id = sha256(&[&quote.header.user_data]).to_vec();
         let td_report = quote.report.as_td10().context("TDX report not found")?;
         let key_provider_info = self.find_event_payload("key-provider").unwrap_or_default();
-        let mr_enclave = sha256(&[
-            &td_report.mr_td,
-            &td_report.rt_mr0,
-            &td_report.rt_mr1,
-            &td_report.rt_mr2,
-            &key_provider_info,
-        ]);
-        let mr_image = sha256(&[&td_report.mr_td, &td_report.rt_mr1, &td_report.rt_mr2]);
         let mr_key_provider = if key_provider_info.is_empty() {
             [0u8; 32]
         } else {
             sha256(&[&key_provider_info])
         };
+        let mr_enclave = sha256(&[
+            &td_report.mr_td,
+            &td_report.rt_mr0,
+            &td_report.rt_mr1,
+            &td_report.rt_mr2,
+            &mr_key_provider,
+        ]);
+        let mr_image = sha256(&[&td_report.mr_td, &td_report.rt_mr1, &td_report.rt_mr2]);
         Ok(AppInfo {
             app_id: self.find_event_payload("app-id")?,
             compose_hash: self.find_event_payload("compose-hash")?,
