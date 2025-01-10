@@ -393,6 +393,28 @@ When building the dstack from scratch, you should change the CID configs in `bui
 
 You may encounter this problem when upgrading from an older version of dstack, because CID was introduced in `build-config.sh` in later versions. In such case, please follow the docs to add the missing entries in `build-config.sh` and rebuild dstack.
 
+### Error: Operation not permitted when building guest image
+
+When running `../build.sh guest`, you might encounter this error:
+
+```
+Traceback (most recent call last):
+  File "/meta-dstack/poky/bitbake/bin/bitbake-worker", line 278, in child
+    bb.utils.disable_network(uid, gid)
+  File "/meta-dstack/poky/bitbake/lib/bb/utils.py", line 1696, in disable_network
+    with open("/proc/self/uid_map", "w") as f:
+PermissionError: [Errno 1] Operation not permitted
+```
+
+This error occurs because Ubuntu 23.10 and later versions restrict unprivileged user namespaces by default. To fix this, run:
+
+```bash
+sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
+```
+
+Then try building again. For more information about this restriction, see the [Ubuntu discourse post](https://discourse.ubuntu.com/t/spec-unprivileged-user-namespace-restrictions-via-apparmor-in-ubuntu-23-10/37626).
+
+
 # Contributors
 
 Dstack is proudly built by open source and Pi-rateship contributors:
