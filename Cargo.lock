@@ -150,6 +150,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1fd03a028ef38ba2276dce7e33fcd6369c158a1bca17946c4b1b701891c1ff7"
 
 [[package]]
+name = "arraydeque"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
+
+[[package]]
 name = "arrayref"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1738,6 +1744,15 @@ checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 dependencies = [
  "ahash",
  "allocator-api2",
+]
+
+[[package]]
+name = "hashlink"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8094feaf31ff591f651a2664fb9cfd92bba7a60ce3197265e9482ebe753c8f7"
+dependencies = [
+ "hashbrown 0.14.5",
 ]
 
 [[package]]
@@ -4609,6 +4624,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_yaml2"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd7f24fd25093e571f588ca14dd4f92b6aead6e1b97862824d519101dbd2b8d5"
+dependencies = [
+ "serde",
+ "thiserror 1.0.65",
+ "yaml-rust2",
+]
+
+[[package]]
 name = "sha2"
 version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5018,6 +5044,7 @@ version = "0.3.4"
 dependencies = [
  "aes-gcm",
  "anyhow",
+ "bollard",
  "clap",
  "cmd_lib",
  "curve25519-dalek",
@@ -5036,6 +5063,7 @@ dependencies = [
  "serde",
  "serde-human-bytes",
  "serde_json",
+ "serde_yaml2",
  "sha2",
  "tdx-attest",
  "tokio",
@@ -6149,6 +6177,17 @@ dependencies = [
  "rusticata-macros",
  "thiserror 1.0.65",
  "time",
+]
+
+[[package]]
+name = "yaml-rust2"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8902160c4e6f2fb145dbe9d6760a75e3c9522d8bf796ed7047c85919ac7115f8"
+dependencies = [
+ "arraydeque",
+ "encoding_rs",
+ "hashlink",
 ]
 
 [[package]]

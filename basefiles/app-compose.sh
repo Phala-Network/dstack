@@ -14,7 +14,7 @@ case "$RUNNER" in
     if ! [ -f docker-compose.yaml ]; then
         jq -r '.docker_compose_file' app-compose.json >docker-compose.yaml
     fi
-    docker compose up --remove-orphans -d || true
+    tdxctl remove-orphans -f docker-compose.yaml || true
     chmod +x /usr/bin/containerd-shim-runc-v2
     systemctl restart docker
 
