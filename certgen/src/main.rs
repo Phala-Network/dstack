@@ -31,19 +31,19 @@ enum Commands {
         domain: String,
 
         /// CA key file
-        #[arg(short, long)]
+        #[arg(long)]
         ca_key: String,
 
         /// CA cert file
-        #[arg(short, long)]
+        #[arg(long)]
         ca_cert: String,
 
         /// Output cert file
-        #[arg(short, long)]
+        #[arg(long)]
         cert: String,
 
         /// Output key file
-        #[arg(short, long)]
+        #[arg(long)]
         key: String,
     },
 }
