@@ -1,7 +1,7 @@
 [default]
 workers = 8
 max_blocking = 64
-ident = "Phala KMS"
+ident = "DStack KMS"
 temp_dir = "/tmp"
 keep_alive = 10
 log_level = "info"
@@ -19,8 +19,8 @@ ca_certs = "/etc/kms/certs/tmp-ca.cert"
 mandatory = false
 
 [core]
-root_ca_cert = "/etc/kms/certs/ca.cert"
-root_ca_key = "/etc/kms/certs/ca.key"
+root_ca_cert = "/etc/kms/certs/root-ca.cert"
+root_ca_key = "/etc/kms/certs/root-ca.key"
 tmp_ca_cert = "/etc/kms/certs/tmp-ca.cert"
 tmp_ca_key = "/etc/kms/certs/tmp-ca.key"
 rpc_cert = "/etc/kms/certs/rpc.cert"
