@@ -11,6 +11,7 @@ use fs_err as fs;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
 use kms_rpc::GetAppKeyRequest;
 use ra_rpc::client::RaClient;
+use ra_tls::cert::generate_ra_cert;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest as _, Keccak256};
 use tracing::{info, warn};
@@ -18,7 +19,7 @@ use tracing::{info, warn};
 use crate::{
     cmd_gen_app_keys, cmd_show,
     crypto::dh_decrypt,
-    gen_app_keys_from_seed, gen_ra_cert,
+    gen_app_keys_from_seed,
     host_api::HostApi,
     utils::{
         deserialize_json_file, extend_rtmr3, sha256, sha256_file, AppCompose, AppKeys, HashingFile,
@@ -211,8 +212,8 @@ impl SetupFdeArgs {
                 .await
                 .context("Failed to get temp ca cert")?
         };
-        let (ra_cert, ra_key) = gen_ra_cert(tmp_ca.temp_ca_cert, tmp_ca.temp_ca_key)?;
-        let ra_client = RaClient::new_mtls(kms_url, ra_cert, ra_key)?;
+        let cert_pair = generate_ra_cert(tmp_ca.temp_ca_cert, tmp_ca.temp_ca_key)?;
+        let ra_client = RaClient::new_mtls(kms_url, cert_pair.cert_pem, cert_pair.key_pem)?;
         let kms_client = kms_rpc::kms_client::KmsClient::new(ra_client);
         let response = kms_client
             .get_app_key(GetAppKeyRequest {

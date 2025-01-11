@@ -8,7 +8,7 @@ use host_api::HostApi;
 use k256::schnorr::SigningKey;
 use ra_tls::{
     attestation::QuoteContentType,
-    cert::CaCert,
+    cert::generate_ra_cert,
     kdf::{derive_ecdsa_key, derive_ecdsa_key_pair_from_bytes},
     rcgen::KeyPair,
 };
@@ -295,32 +295,10 @@ fn cmd_hex(hex_args: HexCommand) -> Result<()> {
 fn cmd_gen_ra_cert(args: GenRaCertArgs) -> Result<()> {
     let ca_cert = fs::read_to_string(args.ca_cert)?;
     let ca_key = fs::read_to_string(args.ca_key)?;
-    let (cert, key) = gen_ra_cert(ca_cert, ca_key)?;
-    fs::write(&args.cert_path, cert).context("Failed to write certificate")?;
-    fs::write(&args.key_path, key).context("Failed to write private key")?;
+    let cert_pair = generate_ra_cert(ca_cert, ca_key)?;
+    fs::write(&args.cert_path, cert_pair.cert_pem).context("Failed to write certificate")?;
+    fs::write(&args.key_path, cert_pair.key_pem).context("Failed to write private key")?;
     Ok(())
-}
-
-fn gen_ra_cert(ca_cert_pem: String, ca_key_pem: String) -> Result<(String, String)> {
-    use ra_tls::cert::CertRequest;
-    use ra_tls::rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
-
-    let ca = CaCert::new(ca_cert_pem, ca_key_pem)?;
-
-    let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
-    let pubkey = key.public_key_der();
-    let report_data = QuoteContentType::RaTlsCert.to_report_data(&pubkey);
-    let (_, quote) = att::get_quote(&report_data, None).context("Failed to get quote")?;
-    let event_logs = att::eventlog::read_event_logs().context("Failed to read event logs")?;
-    let event_log = serde_json::to_vec(&event_logs).context("Failed to serialize event logs")?;
-    let req = CertRequest::builder()
-        .subject("RA-TLS TEMP Cert")
-        .quote(&quote)
-        .event_log(&event_log)
-        .key(&key)
-        .build();
-    let cert = ca.sign(req).context("Failed to sign certificate")?;
-    Ok((cert.pem(), key.serialize_pem()))
 }
 
 fn cmd_gen_ca_cert(args: GenCaCertArgs) -> Result<()> {

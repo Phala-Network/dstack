@@ -29,6 +29,7 @@ pub struct AppState {
 struct AppStateInner {
     config: Config,
     ca: CaCert,
+    cert_chain: Vec<String>,
     k256_key: SigningKey,
     k256_signature: Vec<u8>,
 }
@@ -49,6 +50,7 @@ impl AppState {
             inner: Arc::new(AppStateInner {
                 config,
                 ca,
+                cert_chain: keys.certificate_chain,
                 k256_key,
                 k256_signature: keys.k256_signature,
             }),
@@ -69,9 +71,28 @@ impl TappdRpc for InternalRpcHandler {
         let derived_key =
             derive_ecdsa_key_pair(&self.state.inner.ca.key, &[request.path.as_bytes()])
                 .context("Failed to derive key")?;
+        let quote;
+        let event_log;
+
+        if request.quoted {
+            let report_data =
+                QuoteContentType::RaTlsCert.to_report_data(&derived_key.public_key_der());
+            let (_, _quote) =
+                tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
+            let _event_log = read_event_logs().context("Failed to decode event log")?;
+            let _event_log =
+                serde_json::to_vec(&_event_log).context("Failed to serialize event log")?;
+            quote = Some(_quote);
+            event_log = Some(_event_log);
+        } else {
+            quote = None;
+            event_log = None;
+        }
         let req = CertRequest::builder()
             .subject(&request.subject)
             .alt_names(&request.alt_names)
+            .maybe_quote(quote.as_deref())
+            .maybe_event_log(event_log.as_deref())
             .key(&derived_key)
             .build();
         let cert = self
@@ -99,9 +120,12 @@ impl TappdRpc for InternalRpcHandler {
         let mut signature = signature.to_vec();
         signature.push(recid.to_byte());
 
+        let mut certificate_chain = self.state.inner.cert_chain.clone();
+        certificate_chain.insert(0, cert.pem());
+
         Ok(DeriveKeyResponse {
             key: derived_key.serialize_pem(),
-            certificate_chain: vec![cert.pem(), self.state.inner.ca.cert.pem()],
+            certificate_chain,
             k256_key: derived_k256_key.to_bytes().to_vec(),
             k256_signature_chain: vec![signature, self.state.inner.k256_signature.clone()],
         })

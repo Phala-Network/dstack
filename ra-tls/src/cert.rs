@@ -9,9 +9,12 @@ use rcgen::{
     BasicConstraints, Certificate, CertificateParams, CustomExtension, DistinguishedName, DnType,
     IsCa, KeyPair, SanType,
 };
+use tdx_attest::eventlog::read_event_logs;
+use tdx_attest::get_quote;
 use x509_parser::der_parser::Oid;
 use x509_parser::prelude::X509Certificate;
 
+use crate::attestation::QuoteContentType;
 use crate::{
     oids::{PHALA_RATLS_EVENT_LOG, PHALA_RATLS_QUOTE},
     traits::CertExt,
@@ -159,4 +162,37 @@ impl CertExt for X509Certificate<'_> {
             .map(|ext| ext.value.to_vec());
         Ok(found)
     }
+}
+
+/// A key and certificate pair.
+pub struct CertPair {
+    /// The certificate in PEM format.
+    pub cert_pem: String,
+    /// The key in PEM format.
+    pub key_pem: String,
+}
+
+/// Generate a certificate with RA-TLS quote and event log.
+pub fn generate_ra_cert(ca_cert_pem: String, ca_key_pem: String) -> Result<CertPair> {
+    use rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256};
+
+    let ca = CaCert::new(ca_cert_pem, ca_key_pem)?;
+
+    let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
+    let pubkey = key.public_key_der();
+    let report_data = QuoteContentType::RaTlsCert.to_report_data(&pubkey);
+    let (_, quote) = get_quote(&report_data, None).context("Failed to get quote")?;
+    let event_logs = read_event_logs().context("Failed to read event logs")?;
+    let event_log = serde_json::to_vec(&event_logs).context("Failed to serialize event logs")?;
+    let req = CertRequest::builder()
+        .subject("RA-TLS TEMP Cert")
+        .quote(&quote)
+        .event_log(&event_log)
+        .key(&key)
+        .build();
+    let cert = ca.sign(req).context("Failed to sign certificate")?;
+    Ok(CertPair {
+        cert_pem: cert.pem(),
+        key_pem: key.serialize_pem(),
+    })
 }

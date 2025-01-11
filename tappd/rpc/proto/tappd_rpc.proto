@@ -31,6 +31,8 @@ message DeriveKeyArgs {
   string subject = 2;
   // DNS alternative names for the certificate
   repeated string alt_names = 3;
+  // Includes quote in the certificate
+  bool quoted = 4;
 }
 
 // The response to a DeriveKey request
