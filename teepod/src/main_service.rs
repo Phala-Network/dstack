@@ -186,11 +186,8 @@ impl TeepodRpc for RpcHandler {
                     runner: String,
                     docker_compose_file: Option<String>,
                 }
-                let app_compose: AppCompose =
+                let _app_compose: AppCompose =
                     serde_json::from_str(&request.compose_file).context("Invalid compose file")?;
-                if app_compose.docker_compose_file.is_none() {
-                    bail!("Docker compose file cannot be empty");
-                }
             }
             let compose_file_path = self.compose_file_path(&request.id);
             if !compose_file_path.exists() {

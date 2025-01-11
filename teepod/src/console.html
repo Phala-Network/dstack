@@ -521,8 +521,14 @@
 
                     <div class="form-group">
                         <label for="composeFile">Docker Compose File</label>
-                        <textarea id="composeFile" v-model="vmForm.compose_file"
+                        <textarea id="composeFile" v-model="vmForm.dockerComposeFile"
                             placeholder="Paste your docker-compose.yml here" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="preLaunchScript">Pre-launch Script</label>
+                        <textarea id="preLaunchScript" v-model="vmForm.preLaunchScript"
+                            placeholder="Optional: Bash script to run before starting containers"></textarea>
                     </div>
 
                     <div class="form-group full-width" v-if="config.portMappingEnabled">
@@ -779,6 +785,9 @@
                                         <h4 style="margin: 0 0 12px 0;">Docker Compose File</h4>
                                         <pre
                                             style="background: #f1f1f1; padding: 12px; border-radius: 4px; overflow-x: auto;">{{ vm.appCompose?.docker_compose_file }}</pre>
+                                        <h4 style="margin: 0 0 12px 0;">Pre-launch Script</h4>
+                                        <pre
+                                            style="background: #f1f1f1; padding: 12px; border-radius: 4px; overflow-x: auto;">{{ vm.appCompose?.pre_launch_script }}</pre>
                                     </div>
                                 </div>
                             </td>
@@ -818,14 +827,25 @@
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="upgradeFile">Upload New Compose File</label>
-                    <input id="upgradeFile" type="file" @change="loadUpgradeFile" accept=".yml,.yaml,.txt">
+                <div style="display: flex; align-items: center; margin-top: 16px;">
+                    <input type="checkbox" v-model="upgradeDialog.updateCompose" style="width: 16px; height: 16px;">
+                    <span style="margin-left: 8px;">Update App Compose</span>
                 </div>
-                <div class="form-group">
-                    <label for="upgradeCompose">Docker Compose File</label>
-                    <textarea id="upgradeCompose" v-model="upgradeDialog.compose_file"
-                        placeholder="Paste your new docker-compose.yml here" required></textarea>
+                <div v-if="upgradeDialog.updateCompose">
+                    <div class="form-group">
+                        <label for="upgradeFile">Upload New Compose File</label>
+                        <input id="upgradeFile" type="file" @change="loadUpgradeFile" accept=".yml,.yaml,.txt">
+                    </div>
+                    <div class="form-group">
+                        <label for="upgradeCompose">Docker Compose File</label>
+                        <textarea id="upgradeCompose" v-model="upgradeDialog.dockerComposeFile"
+                            placeholder="Paste your new docker-compose.yml here" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="upgradePrelauncher">Pre-launch Script</label>
+                        <textarea id="upgradePrelauncher" v-model="upgradeDialog.preLaunchScript"
+                            placeholder="Optional: Bash script to run before starting containers"></textarea>
+                    </div>
                 </div>
                 <div style="display: flex; align-items: center; margin-top: 16px;">
                     <input type="checkbox" v-model="upgradeDialog.resetSecrets" style="width: 16px; height: 16px;">
@@ -931,7 +951,8 @@
                 const vmForm = ref({
                     name: '',
                     image: '',
-                    compose_file: '',
+                    dockerComposeFile: '',
+                    preLaunchScript: '',
                     vcpu: 1,
                     memory: 1024,
                     disk_size: 20,
@@ -951,7 +972,9 @@
                 const upgradeDialog = ref({
                     show: false,
                     vm: null,
-                    compose_file: '',
+                    updateCompose: false,
+                    dockerComposeFile: '',
+                    preLaunchScript: '',
                     encrypted_envs: [],
                     resetSecrets: false,
                     vcpu: 0,
@@ -1035,7 +1058,7 @@
                         "manifest_version": 2,
                         "name": vmForm.value.name,
                         "runner": "docker-compose",
-                        "docker_compose_file": vmForm.value.compose_file,
+                        "docker_compose_file": vmForm.value.dockerComposeFile,
                         "docker_config": vmForm.value.docker_config.enabled ? {
                             "username": vmForm.value.docker_config.username,
                             "token_key": vmForm.value.docker_config.token_key,
@@ -1045,6 +1068,11 @@
                         "public_logs": vmForm.value.public_logs,
                         "public_sysinfo": vmForm.value.public_sysinfo
                     };
+
+                    if (vmForm.value.preLaunchScript?.trim()) {
+                        app_compose.pre_launch_script = vmForm.value.preLaunchScript;
+                    }
+
                     const imgFeatures = imageVersionFeatures(imageVersion(vmForm.value.image));
                     if (imgFeatures.compose_version < 2) {
                         // Compatibility with old images
@@ -1058,7 +1086,7 @@
                     return JSON.stringify(app_compose);
                 };
 
-                const appIdOf = async (composeFile) => {
+                const calcAppId = async () => {
                     const app_compose = makeAppComposeFile();
                     const sha256Hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(app_compose));
                     return Array.from(new Uint8Array(sha256Hash)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
@@ -1101,7 +1129,7 @@
                 const makeEncryptedEnv = async (envs, kmsEnabled, appId) => {
                     if (!kmsEnabled || envs.length === 0) return '';
                     if (!appId) {
-                        appId = await appIdOf(vmForm.value.compose_file);
+                        appId = await calcAppId();
                     }
                     const response = await rpcCall('GetAppEnvEncryptPubKey', {
                         app_id: appId
@@ -1233,7 +1261,7 @@
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = (e) => {
-                            vmForm.value.compose_file = e.target.result;
+                            vmForm.value.dockerComposeFile = e.target.result;
                         };
                         reader.readAsText(file);
                     }
@@ -1253,7 +1281,9 @@
                     upgradeDialog.value = {
                         show: true,
                         vm: vm,
-                        compose_file: '',
+                        updateCompose: false,
+                        dockerComposeFile: vm.appCompose.docker_compose_file,
+                        preLaunchScript: vm.appCompose.pre_launch_script,
                         resetSecrets: false,
                         vcpu: vm.configuration?.vcpu,
                         memory: vm.configuration?.memory,
@@ -1268,7 +1298,7 @@
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = (e) => {
-                            upgradeDialog.value.compose_file = e.target.result;
+                            upgradeDialog.value.dockerComposeFile = e.target.result;
                         };
                         reader.readAsText(file);
                     }
@@ -1294,12 +1324,13 @@
                         const body = {
                             id: upgradeDialog.value.vm.id,
                         };
-                        if (upgradeDialog.value.compose_file) {
+                        if (upgradeDialog.value.updateCompose) {
                             const currentAppCompose = upgradeDialog.value.vm.appCompose;
                             const app_compose = {
                                 ...currentAppCompose,
-                                docker_compose_file: upgradeDialog.value.compose_file
+                                docker_compose_file: upgradeDialog.value.dockerComposeFile || currentAppCompose.docker_compose_file
                             };
+                            app_compose.pre_launch_script = upgradeDialog.value.preLaunchScript?.trim();
                             body.compose_file = JSON.stringify(app_compose);
                         }
 
