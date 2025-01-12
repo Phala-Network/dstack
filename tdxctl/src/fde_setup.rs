@@ -125,10 +125,6 @@ impl HostShareDir {
     fn instance_info_file(&self) -> PathBuf {
         self.base_dir.join(".instance_info")
     }
-
-    fn kms_ca_cert_file(&self) -> PathBuf {
-        self.base_dir.join("certs").join("ca.cert")
-    }
 }
 
 struct HostShared {
@@ -512,11 +508,6 @@ impl SetupFdeArgs {
         extend_rtmr3("app-id", &instance_info.app_id)?;
         extend_rtmr3("compose-hash", &compose_hash)?;
         extend_rtmr3("instance-id", &instance_info.instance_id)?;
-
-        if kms_enabled {
-            let ca_cert_hash = sha256_file(host_shared.dir.kms_ca_cert_file())?;
-            extend_rtmr3("ca-cert-hash", &ca_cert_hash)?;
-        }
         extend_rtmr3("boot-mr-done", &[])?;
         // Show the RTMR
         cmd_show()?;
