@@ -147,7 +147,7 @@ impl<'a> Setup<'a> {
             .tls_client_key(client_key.serialize_pem())
             .tls_ca_cert(ca_cert)
             .tls_built_in_root_certs(false)
-            .tls_no_check(false)
+            .tls_no_check(self.app_keys.tproxy_app_id == "any")
             .attestation_validator(Box::new(move |attestation| {
                 ra_validator.validate(attestation)
             }))

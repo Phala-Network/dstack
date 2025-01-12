@@ -1,9 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
-use config::Config;
+use config::{Config, TlsConfig};
+use fs_err as fs;
 use main_service::{Proxy, RpcHandler};
-use ra_rpc::rocket_helper::QuoteVerifier;
+use ra_rpc::{client::RaClient, rocket_helper::QuoteVerifier};
 use rocket::fairing::AdHoc;
+use tracing::info;
 
 mod config;
 mod main_service;
@@ -39,6 +41,39 @@ fn set_max_ulimit() -> Result<()> {
     Ok(())
 }
 
+async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> {
+    if !config.gen_certs {
+        return Ok(());
+    }
+    let kms_url = config.kms_url.clone();
+    if kms_url.is_empty() {
+        bail!("kms_url is required when gen_certs is true");
+    }
+    let kms_url = format!("{kms_url}/prpc");
+    info!("Getting CA cert from {kms_url}");
+    let client = RaClient::new(kms_url, true).context("Failed to create kms client")?;
+    let client = kms_rpc::kms_client::KmsClient::new(client);
+    let ca_cert = client.get_meta().await?.ca_cert;
+    let key = ra_tls::rcgen::KeyPair::generate().context("Failed to generate key")?;
+    let req = ra_tls::cert::CertRequest::builder()
+        .key(&key)
+        .subject("tproxy")
+        .usage_server_auth(true)
+        .build();
+    let cert = req.self_signed().context("Failed to self-sign cert")?;
+
+    write_cert(&tls_config.mutual.ca_certs, &ca_cert)?;
+    write_cert(&tls_config.certs, &cert.pem())?;
+    write_cert(&tls_config.key, &key.serialize_pem())?;
+    Ok(())
+}
+
+fn write_cert(path: &str, cert: &str) -> Result<()> {
+    info!("Writing cert to file: {path}");
+    safe_write::safe_write(path, cert)?;
+    Ok(())
+}
+
 #[rocket::main]
 async fn main() -> Result<()> {
     {
@@ -54,6 +89,11 @@ async fn main() -> Result<()> {
 
     let config = figment.focus("core").extract::<Config>()?;
     config::setup_wireguard(&config.wg)?;
+
+    let tls_config = figment.focus("tls").extract::<TlsConfig>()?;
+    maybe_gen_certs(&config, &tls_config)
+        .await
+        .context("Failed to generate certs")?;
 
     #[cfg(unix)]
     if config.set_ulimit {
