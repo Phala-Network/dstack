@@ -558,6 +558,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cert-client"
+version = "0.3.4"
+dependencies = [
+ "anyhow",
+ "dstack-types",
+ "kms-rpc",
+ "ra-rpc",
+ "ra-tls",
+ "serde_json",
+ "tdx-attest",
+]
+
+[[package]]
 name = "certbot"
 version = "0.3.4"
 dependencies = [
@@ -4848,6 +4861,7 @@ dependencies = [
  "anyhow",
  "base64",
  "bollard",
+ "cert-client",
  "chrono",
  "clap",
  "cmd_lib",
@@ -4860,7 +4874,6 @@ dependencies = [
  "hex",
  "host-api",
  "k256",
- "kms-rpc",
  "load_config",
  "ra-rpc",
  "ra-tls",
@@ -4929,6 +4942,7 @@ version = "0.3.4"
 dependencies = [
  "aes-gcm",
  "anyhow",
+ "cert-client",
  "clap",
  "cmd_lib",
  "curve25519-dalek",

@@ -34,6 +34,7 @@ members = [
     "load_config",
     "key-provider-client",
     "dstack-types",
+    "cert-client",
 ]
 resolver = "2"
 
@@ -58,6 +59,7 @@ http-client = { path = "http-client", default-features = false }
 load_config = { path = "load_config" }
 key-provider-client = { path = "key-provider-client" }
 dstack-types = { path = "dstack-types" }
+cert-client = { path = "cert-client" }
 
 # Core dependencies
 anyhow = "1.0.94"

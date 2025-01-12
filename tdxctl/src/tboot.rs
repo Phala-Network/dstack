@@ -182,10 +182,11 @@ impl<'a> Setup<'a> {
                     "app_name": self.app_compose.name,
                     "public_logs": self.app_compose.public_logs,
                     "public_sysinfo": self.app_compose.public_sysinfo,
+                    "pccs_url": self.local_config.pccs_url,
                 }
             }
         });
-        let tappd_config = self.resolve("/etc/tappd/tappd.json");
+        let tappd_config = self.resolve("/app/tappd.json");
         fs::write(tappd_config, serde_json::to_string_pretty(&config)?)?;
         Ok(())
     }

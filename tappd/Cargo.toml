@@ -41,4 +41,4 @@ k256 = { workspace = true, features = ["ecdsa"] }
 dstack-types.workspace = true
 sha3.workspace = true
 strip-ansi-escapes.workspace = true
-kms-rpc.workspace = true
+cert-client.workspace = true

@@ -69,28 +69,25 @@ impl CaCert {
     pub fn sign_csr(&self, csr: &CertSigningRequest, app_id: Option<&[u8]>) -> Result<Certificate> {
         let pki = rcgen::SubjectPublicKeyInfo::from_der(&csr.pubkey)
             .context("Failed to parse signature")?;
+        let cfg = &csr.config;
         let req = CertRequest::builder()
             .key(&pki)
-            .subject(&csr.subject)
-            .maybe_org_name(csr.org_name.as_deref())
-            .alt_names(&csr.subject_alt_names)
-            .usage_server_auth(csr.usage_server_auth)
-            .usage_client_auth(csr.usage_client_auth)
-            .maybe_quote(csr.ext_quote.then_some(&csr.quote))
-            .maybe_event_log(csr.ext_quote.then_some(&csr.event_log))
+            .subject(&cfg.subject)
+            .maybe_org_name(cfg.org_name.as_deref())
+            .alt_names(&cfg.subject_alt_names)
+            .usage_server_auth(cfg.usage_server_auth)
+            .usage_client_auth(cfg.usage_client_auth)
+            .maybe_quote(cfg.ext_quote.then_some(&csr.quote))
+            .maybe_event_log(cfg.ext_quote.then_some(&csr.event_log))
             .maybe_app_id(app_id)
             .build();
         self.sign(req).context("Failed to sign certificate")
     }
 }
 
-/// A certificate signing request.
+/// The configuration of the certificate.
 #[derive(Encode, Decode, Clone, PartialEq)]
-pub struct CertSigningRequest {
-    /// The confirm word, need to be "please sign cert:"
-    pub confirm: String,
-    /// The public key of the certificate.
-    pub pubkey: Vec<u8>,
+pub struct CertConfig {
     /// The organization name of the certificate.
     pub org_name: Option<String>,
     /// The subject of the certificate.
@@ -103,6 +100,17 @@ pub struct CertSigningRequest {
     pub usage_client_auth: bool,
     /// Whether the certificate is quoted.
     pub ext_quote: bool,
+}
+
+/// A certificate signing request.
+#[derive(Encode, Decode, Clone, PartialEq)]
+pub struct CertSigningRequest {
+    /// The confirm word, need to be "please sign cert:"
+    pub confirm: String,
+    /// The public key of the certificate.
+    pub pubkey: Vec<u8>,
+    /// The certificate configuration.
+    pub config: CertConfig,
     /// The quote of the certificate.
     pub quote: Vec<u8>,
     /// The event log of the certificate.

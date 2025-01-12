@@ -163,12 +163,10 @@ async fn main() -> Result<()> {
     let bind_addr: BindAddr = external_figment
         .extract()
         .context("Failed to extract bind address")?;
-    let external_https_figment = figment.clone().select("external-https");
     let guest_api_figment = figment.select("guest-api");
     tokio::select!(
         res = run_internal(state.clone(), internal_figment) => res?,
         res = run_external(state.clone(), external_figment) => res?,
-        res = run_external(state.clone(), external_https_figment) => res?,
         res = run_guest_api(state.clone(), guest_api_figment) => res?,
         _ = async {
             if args.watchdog {
