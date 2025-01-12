@@ -11,6 +11,7 @@ use ra_tls::{
     cert::CertConfig,
     kdf::{derive_ecdsa_key, derive_ecdsa_key_pair_from_bytes},
 };
+use rcgen::KeyPair;
 use ring::rand::{SecureRandom, SystemRandom};
 use serde_json::json;
 use sha3::{Digest, Keccak256};
@@ -32,21 +33,39 @@ pub struct AppState {
 struct AppStateInner {
     config: Config,
     keys: AppKeys,
-    cert_cient: CertRequestClient,
+    cert_client: CertRequestClient,
+    demo_cert: String,
 }
 
 impl AppState {
     pub async fn new(config: Config) -> Result<Self> {
         let keys: AppKeys = serde_json::from_str(&fs::read_to_string(&config.keys_file)?)
             .context("Failed to parse app keys")?;
-        let cert_signer = CertRequestClient::create(&keys, config.pccs_url.as_deref())
+        let cert_client = CertRequestClient::create(&keys, config.pccs_url.as_deref())
             .await
             .context("Failed to create cert signer")?;
+        let key = KeyPair::generate().context("Failed to generate demo key")?;
+        let demo_cert = cert_client
+            .request_cert(
+                &key,
+                CertConfig {
+                    org_name: None,
+                    subject: "demo-cert".to_string(),
+                    subject_alt_names: vec![],
+                    usage_server_auth: false,
+                    usage_client_auth: true,
+                    ext_quote: true,
+                },
+            )
+            .await
+            .context("Failed to get app cert")?
+            .join("\n");
         Ok(Self {
             inner: Arc::new(AppStateInner {
                 config,
                 keys,
-                cert_cient: cert_signer,
+                cert_client,
+                demo_cert,
             }),
         })
     }
@@ -86,7 +105,7 @@ impl TappdRpc for InternalRpcHandler {
         let certificate_chain = self
             .state
             .inner
-            .cert_cient
+            .cert_client
             .request_cert(&derived_key, config)
             .await
             .context("Failed to sign the CSR")?;
@@ -229,7 +248,7 @@ impl WorkerRpc for ExternalRpcHandler {
             mr_key_provider: app_info.mr_key_provider.to_vec(),
             key_provider_info: String::from_utf8(app_info.key_provider_info).unwrap_or_default(),
             compose_hash: app_info.compose_hash.clone(),
-            app_cert: "".into(),
+            app_cert: self.state.inner.demo_cert.clone(),
             tcb_info,
             public_logs: self.state.config().public_logs,
             public_sysinfo: self.state.config().public_sysinfo,
