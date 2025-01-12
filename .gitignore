@@ -4,3 +4,4 @@
 /build
 generated/
 node_modules/
+/.cargo
