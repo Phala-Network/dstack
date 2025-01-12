@@ -61,10 +61,6 @@ impl GuestApiRpc for GuestApiHandler {
     }
 
     async fn network_info(self) -> Result<NetworkInformation> {
-        let networks = sysinfo::Networks::new_with_refreshed_list();
-        for (interface_name, network) in &networks {
-            println!("[{interface_name}]: {network:?}");
-        }
         Ok(NetworkInformation {
             dns_servers: get_dns_servers(),
             gateways: get_gateways(),
