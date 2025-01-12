@@ -2,6 +2,7 @@ use std::ops::Deref;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, bail, Context, Result};
+use dstack_types::AppCompose;
 use fs_err as fs;
 use ra_rpc::{CallContext, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
@@ -177,15 +178,6 @@ impl TeepodRpc for RpcHandler {
         let new_id = if !request.compose_file.is_empty() {
             {
                 // check the compose file is valid
-                let todo = "import from external crate";
-                #[allow(dead_code)]
-                #[derive(serde::Deserialize)]
-                struct AppCompose {
-                    manifest_version: u32,
-                    name: String,
-                    runner: String,
-                    docker_compose_file: Option<String>,
-                }
                 let app_compose: AppCompose =
                     serde_json::from_str(&request.compose_file).context("Invalid compose file")?;
                 if app_compose.docker_compose_file.is_none() {

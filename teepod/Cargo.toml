@@ -39,3 +39,4 @@ safe-write.workspace = true
 guest-api = { workspace = true, features = ["client"] }
 load_config.workspace = true
 key-provider-client.workspace = true
+dstack-types.workspace = true

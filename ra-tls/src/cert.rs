@@ -181,7 +181,7 @@ pub struct CertRequest<'a, Key> {
     usage_client_auth: bool,
 }
 
-impl<'a, Key> CertRequest<'a, Key> {
+impl<Key> CertRequest<'_, Key> {
     fn into_cert_params(self) -> Result<CertificateParams> {
         let mut params = CertificateParams::new(vec![])?;
         let mut dn = DistinguishedName::new();
@@ -247,7 +247,7 @@ impl<'a, Key> CertRequest<'a, Key> {
     }
 }
 
-impl<'a> CertRequest<'a, KeyPair> {
+impl CertRequest<'_, KeyPair> {
     /// Create a self-signed certificate.
     pub fn self_signed(self) -> Result<Certificate> {
         let key = self.key;
@@ -256,7 +256,7 @@ impl<'a> CertRequest<'a, KeyPair> {
     }
 }
 
-impl<'a, Key: PublicKeyData> CertRequest<'a, Key> {
+impl<Key: PublicKeyData> CertRequest<'_, Key> {
     /// Create a certificate signed by a given issuer.
     pub fn signed_by(self, issuer: &Certificate, issuer_key: &KeyPair) -> Result<Certificate> {
         let key = self.key;
@@ -336,12 +336,14 @@ mod tests {
         let csr = CertSigningRequest {
             confirm: "please sign cert:".to_string(),
             pubkey: pubkey.clone(),
-            org_name: "Test Org".to_string(),
-            subject: "test.example.com".to_string(),
-            subject_alt_names: vec!["alt.example.com".to_string()],
-            purpose_server_auth: true,
-            purpose_client_auth: false,
-            quoted_cert: false,
+            config: CertConfig {
+                org_name: Some("Test Org".to_string()),
+                subject: "test.example.com".to_string(),
+                subject_alt_names: vec!["alt.example.com".to_string()],
+                usage_server_auth: true,
+                usage_client_auth: false,
+                ext_quote: false,
+            },
             quote: Vec::new(),
             event_log: Vec::new(),
         };
@@ -362,12 +364,14 @@ mod tests {
         let csr = CertSigningRequest {
             confirm: "wrong confirm word".to_string(),
             pubkey: pubkey.clone(),
-            org_name: "Test Org".to_string(),
-            subject: "test.example.com".to_string(),
-            subject_alt_names: vec![],
-            purpose_server_auth: true,
-            purpose_client_auth: false,
-            quoted_cert: false,
+            config: CertConfig {
+                org_name: Some("Test Org".to_string()),
+                subject: "test.example.com".to_string(),
+                subject_alt_names: vec![],
+                usage_server_auth: true,
+                usage_client_auth: false,
+                ext_quote: false,
+            },
             quote: Vec::new(),
             event_log: Vec::new(),
         };

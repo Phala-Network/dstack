@@ -168,6 +168,3 @@ uuid = { version = "1.11.0", features = ["v4"] }
 which = "7.0.0"
 smallvec = "1.13.2"
 cmd_lib = "1.9.5"
-
-[patch.crates-io]
-dcap-qvl = { path = "/home/kvin/codes/dcap-qvl" }

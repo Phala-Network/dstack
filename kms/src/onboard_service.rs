@@ -199,7 +199,7 @@ impl Keys {
 
 pub(crate) fn bootstrap_keys(cfg: &KmsConfig) -> Result<()> {
     let keys = Keys::generate("kms.localhost").context("Failed to generate keys")?;
-    keys.store(&cfg)?;
+    keys.store(cfg)?;
     Ok(())
 }
 

@@ -92,7 +92,7 @@ impl TappdRpc for InternalRpcHandler {
         } else {
             &self.state.inner.keys.k256_key
         };
-        let derived_key = derive_ecdsa_key_pair_from_bytes(&seed, &[request.path.as_bytes()])
+        let derived_key = derive_ecdsa_key_pair_from_bytes(seed, &[request.path.as_bytes()])
             .context("Failed to derive key")?;
         let config = CertConfig {
             org_name: None,

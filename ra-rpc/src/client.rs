@@ -109,7 +109,7 @@ impl RaClient {
         };
 
         let verified_attestation = attestation
-            .verify_with_ra_pubkey(&cert.public_key().raw, self.pccs_url.as_deref())
+            .verify_with_ra_pubkey(cert.public_key().raw, self.pccs_url.as_deref())
             .await
             .context("Failed to verify the attestation report")?;
 

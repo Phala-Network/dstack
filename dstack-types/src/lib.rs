@@ -9,6 +9,7 @@ pub struct AppCompose {
     #[serde(default)]
     pub features: Vec<String>,
     pub runner: String,
+    #[serde(default)]
     pub docker_compose_file: Option<String>,
     #[serde(default)]
     pub docker_config: DockerConfig,
