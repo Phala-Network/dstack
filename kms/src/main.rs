@@ -48,6 +48,11 @@ async fn run_onboard_service(kms_config: KmsConfig, figment: Figment) -> Result<
         "OK"
     }
 
+    if kms_config.onboard.auto_bootstrap {
+        onboard_service::bootstrap_keys(&kms_config)?;
+        return Ok(());
+    }
+
     let state = OnboardState::new(kms_config);
     let figment = figment
         .clone()

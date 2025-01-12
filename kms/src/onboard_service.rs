@@ -1,7 +1,4 @@
-use std::path::Path;
-
 use anyhow::{Context, Result};
-use fs_err as fs;
 use http_client::prpc::PrpcClient;
 use k256::ecdsa::SigningKey;
 use kms_rpc::{
@@ -15,6 +12,7 @@ use ra_tls::{
     cert::{CaCert, CertRequest},
     rcgen::{Certificate, KeyPair, PKCS_ECDSA_P256_SHA256},
 };
+use safe_write::safe_write;
 use tappd_rpc::{tappd_client::TappdClient, RawQuoteArgs, TdxQuoteResponse};
 
 use crate::config::KmsConfig;
@@ -181,29 +179,27 @@ impl Keys {
 
     fn store(&self, cfg: &KmsConfig) -> Result<()> {
         // Store the temporary CA cert and key
-        fs_write(&cfg.tmp_ca_cert, self.tmp_ca_cert.pem())?;
-        fs_write(&cfg.tmp_ca_key, self.tmp_ca_key.serialize_pem())?;
+        safe_write(&cfg.tmp_ca_cert, self.tmp_ca_cert.pem())?;
+        safe_write(&cfg.tmp_ca_key, self.tmp_ca_key.serialize_pem())?;
 
         // Store the root CA cert and key
-        fs_write(&cfg.root_ca_cert, self.ca_cert.pem())?;
-        fs_write(&cfg.root_ca_key, self.ca_key.serialize_pem())?;
+        safe_write(&cfg.root_ca_cert, self.ca_cert.pem())?;
+        safe_write(&cfg.root_ca_key, self.ca_key.serialize_pem())?;
 
         // Store the RPC cert and key
-        fs_write(&cfg.rpc_cert, self.rpc_cert.pem())?;
-        fs_write(&cfg.rpc_key, self.rpc_key.serialize_pem())?;
+        safe_write(&cfg.rpc_cert, self.rpc_cert.pem())?;
+        safe_write(&cfg.rpc_key, self.rpc_key.serialize_pem())?;
 
         // Store the ECDSA root key
-        fs_write(&cfg.k256_key, self.k256_key.to_bytes())?;
+        safe_write(&cfg.k256_key, self.k256_key.to_bytes())?;
 
         Ok(())
     }
 }
 
-fn fs_write(path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> Result<()> {
-    if let Some(parent) = path.as_ref().parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(path, content)?;
+pub(crate) fn bootstrap_keys(cfg: &KmsConfig) -> Result<()> {
+    let keys = Keys::generate("kms.localhost").context("Failed to generate keys")?;
+    keys.store(&cfg)?;
     Ok(())
 }
 
