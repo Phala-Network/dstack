@@ -5,7 +5,7 @@ After=network.target tboot.service
 [Service]
 OOMScoreAdjust=-1000
 ExecStartPre=-/bin/rm -rf /var/run/tappd.sock
-ExecStart=/bin/tappd --watchdog -c /app/tappd.json
+ExecStart=/bin/tappd --watchdog -c /tapp/tappd.json
 Restart=always
 User=root
 Group=root

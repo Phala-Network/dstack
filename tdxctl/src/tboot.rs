@@ -1,8 +1,13 @@
 use anyhow::{anyhow, bail, Context, Result};
+use cert_client::CertRequestClient;
 use clap::Parser;
 use cmd_lib::run_fun as cmd;
 use fs_err as fs;
 use ra_rpc::{client::RaClientConfig, VerifiedAttestation};
+use ra_tls::{
+    cert::CertConfig,
+    rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256},
+};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use tproxy_rpc::{tproxy_client::TproxyClient, RegisterCvmRequest};
@@ -115,14 +120,31 @@ impl<'a> Setup<'a> {
         let ra_validator = RaValidator {
             remote_app_id: self.app_keys.tproxy_app_id.clone(),
         };
-        let client_cert = fs::read_to_string(self.resolve("/etc/tappd/tls.cert"))?;
-        let client_key = fs::read_to_string(self.resolve("/etc/tappd/tls.key"))?;
+        let cert_client =
+            CertRequestClient::create(&self.app_keys, self.local_config.pccs_url.as_deref())
+                .await
+                .context("Failed to create cert client")?;
+        let client_key =
+            KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).context("Failed to generate key")?;
+        let config = CertConfig {
+            org_name: None,
+            subject: "tappd".to_string(),
+            subject_alt_names: vec![],
+            usage_server_auth: false,
+            usage_client_auth: true,
+            ext_quote: true,
+        };
+        let client_certs = cert_client
+            .request_cert(&client_key, config)
+            .await
+            .context("Failed to request cert")?;
+        let client_cert = client_certs.join("\n");
         let ca_cert = self.app_keys.ca_cert.clone();
         let client = RaClientConfig::builder()
             .remote_uri(url)
             .maybe_pccs_url(self.local_config.pccs_url.clone())
             .tls_client_cert(client_cert)
-            .tls_client_key(client_key)
+            .tls_client_key(client_key.serialize_pem())
             .tls_ca_cert(ca_cert)
             .tls_built_in_root_certs(false)
             .tls_no_check(false)
@@ -186,7 +208,7 @@ impl<'a> Setup<'a> {
                 }
             }
         });
-        let tappd_config = self.resolve("/app/tappd.json");
+        let tappd_config = self.resolve("/tapp/tappd.json");
         fs::write(tappd_config, serde_json::to_string_pretty(&config)?)?;
         Ok(())
     }

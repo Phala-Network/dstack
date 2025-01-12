@@ -4,7 +4,7 @@ use kms_rpc::{kms_client::KmsClient, SignCertRequest};
 use ra_rpc::client::{RaClient, RaClientConfig};
 use ra_tls::{
     attestation::QuoteContentType,
-    cert::{CaCert, CertConfig, CertSigningRequest},
+    cert::{generate_ra_cert, CaCert, CertConfig, CertSigningRequest},
     rcgen::KeyPair,
 };
 use tdx_attest::{eventlog::read_event_logs, get_quote};
@@ -50,15 +50,16 @@ impl CertRequestClient {
                 let tmp_client =
                     RaClient::new(url.into(), true).context("Failed to create RA client")?;
                 let tmp_client = KmsClient::new(tmp_client);
-                let tmp_cert = tmp_client
+                let tmp_ca = tmp_client
                     .get_temp_ca_cert()
                     .await
-                    .context("Failed to get RA cert")?;
-
+                    .context("Failed to get temp CA cert")?;
+                let client_cert = generate_ra_cert(tmp_ca.temp_ca_cert, tmp_ca.temp_ca_key)
+                    .context("Failed to generate RA cert")?;
                 let ra_client = RaClientConfig::builder()
                     .remote_uri(url.clone())
-                    .tls_client_cert(tmp_cert.temp_ca_cert)
-                    .tls_client_key(tmp_cert.temp_ca_key)
+                    .tls_client_cert(client_cert.cert_pem)
+                    .tls_client_key(client_cert.key_pem)
                     .tls_ca_cert(keys.ca_cert.clone())
                     .tls_built_in_root_certs(false)
                     .maybe_pccs_url(pccs_url.map(|s| s.to_string()))
