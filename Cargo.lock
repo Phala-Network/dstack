@@ -4879,6 +4879,7 @@ dependencies = [
  "ra-tls",
  "rcgen",
  "reqwest",
+ "ring",
  "rinja",
  "rocket",
  "rocket-vsock-listener",

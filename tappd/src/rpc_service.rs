@@ -11,6 +11,7 @@ use ra_tls::{
     cert::CertConfig,
     kdf::{derive_ecdsa_key, derive_ecdsa_key_pair_from_bytes},
 };
+use ring::rand::{SecureRandom, SystemRandom};
 use serde_json::json;
 use sha3::{Digest, Keccak256};
 use tappd_rpc::{
@@ -62,12 +63,18 @@ pub struct InternalRpcHandler {
 impl InternalRpcHandler {}
 
 impl TappdRpc for InternalRpcHandler {
-    async fn derive_key(self, request: DeriveKeyArgs) -> Result<DeriveKeyResponse> {
-        let derived_key = derive_ecdsa_key_pair_from_bytes(
-            &self.state.inner.keys.k256_key,
-            &[request.path.as_bytes()],
-        )
-        .context("Failed to derive key")?;
+    async fn derive_key(self, request: DeriveKeyArgs) -> anyhow::Result<DeriveKeyResponse> {
+        let mut mbuf = [0u8; 32];
+        let seed = if request.random_seed {
+            SystemRandom::new()
+                .fill(&mut mbuf)
+                .context("Failed to generate secure seed")?;
+            &mbuf[..]
+        } else {
+            &self.state.inner.keys.k256_key
+        };
+        let derived_key = derive_ecdsa_key_pair_from_bytes(&seed, &[request.path.as_bytes()])
+            .context("Failed to derive key")?;
         let config = CertConfig {
             org_name: None,
             subject: request.subject,

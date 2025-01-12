@@ -41,6 +41,8 @@ message DeriveKeyArgs {
   bool usage_server_auth = 5;
   // Key usage client auth
   bool usage_client_auth = 6;
+  // Derive from random seed
+  bool random_seed = 7;
 }
 
 // The response to a DeriveKey request
