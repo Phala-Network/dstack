@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 use sha2::{digest::Output, Digest};
 use tdx_attest as att;
 
-pub use dstack_types::{AppCompose, AppKeys, KeyProvider, LocalConfig};
+pub use dstack_types::{AppCompose, AppKeys, KeyProviderKind, LocalConfig};
 
 /// This code is not defined in the TCG specification.
 /// See https://trustedcomputinggroup.org/wp-content/uploads/PC-ClientSpecific_Platform_Profile_for_TPM_2p0_Systems_v51.pdf

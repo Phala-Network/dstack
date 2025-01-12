@@ -160,7 +160,6 @@ impl KmsRpc for RpcHandler {
         let subject = format!("{app_id_str}{}", self.state.config.subject_postfix);
         let req = CertRequest::builder()
             .subject(&subject)
-            .ca_level(1)
             .quote(&attest.quote)
             .event_log(&attest.raw_event_log)
             .key(&app_key)
@@ -187,10 +186,9 @@ impl KmsRpc for RpcHandler {
         };
 
         Ok(AppKeyResponse {
+            ca_cert: self.state.root_ca.pem_cert.clone(),
             disk_crypt_key: app_disk_key.to_vec(),
             env_crypt_key: env_crypt_key.to_vec(),
-            app_key: app_key.serialize_pem(),
-            certificate_chain: vec![cert, self.state.root_ca.cert.pem()],
             k256_key,
             k256_signature,
             tproxy_app_id,

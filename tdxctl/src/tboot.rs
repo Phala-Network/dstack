@@ -82,7 +82,6 @@ impl<'a> Setup<'a> {
     }
 
     async fn setup(&self, nc: &HostApi) -> Result<()> {
-        self.prepare_certs()?;
         nc.notify_q("boot.progress", "setting up tproxy net").await;
         self.setup_tappd_config()?;
         self.setup_tproxy_net().await?;
@@ -120,12 +119,7 @@ impl<'a> Setup<'a> {
         };
         let client_cert = fs::read_to_string(self.resolve("/etc/tappd/tls.cert"))?;
         let client_key = fs::read_to_string(self.resolve("/etc/tappd/tls.key"))?;
-        let ca_cert = self
-            .app_keys
-            .certificate_chain
-            .last()
-            .cloned()
-            .context("Missing CA cert")?;
+        let ca_cert = self.app_keys.ca_cert.clone();
         let client = RaClientConfig::builder()
             .remote_uri(url)
             .maybe_pccs_url(self.local_config.pccs_url.clone())
@@ -179,50 +173,6 @@ impl<'a> Setup<'a> {
 
         info!("Starting WireGuard");
         cmd!(wg-quick up wg0)?;
-        Ok(())
-    }
-
-    fn prepare_certs(&self) -> Result<()> {
-        info!("Preparing certs");
-        if fs::metadata(self.resolve("/etc/tappd")).is_ok() {
-            fs::remove_dir_all(self.resolve("/etc/tappd"))?;
-        }
-        fs::create_dir_all(self.resolve("/etc/tappd"))?;
-
-        if self.app_keys.app_key.is_empty() {
-            bail!("Invalid app_key");
-        }
-        fs::write(
-            self.resolve("/etc/tappd/app-ca.key"),
-            &self.app_keys.app_key,
-        )?;
-
-        let kms_ca_cert = self.resolve("/tapp/certs/ca.cert");
-        if fs::metadata(&kms_ca_cert).is_ok() {
-            fs::copy(kms_ca_cert, self.resolve("/etc/tappd/ca.cert"))?;
-        } else {
-            // symbolic link the app-ca.cert to ca.cert
-            fs::os::unix::fs::symlink(
-                self.resolve("/etc/tappd/app-ca.cert"),
-                self.resolve("/etc/tappd/ca.cert"),
-            )?;
-        }
-
-        let cert_chain_str = self.app_keys.certificate_chain.join("\n");
-        fs::write(self.resolve("/etc/tappd/app-ca.cert"), cert_chain_str)?;
-
-        cmd_gen_ra_cert(GenRaCertArgs {
-            ca_key: self.resolve("/etc/tappd/app-ca.key").into(),
-            ca_cert: self.resolve("/etc/tappd/app-ca.cert").into(),
-            cert_path: self.resolve("/etc/tappd/tls.cert").into(),
-            key_path: self.resolve("/etc/tappd/tls.key").into(),
-        })
-        .context("Failed to generate RA cert")?;
-
-        let mut tls_cert = fs::OpenOptions::new()
-            .append(true)
-            .open(self.resolve("/etc/tappd/tls.cert"))?;
-        tls_cert.write_all(&fs::read(self.resolve("/etc/tappd/app-ca.cert"))?)?;
         Ok(())
     }
 

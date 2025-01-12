@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use cmd_lib::run_cmd as cmd;
+use dstack_types::KeyProvider;
 use fde_setup::{cmd_setup_fde, SetupFdeArgs};
 use fs_err as fs;
 use getrandom::getrandom;
@@ -372,13 +373,15 @@ fn make_app_keys(
         .context("Failed to self-sign certificate")?;
 
     Ok(AppKeys {
-        app_key: app_key.serialize_pem(),
         disk_crypt_key: sha256(&disk_key.serialize_der()).to_vec(),
-        certificate_chain: vec![cert.pem()],
         env_crypt_key: vec![],
         k256_key: k256_key.to_bytes().to_vec(),
         k256_signature: vec![],
         tproxy_app_id: "".to_string(),
+        ca_cert: cert.pem(),
+        key_provider: KeyProvider::Local {
+            key: app_key.serialize_pem(),
+        },
     })
 }
 

@@ -28,8 +28,6 @@ pub struct AppState {
 
 struct AppStateInner {
     config: Config,
-    ca: CaCert,
-    cert_chain: Vec<String>,
     k256_key: SigningKey,
     k256_signature: Vec<u8>,
 }
@@ -38,19 +36,11 @@ impl AppState {
     pub fn new(config: Config) -> Result<Self> {
         let keys: AppKeys = serde_json::from_str(&fs::read_to_string(&config.keys_file)?)
             .context("Failed to parse app keys")?;
-        let cert = keys
-            .certificate_chain
-            .first()
-            .cloned()
-            .context("Failed to get cert")?;
-        let ca = CaCert::new(cert, keys.app_key).context("Failed to load CA certificate")?;
         let k256_key =
             SigningKey::from_slice(&keys.k256_key).context("Failed to parse k256 key")?;
         Ok(Self {
             inner: Arc::new(AppStateInner {
                 config,
-                ca,
-                cert_chain: keys.certificate_chain,
                 k256_key,
                 k256_signature: keys.k256_signature,
             }),
@@ -68,9 +58,9 @@ pub struct InternalRpcHandler {
 
 impl TappdRpc for InternalRpcHandler {
     async fn derive_key(self, request: DeriveKeyArgs) -> Result<DeriveKeyResponse> {
-        let derived_key =
-            derive_ecdsa_key_pair(&self.state.inner.ca.key, &[request.path.as_bytes()])
-                .context("Failed to derive key")?;
+        let ca_key = todo!();
+        let derived_key = derive_ecdsa_key_pair(&ca_key, &[request.path.as_bytes()])
+            .context("Failed to derive key")?;
         let quote;
         let event_log;
 
@@ -95,10 +85,9 @@ impl TappdRpc for InternalRpcHandler {
             .maybe_event_log(event_log.as_deref())
             .key(&derived_key)
             .build();
-        let cert = self
-            .state
-            .inner
-            .ca
+
+        let ca: CaCert = todo!();
+        let cert = ca
             .sign(req)
             .context("Failed to sign certificate")?;
 
@@ -120,7 +109,7 @@ impl TappdRpc for InternalRpcHandler {
         let mut signature = signature.to_vec();
         signature.push(recid.to_byte());
 
-        let mut certificate_chain = self.state.inner.cert_chain.clone();
+        let mut certificate_chain: Vec<String> = todo!();
         certificate_chain.insert(0, cert.pem());
 
         Ok(DeriveKeyResponse {
@@ -198,7 +187,6 @@ impl ExternalRpcHandler {
 
 impl WorkerRpc for ExternalRpcHandler {
     async fn info(self) -> Result<WorkerInfo> {
-        let ca = &self.state.inner.ca;
         let response = InternalRpcHandler {
             state: self.state.clone(),
         }
@@ -242,7 +230,7 @@ impl WorkerRpc for ExternalRpcHandler {
             mr_key_provider: app_info.mr_key_provider.to_vec(),
             key_provider_info: String::from_utf8(app_info.key_provider_info).unwrap_or_default(),
             compose_hash: app_info.compose_hash.clone(),
-            app_cert: ca.pem_cert.clone(),
+            app_cert: "".into(),
             tcb_info,
             public_logs: self.state.config().public_logs,
             public_sysinfo: self.state.config().public_sysinfo,

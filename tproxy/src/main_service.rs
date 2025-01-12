@@ -31,6 +31,7 @@ use crate::{
 #[derive(Clone)]
 pub struct Proxy {
     pub(crate) config: Arc<Config>,
+    pub(crate) mr_key_provider: Option<Vec<u8>>,
     inner: Arc<Mutex<ProxyState>>,
 }
 
@@ -72,7 +73,12 @@ impl Proxy {
             state,
         }));
         start_recycle_thread(Arc::downgrade(&inner), config.clone());
-        Ok(Self { config, inner })
+        let todo = "TODO: get my key provider";
+        Ok(Self {
+            config,
+            inner,
+            mr_key_provider: None,
+        })
     }
 }
 
@@ -347,12 +353,17 @@ impl TproxyRpc for RpcHandler {
         let Some(ra) = &self.attestation else {
             bail!("no attestation provided");
         };
-        let app_id = ra
-            .decode_app_id()
-            .context("failed to decode app-id from attestation")?;
-        let instance_id = ra
-            .decode_instance_id()
-            .context("failed to decode instance-id from attestation")?;
+        let app_info = ra
+            .decode_app_info()
+            .context("failed to decode app-info from attestation")?;
+        if let Some(my_key_provider) = &self.state.mr_key_provider {
+            if app_info.mr_key_provider != my_key_provider[..] {
+                bail!("key provider mismatch");
+            }
+        }
+        let app_id = hex::encode(&app_info.app_id);
+        let instance_id = hex::encode(&app_info.instance_id);
+
         let mut state = self.state.lock();
         if request.client_public_key.is_empty() {
             bail!("[{instance_id}] client public key is empty");

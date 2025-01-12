@@ -133,7 +133,7 @@ k256 = "0.13.4"
 # Certificate/DNS
 hickory-resolver = "0.24.1"
 instant-acme = "0.7.2"
-rcgen = { version = "0.13.1", features = ["pem"] }
+rcgen = { version = "0.13.2", features = ["pem"] }
 x509-parser = "0.16.0"
 
 # RPC/Protocol

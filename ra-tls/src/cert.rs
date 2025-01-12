@@ -7,7 +7,7 @@ use anyhow::{anyhow, Context, Result};
 use fs_err as fs;
 use rcgen::{
     BasicConstraints, Certificate, CertificateParams, CustomExtension, DistinguishedName, DnType,
-    IsCa, KeyPair, SanType,
+    IsCa, KeyPair, PublicKeyData, SanType,
 };
 use tdx_attest::eventlog::read_event_logs;
 use tdx_attest::get_quote;
@@ -53,18 +53,15 @@ impl CaCert {
     }
 
     /// Sign a certificate request.
-    pub fn sign(&self, req: CertRequest) -> Result<Certificate> {
-        let key = req.key;
-        let params = req.into_cert_params()?;
-        let cert = params.signed_by(key, &self.cert, &self.key)?;
-        Ok(cert)
+    pub fn sign(&self, req: CertRequest<impl PublicKeyData>) -> Result<Certificate> {
+        req.signed_by(&self.cert, &self.key)
     }
 }
 
 /// Information required to create a certificate.
 #[derive(bon::Builder)]
-pub struct CertRequest<'a> {
-    key: &'a KeyPair,
+pub struct CertRequest<'a, Key> {
+    key: &'a Key,
     org_name: Option<&'a str>,
     subject: &'a str,
     alt_names: Option<&'a [String]>,
@@ -75,7 +72,7 @@ pub struct CertRequest<'a> {
     not_after: Option<SystemTime>,
 }
 
-impl CertRequest<'_> {
+impl<'a, Key> CertRequest<'a, Key> {
     fn into_cert_params(self) -> Result<CertificateParams> {
         let mut params = CertificateParams::new(vec![])?;
         let mut dn = DistinguishedName::new();
@@ -106,9 +103,7 @@ impl CertRequest<'_> {
             params.custom_extensions.push(ext);
         }
         if let Some(ca_level) = self.ca_level {
-            if ca_level > 0 {
-                params.is_ca = IsCa::Ca(BasicConstraints::Constrained(ca_level));
-            }
+            params.is_ca = IsCa::Ca(BasicConstraints::Constrained(ca_level));
         }
         if let Some(not_before) = self.not_before {
             params.not_before = not_before.into();
@@ -123,14 +118,18 @@ impl CertRequest<'_> {
             .into();
         Ok(params)
     }
+}
 
+impl<'a> CertRequest<'a, KeyPair> {
     /// Create a self-signed certificate.
     pub fn self_signed(self) -> Result<Certificate> {
         let key = self.key;
         let cert = self.into_cert_params()?.self_signed(key)?;
         Ok(cert)
     }
+}
 
+impl<'a, Key: PublicKeyData> CertRequest<'a, Key> {
     /// Create a certificate signed by a given issuer.
     pub fn signed_by(self, issuer: &Certificate, issuer_key: &KeyPair) -> Result<Certificate> {
         let key = self.key;

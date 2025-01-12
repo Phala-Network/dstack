@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use dstack_types::KeyProviderInfo;
+use dstack_types::{KeyProvider, KeyProviderInfo};
 use fs_err as fs;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
 use kms_rpc::GetAppKeyRequest;
@@ -23,7 +23,7 @@ use crate::{
     host_api::HostApi,
     utils::{
         deserialize_json_file, extend_rtmr3, sha256, sha256_file, AppCompose, AppKeys, HashingFile,
-        KeyProvider, LocalConfig,
+        KeyProviderKind, LocalConfig,
     },
     GenAppKeysArgs,
 };
@@ -213,7 +213,7 @@ impl SetupFdeArgs {
                 .context("Failed to get temp ca cert")?
         };
         let cert_pair = generate_ra_cert(tmp_ca.temp_ca_cert, tmp_ca.temp_ca_key)?;
-        let ra_client = RaClient::new_mtls(kms_url, cert_pair.cert_pem, cert_pair.key_pem)?;
+        let ra_client = RaClient::new_mtls(kms_url.clone(), cert_pair.cert_pem, cert_pair.key_pem)?;
         let kms_client = kms_rpc::kms_client::KmsClient::new(ra_client);
         let response = kms_client
             .get_app_key(GetAppKeyRequest {
@@ -223,13 +223,13 @@ impl SetupFdeArgs {
             .await
             .context("Failed to get app key")?;
         let keys = AppKeys {
-            app_key: response.app_key,
+            ca_cert: response.ca_cert,
             disk_crypt_key: response.disk_crypt_key,
             env_crypt_key: response.env_crypt_key,
-            certificate_chain: response.certificate_chain,
             k256_key: response.k256_key,
             k256_signature: response.k256_signature,
             tproxy_app_id: response.tproxy_app_id,
+            key_provider: KeyProvider::Kms { url: kms_url },
         };
         let keys_json = serde_json::to_string(&keys).context("Failed to serialize app keys")?;
         fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
@@ -288,12 +288,12 @@ impl SetupFdeArgs {
     ) -> Result<AppKeys> {
         let key_provider = host_shared.app_compose.key_provider();
         match key_provider {
-            KeyProvider::Kms => {
+            KeyProviderKind::Kms => {
                 self.request_app_keys_from_kms(host_shared, my_app_id)
                     .await?
             }
-            KeyProvider::Local => self.get_keys_from_local_key_provider(host).await?,
-            KeyProvider::None => {
+            KeyProviderKind::Local => self.get_keys_from_local_key_provider(host).await?,
+            KeyProviderKind::None => {
                 info!("No key provider is enabled, generating temporary app keys");
                 let provider_info = KeyProviderInfo::new("none".into(), "".into());
                 emit_key_provider_info(&provider_info)?;

@@ -23,20 +23,20 @@ pub struct AppCompose {
     #[serde(default)]
     pub local_key_provider_enabled: bool,
     #[serde(default)]
-    pub key_provider: Option<KeyProvider>,
+    pub key_provider: Option<KeyProviderKind>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
-pub enum KeyProvider {
+pub enum KeyProviderKind {
     None,
     Kms,
     Local,
 }
 
-impl KeyProvider {
+impl KeyProviderKind {
     pub fn is_none(&self) -> bool {
-        matches!(self, KeyProvider::None)
+        matches!(self, KeyProviderKind::None)
     }
 }
 
@@ -63,16 +63,16 @@ impl AppCompose {
         self.kms_enabled || self.feature_enabled("kms")
     }
 
-    pub fn key_provider(&self) -> KeyProvider {
+    pub fn key_provider(&self) -> KeyProviderKind {
         match self.key_provider {
             Some(p) => p,
             None => {
                 if self.kms_enabled {
-                    KeyProvider::Kms
+                    KeyProviderKind::Kms
                 } else if self.local_key_provider_enabled {
-                    KeyProvider::Local
+                    KeyProviderKind::Local
                 } else {
-                    KeyProvider::None
+                    KeyProviderKind::None
                 }
             }
         }
@@ -90,17 +90,23 @@ pub struct LocalConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppKeys {
-    pub app_key: String,
     #[serde(with = "hex_bytes")]
     pub disk_crypt_key: Vec<u8>,
     #[serde(with = "hex_bytes", default)]
     pub env_crypt_key: Vec<u8>,
-    pub certificate_chain: Vec<String>,
     #[serde(with = "hex_bytes")]
     pub k256_key: Vec<u8>,
     #[serde(with = "hex_bytes")]
     pub k256_signature: Vec<u8>,
     pub tproxy_app_id: String,
+    pub ca_cert: String,
+    pub key_provider: KeyProvider,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum KeyProvider {
+    Local { key: String },
+    Kms { url: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

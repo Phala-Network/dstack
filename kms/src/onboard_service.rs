@@ -117,7 +117,7 @@ impl Keys {
         let tmp_ca_cert = CertRequest::builder()
             .org_name("Dstack")
             .subject("Dstack Client Temp CA")
-            .ca_level(1)
+            .ca_level(0)
             .key(&tmp_ca_key)
             .build()
             .self_signed()?;
@@ -126,7 +126,7 @@ impl Keys {
         let ca_cert = CertRequest::builder()
             .org_name("Dstack")
             .subject("Dstack KMS CA")
-            .ca_level(3)
+            .ca_level(0)
             .key(&ca_key)
             .build()
             .self_signed()?;
