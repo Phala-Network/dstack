@@ -17,8 +17,7 @@ pub(crate) struct KmsConfig {
     pub rpc_cert: String,
     pub rpc_key: String,
     pub k256_key: String,
-    pub subject_postfix: String,
-    pub pccs_url: String,
+    pub pccs_url: Option<String>,
     pub auth_api: AuthApi,
     pub onboard: OnboardConfig,
 }

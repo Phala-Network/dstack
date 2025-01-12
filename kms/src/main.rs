@@ -105,10 +105,8 @@ async fn main() -> Result<()> {
         .mount("/prpc", ra_rpc::prpc_routes!(KmsState, RpcHandler))
         .manage(state);
 
-    if !pccs_url.is_empty() {
-        let verifier = QuoteVerifier::new(pccs_url);
-        rocket = rocket.manage(verifier);
-    }
+    let verifier = QuoteVerifier::new(pccs_url);
+    rocket = rocket.manage(verifier);
 
     rocket
         .launch()

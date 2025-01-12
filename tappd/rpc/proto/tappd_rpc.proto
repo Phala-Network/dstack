@@ -9,6 +9,9 @@ service Tappd {
   // Returns the derived key along with its certificate chain.
   rpc DeriveKey(DeriveKeyArgs) returns (DeriveKeyResponse) {}
 
+  // Derives a new ECDSA key with k256 EC curve.
+  rpc DeriveK256Key(DeriveK256KeyArgs) returns (DeriveK256KeyResponse) {}
+
   // Generates a TDX quote
   rpc TdxQuote(TdxQuoteArgs) returns (TdxQuoteResponse) {}
 
@@ -25,14 +28,19 @@ service Tappd {
 
 // The request to derive a key
 message DeriveKeyArgs {
-  // Path to the key to derive
+  // Path used to derive the private key
   string path = 1;
+  // Bellow fields are used to generate the certificate
   // Subject of the certificate to request
   string subject = 2;
   // DNS alternative names for the certificate
   repeated string alt_names = 3;
   // Includes quote in the certificate
-  bool quoted = 4;
+  bool usage_ra_tls = 4;
+  // Key usage server auth
+  bool usage_server_auth = 5;
+  // Key usage client auth
+  bool usage_client_auth = 6;
 }
 
 // The response to a DeriveKey request
@@ -41,10 +49,22 @@ message DeriveKeyResponse {
   string key = 1;
   // Certificate chain
   repeated string certificate_chain = 2;
+}
+
+// The request to derive a new ECDSA key with k256 EC curve
+message DeriveK256KeyArgs {
+  // Path to the key to derive
+  string path = 1;
+  // Purpose of the key
+  string purpose = 2;
+}
+
+// The response to a DeriveK256Key request
+message DeriveK256KeyResponse {
   // Derived k256 key
-  bytes k256_key = 3;
+  bytes k256_key = 1;
   // Derived k256 signature chain
-  repeated bytes k256_signature_chain = 4;
+  repeated bytes k256_signature_chain = 2;
 }
 
 // The request to get a TDX quote

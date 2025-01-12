@@ -4,15 +4,13 @@ use cmd_lib::run_fun as cmd;
 use fs_err as fs;
 use ra_rpc::{client::RaClientConfig, VerifiedAttestation};
 use serde_json::Value;
-use std::{collections::BTreeMap, io::Write};
+use std::collections::BTreeMap;
 use tproxy_rpc::{tproxy_client::TproxyClient, RegisterCvmRequest};
 use tracing::info;
 
 use crate::{
-    cmd_gen_ra_cert,
     host_api::HostApi,
     utils::{deserialize_json_file, AppCompose, AppKeys, LocalConfig},
-    GenRaCertArgs,
 };
 
 #[derive(Parser)]

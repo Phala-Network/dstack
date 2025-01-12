@@ -517,7 +517,7 @@ impl SetupFdeArgs {
             let ca_cert_hash = sha256_file(host_shared.dir.kms_ca_cert_file())?;
             extend_rtmr3("ca-cert-hash", &ca_cert_hash)?;
         }
-
+        extend_rtmr3("boot-mr-done", &[])?;
         // Show the RTMR
         cmd_show()?;
 

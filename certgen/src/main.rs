@@ -156,12 +156,13 @@ fn sign_certificate(
     let ca = CaCert::new(ca_cert.clone(), ca_key)?;
     let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
 
-    let cert = CertRequest::builder()
+    let alt_names = [domain.to_string()];
+    let req = CertRequest::builder()
         .subject(domain)
-        .alt_names(&[domain.to_string()])
+        .alt_names(&alt_names)
         .key(&key)
-        .build()
-        .signed_by(&ca.cert, &ca.key)?;
+        .build();
+    let cert = ca.sign(req)?;
 
     let cert_chain = format!("{}\n{}", cert.pem(), ca_cert);
     fs::write(cert_path, cert_chain)?;

@@ -113,8 +113,8 @@ impl<T> Attestation<T> {
     }
 
     /// Replay event logs
-    pub fn replay_event_logs(&self) -> Result<[[u8; 48]; 4]> {
-        replay_event_logs(&self.event_log)
+    pub fn replay_event_logs(&self, to_event: Option<&str>) -> Result<[[u8; 48]; 4]> {
+        replay_event_logs(&self.event_log, to_event)
     }
 
     fn find_event_payload(&self, event: &str) -> Result<Vec<u8>> {
@@ -143,11 +143,18 @@ impl<T> Attestation<T> {
     }
 
     /// Decode the app info from the event log
-    pub fn decode_app_info(&self) -> Result<AppInfo> {
+    pub fn decode_app_info(&self, boottime_mr: bool) -> Result<AppInfo> {
+        let rtmrs = self
+            .replay_event_logs(boottime_mr.then_some("boot-mr-done"))
+            .context("Failed to replay event logs")?;
         let quote = self.decode_quote()?;
         let device_id = sha256(&[&quote.header.user_data]).to_vec();
         let td_report = quote.report.as_td10().context("TDX report not found")?;
-        let key_provider_info = self.find_event_payload("key-provider").unwrap_or_default();
+        let key_provider_info = if boottime_mr {
+            vec![]
+        } else {
+            self.find_event_payload("key-provider").unwrap_or_default()
+        };
         let mr_key_provider = if key_provider_info.is_empty() {
             [0u8; 32]
         } else {
@@ -155,12 +162,12 @@ impl<T> Attestation<T> {
         };
         let mr_enclave = sha256(&[
             &td_report.mr_td,
-            &td_report.rt_mr0,
-            &td_report.rt_mr1,
-            &td_report.rt_mr2,
+            &rtmrs[0],
+            &rtmrs[1],
+            &rtmrs[2],
             &mr_key_provider,
         ]);
-        let mr_image = sha256(&[&td_report.mr_td, &td_report.rt_mr1, &td_report.rt_mr2]);
+        let mr_image = sha256(&[&td_report.mr_td, &rtmrs[1], &rtmrs[2]]);
         Ok(AppInfo {
             app_id: self.find_event_payload("app-id")?,
             compose_hash: self.find_event_payload("compose-hash")?,
@@ -168,10 +175,10 @@ impl<T> Attestation<T> {
             device_id,
             rootfs_hash: self.find_event_payload("rootfs-hash")?,
             mrtd: td_report.mr_td,
-            rtmr0: td_report.rt_mr0,
-            rtmr1: td_report.rt_mr1,
-            rtmr2: td_report.rt_mr2,
-            rtmr3: td_report.rt_mr3,
+            rtmr0: rtmrs[0],
+            rtmr1: rtmrs[1],
+            rtmr2: rtmrs[2],
+            rtmr3: rtmrs[3],
             mr_enclave,
             mr_image,
             mr_key_provider,
@@ -192,16 +199,6 @@ impl<T> Attestation<T> {
             Report::TD10(report) => Ok(report.report_data),
             Report::TD15(report) => Ok(report.base.report_data),
         }
-    }
-
-    /// Ensure the quote is for the RA-TLS public key
-    pub fn ensure_quote_for_ra_tls_pubkey(&self, pubkey: &[u8]) -> Result<()> {
-        let report_data = self.decode_report_data()?;
-        let expected_report_data = QuoteContentType::RaTlsCert.to_report_data(pubkey);
-        if report_data != expected_report_data {
-            return Err(anyhow!("report data mismatch"));
-        }
-        Ok(())
     }
 }
 
@@ -261,15 +258,35 @@ impl Attestation {
     }
 
     /// Verify the quote
-    pub async fn verify(self, pccs_url: Option<&str>) -> Result<VerifiedAttestation> {
+    pub async fn verify_with_ra_pubkey(
+        self,
+        ra_pubkey_der: &[u8],
+        pccs_url: Option<&str>,
+    ) -> Result<VerifiedAttestation> {
+        self.verify(
+            &QuoteContentType::RaTlsCert.to_report_data(ra_pubkey_der),
+            pccs_url,
+        )
+        .await
+    }
+
+    /// Verify the quote
+    pub async fn verify(
+        self,
+        report_data: &[u8; 64],
+        pccs_url: Option<&str>,
+    ) -> Result<VerifiedAttestation> {
         let quote = &self.quote;
+        if &self.decode_report_data()? != report_data {
+            anyhow::bail!("report data mismatch");
+        }
         let report = qvl::collateral::get_collateral_and_verify(quote, pccs_url)
             .await
             .context("Failed to get collateral")?;
         if let Some(report) = report.report.as_td10() {
             // Replay the event logs
             let rtmrs = self
-                .replay_event_logs()
+                .replay_event_logs(None)
                 .context("Failed to replay event logs")?;
             if rtmrs != [report.rt_mr0, report.rt_mr1, report.rt_mr2, report.rt_mr3] {
                 anyhow::bail!("RTMR mismatch");
@@ -319,7 +336,7 @@ pub struct AppInfo {
 }
 
 /// Replay event logs
-pub fn replay_event_logs(eventlog: &[EventLog]) -> Result<[[u8; 48]; 4]> {
+pub fn replay_event_logs(eventlog: &[EventLog], to_event: Option<&str>) -> Result<[[u8; 48]; 4]> {
     let mut rtmrs = [[0u8; 48]; 4];
     for idx in 0..4 {
         let mut mr = [0u8; 48];
@@ -331,8 +348,12 @@ pub fn replay_event_logs(eventlog: &[EventLog]) -> Result<[[u8; 48]; 4]> {
                 hasher.update(event.digest);
                 mr = hasher.finalize().into();
             }
+            if let Some(to_event) = to_event {
+                if event.event == to_event {
+                    break;
+                }
+            }
         }
-
         rtmrs[idx as usize] = mr;
     }
 

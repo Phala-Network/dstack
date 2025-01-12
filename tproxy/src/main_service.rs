@@ -354,7 +354,7 @@ impl TproxyRpc for RpcHandler {
             bail!("no attestation provided");
         };
         let app_info = ra
-            .decode_app_info()
+            .decode_app_info(false)
             .context("failed to decode app-info from attestation")?;
         if let Some(my_key_provider) = &self.state.mr_key_provider {
             if app_info.mr_key_provider != my_key_provider[..] {

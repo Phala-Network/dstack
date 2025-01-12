@@ -75,10 +75,8 @@ async fn main() -> Result<()> {
             })
         }))
         .manage(state);
-    if !pccs_url.is_empty() {
-        let verifier = QuoteVerifier::new(pccs_url);
-        rocket = rocket.manage(verifier);
-    }
+    let verifier = QuoteVerifier::new(pccs_url);
+    rocket = rocket.manage(verifier);
     rocket
         .launch()
         .await

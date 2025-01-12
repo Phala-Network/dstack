@@ -3,29 +3,37 @@
 use std::time::SystemTime;
 use std::{path::Path, time::Duration};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use fs_err as fs;
 use rcgen::{
     BasicConstraints, Certificate, CertificateParams, CustomExtension, DistinguishedName, DnType,
-    IsCa, KeyPair, PublicKeyData, SanType,
+    ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose, PublicKeyData, SanType,
 };
+use ring::rand::SystemRandom;
 use tdx_attest::eventlog::read_event_logs;
 use tdx_attest::get_quote;
 use x509_parser::der_parser::Oid;
-use x509_parser::prelude::X509Certificate;
+use x509_parser::prelude::{FromDer as _, X509Certificate};
+use x509_parser::public_key::PublicKey;
+use x509_parser::x509::SubjectPublicKeyInfo;
 
 use crate::attestation::QuoteContentType;
+use crate::oids::PHALA_RATLS_APP_ID;
 use crate::{
     oids::{PHALA_RATLS_EVENT_LOG, PHALA_RATLS_QUOTE},
     traits::CertExt,
 };
+use ring::signature::{
+    EcdsaKeyPair, UnparsedPublicKey, ECDSA_P256_SHA256_ASN1, ECDSA_P256_SHA256_ASN1_SIGNING,
+};
+use scale::{Decode, Encode};
 
 /// A CA certificate and private key.
 pub struct CaCert {
     /// The original PEM certificate.
     pub pem_cert: String,
     /// CA certificate
-    pub cert: Certificate,
+    cert: Certificate,
     /// CA private key
     pub key: KeyPair,
 }
@@ -56,6 +64,94 @@ impl CaCert {
     pub fn sign(&self, req: CertRequest<impl PublicKeyData>) -> Result<Certificate> {
         req.signed_by(&self.cert, &self.key)
     }
+
+    /// Sign a remote certificate signing request.
+    pub fn sign_csr(&self, csr: &CertSigningRequest, app_id: Option<&[u8]>) -> Result<Certificate> {
+        let pki = rcgen::SubjectPublicKeyInfo::from_der(&csr.pubkey)
+            .context("Failed to parse signature")?;
+        let req = CertRequest::builder()
+            .key(&pki)
+            .subject(&csr.subject)
+            .maybe_org_name(csr.org_name.as_deref())
+            .alt_names(&csr.subject_alt_names)
+            .usage_server_auth(csr.usage_server_auth)
+            .usage_client_auth(csr.usage_client_auth)
+            .maybe_quote(csr.ext_quote.then_some(&csr.quote))
+            .maybe_event_log(csr.ext_quote.then_some(&csr.event_log))
+            .maybe_app_id(app_id)
+            .build();
+        self.sign(req).context("Failed to sign certificate")
+    }
+}
+
+/// A certificate signing request.
+#[derive(Encode, Decode, Clone, PartialEq)]
+pub struct CertSigningRequest {
+    /// The confirm word, need to be "please sign cert:"
+    pub confirm: String,
+    /// The public key of the certificate.
+    pub pubkey: Vec<u8>,
+    /// The organization name of the certificate.
+    pub org_name: Option<String>,
+    /// The subject of the certificate.
+    pub subject: String,
+    /// The subject alternative names of the certificate.
+    pub subject_alt_names: Vec<String>,
+    /// The purpose of the certificate.
+    pub usage_server_auth: bool,
+    /// The purpose of the certificate.
+    pub usage_client_auth: bool,
+    /// Whether the certificate is quoted.
+    pub ext_quote: bool,
+    /// The quote of the certificate.
+    pub quote: Vec<u8>,
+    /// The event log of the certificate.
+    pub event_log: Vec<u8>,
+}
+
+impl CertSigningRequest {
+    /// Sign the certificate signing request.
+    pub fn signed_by(&self, key: &KeyPair) -> Result<Vec<u8>> {
+        let encoded = self.encode();
+        let rng = SystemRandom::new();
+        // Extract the DER-encoded private key and create an ECDSA key pair
+        let key_pair =
+            EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &key.serialize_der(), &rng)
+                .context("Failed to create key pair from DER")?;
+
+        // Sign the encoded CSR
+        let signature = key_pair
+            .sign(&rng, &encoded)
+            .expect("Failed to sign CSR")
+            .as_ref()
+            .to_vec();
+        Ok(signature)
+    }
+
+    /// Verify the signature of the certificate signing request.
+    pub fn verify(&self, signature: &[u8]) -> Result<()> {
+        let encoded = self.encode();
+        let (_rem, pki) =
+            SubjectPublicKeyInfo::from_der(&self.pubkey).context("Failed to parse pubkey")?;
+        let parsed_pki = pki.parsed().context("Failed to parse pki")?;
+        if !matches!(parsed_pki, PublicKey::EC(_)) {
+            bail!("Unsupported algorithm");
+        }
+        let key = UnparsedPublicKey::new(&ECDSA_P256_SHA256_ASN1, &pki.subject_public_key.data);
+        // verify signature
+        key.verify(&encoded, signature)
+            .ok()
+            .context("Invalid signature")?;
+        if self.confirm != "please sign cert:" {
+            bail!("Invalid confirm word");
+        }
+        Ok(())
+    }
+
+    /// Encode the certificate signing request to a vector.
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.encode()
+    }
 }
 
 /// Information required to create a certificate.
@@ -66,10 +162,15 @@ pub struct CertRequest<'a, Key> {
     subject: &'a str,
     alt_names: Option<&'a [String]>,
     ca_level: Option<u8>,
+    app_id: Option<&'a [u8]>,
     quote: Option<&'a [u8]>,
     event_log: Option<&'a [u8]>,
     not_before: Option<SystemTime>,
     not_after: Option<SystemTime>,
+    #[builder(default = false)]
+    usage_server_auth: bool,
+    #[builder(default = false)]
+    usage_client_auth: bool,
 }
 
 impl<'a, Key> CertRequest<'a, Key> {
@@ -81,6 +182,17 @@ impl<'a, Key> CertRequest<'a, Key> {
         }
         dn.push(DnType::CommonName, self.subject);
         params.distinguished_name = dn;
+        params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
+        if self.usage_server_auth {
+            params
+                .extended_key_usages
+                .push(ExtendedKeyUsagePurpose::ServerAuth);
+        }
+        if self.usage_client_auth {
+            params
+                .extended_key_usages
+                .push(ExtendedKeyUsagePurpose::ClientAuth);
+        }
         if let Some(alt_names) = self.alt_names {
             for alt_name in alt_names {
                 params
@@ -102,6 +214,13 @@ impl<'a, Key> CertRequest<'a, Key> {
             let ext = CustomExtension::from_oid_content(PHALA_RATLS_EVENT_LOG, content);
             params.custom_extensions.push(ext);
         }
+        if let Some(app_id) = self.app_id {
+            let content = yasna::construct_der(|writer| {
+                writer.write_bytes(app_id);
+            });
+            let ext = CustomExtension::from_oid_content(PHALA_RATLS_APP_ID, content);
+            params.custom_extensions.push(ext);
+        }
         if let Some(ca_level) = self.ca_level {
             params.is_ca = IsCa::Ca(BasicConstraints::Constrained(ca_level));
         }
@@ -113,7 +232,7 @@ impl<'a, Key> CertRequest<'a, Key> {
             .unwrap_or_else(|| {
                 let now = SystemTime::now();
                 let day = Duration::from_secs(86400);
-                now + day * 365
+                now + day * 365 * 10
             })
             .into();
         Ok(params)
@@ -194,4 +313,58 @@ pub fn generate_ra_cert(ca_cert_pem: String, ca_key_pem: String) -> Result<CertP
         cert_pem: cert.pem(),
         key_pem: key.serialize_pem(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rcgen::PKCS_ECDSA_P256_SHA256;
+
+    #[test]
+    fn test_csr_signing_and_verification() {
+        let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
+        let pubkey = key_pair.public_key_der();
+
+        let csr = CertSigningRequest {
+            confirm: "please sign cert:".to_string(),
+            pubkey: pubkey.clone(),
+            org_name: "Test Org".to_string(),
+            subject: "test.example.com".to_string(),
+            subject_alt_names: vec!["alt.example.com".to_string()],
+            purpose_server_auth: true,
+            purpose_client_auth: false,
+            quoted_cert: false,
+            quote: Vec::new(),
+            event_log: Vec::new(),
+        };
+
+        let signature = csr.signed_by(&key_pair).unwrap();
+        assert!(csr.verify(&signature).is_ok());
+
+        let mut invalid_signature = signature.clone();
+        invalid_signature[0] ^= 0xff;
+        assert!(csr.verify(&invalid_signature).is_err());
+    }
+
+    #[test]
+    fn test_invalid_confirm_word() {
+        let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
+        let pubkey = key_pair.public_key_der();
+
+        let csr = CertSigningRequest {
+            confirm: "wrong confirm word".to_string(),
+            pubkey: pubkey.clone(),
+            org_name: "Test Org".to_string(),
+            subject: "test.example.com".to_string(),
+            subject_alt_names: vec![],
+            purpose_server_auth: true,
+            purpose_client_auth: false,
+            quoted_cert: false,
+            quote: Vec::new(),
+            event_log: Vec::new(),
+        };
+
+        let signature = csr.signed_by(&key_pair).unwrap();
+        assert!(csr.verify(&signature).is_err());
+    }
 }

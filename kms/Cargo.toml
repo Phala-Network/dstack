@@ -32,6 +32,9 @@ k256.workspace = true
 rand.workspace = true
 tappd-rpc.workspace = true
 http-client = { workspace = true, features = ["prpc"] }
+scale.workspace = true
+x509-parser = { workspace = true, features = ["verify"] }
+ring.workspace = true
 
 [features]
 default = []

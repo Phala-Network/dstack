@@ -2339,10 +2339,12 @@ dependencies = [
  "k256",
  "kms-rpc",
  "load_config",
+ "parity-scale-codec",
  "ra-rpc",
  "ra-tls",
  "rand 0.8.5",
  "reqwest",
+ "ring",
  "rocket",
  "serde",
  "serde-human-bytes",
@@ -2352,6 +2354,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "x25519-dalek",
+ "x509-parser",
  "yasna",
 ]
 
@@ -3518,6 +3521,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
+ "x509-parser",
 ]
 
 [[package]]
@@ -3533,6 +3537,7 @@ dependencies = [
  "hex",
  "hkdf",
  "p256",
+ "parity-scale-codec",
  "rcgen",
  "ring",
  "rustls-pki-types",
@@ -4855,6 +4860,7 @@ dependencies = [
  "hex",
  "host-api",
  "k256",
+ "kms-rpc",
  "load_config",
  "ra-rpc",
  "ra-tls",

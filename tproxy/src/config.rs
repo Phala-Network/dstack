@@ -126,7 +126,7 @@ pub struct Config {
     pub wg: WgConfig,
     pub proxy: ProxyConfig,
     pub certbot: CertbotConfig,
-    pub pccs_url: String,
+    pub pccs_url: Option<String>,
     pub recycle: RecycleConfig,
     pub state_path: String,
     pub set_ulimit: bool,

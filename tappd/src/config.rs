@@ -20,4 +20,6 @@ pub struct Config {
     pub public_logs: bool,
     pub public_sysinfo: bool,
     pub compose_file: String,
+    #[serde(default)]
+    pub pccs_url: Option<String>,
 }

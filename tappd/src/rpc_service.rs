@@ -1,21 +1,26 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use dstack_types::AppKeys;
+use dstack_types::{AppKeys, KeyProvider};
 use fs_err as fs;
 use k256::ecdsa::SigningKey;
-use ra_rpc::{Attestation, CallContext, RpcCall};
+use kms_rpc::{kms_client::KmsClient, SignCertRequest};
+use ra_rpc::{
+    client::{RaClient, RaClientConfig},
+    Attestation, CallContext, RpcCall,
+};
 use ra_tls::{
     attestation::{QuoteContentType, DEFAULT_HASH_ALGORITHM},
-    cert::{CaCert, CertRequest},
-    kdf::{derive_ecdsa_key, derive_ecdsa_key_pair},
+    cert::{CaCert, CertSigningRequest},
+    kdf::{derive_ecdsa_key, derive_ecdsa_key_pair_from_bytes},
 };
 use serde_json::json;
+use sha3::{Digest, Keccak256};
 use tappd_rpc::{
     tappd_server::{TappdRpc, TappdServer},
     worker_server::{WorkerRpc, WorkerServer},
-    DeriveKeyArgs, DeriveKeyResponse, RawQuoteArgs, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo,
-    WorkerVersion,
+    DeriveK256KeyArgs, DeriveK256KeyResponse, DeriveKeyArgs, DeriveKeyResponse, RawQuoteArgs,
+    TdxQuoteArgs, TdxQuoteResponse, WorkerInfo, WorkerVersion,
 };
 use tdx_attest::eventlog::read_event_logs;
 
@@ -28,21 +33,85 @@ pub struct AppState {
 
 struct AppStateInner {
     config: Config,
-    k256_key: SigningKey,
-    k256_signature: Vec<u8>,
+    keys: AppKeys,
+    cert_signer: CertSigner,
+}
+
+enum CertSigner {
+    Local { ca: CaCert },
+    Kms { client: KmsClient<RaClient> },
+}
+
+impl CertSigner {
+    pub async fn sign_csr(
+        &self,
+        csr: &CertSigningRequest,
+        signature: &[u8],
+    ) -> Result<Vec<String>> {
+        match self {
+            CertSigner::Local { ca } => {
+                let cert = ca
+                    .sign_csr(csr, None)
+                    .context("Failed to sign certificate")?;
+                Ok(vec![cert.pem(), ca.pem_cert.clone()])
+            }
+            CertSigner::Kms { client } => {
+                let response = client
+                    .sign_cert(SignCertRequest {
+                        csr: csr.to_vec(),
+                        signature: signature.to_vec(),
+                    })
+                    .await?;
+                Ok(response.certificate_chain)
+            }
+        }
+    }
+}
+
+async fn create_cert_signer(keys: &AppKeys, config: &Config) -> Result<CertSigner> {
+    match &keys.key_provider {
+        KeyProvider::Local { key } => {
+            let ca =
+                CaCert::new(keys.ca_cert.clone(), key.clone()).context("Failed to create CA")?;
+            Ok(CertSigner::Local { ca })
+        }
+        KeyProvider::Kms { url } => {
+            let tmp_client =
+                RaClient::new(url.into(), true).context("Failed to create RA client")?;
+            let tmp_client = KmsClient::new(tmp_client);
+            let tmp_cert = tmp_client
+                .get_temp_ca_cert()
+                .await
+                .context("Failed to get RA cert")?;
+
+            let ra_client = RaClientConfig::builder()
+                .remote_uri(url.clone())
+                .tls_client_cert(tmp_cert.temp_ca_cert)
+                .tls_client_key(tmp_cert.temp_ca_key)
+                .tls_ca_cert(keys.ca_cert.clone())
+                .tls_built_in_root_certs(false)
+                .maybe_pccs_url(config.pccs_url.clone())
+                .build()
+                .into_client()
+                .context("Failed to create RA client")?;
+            let client = KmsClient::new(ra_client);
+            Ok(CertSigner::Kms { client })
+        }
+    }
 }
 
 impl AppState {
-    pub fn new(config: Config) -> Result<Self> {
+    pub async fn new(config: Config) -> Result<Self> {
         let keys: AppKeys = serde_json::from_str(&fs::read_to_string(&config.keys_file)?)
             .context("Failed to parse app keys")?;
-        let k256_key =
-            SigningKey::from_slice(&keys.k256_key).context("Failed to parse k256 key")?;
+        let cert_signer = create_cert_signer(&keys, &config)
+            .await
+            .context("Failed to create cert signer")?;
         Ok(Self {
             inner: Arc::new(AppStateInner {
                 config,
-                k256_key,
-                k256_signature: keys.k256_signature,
+                keys,
+                cert_signer,
             }),
         })
     }
@@ -56,67 +125,71 @@ pub struct InternalRpcHandler {
     state: AppState,
 }
 
+impl InternalRpcHandler {}
+
 impl TappdRpc for InternalRpcHandler {
     async fn derive_key(self, request: DeriveKeyArgs) -> Result<DeriveKeyResponse> {
-        let ca_key = todo!();
-        let derived_key = derive_ecdsa_key_pair(&ca_key, &[request.path.as_bytes()])
-            .context("Failed to derive key")?;
-        let quote;
-        let event_log;
+        let derived_key = derive_ecdsa_key_pair_from_bytes(
+            &self.state.inner.keys.k256_key,
+            &[request.path.as_bytes()],
+        )
+        .context("Failed to derive key")?;
 
-        if request.quoted {
-            let report_data =
-                QuoteContentType::RaTlsCert.to_report_data(&derived_key.public_key_der());
-            let (_, _quote) =
-                tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
-            let _event_log = read_event_logs().context("Failed to decode event log")?;
-            let _event_log =
-                serde_json::to_vec(&_event_log).context("Failed to serialize event log")?;
-            quote = Some(_quote);
-            event_log = Some(_event_log);
-        } else {
-            quote = None;
-            event_log = None;
-        }
-        let req = CertRequest::builder()
-            .subject(&request.subject)
-            .alt_names(&request.alt_names)
-            .maybe_quote(quote.as_deref())
-            .maybe_event_log(event_log.as_deref())
-            .key(&derived_key)
-            .build();
+        let pubkey = derived_key.public_key_der();
+        let report_data = QuoteContentType::RaTlsCert.to_report_data(&pubkey);
+        let (_, quote) =
+            tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
+        let event_log = read_event_logs().context("Failed to decode event log")?;
+        let event_log = serde_json::to_vec(&event_log).context("Failed to serialize event log")?;
 
-        let ca: CaCert = todo!();
-        let cert = ca
-            .sign(req)
-            .context("Failed to sign certificate")?;
+        let csr = CertSigningRequest {
+            confirm: "please sign cert:".to_string(),
+            pubkey,
+            org_name: None,
+            subject: request.subject,
+            subject_alt_names: request.alt_names,
+            usage_server_auth: request.usage_server_auth,
+            usage_client_auth: request.usage_client_auth,
+            ext_quote: request.usage_ra_tls,
+            quote,
+            event_log,
+        };
+        let signature = csr
+            .signed_by(&derived_key)
+            .context("Failed to sign the CSR")?;
+        let certificate_chain = self
+            .state
+            .inner
+            .cert_signer
+            .sign_csr(&csr, &signature)
+            .await
+            .context("Failed to sign the CSR")?;
+        Ok(DeriveKeyResponse {
+            key: derived_key.serialize_pem(),
+            certificate_chain,
+        })
+    }
 
-        let k256_app_key = &self.state.inner.k256_key;
-        let derived_k256_key =
-            derive_ecdsa_key(&k256_app_key.to_bytes(), &[request.path.as_bytes()], 32)
-                .context("Failed to derive k256 key")?;
+    async fn derive_k256_key(self, request: DeriveK256KeyArgs) -> Result<DeriveK256KeyResponse> {
+        let k256_app_key = &self.state.inner.keys.k256_key;
+        let derived_k256_key = derive_ecdsa_key(k256_app_key, &[request.path.as_bytes()], 32)
+            .context("Failed to derive k256 key")?;
         let derived_k256_key =
             SigningKey::from_slice(&derived_k256_key).context("Failed to parse k256 key")?;
         let derived_k256_pubkey = derived_k256_key.verifying_key();
         let msg_to_sign = format!(
             "{}:{}",
-            request.path,
+            request.purpose,
             hex::encode(derived_k256_pubkey.to_sec1_bytes())
         );
-        use sha3::{Digest, Keccak256};
         let digest = Keccak256::new_with_prefix(msg_to_sign);
         let (signature, recid) = derived_k256_key.sign_digest_recoverable(digest)?;
         let mut signature = signature.to_vec();
         signature.push(recid.to_byte());
 
-        let mut certificate_chain: Vec<String> = todo!();
-        certificate_chain.insert(0, cert.pem());
-
-        Ok(DeriveKeyResponse {
-            key: derived_key.serialize_pem(),
-            certificate_chain,
+        Ok(DeriveK256KeyResponse {
             k256_key: derived_k256_key.to_bytes().to_vec(),
-            k256_signature_chain: vec![signature, self.state.inner.k256_signature.clone()],
+            k256_signature_chain: vec![signature, self.state.inner.keys.k256_signature.clone()],
         })
     }
 
@@ -201,7 +274,7 @@ impl WorkerRpc for ExternalRpcHandler {
             return Ok(WorkerInfo::default());
         };
         let app_info = attestation
-            .decode_app_info()
+            .decode_app_info(false)
             .context("Failed to decode app info")?;
         let event_log = &attestation.event_log;
         let app_compose = fs::read_to_string(&self.state.config().compose_file).unwrap_or_default();

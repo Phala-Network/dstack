@@ -47,6 +47,15 @@ message GetTempCaCertResponse {
   string temp_ca_key = 2;
 }
 
+message SignCertRequest {
+  bytes csr = 1;
+  bytes signature = 2;
+}
+
+message SignCertResponse {
+  repeated string certificate_chain = 1;
+}
+
 // The kms public RPC service.
 service KMS {
   // Request the app key given the app id and tdx quote
@@ -59,6 +68,8 @@ service KMS {
   rpc GetMeta(google.protobuf.Empty) returns (GetMetaResponse);
   // Request the temporary CA certificate and key
   rpc GetTempCaCert(google.protobuf.Empty) returns (GetTempCaCertResponse);
+  // Sign a certificate
+  rpc SignCert(SignCertRequest) returns (SignCertResponse);
 }
 
 message BootstrapRequest {

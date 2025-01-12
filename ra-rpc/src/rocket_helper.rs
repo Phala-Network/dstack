@@ -18,7 +18,7 @@ use crate::{encode_error, CallContext, RemoteEndpoint, RpcCall};
 
 #[derive(Debug, Clone)]
 pub struct QuoteVerifier {
-    pccs_url: String,
+    pccs_url: Option<String>,
 }
 
 pub mod deps {
@@ -138,7 +138,7 @@ impl<'r> FromRequest<'r> for &'r QuoteVerifier {
 }
 
 impl QuoteVerifier {
-    pub fn new(pccs_url: String) -> Self {
+    pub fn new(pccs_url: Option<String>) -> Self {
         Self { pccs_url }
     }
 }
@@ -247,8 +247,14 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
         .flatten();
     let attestation = match (request.quote_verifier, attestation) {
         (Some(quote_verifier), Some(attestation)) => {
+            let pubkey = request
+                .certificate
+                .expect("certificate is missing")
+                .public_key()
+                .raw
+                .to_vec();
             let verified = attestation
-                .verify(quote_verifier.pccs_url.as_str().into())
+                .verify_with_ra_pubkey(&pubkey, quote_verifier.pccs_url.as_deref())
                 .await
                 .context("invalid quote")?;
             Some(verified)

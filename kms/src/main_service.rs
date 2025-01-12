@@ -6,14 +6,15 @@ use k256::ecdsa::SigningKey;
 use kms_rpc::{
     kms_server::{KmsRpc, KmsServer},
     AppId, AppKeyResponse, GetAppKeyRequest, GetMetaResponse, GetTempCaCertResponse,
-    KmsKeyResponse, KmsKeys, PublicKeyResponse,
+    KmsKeyResponse, KmsKeys, PublicKeyResponse, SignCertRequest, SignCertResponse,
 };
-use ra_rpc::{CallContext, RpcCall};
+use ra_rpc::{Attestation, CallContext, RpcCall};
 use ra_tls::{
-    attestation::VerifiedAttestation as Attestation,
-    cert::{CaCert, CertRequest},
+    attestation::VerifiedAttestation,
+    cert::{CaCert, CertSigningRequest},
     kdf,
 };
+use scale::Decode;
 use upgrade_authority::BootInfo;
 
 use crate::{config::KmsConfig, crypto::derive_k256_key};
@@ -66,7 +67,7 @@ impl KmsState {
 
 pub struct RpcHandler {
     state: KmsState,
-    attestation: Option<Attestation>,
+    attestation: Option<VerifiedAttestation>,
 }
 
 struct BootConfig {
@@ -75,7 +76,7 @@ struct BootConfig {
 }
 
 impl RpcHandler {
-    fn ensure_attested(&self) -> Result<&Attestation> {
+    fn ensure_attested(&self) -> Result<&VerifiedAttestation> {
         let Some(attestation) = &self.attestation else {
             bail!("No attestation provided");
         };
@@ -83,17 +84,29 @@ impl RpcHandler {
     }
 
     async fn ensure_kms_allowed(&self) -> Result<BootInfo> {
-        self.ensure_app_allowed(true).await.map(|b| b.boot_info)
+        let att = self.ensure_attested()?;
+        self.ensure_app_attestation_allowed(att, true, false)
+            .await
+            .map(|c| c.boot_info)
     }
 
-    async fn ensure_app_allowed(&self, is_kms: bool) -> Result<BootConfig> {
+    async fn ensure_app_boot_allowed(&self) -> Result<BootConfig> {
         let att = self.ensure_attested()?;
+        self.ensure_app_attestation_allowed(att, false, false).await
+    }
+
+    async fn ensure_app_attestation_allowed(
+        &self,
+        att: &VerifiedAttestation,
+        is_kms: bool,
+        use_boottime_mr: bool,
+    ) -> Result<BootConfig> {
         let report = att
             .report
             .report
             .as_td10()
             .context("Failed to decode TD report")?;
-        let app_info = att.decode_app_info()?;
+        let app_info = att.decode_app_info(use_boottime_mr)?;
         let boot_info = BootInfo {
             mrtd: report.mr_td.to_vec(),
             rtmr0: report.rt_mr0.to_vec(),
@@ -129,22 +142,15 @@ impl RpcHandler {
 
 impl KmsRpc for RpcHandler {
     async fn get_app_key(self, _request: GetAppKeyRequest) -> Result<AppKeyResponse> {
-        let attest = self.ensure_attested()?;
         let BootConfig {
             boot_info,
             tproxy_app_id,
         } = self
-            .ensure_app_allowed(false)
+            .ensure_app_boot_allowed()
             .await
             .context("App not allowed")?;
         let app_id = boot_info.app_id;
         let instance_id = boot_info.instance_id;
-
-        let app_key = kdf::derive_ecdsa_key_pair(
-            &self.state.root_ca.key,
-            &[&app_id[..], "app-key".as_bytes()],
-        )
-        .context("Failed to derive app key")?;
 
         let context_data = vec![&app_id[..], &instance_id[..], b"app-disk-crypt-key"];
         let app_disk_key = kdf::derive_dh_secret(&self.state.root_ca.key, &context_data)
@@ -156,21 +162,6 @@ impl KmsRpc for RpcHandler {
             let secret = x25519_dalek::StaticSecret::from(secret);
             secret.to_bytes()
         };
-        let app_id_str = hex::encode(&app_id);
-        let subject = format!("{app_id_str}{}", self.state.config.subject_postfix);
-        let req = CertRequest::builder()
-            .subject(&subject)
-            .quote(&attest.quote)
-            .event_log(&attest.raw_event_log)
-            .key(&app_key)
-            .build();
-
-        let cert = self
-            .state
-            .root_ca
-            .sign(req)
-            .context("Failed to sign certificate")?
-            .pem();
 
         let (k256_key, k256_signature) = {
             let (k256_app_key, signature, recid) = derive_k256_key(
@@ -210,7 +201,7 @@ impl KmsRpc for RpcHandler {
 
     async fn get_meta(self) -> Result<GetMetaResponse> {
         Ok(GetMetaResponse {
-            ca_cert: self.state.inner.root_ca.cert.pem(),
+            ca_cert: self.state.inner.root_ca.pem_cert.clone(),
             allow_any_upgrade: self.state.inner.config.auth_api.is_dev(),
             k256_pubkey: self.state.inner.k256_key.to_bytes().to_vec(),
         })
@@ -233,6 +224,29 @@ impl KmsRpc for RpcHandler {
         Ok(GetTempCaCertResponse {
             temp_ca_cert: self.state.inner.temp_ca_cert.clone(),
             temp_ca_key: self.state.inner.temp_ca_key.clone(),
+        })
+    }
+
+    async fn sign_cert(self, request: SignCertRequest) -> Result<SignCertResponse> {
+        let csr =
+            CertSigningRequest::decode(&mut &request.csr[..]).context("Failed to parse csr")?;
+        csr.verify(&request.signature)
+            .context("Failed to verify csr signature")?;
+        let attestation = Attestation::new(csr.quote.clone(), csr.event_log.clone())
+            .context("Failed to create attestation from quote and event log")?
+            .verify_with_ra_pubkey(&csr.pubkey, self.state.config.pccs_url.as_deref())
+            .await
+            .context("Quote verification failed")?;
+        let app_info = self
+            .ensure_app_attestation_allowed(&attestation, false, true)
+            .await?;
+        let cert = self
+            .state
+            .root_ca
+            .sign_csr(&csr, Some(&app_info.boot_info.app_id))
+            .context("Failed to sign certificate")?;
+        Ok(SignCertResponse {
+            certificate_chain: vec![cert.pem(), self.state.root_ca.pem_cert.clone()],
         })
     }
 }
