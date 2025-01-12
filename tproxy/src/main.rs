@@ -1,7 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use config::{Config, TlsConfig};
-use fs_err as fs;
 use main_service::{Proxy, RpcHandler};
 use ra_rpc::{client::RaClient, rocket_helper::QuoteVerifier};
 use rocket::fairing::AdHoc;

@@ -356,8 +356,6 @@ impl App {
         let work_dir = self.work_dir(id);
         let shared_dir = self.shared_dir(id);
         let manifest = work_dir.manifest().context("Failed to read manifest")?;
-        let certs_dir = shared_dir.join("certs");
-        fs::create_dir_all(&certs_dir).context("Failed to create certs directory")?;
         let cfg = &self.config;
         let image_path = cfg.image_path.join(&manifest.image);
         let image_info = ImageInfo::load(image_path.join("metadata.json"))
@@ -377,11 +375,6 @@ impl App {
             serde_json::to_string(&vm_config).context("Failed to serialize vm config")?;
         fs::write(shared_dir.join("config.json"), vm_config_str)
             .context("Failed to write vm config")?;
-        fs::copy(&cfg.cvm.ca_cert, certs_dir.join("ca.cert")).context("Failed to copy ca cert")?;
-        fs::copy(&cfg.cvm.tmp_ca_cert, certs_dir.join("tmp-ca.cert"))
-            .context("Failed to copy tmp ca cert")?;
-        fs::copy(&cfg.cvm.tmp_ca_key, certs_dir.join("tmp-ca.key"))
-            .context("Failed to copy tmp ca key")?;
         Ok(())
     }
 

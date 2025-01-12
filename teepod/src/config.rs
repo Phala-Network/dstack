@@ -72,9 +72,6 @@ impl PortMappingConfig {
 pub struct CvmConfig {
     #[serde(default)]
     pub qemu_path: PathBuf,
-    pub ca_cert: PathBuf,
-    pub tmp_ca_cert: PathBuf,
-    pub tmp_ca_key: PathBuf,
     /// The URL of the KMS server
     pub kms_url: String,
     /// The URL of the TProxy server
