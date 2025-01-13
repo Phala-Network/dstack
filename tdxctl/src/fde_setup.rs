@@ -268,10 +268,7 @@ impl SetupFdeArgs {
         fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
 
         // write to RTMR
-        let provider_info = KeyProviderInfo::new(
-            "local-sgx".into(),
-            hex::encode(provision.mr),
-        );
+        let provider_info = KeyProviderInfo::new("local-sgx".into(), hex::encode(provision.mr));
         emit_key_provider_info(&provider_info)?;
         Ok(())
     }
