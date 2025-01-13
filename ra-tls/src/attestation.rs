@@ -342,6 +342,9 @@ pub fn replay_event_logs(eventlog: &[EventLog], to_event: Option<&str>) -> Resul
         let mut mr = [0u8; 48];
 
         for event in eventlog.iter() {
+            event
+                .validate()
+                .context("Failed to validate event digest")?;
             if event.imr == idx {
                 let mut hasher = Sha384::new();
                 hasher.update(mr);
