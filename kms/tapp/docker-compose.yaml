@@ -10,8 +10,8 @@ services:
         RUN git clone https://github.com/a16z/helios && \
             cd helios && \
             git checkout 5c61864a167c16141a9a12b976c0e9398b332f07
-        RUN cd helios && cargo build --release
         WORKDIR /app/helios
+        RUN cargo build --release
     command: [
       "./target/release/helios",
       "ethereum",
@@ -59,8 +59,8 @@ services:
         RUN git clone https://github.com/Dstack-TEE/dstack.git && \
             cd dstack && \
             git checkout 4d9011d027af993e17a3fb8182a7249409b78a2e
-        RUN cd dstack/kms && cargo build --release -p kms
         WORKDIR /app/dstack
+        RUN cargo build --release -p kms
         CMD ["./target/release/kms"]
     volumes:
       - kms-volume:/etc/kms
