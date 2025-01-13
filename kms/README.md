@@ -93,8 +93,22 @@ During bootstrapping, the KMS node generates two root keys:
 After generating the root keys, their public portions can be obtained along with the corresponding TDX quote and registered in the KmsAuth contract.
 
 #### KMS Self Replication
-If the deployer chooses to onboard an existing KMS instance `B`, the allowed MRs of the KMS instance must be registered in the KmsAuth contract.
-The deployer provides the KMS node with a URL of an existing KMS instance `A`. When instance `A` receives the replication request, it validates the TDX quote of KMS node `B` and then asks the KmsAuth contract for permission to hand over the keys. If permission is granted, instance `B` receives the keys and replication is complete.
+When deploying a new KMS instance (`B`) using an existing instance (`A`), the process follows these steps:
+
+1. **Prerequisites**
+   - Register allowed MRs of instance `B` in the KmsAuth contract
+
+2. **Replication Flow**
+   - Configure instance `B` with the URL of existing instance `A`
+   - Instance `B` sends replication request to instance `A` via RA-TLS based RPC
+   - Instance `A` validates instance `B`'s TDX quote
+   - Instance `A` checks KmsAuth contract for permissions
+   - If approved, instance `A` transfers root keys to instance `B`
+
+3. **Completion**
+   - Instance `B` becomes a fully functional KMS node
+   - Both instances now share identical root keys
+   - Either instance can service App key requests
 
 #### App Key Provisioning
 
