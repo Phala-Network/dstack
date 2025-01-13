@@ -171,5 +171,5 @@ The verification process follows these steps:
 
 1. Recover `pK2` from `Sm` and `M`
 2. Recover `pK1` from `S2` and `pK2`
-3. Recover `pK0` from `S1` and `pK1`
+3. Recover `pK0` from `S1` and `pK1` + `app-id`
 4. Compare the recovered `pK0` with the registered `pK0` in the KmsAuth contract
