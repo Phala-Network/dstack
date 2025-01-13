@@ -15,6 +15,7 @@ contract AppAuth is IAppAuth {
     // Events
     event ComposeHashAdded(bytes32 composeHash);
     event ComposeHashRemoved(bytes32 composeHash);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     constructor(address _appId) {
         owner = msg.sender;
@@ -25,6 +26,16 @@ contract AppAuth is IAppAuth {
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function");
         _;
+    }
+
+    /**
+     * @dev Transfers ownership to a new address
+     * @param newOwner The address to transfer ownership to
+     */
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "New owner cannot be zero address");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
     }
 
     /**
