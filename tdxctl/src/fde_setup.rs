@@ -269,7 +269,7 @@ impl SetupFdeArgs {
 
         // write to RTMR
         let provider_info = KeyProviderInfo::new(
-            "gramine-sealing-key-provider".into(),
+            "local-sgx".into(),
             hex::encode(provision.mr),
         );
         emit_key_provider_info(&provider_info)?;
