@@ -520,6 +520,11 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="appId">App ID (optional)</label>
+                        <input id="appId" v-model="vmForm.app_id" type="text" placeholder="Will be auto-generated from configuration">
+                    </div>
+
+                    <div class="form-group">
                         <label for="composeFile">Docker Compose File</label>
                         <textarea id="composeFile" v-model="vmForm.compose_file"
                             placeholder="Paste your docker-compose.yml here" required></textarea>
@@ -946,6 +951,7 @@
                         username: '',
                         token_key: ''
                     },
+                    app_id: '',
                     kms_enabled: true,
                     local_key_provider_enabled: false,
                     tproxy_enabled: true,
@@ -1118,6 +1124,7 @@
 
                 const clearEncryptedEnv = () => {
                     vmForm.value.encrypted_envs = [];
+                    vmForm.value.app_id = null;
                 };
 
                 const createVm = async () => {
