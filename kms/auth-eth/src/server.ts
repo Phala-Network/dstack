@@ -32,10 +32,11 @@ export async function build(): Promise<FastifyInstance> {
   server.addSchema({
     $id: 'bootResponse',
     type: 'object',
-    required: ['isAllowed', 'reason'],
+    required: ['isAllowed', 'reason', 'tproxyAppId'],
     properties: {
       isAllowed: { type: 'boolean' },
-      reason: { type: 'string' }
+      reason: { type: 'string' },
+      tproxyAppId: { type: 'string' },
     }
   });
 
