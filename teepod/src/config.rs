@@ -77,6 +77,7 @@ pub struct CvmConfig {
     /// The URL of the TProxy server
     pub tproxy_url: String,
     /// The URL of the PCCS server
+    #[serde(default)]
     pub pccs_url: String,
     /// The URL of the Docker registry
     pub docker_registry: String,
