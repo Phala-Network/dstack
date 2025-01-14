@@ -675,7 +675,7 @@
                                         title="View App Info">
                                         <i class="fas fa-info-circle"></i> Board
                                     </button>
-                                    <button class="action-btn" @click="showUpgradeDialog(vm)" title="Upgrade VM">
+                                    <button v-if="kmsEnabled(vm)" class="action-btn" @click="showUpgradeDialog(vm)" title="Upgrade VM">
                                         <i class="fas fa-arrow-up"></i> Update
                                     </button>
                                     <button class="action-btn" @click="showForkVm(vm)" title="Derive VM">
