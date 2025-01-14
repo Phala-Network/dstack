@@ -39,6 +39,13 @@ impl CertRequestClient {
         }
     }
 
+    pub async fn get_root_ca(&self) -> Result<String> {
+        match self {
+            CertRequestClient::Local { ca } => Ok(ca.pem_cert.clone()),
+            CertRequestClient::Kms { client } => Ok(client.get_meta().await?.ca_cert),
+        }
+    }
+
     pub async fn create(keys: &AppKeys, pccs_url: Option<&str>) -> Result<CertRequestClient> {
         match &keys.key_provider {
             KeyProvider::Local { key } => {
