@@ -58,10 +58,14 @@ export interface AppAuthInterface extends Interface {
       | "isAppAllowed"
       | "owner"
       | "removeComposeHash"
+      | "transferOwnership"
   ): FunctionFragment;
 
   getEvent(
-    nameOrSignatureOrTopic: "ComposeHashAdded" | "ComposeHashRemoved"
+    nameOrSignatureOrTopic:
+      | "ComposeHashAdded"
+      | "ComposeHashRemoved"
+      | "OwnershipTransferred"
   ): EventFragment;
 
   encodeFunctionData(
@@ -82,6 +86,10 @@ export interface AppAuthInterface extends Interface {
     functionFragment: "removeComposeHash",
     values: [BytesLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "transferOwnership",
+    values: [AddressLike]
+  ): string;
 
   decodeFunctionResult(
     functionFragment: "addComposeHash",
@@ -99,6 +107,10 @@ export interface AppAuthInterface extends Interface {
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "removeComposeHash",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "transferOwnership",
     data: BytesLike
   ): Result;
 }
@@ -120,6 +132,19 @@ export namespace ComposeHashRemovedEvent {
   export type OutputTuple = [composeHash: string];
   export interface OutputObject {
     composeHash: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace OwnershipTransferredEvent {
+  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+  export type OutputTuple = [previousOwner: string, newOwner: string];
+  export interface OutputObject {
+    previousOwner: string;
+    newOwner: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -198,6 +223,12 @@ export interface AppAuth extends BaseContract {
     "nonpayable"
   >;
 
+  transferOwnership: TypedContractMethod<
+    [newOwner: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -224,6 +255,9 @@ export interface AppAuth extends BaseContract {
   getFunction(
     nameOrSignature: "removeComposeHash"
   ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "transferOwnership"
+  ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
 
   getEvent(
     key: "ComposeHashAdded"
@@ -238,6 +272,13 @@ export interface AppAuth extends BaseContract {
     ComposeHashRemovedEvent.InputTuple,
     ComposeHashRemovedEvent.OutputTuple,
     ComposeHashRemovedEvent.OutputObject
+  >;
+  getEvent(
+    key: "OwnershipTransferred"
+  ): TypedContractEvent<
+    OwnershipTransferredEvent.InputTuple,
+    OwnershipTransferredEvent.OutputTuple,
+    OwnershipTransferredEvent.OutputObject
   >;
 
   filters: {
@@ -261,6 +302,17 @@ export interface AppAuth extends BaseContract {
       ComposeHashRemovedEvent.InputTuple,
       ComposeHashRemovedEvent.OutputTuple,
       ComposeHashRemovedEvent.OutputObject
+    >;
+
+    "OwnershipTransferred(address,address)": TypedContractEvent<
+      OwnershipTransferredEvent.InputTuple,
+      OwnershipTransferredEvent.OutputTuple,
+      OwnershipTransferredEvent.OutputObject
+    >;
+    OwnershipTransferred: TypedContractEvent<
+      OwnershipTransferredEvent.InputTuple,
+      OwnershipTransferredEvent.OutputTuple,
+      OwnershipTransferredEvent.OutputObject
     >;
   };
 }
