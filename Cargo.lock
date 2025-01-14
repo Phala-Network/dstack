@@ -5321,6 +5321,7 @@ dependencies = [
  "serde_json",
  "shared_child",
  "smallvec",
+ "tappd-rpc",
  "tokio",
  "tokio-rustls",
  "tproxy-rpc",

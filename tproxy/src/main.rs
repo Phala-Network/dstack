@@ -1,9 +1,11 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use config::{Config, TlsConfig};
 use main_service::{Proxy, RpcHandler};
 use ra_rpc::{client::RaClient, rocket_helper::QuoteVerifier};
 use rocket::fairing::AdHoc;
+use std::path::Path;
+use tappd_rpc;
 use tracing::info;
 
 mod config;
@@ -41,12 +43,46 @@ fn set_max_ulimit() -> Result<()> {
 }
 
 async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> {
-    if config.gen_certs_for.is_empty() {
+    if config.tls_domain.is_empty() {
+        info!("TLS domain is empty, skipping cert generation");
         return Ok(());
     }
+
+    let tappd_socket = Path::new("/var/run/tappd.sock");
+    if tappd_socket.exists() {
+        info!("Using tappd for certificate generation");
+        let client = tappd_rpc::tappd_client::TappdClient::new(
+            RaClient::new(tappd_socket.to_str().unwrap().to_string(), true)
+                .context("Failed to create tappd client")?,
+        );
+        let response = client
+            .derive_key(tappd_rpc::DeriveKeyArgs {
+                path: "".to_string(),
+                subject: "tproxy".to_string(),
+                alt_names: vec![config.tls_domain.clone()],
+                usage_ra_tls: true,
+                usage_server_auth: true,
+                usage_client_auth: false,
+                random_seed: true,
+            })
+            .await?;
+
+        let ca_cert = response
+            .certificate_chain
+            .last()
+            .context("Empty certificate chain")?
+            .to_string();
+        let certs = response.certificate_chain.join("\n");
+        write_cert(&tls_config.mutual.ca_certs, &ca_cert)?;
+        write_cert(&tls_config.certs, &certs)?;
+        write_cert(&tls_config.key, &response.key)?;
+        return Ok(());
+    }
+
     let kms_url = config.kms_url.clone();
     if kms_url.is_empty() {
-        bail!("kms_url is required when gen_certs turned on");
+        info!("KMS URL is empty, skipping cert generation");
+        return Ok(());
     }
     let kms_url = format!("{kms_url}/prpc");
     info!("Getting CA cert from {kms_url}");
@@ -57,7 +93,7 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
     let cert = ra_tls::cert::CertRequest::builder()
         .key(&key)
         .subject("tproxy")
-        .alt_names(&[config.gen_certs_for.clone()])
+        .alt_names(&[config.tls_domain.clone()])
         .usage_server_auth(true)
         .build()
         .self_signed()
