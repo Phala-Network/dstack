@@ -252,7 +252,7 @@ task("info:tproxy", "Get current TProxy App ID")
     console.log("TProxy App ID:", appId);
   });
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
+const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 const config: HardhatUserConfig = {
   solidity: "0.8.19",

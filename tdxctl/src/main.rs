@@ -262,12 +262,11 @@ impl core::fmt::Debug for ParsedReport {
 }
 
 fn cmd_show() -> Result<()> {
-    let report_data = [0; 64];
-    let report = att::get_report(&report_data).context("Failed to get report")?;
-    let parsed_report =
-        ParsedReport::decode(&mut report.0.get(512..).context("Failed to get report")?)
-            .context("Failed to decode report")?;
-    println!("{:#?}", parsed_report);
+    let attestation = ra_tls::attestation::Attestation::local()?;
+    let app_info = attestation.decode_app_info(false)?;
+    println!("========== App Info ==========");
+    serde_json::to_writer_pretty(io::stdout(), &app_info)?;
+    println!();
     Ok(())
 }
 

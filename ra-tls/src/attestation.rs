@@ -3,11 +3,13 @@
 use anyhow::{anyhow, Context, Result};
 use dcap_qvl::quote::Quote;
 use qvl::{quote::Report, verify::VerifiedReport};
+use serde::Serialize;
 use sha2::{Digest as _, Sha384};
 use x509_parser::parse_x509_certificate;
 
 use crate::{oids, traits::CertExt};
 use cc_eventlog::TdxEventLog as EventLog;
+use serde_human_bytes as hex_bytes;
 
 /// The content type of a quote. A CVM should only generate quotes for these types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -203,6 +205,19 @@ impl<T> Attestation<T> {
 }
 
 impl Attestation {
+    /// Create an attestation for local machine
+    pub fn local() -> Result<Self> {
+        let (_, quote) = tdx_attest::get_quote(&[0u8; 64], None)?;
+        let event_log = tdx_attest::eventlog::read_event_logs()?;
+        let raw_event_log = serde_json::to_vec(&event_log)?;
+        Ok(Self {
+            quote,
+            raw_event_log,
+            event_log,
+            report: (),
+        })
+    }
+
     /// Create a new attestation
     pub fn new(quote: Vec<u8>, raw_event_log: Vec<u8>) -> Result<Self> {
         let event_log: Vec<EventLog> = if !raw_event_log.is_empty() {
@@ -304,34 +319,49 @@ impl Attestation {
 impl Attestation<VerifiedReport> {}
 
 /// Information about the app extracted from event log
+#[derive(Debug, Clone, Serialize)]
 pub struct AppInfo {
     /// App ID
+    #[serde(with = "hex_bytes")]
     pub app_id: Vec<u8>,
     /// SHA256 of the app compose file
+    #[serde(with = "hex_bytes")]
     pub compose_hash: Vec<u8>,
     /// ID of the CVM instance
+    #[serde(with = "hex_bytes")]
     pub instance_id: Vec<u8>,
     /// ID of the device
+    #[serde(with = "hex_bytes")]
     pub device_id: Vec<u8>,
     /// Rootfs hash
+    #[serde(with = "hex_bytes")]
     pub rootfs_hash: Vec<u8>,
     /// TCB info
+    #[serde(with = "hex_bytes")]
     pub mrtd: [u8; 48],
     /// Runtime MR0
+    #[serde(with = "hex_bytes")]
     pub rtmr0: [u8; 48],
     /// Runtime MR1
+    #[serde(with = "hex_bytes")]
     pub rtmr1: [u8; 48],
     /// Runtime MR2
+    #[serde(with = "hex_bytes")]
     pub rtmr2: [u8; 48],
     /// Runtime MR3
+    #[serde(with = "hex_bytes")]
     pub rtmr3: [u8; 48],
     /// Measurement of the entire vm execution environment
+    #[serde(with = "hex_bytes")]
     pub mr_enclave: [u8; 32],
     /// Measurement of the app image
+    #[serde(with = "hex_bytes")]
     pub mr_image: [u8; 32],
     /// Measurement of the key provider
+    #[serde(with = "hex_bytes")]
     pub mr_key_provider: [u8; 32],
     /// Key provider info
+    #[serde(with = "hex_bytes")]
     pub key_provider_info: Vec<u8>,
 }
 

@@ -28,3 +28,4 @@ tdx-attest.workspace = true
 scale.workspace = true
 
 cc-eventlog.workspace = true
+serde-human-bytes.workspace = true
