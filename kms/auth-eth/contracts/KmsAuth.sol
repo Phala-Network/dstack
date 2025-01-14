@@ -18,7 +18,7 @@ contract KmsAuth is IAppAuth {
     KmsInfo public kmsInfo;
 
     // TProxy App ID
-    address public tproxyAppId;
+    string public tproxyAppId;
 
     // Struct to store App configuration
     struct AppConfig {
@@ -56,7 +56,7 @@ contract KmsAuth is IAppAuth {
         address indexed previousOwner,
         address indexed newOwner
     );
-    event TProxyAppIdSet(address tproxyAppId);
+    event TProxyAppIdSet(string tproxyAppId);
 
     // Constructor
     constructor() {
@@ -84,7 +84,7 @@ contract KmsAuth is IAppAuth {
     }
 
     // Function to set trusted TProxy App ID
-    function setTProxyAppId(address appId) external onlyOwner {
+    function setTProxyAppId(string memory appId) external onlyOwner {
         tproxyAppId = appId;
         emit TProxyAppIdSet(appId);
     }

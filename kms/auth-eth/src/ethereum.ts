@@ -41,12 +41,12 @@ export class EthereumBackend {
     if (isKms) {
       return {
         ... await this.kmsAuth.isKmsAllowed(bootInfoStruct),
-        tproxyAppId: tproxyAppId.toString()
+        tproxyAppId
       }
     } else {
       return {
         ... await this.kmsAuth.isAppAllowed(bootInfoStruct),
-        tproxyAppId: tproxyAppId.toString()
+        tproxyAppId
       }
     }
   }
