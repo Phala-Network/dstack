@@ -19,6 +19,8 @@ pub struct RaClientConfig {
     remote_uri: String,
     #[builder(default = false)]
     tls_no_check: bool,
+    #[builder(default = false)]
+    tls_no_check_hostname: bool,
     tls_client_cert: Option<String>,
     tls_client_key: Option<String>,
     tls_ca_cert: Option<String>,
@@ -33,6 +35,7 @@ impl RaClientConfig {
         let mut builder = Client::builder()
             .tls_sni(true)
             .danger_accept_invalid_certs(self.tls_no_check)
+            .danger_accept_invalid_hostnames(self.tls_no_check_hostname)
             .tls_built_in_root_certs(self.tls_built_in_root_certs)
             .connect_timeout(Duration::from_secs(5))
             .timeout(Duration::from_secs(60));
