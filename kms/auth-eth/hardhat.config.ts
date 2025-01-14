@@ -15,7 +15,11 @@ const config: HardhatUserConfig = {
     sepolia: {
       url: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
       accounts: [PRIVATE_KEY],
-    }
+    },
+    phala: {
+      url: 'https://rpc.phala.network',
+      accounts: [PRIVATE_KEY],
+    },
   },
   etherscan: {
     apiKey: {
