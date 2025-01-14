@@ -12,7 +12,7 @@ kms_url = "https://kms.localhost"
 state_path = "./tproxy-state.json"
 # auto set soft ulimit to hard ulimit
 set_ulimit = true
-gen_certs = true
+gen_certs_for = ""
 
 [core.certbot]
 workdir = "/etc/certbot"

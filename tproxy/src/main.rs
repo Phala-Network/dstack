@@ -41,12 +41,12 @@ fn set_max_ulimit() -> Result<()> {
 }
 
 async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> {
-    if !config.gen_certs {
+    if config.gen_certs_for.is_empty() {
         return Ok(());
     }
     let kms_url = config.kms_url.clone();
     if kms_url.is_empty() {
-        bail!("kms_url is required when gen_certs is true");
+        bail!("kms_url is required when gen_certs turned on");
     }
     let kms_url = format!("{kms_url}/prpc");
     info!("Getting CA cert from {kms_url}");
@@ -54,12 +54,14 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
     let client = kms_rpc::kms_client::KmsClient::new(client);
     let ca_cert = client.get_meta().await?.ca_cert;
     let key = ra_tls::rcgen::KeyPair::generate().context("Failed to generate key")?;
-    let req = ra_tls::cert::CertRequest::builder()
+    let cert = ra_tls::cert::CertRequest::builder()
         .key(&key)
         .subject("tproxy")
+        .alt_names(&[config.gen_certs_for.clone()])
         .usage_server_auth(true)
-        .build();
-    let cert = req.self_signed().context("Failed to self-sign cert")?;
+        .build()
+        .self_signed()
+        .context("Failed to self-sign rpc cert")?;
 
     write_cert(&tls_config.mutual.ca_certs, &ca_cert)?;
     write_cert(&tls_config.certs, &cert.pem())?;

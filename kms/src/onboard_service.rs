@@ -198,7 +198,8 @@ impl Keys {
 }
 
 pub(crate) fn bootstrap_keys(cfg: &KmsConfig) -> Result<()> {
-    let keys = Keys::generate("kms.localhost").context("Failed to generate keys")?;
+    let keys =
+        Keys::generate(&cfg.onboard.auto_bootstrap_domain).context("Failed to generate keys")?;
     keys.store(cfg)?;
     Ok(())
 }

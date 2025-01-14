@@ -130,7 +130,7 @@ pub struct Config {
     pub recycle: RecycleConfig,
     pub state_path: String,
     pub set_ulimit: bool,
-    pub gen_certs: bool,
+    pub gen_certs_for: String,
     pub kms_url: String,
 }
 
