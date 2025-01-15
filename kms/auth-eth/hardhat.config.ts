@@ -32,7 +32,7 @@ const config: HardhatUserConfig = {
 export default config;
 
 // Contract addresses from environment
-const KMS_CONTRACT_ADDRESS = process.env.KMS_CONTRACT_ADDRESS || "0x680f2f2870ede0e8abd57386e09ee38bac4e51bf";
+const KMS_CONTRACT_ADDRESS = process.env.KMS_CONTRACT_ADDRESS || "0xdA5C549EC47735570334CFf23ac27fBeDb52c82f";
 
 async function waitTx(tx: any) {
   console.log(`Waiting for transaction ${tx.hash} to be confirmed...`);
@@ -312,4 +312,23 @@ task("info:tproxy", "Get current TProxy App ID")
     const kmsAuth = await getKmsAuth(ethers);
     const appId = await kmsAuth.tproxyAppId();
     console.log("TProxy App ID:", appId);
+  });
+
+// KMS Management Tasks
+task("kms:add-hash")
+  .addPositionalParam("hash", "Compose hash to add")
+  .setAction(async ({ hash }, { ethers }) => {
+    const kmsAuth = await getKmsAuth(ethers);
+    const tx = await kmsAuth.registerKmsComposeHash(hash);
+    await waitTx(tx);
+    console.log("KMS compose hash added successfully");
+  });
+
+task("kms:add-device")
+  .addPositionalParam("deviceId", "Device ID")
+  .setAction(async ({ deviceId }, { ethers }) => {
+    const kmsAuth = await getKmsAuth(ethers);
+    const tx = await kmsAuth.registerKmsDeviceId(deviceId);
+    await waitTx(tx);
+    console.log("Device compose hash added successfully");
   });
