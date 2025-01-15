@@ -34,9 +34,10 @@ task("kms:set-info", "Set KMS information")
   .addParam("k256Pubkey", "K256 public key")
   .addParam("caPubkey", "CA public key")
   .addParam("quote", "Quote")
-  .setAction(async ({ k256Pubkey, caPubkey, quote }, { ethers }) => {
+  .addParam("eventlog", "Event log")
+  .setAction(async ({ k256Pubkey, caPubkey, quote, eventlog }, { ethers }) => {
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const tx = await contract.setKmsInfo({ k256Pubkey, caPubkey, quote });
+    const tx = await contract.setKmsInfo({ k256Pubkey, caPubkey, quote, eventlog });
     await tx.wait();
     console.log("KMS info set successfully");
   });

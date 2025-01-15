@@ -12,6 +12,7 @@ contract KmsAuth is IAppAuth {
         bytes k256Pubkey;
         bytes caPubkey;
         bytes quote;
+        bytes eventlog;
     }
 
     // KMS information
