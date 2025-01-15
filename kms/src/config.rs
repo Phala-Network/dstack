@@ -1,22 +1,25 @@
 use load_config::load_config;
 use rocket::figment::Figment;
 use serde::Deserialize;
-
+use std::path::PathBuf;
 pub const DEFAULT_CONFIG: &str = include_str!("../kms.toml");
 
 pub fn load_config_figment(config_file: Option<&str>) -> Figment {
     load_config("kms", DEFAULT_CONFIG, config_file, false)
 }
 
+const TEMP_CA_CERT: &str = "tmp-ca.crt";
+const TEMP_CA_KEY: &str = "tmp-ca.key";
+const ROOT_CA_CERT: &str = "root-ca.crt";
+const ROOT_CA_KEY: &str = "root-ca.key";
+const RPC_CERT: &str = "rpc.crt";
+const RPC_KEY: &str = "rpc.key";
+const K256_KEY: &str = "root-k256.key";
+const BOOTSTRAP_INFO: &str = "bootstrap-info.json";
+
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct KmsConfig {
-    pub tmp_ca_cert: String,
-    pub tmp_ca_key: String,
-    pub root_ca_cert: String,
-    pub root_ca_key: String,
-    pub rpc_cert: String,
-    pub rpc_key: String,
-    pub k256_key: String,
+    pub cert_dir: PathBuf,
     pub pccs_url: Option<String>,
     pub auth_api: AuthApi,
     pub onboard: OnboardConfig,
@@ -24,13 +27,45 @@ pub(crate) struct KmsConfig {
 
 impl KmsConfig {
     pub fn keys_exists(&self) -> bool {
-        std::fs::metadata(&self.tmp_ca_cert).is_ok()
-            && std::fs::metadata(&self.tmp_ca_key).is_ok()
-            && std::fs::metadata(&self.root_ca_cert).is_ok()
-            && std::fs::metadata(&self.root_ca_key).is_ok()
-            && std::fs::metadata(&self.rpc_cert).is_ok()
-            && std::fs::metadata(&self.rpc_key).is_ok()
-            && std::fs::metadata(&self.k256_key).is_ok()
+        self.tmp_ca_cert().exists()
+            && self.tmp_ca_key().exists()
+            && self.root_ca_cert().exists()
+            && self.root_ca_key().exists()
+            && self.rpc_cert().exists()
+            && self.rpc_key().exists()
+            && self.k256_key().exists()
+    }
+
+    pub fn tmp_ca_cert(&self) -> PathBuf {
+        self.cert_dir.join(TEMP_CA_CERT)
+    }
+
+    pub fn tmp_ca_key(&self) -> PathBuf {
+        self.cert_dir.join(TEMP_CA_KEY)
+    }
+
+    pub fn root_ca_cert(&self) -> PathBuf {
+        self.cert_dir.join(ROOT_CA_CERT)
+    }
+
+    pub fn root_ca_key(&self) -> PathBuf {
+        self.cert_dir.join(ROOT_CA_KEY)
+    }
+
+    pub fn rpc_cert(&self) -> PathBuf {
+        self.cert_dir.join(RPC_CERT)
+    }
+
+    pub fn rpc_key(&self) -> PathBuf {
+        self.cert_dir.join(RPC_KEY)
+    }
+
+    pub fn k256_key(&self) -> PathBuf {
+        self.cert_dir.join(K256_KEY)
+    }
+
+    pub fn bootstrap_info(&self) -> PathBuf {
+        self.cert_dir.join(BOOTSTRAP_INFO)
     }
 }
 

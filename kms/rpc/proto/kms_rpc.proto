@@ -30,6 +30,7 @@ message GetMetaResponse {
   string ca_cert = 1;
   bool allow_any_upgrade = 2;
   bytes k256_pubkey = 3;
+  BootstrapResponse bootstrap_info = 4;
 }
 
 message KmsKeys {

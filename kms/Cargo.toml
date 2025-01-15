@@ -36,6 +36,7 @@ scale.workspace = true
 x509-parser = { workspace = true, features = ["verify"] }
 ring.workspace = true
 safe-write.workspace = true
+serde_json.workspace = true
 
 [features]
 default = []

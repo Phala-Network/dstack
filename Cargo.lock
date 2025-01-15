@@ -2364,6 +2364,7 @@ dependencies = [
  "safe-write",
  "serde",
  "serde-human-bytes",
+ "serde_json",
  "sha2",
  "sha3",
  "tappd-rpc",

@@ -12,20 +12,14 @@ port = 8000
 
 [rpc.tls]
 key = "/etc/kms/certs/rpc.key"
-certs = "/etc/kms/certs/rpc.cert"
+certs = "/etc/kms/certs/rpc.crt"
 
 [rpc.tls.mutual]
-ca_certs = "/etc/kms/certs/tmp-ca.cert"
+ca_certs = "/etc/kms/certs/tmp-ca.crt"
 mandatory = false
 
 [core]
-root_ca_cert = "/etc/kms/certs/root-ca.cert"
-root_ca_key = "/etc/kms/certs/root-ca.key"
-tmp_ca_cert = "/etc/kms/certs/tmp-ca.cert"
-tmp_ca_key = "/etc/kms/certs/tmp-ca.key"
-rpc_cert = "/etc/kms/certs/rpc.cert"
-rpc_key = "/etc/kms/certs/rpc.key"
-k256_key = "/etc/kms/certs/root-k256.key"
+cert_dir = "/etc/kms/certs"
 subject_postfix = ".dstack"
 pccs_url = "https://api.trustedservices.intel.com/tdx/certification/v4"
 
