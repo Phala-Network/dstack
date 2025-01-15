@@ -521,7 +521,8 @@
 
                     <div class="form-group">
                         <label for="appId">App ID (optional)</label>
-                        <input id="appId" v-model="vmForm.app_id" type="text" placeholder="Will be auto-generated from configuration">
+                        <input id="appId" v-model="vmForm.app_id" type="text"
+                            placeholder="Will be auto-generated from configuration">
                     </div>
 
                     <div class="form-group">
@@ -675,7 +676,8 @@
                                         title="View App Info">
                                         <i class="fas fa-info-circle"></i> Board
                                     </button>
-                                    <button v-if="kmsEnabled(vm)" class="action-btn" @click="showUpgradeDialog(vm)" title="Upgrade VM">
+                                    <button v-if="kmsEnabled(vm)" class="action-btn" @click="showUpgradeDialog(vm)"
+                                        title="Upgrade VM">
                                         <i class="fas fa-arrow-up"></i> Update
                                     </button>
                                     <button class="action-btn" @click="showForkVm(vm)" title="Derive VM">
@@ -1329,18 +1331,7 @@
                         clearEncryptedEnv();
                         upgradeDialog.value.show = false;
                         if (body.compose_file) {
-                            upgradeMessage.value = `
-<div class="upgrade-message">✅ Upgrade initiated successfully!</div>
-<div class="next-steps-header">Next steps:</div>
-<ol class="steps-list">
-    <li class="step-item">
-        Run: 
-        <div class="command-container">
-            <code class="command-code">./kms-allow-upgrade.sh ${upgradeDialog.value.vm.app_id} ${data.id}</code>
-        </div>
-    </li>
-    <li>Restart the instance</li>
-</ol>`;
+                            upgradeMessage.value = `✅ Compose file updated!`;
                         }
                         loadVMList();
                     } catch (error) {

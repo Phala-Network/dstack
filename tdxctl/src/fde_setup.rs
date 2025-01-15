@@ -8,12 +8,10 @@ use std::{
 use anyhow::{anyhow, bail, Context, Result};
 use dstack_types::{KeyProvider, KeyProviderInfo};
 use fs_err as fs;
-use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
 use kms_rpc::GetAppKeyRequest;
-use ra_rpc::client::RaClient;
+use ra_rpc::client::{RaClient, RaClientConfig};
 use ra_tls::cert::generate_ra_cert;
 use serde::{Deserialize, Serialize};
-use sha3::{Digest as _, Keccak256};
 use tracing::{info, warn};
 
 use crate::{
@@ -186,11 +184,7 @@ impl SetupFdeArgs {
         HostShared::load(host_shared_copy_dir.as_path())
     }
 
-    async fn request_app_keys_from_kms(
-        &self,
-        host_shared: &HostShared,
-        my_app_id: &[u8],
-    ) -> Result<()> {
+    async fn request_app_keys_from_kms(&self, host_shared: &HostShared) -> Result<()> {
         let Some(kms_url) = &host_shared.vm_config.kms_url else {
             bail!("KMS URL is not set");
         };
@@ -209,7 +203,28 @@ impl SetupFdeArgs {
                 .context("Failed to get temp ca cert")?
         };
         let cert_pair = generate_ra_cert(tmp_ca.temp_ca_cert, tmp_ca.temp_ca_key)?;
-        let ra_client = RaClient::new_mtls(kms_url.clone(), cert_pair.cert_pem, cert_pair.key_pem)?;
+        let ra_client = RaClientConfig::builder()
+            .tls_no_check(false)
+            .tls_built_in_root_certs(false)
+            .remote_uri(kms_url.clone())
+            .tls_client_cert(cert_pair.cert_pem)
+            .tls_client_key(cert_pair.key_pem)
+            .tls_ca_cert(tmp_ca.ca_cert.clone())
+            .cert_validator(Box::new(|cert| {
+                let Some(cert) = cert else {
+                    bail!("Missing server cert");
+                };
+                let Some(usage) = cert.special_usage else {
+                    bail!("Missing server cert usage");
+                };
+                if usage != "kms:rpc" {
+                    bail!("Invalid server cert usage: {usage}");
+                }
+                Ok(())
+            }))
+            .build()
+            .into_client()
+            .context("Failed to create client")?;
         let kms_client = kms_rpc::kms_client::KmsClient::new(ra_client);
         let response = kms_client
             .get_app_key(GetAppKeyRequest {
@@ -218,6 +233,14 @@ impl SetupFdeArgs {
             })
             .await
             .context("Failed to get app key")?;
+        {
+            let (_, ca_pem) = x509_parser::pem::parse_x509_pem(tmp_ca.ca_cert.as_bytes())
+                .context("Failed to parse ca cert")?;
+            let x509 = ca_pem.parse_x509().context("Failed to parse ca cert")?;
+            let id = hex::encode(x509.public_key().raw);
+            let provider_info = KeyProviderInfo::new("kms".into(), id);
+            emit_key_provider_info(&provider_info)?;
+        };
         let keys = AppKeys {
             ca_cert: response.ca_cert,
             disk_crypt_key: response.disk_crypt_key,
@@ -229,29 +252,6 @@ impl SetupFdeArgs {
         };
         let keys_json = serde_json::to_string(&keys).context("Failed to serialize app keys")?;
         fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
-        {
-            let pubkey = SigningKey::from_slice(&keys.k256_key)
-                .context("Failed to parse app ecdsa key")?
-                .verifying_key()
-                .to_sec1_bytes()
-                .to_vec();
-            let sig_len = keys.k256_signature.len();
-            if sig_len == 0 {
-                bail!("No k256 signature");
-            }
-            let signature = Signature::from_slice(&keys.k256_signature[..sig_len - 1])
-                .context("Failed to parse app k256 signature")?;
-            let recid = RecoveryId::try_from(keys.k256_signature[sig_len - 1])
-                .context("Failed to parse app k256 recovery id")?;
-            let msg_digest = Keccak256::new_with_prefix(
-                [b"dstack-kms-issued:", my_app_id, pubkey.as_slice()].concat(),
-            );
-            let signer_pubkey = VerifyingKey::recover_from_digest(msg_digest, &signature, recid)
-                .context("Failed to recover signer public key")?;
-            let id = hex::encode(signer_pubkey.to_sec1_bytes());
-            let provider_info = KeyProviderInfo::new("kms".into(), id);
-            emit_key_provider_info(&provider_info)?;
-        };
         Ok(())
     }
 
@@ -273,18 +273,10 @@ impl SetupFdeArgs {
         Ok(())
     }
 
-    async fn request_app_keys(
-        &self,
-        host_shared: &HostShared,
-        host: &HostApi,
-        my_app_id: &[u8],
-    ) -> Result<AppKeys> {
+    async fn request_app_keys(&self, host_shared: &HostShared, host: &HostApi) -> Result<AppKeys> {
         let key_provider = host_shared.app_compose.key_provider();
         match key_provider {
-            KeyProviderKind::Kms => {
-                self.request_app_keys_from_kms(host_shared, my_app_id)
-                    .await?
-            }
+            KeyProviderKind::Kms => self.request_app_keys_from_kms(host_shared).await?,
             KeyProviderKind::Local => self.get_keys_from_local_key_provider(host).await?,
             KeyProviderKind::None => {
                 info!("No key provider is enabled, generating temporary app keys");
@@ -511,9 +503,7 @@ impl SetupFdeArgs {
 
         host.notify_q("boot.progress", "requesting app keys").await;
 
-        let app_keys = self
-            .request_app_keys(host_shared, host, &instance_info.app_id)
-            .await?;
+        let app_keys = self.request_app_keys(host_shared, host).await?;
         if app_keys.disk_crypt_key.is_empty() {
             bail!("Failed to get valid key phrase from KMS");
         }

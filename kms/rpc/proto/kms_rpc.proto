@@ -46,6 +46,7 @@ message KmsKeyResponse {
 message GetTempCaCertResponse {
   string temp_ca_cert = 1;
   string temp_ca_key = 2;
+  string ca_cert = 3;
 }
 
 message SignCertRequest {

@@ -5,14 +5,22 @@ use prpc::{
     client::{Error, RequestClient},
     Message,
 };
-use ra_tls::attestation::{Attestation, VerifiedAttestation};
+use ra_tls::{
+    attestation::{Attestation, VerifiedAttestation},
+    traits::CertExt,
+};
 use reqwest::{tls::TlsInfo, Certificate, Client, Identity, Response};
 use serde::{de::DeserializeOwned, Serialize};
 
 use bon::Builder;
 
-type AttestationValidator =
-    Box<dyn Fn(Option<VerifiedAttestation>) -> Result<()> + Send + Sync + 'static>;
+pub struct CertInfo {
+    pub cert_der: Vec<u8>,
+    pub attestation: Option<VerifiedAttestation>,
+    pub special_usage: Option<String>,
+}
+
+type CertValidator = Box<dyn Fn(Option<CertInfo>) -> Result<()> + Send + Sync + 'static>;
 
 #[derive(Builder)]
 pub struct RaClientConfig {
@@ -27,7 +35,7 @@ pub struct RaClientConfig {
     #[builder(default = true)]
     tls_built_in_root_certs: bool,
     pccs_url: Option<String>,
-    attestation_validator: Option<AttestationValidator>,
+    cert_validator: Option<CertValidator>,
 }
 
 impl RaClientConfig {
@@ -39,7 +47,7 @@ impl RaClientConfig {
             .tls_built_in_root_certs(self.tls_built_in_root_certs)
             .connect_timeout(Duration::from_secs(5))
             .timeout(Duration::from_secs(60));
-        if self.attestation_validator.is_some() {
+        if self.cert_validator.is_some() {
             builder = builder.tls_info(true);
         }
         if let (Some(cert_pem), Some(key_pem)) = (self.tls_client_cert, self.tls_client_key) {
@@ -57,7 +65,7 @@ impl RaClientConfig {
             remote_uri: self.remote_uri,
             pccs_url: self.pccs_url,
             client,
-            attestation_validator: self.attestation_validator,
+            attestation_validator: self.cert_validator,
         })
     }
 }
@@ -66,7 +74,7 @@ pub struct RaClient {
     remote_uri: String,
     pccs_url: Option<String>,
     client: Client,
-    attestation_validator: Option<AttestationValidator>,
+    attestation_validator: Option<CertValidator>,
 }
 
 impl RaClient {
@@ -102,21 +110,29 @@ impl RaClient {
         let Some(cert) = tls_info.peer_certificate() else {
             return validator(None);
         };
+        let cert_der = cert.to_vec();
         let (_, cert) =
             x509_parser::parse_x509_certificate(cert).context("Failed to parse certificate")?;
-
-        let Some(attestation) =
-            Attestation::from_cert(&cert).context("Failed to parse attestation")?
-        else {
-            return validator(None);
+        let special_usage = cert
+            .get_special_usage()
+            .context("Failed to get special usage")?;
+        let attestation =
+            match Attestation::from_cert(&cert).context("Failed to parse attestation")? {
+                Some(attestation) => {
+                    let verified_attestation = attestation
+                        .verify_with_ra_pubkey(cert.public_key().raw, self.pccs_url.as_deref())
+                        .await
+                        .context("Failed to verify the attestation report")?;
+                    Some(verified_attestation)
+                }
+                None => None,
+            };
+        let cert_info = CertInfo {
+            cert_der,
+            attestation,
+            special_usage,
         };
-
-        let verified_attestation = attestation
-            .verify_with_ra_pubkey(cert.public_key().raw, self.pccs_url.as_deref())
-            .await
-            .context("Failed to verify the attestation report")?;
-
-        validator(Some(verified_attestation))
+        validator(Some(cert_info))
     }
 }
 

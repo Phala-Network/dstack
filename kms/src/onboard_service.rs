@@ -135,6 +135,7 @@ impl Keys {
         let rpc_cert = CertRequest::builder()
             .subject(domain)
             .alt_names(&[domain.to_string()])
+            .special_usage("kms:rpc")
             .key(&rpc_key)
             .build()
             .signed_by(&ca_cert, &ca_key)?;

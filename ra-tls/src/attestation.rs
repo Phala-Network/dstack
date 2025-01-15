@@ -235,26 +235,18 @@ impl Attestation {
 
     /// Extract attestation data from a certificate
     pub fn from_cert(cert: &impl CertExt) -> Result<Option<Self>> {
-        Self::from_ext_getter(|oid| cert.get_extension(oid))
+        Self::from_ext_getter(|oid| cert.get_extension_bytes(oid))
     }
 
     /// From an extension getter
     pub fn from_ext_getter(
         get_ext: impl Fn(&[u64]) -> Result<Option<Vec<u8>>>,
     ) -> Result<Option<Self>> {
-        macro_rules! read_ext_bytes {
-            ($oid:expr) => {
-                get_ext($oid)?
-                    .map(|v| yasna::parse_der(&v, |reader| reader.read_bytes()))
-                    .transpose()?
-            };
-        }
-
-        let quote = match read_ext_bytes!(oids::PHALA_RATLS_QUOTE) {
+        let quote = match get_ext(oids::PHALA_RATLS_QUOTE)? {
             Some(v) => v,
             None => return Ok(None),
         };
-        let raw_event_log = read_ext_bytes!(oids::PHALA_RATLS_EVENT_LOG).unwrap_or_default();
+        let raw_event_log = get_ext(oids::PHALA_RATLS_EVENT_LOG)?.unwrap_or_default();
         Self::new(quote, raw_event_log).map(Some)
     }
 

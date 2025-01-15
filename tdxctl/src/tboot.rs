@@ -3,7 +3,7 @@ use cert_client::CertRequestClient;
 use clap::Parser;
 use cmd_lib::run_fun as cmd;
 use fs_err as fs;
-use ra_rpc::{client::RaClientConfig, VerifiedAttestation};
+use ra_rpc::client::{CertInfo, RaClientConfig};
 use ra_tls::{
     cert::CertConfig,
     rcgen::{KeyPair, PKCS_ECDSA_P256_SHA256},
@@ -40,11 +40,14 @@ struct RaValidator {
 }
 
 impl RaValidator {
-    fn validate(&self, attestation: Option<VerifiedAttestation>) -> Result<()> {
+    fn validate(&self, cert: Option<CertInfo>) -> Result<()> {
         if self.remote_app_id == "any" {
             return Ok(());
         }
-        let Some(attestation) = attestation else {
+        let Some(cert) = cert else {
+            bail!("Missing cert");
+        };
+        let Some(attestation) = cert.attestation else {
             bail!("Missing attestation");
         };
         let app_id = attestation
@@ -148,9 +151,7 @@ impl<'a> Setup<'a> {
             .tls_ca_cert(ca_cert)
             .tls_built_in_root_certs(false)
             .tls_no_check(self.app_keys.tproxy_app_id == "any")
-            .attestation_validator(Box::new(move |attestation| {
-                ra_validator.validate(attestation)
-            }))
+            .cert_validator(Box::new(move |cert| ra_validator.validate(cert)))
             .build()
             .into_client()
             .context("Failed to create RA client")?;

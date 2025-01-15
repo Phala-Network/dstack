@@ -41,6 +41,7 @@ dstack-types.workspace = true
 rand.workspace = true
 sha3.workspace = true
 cert-client.workspace = true
+x509-parser.workspace = true
 
 [dev-dependencies]
 rand.workspace = true

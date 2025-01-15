@@ -228,6 +228,7 @@ impl KmsRpc for RpcHandler {
         Ok(GetTempCaCertResponse {
             temp_ca_cert: self.state.inner.temp_ca_cert.clone(),
             temp_ca_key: self.state.inner.temp_ca_key.clone(),
+            ca_cert: self.state.inner.root_ca.pem_cert.clone(),
         })
     }
 

@@ -18,7 +18,7 @@ use x509_parser::public_key::PublicKey;
 use x509_parser::x509::SubjectPublicKeyInfo;
 
 use crate::attestation::QuoteContentType;
-use crate::oids::PHALA_RATLS_APP_ID;
+use crate::oids::{PHALA_RATLS_APP_ID, PHALA_RATLS_CERT_USAGE};
 use crate::{
     oids::{PHALA_RATLS_EVENT_LOG, PHALA_RATLS_QUOTE},
     traits::CertExt,
@@ -171,6 +171,7 @@ pub struct CertRequest<'a, Key> {
     alt_names: Option<&'a [String]>,
     ca_level: Option<u8>,
     app_id: Option<&'a [u8]>,
+    special_usage: Option<&'a str>,
     quote: Option<&'a [u8]>,
     event_log: Option<&'a [u8]>,
     not_before: Option<SystemTime>,
@@ -229,6 +230,13 @@ impl<Key> CertRequest<'_, Key> {
             let ext = CustomExtension::from_oid_content(PHALA_RATLS_APP_ID, content);
             params.custom_extensions.push(ext);
         }
+        if let Some(special_usage) = self.special_usage {
+            let content = yasna::construct_der(|writer| {
+                writer.write_bytes(special_usage.as_bytes());
+            });
+            let ext = CustomExtension::from_oid_content(PHALA_RATLS_CERT_USAGE, content);
+            params.custom_extensions.push(ext);
+        }
         if let Some(ca_level) = self.ca_level {
             params.is_ca = IsCa::Ca(BasicConstraints::Constrained(ca_level));
         }
@@ -268,7 +276,7 @@ impl<Key: PublicKeyData> CertRequest<'_, Key> {
 }
 
 impl CertExt for Certificate {
-    fn get_extension(&self, oid: &[u64]) -> Result<Option<Vec<u8>>> {
+    fn get_extension_der(&self, oid: &[u64]) -> Result<Option<Vec<u8>>> {
         let found = self
             .params()
             .custom_extensions
@@ -280,7 +288,7 @@ impl CertExt for Certificate {
 }
 
 impl CertExt for X509Certificate<'_> {
-    fn get_extension(&self, oid: &[u64]) -> Result<Option<Vec<u8>>> {
+    fn get_extension_der(&self, oid: &[u64]) -> Result<Option<Vec<u8>>> {
         let oid = Oid::from(oid).or(Err(anyhow!("Invalid oid")))?;
         let found = self
             .get_extension_unique(&oid)

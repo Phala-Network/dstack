@@ -4980,6 +4980,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "x25519-dalek",
+ "x509-parser",
 ]
 
 [[package]]
