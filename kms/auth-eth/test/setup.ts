@@ -35,7 +35,8 @@ beforeAll(async () => {
   await kmsAuth.setKmsInfo({
     quote: ethers.encodeBytes32String("1234"),
     caPubkey: ethers.encodeBytes32String("test-ca-pubkey"),
-    k256Pubkey: ethers.encodeBytes32String("test-k256-pubkey")
+    k256Pubkey: ethers.encodeBytes32String("test-k256-pubkey"),
+    eventlog: ethers.encodeBytes32String("test-eventlog")
   });
 
   // Register some test enclaves and images

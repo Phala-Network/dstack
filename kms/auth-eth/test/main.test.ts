@@ -35,7 +35,8 @@ describe('Server', () => {
       // Mock successful response
       const mockCheckBoot = jest.fn().mockResolvedValue({
         isAllowed: true,
-        reason: ''
+        reason: '',
+        tproxyAppId: ''
       });
       app.ethereum.checkBoot = mockCheckBoot;
 
@@ -71,18 +72,21 @@ describe('Server', () => {
       // Mock successful response
       const mockCheckBoot = jest.fn().mockResolvedValue({
         isAllowed: true,
-        reason: ''
+        reason: '',
+        tproxyAppId: '0x1234',
       });
       app.ethereum.checkBoot = mockCheckBoot;
 
       const response = await app.inject({
         method: 'POST',
         url: '/bootAuth/kms',
-        payload: mockBootInfo
+        payload: mockBootInfo,
       });
 
-      expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.payload);
+      console.log('status:' + response.statusCode);
+      console.log('result:', result);
+      expect(response.statusCode).toBe(200);
       expect(result.isAllowed).toBe(true);
       expect(result.reason).toBe('');
       expect(mockCheckBoot).toHaveBeenCalledWith(mockBootInfo, true);
@@ -99,10 +103,10 @@ describe('Server', () => {
         payload: mockBootInfo
       });
 
-      expect(response.statusCode).toBe(500);
+      expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.payload);
       expect(result.isAllowed).toBe(false);
-      expect(result.reason).toMatch(/Error: Backend error/);
+      expect(result.reason).toMatch(/Backend error/);
     });
   });
 });

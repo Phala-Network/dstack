@@ -47,7 +47,8 @@ describe('EthereumBackend', () => {
     await kmsAuth.setKmsInfo({
       k256Pubkey: "0x" + "1234".padEnd(66, '0'),
       caPubkey: "0x" + "5678".padEnd(192, '0'),
-      quote: "0x" + "9012".padEnd(8192, '0')
+      quote: "0x" + "9012".padEnd(8192, '0'),
+      eventlog: "0x" + "9012".padEnd(8192, '0')
     });
 
     // Register enclave and image
