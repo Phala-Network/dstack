@@ -59,6 +59,7 @@ task("kms:deploy", "Deploy a new KmsAuth contract")
 
     const KmsAuth = await ethers.getContractFactory("KmsAuth");
     const kmsAuth = await KmsAuth.deploy();
+    console.log("Deployment transaction hash:", kmsAuth.deploymentTransaction()?.hash);
     await kmsAuth.waitForDeployment();
 
     const address = await kmsAuth.getAddress();
@@ -123,6 +124,7 @@ task("app:deploy")
 
     const AppAuth = await ethers.getContractFactory("AppAuth");
     const appAuth = await AppAuth.deploy(appId);
+    console.log("Deployment transaction hash:", appAuth.deploymentTransaction()?.hash);
     await appAuth.waitForDeployment();
 
     const address = await appAuth.getAddress();
