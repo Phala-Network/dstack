@@ -87,7 +87,9 @@ export interface KmsAuthInterface extends Interface {
       | "registerImage"
       | "registerKmsComposeHash"
       | "registerKmsDeviceId"
+      | "setKmsEventlog"
       | "setKmsInfo"
+      | "setKmsQuote"
       | "setTProxyAppId"
       | "tproxyAppId"
       | "transferOwnership"
@@ -177,8 +179,16 @@ export interface KmsAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "setKmsEventlog",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "setKmsInfo",
     values: [KmsAuth.KmsInfoStruct]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setKmsQuote",
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "setTProxyAppId",
@@ -260,7 +270,15 @@ export interface KmsAuthInterface extends Interface {
     functionFragment: "registerKmsDeviceId",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "setKmsEventlog",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "setKmsInfo", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setKmsQuote",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "setTProxyAppId",
     data: BytesLike
@@ -572,11 +590,19 @@ export interface KmsAuth extends BaseContract {
     "nonpayable"
   >;
 
+  setKmsEventlog: TypedContractMethod<
+    [eventlog: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
   setKmsInfo: TypedContractMethod<
     [info: KmsAuth.KmsInfoStruct],
     [void],
     "nonpayable"
   >;
+
+  setKmsQuote: TypedContractMethod<[quote: BytesLike], [void], "nonpayable">;
 
   setTProxyAppId: TypedContractMethod<[appId: string], [void], "nonpayable">;
 
@@ -681,8 +707,14 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "registerKmsDeviceId"
   ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "setKmsEventlog"
+  ): TypedContractMethod<[eventlog: BytesLike], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "setKmsInfo"
   ): TypedContractMethod<[info: KmsAuth.KmsInfoStruct], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setKmsQuote"
+  ): TypedContractMethod<[quote: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setTProxyAppId"
   ): TypedContractMethod<[appId: string], [void], "nonpayable">;

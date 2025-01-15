@@ -84,6 +84,16 @@ contract KmsAuth is IAppAuth {
         emit KmsInfoSet(info.k256Pubkey);
     }
 
+    // Function to set KMS quote
+    function setKmsQuote(bytes memory quote) external onlyOwner {
+        kmsInfo.quote = quote;
+    }
+
+    // Function to set KMS eventlog
+    function setKmsEventlog(bytes memory eventlog) external onlyOwner {
+        kmsInfo.eventlog = eventlog;
+    }
+
     // Function to set trusted TProxy App ID
     function setTProxyAppId(string memory appId) external onlyOwner {
         tproxyAppId = appId;
