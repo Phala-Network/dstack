@@ -48,23 +48,22 @@ impl OnboardRpc for OnboardHandler {
 
         let k256_pubkey = keys.k256_key.verifying_key().to_sec1_bytes().to_vec();
         let ca_pubkey = keys.ca_key.public_key_der();
-        let app_id;
         let quote;
+        let eventlog;
         if self.state.config.onboard.quote_enabled {
-            app_id = tappd_client()?.info().await?.app_id;
-            quote = quote_keys(&ca_pubkey, &k256_pubkey).await?
+            (quote, eventlog) = quote_keys(&ca_pubkey, &k256_pubkey).await?;
         } else {
-            app_id = vec![];
             quote = vec![];
+            eventlog = vec![];
         };
 
         keys.store(&self.state.config)?;
 
         Ok(BootstrapResponse {
-            app_id,
             ca_pubkey,
             k256_pubkey,
             quote,
+            eventlog,
         })
     }
 
@@ -217,14 +216,14 @@ async fn tapp_quote(report_data: Vec<u8>) -> Result<TdxQuoteResponse> {
     Ok(quote)
 }
 
-async fn quote_keys(p256_pubkey: &[u8], k256_pubkey: &[u8]) -> Result<Vec<u8>> {
+async fn quote_keys(p256_pubkey: &[u8], k256_pubkey: &[u8]) -> Result<(Vec<u8>, Vec<u8>)> {
     let p256_hex = hex::encode(p256_pubkey);
     let k256_hex = hex::encode(k256_pubkey);
     let content_to_quote = format!("dstack-kms-genereted-keys-v1:{p256_hex};{k256_hex};");
     let hash = keccak256(content_to_quote.as_bytes());
     let report_data = pad64(hash);
     let res = tapp_quote(report_data).await?;
-    Ok(res.quote)
+    Ok((res.quote, res.event_log.into()))
 }
 
 fn keccak256(msg: &[u8]) -> [u8; 32] {

@@ -1,6 +1,7 @@
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-ethers";
+import fs from 'fs';
 
 // Contract addresses from environment
 const KMS_CONTRACT_ADDRESS = process.env.KMS_CONTRACT_ADDRESS || "0x680f2f2870ede0e8abd57386e09ee38bac4e51bf";
@@ -43,6 +44,15 @@ task("kms:set-info", "Set KMS information")
   .setAction(async ({ k256Pubkey, caPubkey, quote, eventlog }, { ethers }) => {
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
     const tx = await contract.setKmsInfo({ k256Pubkey, caPubkey, quote, eventlog });
+    await waitTx(tx);
+    console.log("KMS info set successfully");
+  });
+task("kms:set-info-file", "Set KMS information from file")
+  .addPositionalParam("file", "File path")
+  .setAction(async ({ file }, { ethers }) => {
+    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const fileContent = fs.readFileSync(file, 'utf8');
+    const tx = await contract.setKmsInfo(JSON.parse(fileContent));
     await waitTx(tx);
     console.log("KMS info set successfully");
   });
