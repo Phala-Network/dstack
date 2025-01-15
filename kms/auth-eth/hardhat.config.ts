@@ -6,6 +6,11 @@ import "@nomicfoundation/hardhat-ethers";
 const KMS_CONTRACT_ADDRESS = process.env.KMS_CONTRACT_ADDRESS || "0x680f2f2870ede0e8abd57386e09ee38bac4e51bf";
 const APP_CONTRACT_ADDRESS = process.env.APP_CONTRACT_ADDRESS || "0x680f2f2870ede0e8abd57386e09ee38bac4e51bf";
 
+async function waitTx(tx: any) {
+  console.log(`Waiting for transaction ${tx.hash} to be confirmed...`);
+  await tx.wait();
+}
+
 // KMS Contract Tasks
 task("kms:deploy", "Deploy a new KmsAuth contract")
   .setAction(async (_, { ethers }) => {
@@ -26,7 +31,7 @@ task("kms:transfer-ownership")
   .setAction(async ({ newOwner }, { ethers }) => {
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
     const tx = await contract.transferOwnership(newOwner);
-    await tx.wait();
+    await waitTx(tx);
     console.log("Ownership transferred successfully");
   });
 
@@ -38,7 +43,7 @@ task("kms:set-info", "Set KMS information")
   .setAction(async ({ k256Pubkey, caPubkey, quote, eventlog }, { ethers }) => {
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
     const tx = await contract.setKmsInfo({ k256Pubkey, caPubkey, quote, eventlog });
-    await tx.wait();
+    await waitTx(tx);
     console.log("KMS info set successfully");
   });
 
@@ -47,7 +52,7 @@ task("kms:set-tproxy")
   .setAction(async ({ appId }, { ethers }) => {
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
     const tx = await contract.setTProxyAppId(appId);
-    await tx.wait();
+    await waitTx(tx);
     console.log("TProxy App ID set successfully");
   });
 
@@ -58,12 +63,15 @@ task("app:deploy")
     const [deployer] = await ethers.getSigners();
     const deployerAddress = await deployer.getAddress();
 
-    const appId = ethers.keccak256(
+    const saltHash = ethers.keccak256(ethers.toUtf8Bytes(salt));
+    const fullHash = ethers.keccak256(
       ethers.solidityPacked(
         ['address', 'bytes32'],
-        [deployerAddress, ethers.keccak256(ethers.toUtf8Bytes(salt))]
+        [deployerAddress, saltHash]
       )
     );
+    const appId = ethers.getAddress('0x' + fullHash.slice(-40));
+    console.log("App ID:", appId);
 
     const AppAuth = await ethers.getContractFactory("AppAuth");
     const appAuth = await AppAuth.deploy(appId);
@@ -73,26 +81,34 @@ task("app:deploy")
     console.log("AppAuth deployed to:", address);
 
     const kmsContract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const tx = await kmsContract.registerApp(salt, address);
-    await tx.wait();
+    const tx = await kmsContract.registerApp(saltHash, address);
+    await waitTx(tx);
     console.log("App registered in KMS successfully");
   });
 
 task("app:add-hash")
+  .addParam("appId", "App ID")
   .addPositionalParam("hash", "Compose hash to add")
-  .setAction(async ({ hash }, { ethers }) => {
-    const contract = await ethers.getContractAt("AppAuth", APP_CONTRACT_ADDRESS);
+  .setAction(async ({ appId, hash }, { ethers }) => {
+    const kmsContract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const controller = (await kmsContract.apps(appId)).controller;
+    console.log("Controller:", controller);
+    const contract = await ethers.getContractAt("AppAuth", controller);
     const tx = await contract.addComposeHash(hash);
-    await tx.wait();
+    await waitTx(tx);
     console.log("Compose hash added successfully");
   });
 
 task("app:remove-hash")
+  .addParam("appId", "App ID")
   .addPositionalParam("hash", "Compose hash to remove")
-  .setAction(async ({ hash }, { ethers }) => {
-    const contract = await ethers.getContractAt("AppAuth", APP_CONTRACT_ADDRESS);
+  .setAction(async ({ appId, hash }, { ethers }) => {
+    const kmsContract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const controller = (await kmsContract.apps(appId)).controller;
+    console.log("Controller:", controller);
+    const contract = await ethers.getContractAt("AppAuth", controller);
     const tx = await contract.removeComposeHash(hash);
-    await tx.wait();
+    await waitTx(tx);
     console.log("Compose hash removed successfully");
   });
 
@@ -102,7 +118,7 @@ task("enclave:register")
   .setAction(async ({ mrEnclave }, { ethers }) => {
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
     const tx = await contract.registerEnclave(mrEnclave);
-    await tx.wait();
+    await waitTx(tx);
     console.log("Enclave registered successfully");
   });
 
@@ -111,7 +127,7 @@ task("enclave:deregister")
   .setAction(async ({ mrEnclave }, { ethers }) => {
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
     const tx = await contract.deregisterEnclave(mrEnclave);
-    await tx.wait();
+    await waitTx(tx);
     console.log("Enclave deregistered successfully");
   });
 
@@ -121,7 +137,7 @@ task("image:register")
   .setAction(async ({ mrImage }, { ethers }) => {
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
     const tx = await contract.registerImage(mrImage);
-    await tx.wait();
+    await waitTx(tx);
     console.log("Image registered successfully");
   });
 
@@ -130,7 +146,7 @@ task("image:deregister")
   .setAction(async ({ mrImage }, { ethers }) => {
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
     const tx = await contract.deregisterImage(mrImage);
-    await tx.wait();
+    await waitTx(tx);
     console.log("Image deregistered successfully");
   });
 
@@ -141,7 +157,7 @@ task("device:register")
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
     const hashedId = ethers.keccak256(ethers.toUtf8Bytes(deviceId));
     const tx = await contract.registerKmsDeviceId(hashedId);
-    await tx.wait();
+    await waitTx(tx);
     console.log("Device ID registered successfully");
   });
 
@@ -151,7 +167,7 @@ task("device:deregister")
     const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
     const hashedId = ethers.keccak256(ethers.toUtf8Bytes(deviceId));
     const tx = await contract.deregisterKmsDeviceId(hashedId);
-    await tx.wait();
+    await waitTx(tx);
     console.log("Device ID deregistered successfully");
   });
 

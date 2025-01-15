@@ -54,13 +54,15 @@ export declare namespace KmsAuth {
     k256Pubkey: BytesLike;
     caPubkey: BytesLike;
     quote: BytesLike;
+    eventlog: BytesLike;
   };
 
   export type KmsInfoStructOutput = [
     k256Pubkey: string,
     caPubkey: string,
-    quote: string
-  ] & { k256Pubkey: string; caPubkey: string; quote: string };
+    quote: string,
+    eventlog: string
+  ] & { k256Pubkey: string; caPubkey: string; quote: string; eventlog: string };
 }
 
 export interface KmsAuthInterface extends Interface {
@@ -528,10 +530,11 @@ export interface KmsAuth extends BaseContract {
   kmsInfo: TypedContractMethod<
     [],
     [
-      [string, string, string] & {
+      [string, string, string, string] & {
         k256Pubkey: string;
         caPubkey: string;
         quote: string;
+        eventlog: string;
       }
     ],
     "view"
@@ -646,10 +649,11 @@ export interface KmsAuth extends BaseContract {
   ): TypedContractMethod<
     [],
     [
-      [string, string, string] & {
+      [string, string, string, string] & {
         k256Pubkey: string;
         caPubkey: string;
         quote: string;
+        eventlog: string;
       }
     ],
     "view"
