@@ -44,15 +44,15 @@ pub struct KmsStateInner {
 
 impl KmsState {
     pub fn new(config: KmsConfig) -> Result<Self> {
-        let root_ca = CaCert::load(&config.root_ca_cert(), &config.root_ca_key())
+        let root_ca = CaCert::load(config.root_ca_cert(), config.root_ca_key())
             .context("Failed to load root CA certificate")?;
-        let key_bytes = fs::read(&config.k256_key()).context("Failed to read ECDSA root key")?;
+        let key_bytes = fs::read(config.k256_key()).context("Failed to read ECDSA root key")?;
         let k256_key =
             SigningKey::from_slice(&key_bytes).context("Failed to load ECDSA root key")?;
         let temp_ca_key =
-            fs::read_to_string(&config.tmp_ca_key()).context("Faeild to read temp ca key")?;
+            fs::read_to_string(config.tmp_ca_key()).context("Faeild to read temp ca key")?;
         let temp_ca_cert =
-            fs::read_to_string(&config.tmp_ca_cert()).context("Faeild to read temp ca cert")?;
+            fs::read_to_string(config.tmp_ca_cert()).context("Faeild to read temp ca cert")?;
         Ok(Self {
             inner: Arc::new(KmsStateInner {
                 config,
@@ -200,10 +200,9 @@ impl KmsRpc for RpcHandler {
     }
 
     async fn get_meta(self) -> Result<GetMetaResponse> {
-        let bootstrap_info = fs::read_to_string(&self.state.config.bootstrap_info())
+        let bootstrap_info = fs::read_to_string(self.state.config.bootstrap_info())
             .ok()
-            .map(|s| serde_json::from_str(&s).ok())
-            .flatten();
+            .and_then(|s| serde_json::from_str(&s).ok());
         Ok(GetMetaResponse {
             ca_cert: self.state.inner.root_ca.pem_cert.clone(),
             allow_any_upgrade: self.state.inner.config.auth_api.is_dev(),

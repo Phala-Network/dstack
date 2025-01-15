@@ -65,7 +65,7 @@ impl OnboardRpc for OnboardHandler {
             eventlog,
         };
         // Store the bootstrap info
-        safe_write(&cfg.bootstrap_info(), serde_json::to_vec(&response)?)?;
+        safe_write(cfg.bootstrap_info(), serde_json::to_vec(&response)?)?;
         keys.store(cfg)?;
         Ok(response)
     }
@@ -181,19 +181,19 @@ impl Keys {
 
     fn store(&self, cfg: &KmsConfig) -> Result<()> {
         // Store the temporary CA cert and key
-        safe_write(&cfg.tmp_ca_cert(), self.tmp_ca_cert.pem())?;
-        safe_write(&cfg.tmp_ca_key(), self.tmp_ca_key.serialize_pem())?;
+        safe_write(cfg.tmp_ca_cert(), self.tmp_ca_cert.pem())?;
+        safe_write(cfg.tmp_ca_key(), self.tmp_ca_key.serialize_pem())?;
 
         // Store the root CA cert and key
-        safe_write(&cfg.root_ca_cert(), self.ca_cert.pem())?;
-        safe_write(&cfg.root_ca_key(), self.ca_key.serialize_pem())?;
+        safe_write(cfg.root_ca_cert(), self.ca_cert.pem())?;
+        safe_write(cfg.root_ca_key(), self.ca_key.serialize_pem())?;
 
         // Store the RPC cert and key
-        safe_write(&cfg.rpc_cert(), self.rpc_cert.pem())?;
-        safe_write(&cfg.rpc_key(), self.rpc_key.serialize_pem())?;
+        safe_write(cfg.rpc_cert(), self.rpc_cert.pem())?;
+        safe_write(cfg.rpc_key(), self.rpc_key.serialize_pem())?;
 
         // Store the ECDSA root key
-        safe_write(&cfg.k256_key(), self.k256_key.to_bytes())?;
+        safe_write(cfg.k256_key(), self.k256_key.to_bytes())?;
 
         Ok(())
     }

@@ -5,7 +5,6 @@ use main_service::{Proxy, RpcHandler};
 use ra_rpc::{client::RaClient, rocket_helper::QuoteVerifier};
 use rocket::fairing::AdHoc;
 use std::path::Path;
-use tappd_rpc;
 use tracing::info;
 
 mod config;
