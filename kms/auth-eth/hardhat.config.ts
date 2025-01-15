@@ -3,13 +3,51 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-ethers";
 import fs from 'fs';
 
+const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+const config: HardhatUserConfig = {
+  solidity: "0.8.19",
+  defaultNetwork: "phala",
+  networks: {
+    hardhat: {
+      chainId: 1337
+    },
+    phala: {
+      url: 'https://rpc.phala.network',
+      accounts: [PRIVATE_KEY],
+    },
+    sepolia: {
+      url: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+      accounts: [PRIVATE_KEY],
+    },
+  },
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts"
+  }
+};
+
+export default config;
+
 // Contract addresses from environment
 const KMS_CONTRACT_ADDRESS = process.env.KMS_CONTRACT_ADDRESS || "0x680f2f2870ede0e8abd57386e09ee38bac4e51bf";
-const APP_CONTRACT_ADDRESS = process.env.APP_CONTRACT_ADDRESS || "0x680f2f2870ede0e8abd57386e09ee38bac4e51bf";
 
 async function waitTx(tx: any) {
   console.log(`Waiting for transaction ${tx.hash} to be confirmed...`);
   await tx.wait();
+}
+
+async function getKmsAuth(ethers: any) {
+  return await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+}
+
+async function getAppAuth(ethers: any, appId: string) {
+  const kmsAuth = await getKmsAuth(ethers);
+  const controller = (await kmsAuth.apps(appId)).controller;
+  console.log("AppAuth address:", controller);
+  return await ethers.getContractAt("AppAuth", controller);
 }
 
 // KMS Contract Tasks
@@ -30,7 +68,7 @@ task("kms:deploy", "Deploy a new KmsAuth contract")
 task("kms:transfer-ownership")
   .addPositionalParam("newOwner", "New owner address")
   .setAction(async ({ newOwner }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const contract = await getKmsAuth(ethers);
     const tx = await contract.transferOwnership(newOwner);
     await waitTx(tx);
     console.log("Ownership transferred successfully");
@@ -42,7 +80,7 @@ task("kms:set-info", "Set KMS information")
   .addParam("quote", "Quote")
   .addParam("eventlog", "Event log")
   .setAction(async ({ k256Pubkey, caPubkey, quote, eventlog }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const contract = await getKmsAuth(ethers);
     const tx = await contract.setKmsInfo({ k256Pubkey, caPubkey, quote, eventlog });
     await waitTx(tx);
     console.log("KMS info set successfully");
@@ -50,7 +88,7 @@ task("kms:set-info", "Set KMS information")
 task("kms:set-info-file", "Set KMS information from file")
   .addPositionalParam("file", "File path")
   .setAction(async ({ file }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const contract = await getKmsAuth(ethers);
     const fileContent = fs.readFileSync(file, 'utf8');
     const tx = await contract.setKmsInfo(JSON.parse(fileContent));
     await waitTx(tx);
@@ -60,7 +98,7 @@ task("kms:set-info-file", "Set KMS information from file")
 task("kms:set-tproxy")
   .addPositionalParam("appId", "TProxy App ID")
   .setAction(async ({ appId }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const contract = await getKmsAuth(ethers);
     const tx = await contract.setTProxyAppId(appId);
     await waitTx(tx);
     console.log("TProxy App ID set successfully");
@@ -90,7 +128,7 @@ task("app:deploy")
     const address = await appAuth.getAddress();
     console.log("AppAuth deployed to:", address);
 
-    const kmsContract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const kmsContract = await getKmsAuth(ethers);
     const tx = await kmsContract.registerApp(saltHash, address);
     await waitTx(tx);
     console.log("App registered in KMS successfully");
@@ -100,11 +138,8 @@ task("app:add-hash")
   .addParam("appId", "App ID")
   .addPositionalParam("hash", "Compose hash to add")
   .setAction(async ({ appId, hash }, { ethers }) => {
-    const kmsContract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const controller = (await kmsContract.apps(appId)).controller;
-    console.log("Controller:", controller);
-    const contract = await ethers.getContractAt("AppAuth", controller);
-    const tx = await contract.addComposeHash(hash);
+    const appAuth = await getAppAuth(ethers, appId);
+    const tx = await appAuth.addComposeHash(hash);
     await waitTx(tx);
     console.log("Compose hash added successfully");
   });
@@ -113,11 +148,8 @@ task("app:remove-hash")
   .addParam("appId", "App ID")
   .addPositionalParam("hash", "Compose hash to remove")
   .setAction(async ({ appId, hash }, { ethers }) => {
-    const kmsContract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const controller = (await kmsContract.apps(appId)).controller;
-    console.log("Controller:", controller);
-    const contract = await ethers.getContractAt("AppAuth", controller);
-    const tx = await contract.removeComposeHash(hash);
+    const appAuth = await getAppAuth(ethers, appId);
+    const tx = await appAuth.removeComposeHash(hash);
     await waitTx(tx);
     console.log("Compose hash removed successfully");
   });
@@ -126,8 +158,8 @@ task("app:remove-hash")
 task("enclave:register")
   .addPositionalParam("mrEnclave", "Enclave measurement")
   .setAction(async ({ mrEnclave }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const tx = await contract.registerEnclave(mrEnclave);
+    const kmsAuth = await getKmsAuth(ethers);
+    const tx = await kmsAuth.registerEnclave(mrEnclave);
     await waitTx(tx);
     console.log("Enclave registered successfully");
   });
@@ -135,8 +167,8 @@ task("enclave:register")
 task("enclave:deregister")
   .addPositionalParam("mrEnclave", "Enclave measurement")
   .setAction(async ({ mrEnclave }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const tx = await contract.deregisterEnclave(mrEnclave);
+    const kmsAuth = await getKmsAuth(ethers);
+    const tx = await kmsAuth.deregisterEnclave(mrEnclave);
     await waitTx(tx);
     console.log("Enclave deregistered successfully");
   });
@@ -145,8 +177,8 @@ task("enclave:deregister")
 task("image:register")
   .addPositionalParam("mrImage", "Image measurement")
   .setAction(async ({ mrImage }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const tx = await contract.registerImage(mrImage);
+    const kmsAuth = await getKmsAuth(ethers);
+    const tx = await kmsAuth.registerImage(mrImage);
     await waitTx(tx);
     console.log("Image registered successfully");
   });
@@ -154,8 +186,8 @@ task("image:register")
 task("image:deregister")
   .addPositionalParam("mrImage", "Image measurement")
   .setAction(async ({ mrImage }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const tx = await contract.deregisterImage(mrImage);
+    const kmsAuth = await getKmsAuth(ethers);
+    const tx = await kmsAuth.deregisterImage(mrImage);
     await waitTx(tx);
     console.log("Image deregistered successfully");
   });
@@ -164,9 +196,9 @@ task("image:deregister")
 task("device:register")
   .addPositionalParam("deviceId", "Device ID to register")
   .setAction(async ({ deviceId }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const kmsAuth = await getKmsAuth(ethers);
     const hashedId = ethers.keccak256(ethers.toUtf8Bytes(deviceId));
-    const tx = await contract.registerKmsDeviceId(hashedId);
+    const tx = await kmsAuth.registerKmsDeviceId(hashedId);
     await waitTx(tx);
     console.log("Device ID registered successfully");
   });
@@ -174,9 +206,9 @@ task("device:register")
 task("device:deregister")
   .addPositionalParam("deviceId", "Device ID to deregister")
   .setAction(async ({ deviceId }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const kmsAuth = await getKmsAuth(ethers);
     const hashedId = ethers.keccak256(ethers.toUtf8Bytes(deviceId));
-    const tx = await contract.deregisterKmsDeviceId(hashedId);
+    const tx = await kmsAuth.deregisterKmsDeviceId(hashedId);
     await waitTx(tx);
     console.log("Device ID deregistered successfully");
   });
@@ -188,8 +220,8 @@ task("check:app", "Check if an app is allowed to boot")
   .addParam("mrImage", "Image measurement")
   .addParam("composeHash", "Compose hash")
   .setAction(async ({ appId, mrEnclave, mrImage, composeHash }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const [isAllowed, reason] = await contract.isAppAllowed({
+    const kmsAuth = await getKmsAuth(ethers);
+    const [isAllowed, reason] = await kmsAuth.isAppAllowed({
       appId,
       mrEnclave,
       mrImage,
@@ -206,9 +238,9 @@ task("check:kms", "Check if KMS is allowed to boot")
   .addParam("composeHash", "Compose hash")
   .addParam("deviceId", "Device ID")
   .setAction(async ({ mrEnclave, composeHash, deviceId }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+    const kmsAuth = await getKmsAuth(ethers);
     const hashedId = ethers.keccak256(ethers.toUtf8Bytes(deviceId));
-    const [isAllowed, reason] = await contract.isKmsAllowed({
+    const [isAllowed, reason] = await kmsAuth.isKmsAllowed({
       mrEnclave,
       composeHash,
       deviceId: hashedId,
@@ -224,47 +256,48 @@ task("check:kms", "Check if KMS is allowed to boot")
 task("check:app-id")
   .addPositionalParam("appId", "App ID to check")
   .setAction(async ({ appId }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const isRegistered = (await contract.apps(appId)).isRegistered;
+    const kmsAuth = await getKmsAuth(ethers);
+    const isRegistered = (await kmsAuth.apps(appId)).isRegistered;
     console.log("App ID is registered:", isRegistered);
   });
 
 task("check:enclave")
   .addPositionalParam("mrEnclave", "Enclave measurement to check")
   .setAction(async ({ mrEnclave }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const isRegistered = await contract.allowedEnclaves(mrEnclave);
+    const kmsAuth = await getKmsAuth(ethers);
+    const isRegistered = await kmsAuth.allowedEnclaves(mrEnclave);
     console.log("Enclave measurement is registered:", isRegistered);
   });
 
 task("check:image")
   .addPositionalParam("mrImage", "Image measurement to check")
   .setAction(async ({ mrImage }, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const isRegistered = await contract.allowedImages(mrImage);
+    const kmsAuth = await getKmsAuth(ethers);
+    const isRegistered = await kmsAuth.allowedImages(mrImage);
     console.log("Image measurement is registered:", isRegistered);
   });
 
 task("check:app-hash")
+  .addParam("appId", "App ID")
   .addPositionalParam("hash", "Compose hash to check")
-  .setAction(async ({ hash }, { ethers }) => {
-    const contract = await ethers.getContractAt("AppAuth", APP_CONTRACT_ADDRESS);
-    const isAllowed = await contract.allowedComposeHashes(hash);
+  .setAction(async ({ appId, hash }, { ethers }) => {
+    const appAuth = await getAppAuth(ethers, appId);
+    const isAllowed = await appAuth.allowedComposeHashes(hash);
     console.log("Compose hash is allowed:", isAllowed);
   });
 
 // Info Query Tasks
 task("info:owner", "Get current contract owner")
   .setAction(async (_, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const owner = await contract.owner();
+    const kmsAuth = await getKmsAuth(ethers);
+    const owner = await kmsAuth.owner();
     console.log("Contract owner:", owner);
   });
 
 task("info:kms", "Get current KMS information")
   .setAction(async (_, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const kmsInfo = await contract.kmsInfo();
+    const kmsAuth = await getKmsAuth(ethers);
+    const kmsInfo = await kmsAuth.kmsInfo();
     console.log("KMS Info:", {
       k256Pubkey: kmsInfo.k256Pubkey,
       caPubkey: kmsInfo.caPubkey,
@@ -274,35 +307,7 @@ task("info:kms", "Get current KMS information")
 
 task("info:tproxy", "Get current TProxy App ID")
   .setAction(async (_, { ethers }) => {
-    const contract = await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
-    const appId = await contract.tproxyAppId();
+    const kmsAuth = await getKmsAuth(ethers);
+    const appId = await kmsAuth.tproxyAppId();
     console.log("TProxy App ID:", appId);
   });
-
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
-
-const config: HardhatUserConfig = {
-  solidity: "0.8.19",
-  defaultNetwork: "phala",
-  networks: {
-    hardhat: {
-      chainId: 1337
-    },
-    sepolia: {
-      url: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
-      accounts: [PRIVATE_KEY],
-    },
-    phala: {
-      url: 'https://rpc.phala.network',
-      accounts: [PRIVATE_KEY],
-    },
-  },
-  paths: {
-    sources: "./contracts",
-    tests: "./test",
-    cache: "./cache",
-    artifacts: "./artifacts"
-  }
-};
-
-export default config;
