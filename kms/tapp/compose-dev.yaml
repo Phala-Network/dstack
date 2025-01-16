@@ -9,7 +9,7 @@ services:
         RUN apk add --no-cache git
         RUN git clone https://github.com/Dstack-TEE/dstack.git && \
             cd dstack && \
-            git checkout 93b9f9c3a00d8efdf7755601c50041c473688b14
+            git checkout c70a6ed18858ed6ba42ed92f5dce1e120c4cf7c7
         WORKDIR /app/dstack/kms/auth-eth
         RUN npm install && \
             npx hardhat typechain && \
@@ -19,14 +19,14 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - ETH_RPC_URL=https://rpc.phala.network
-      - KMS_CONTRACT_ADDR=0xdA5C549EC47735570334CFf23ac27fBeDb52c82f
+      - KMS_CONTRACT_ADDR=0xEf33Ad0701a0c57C871F583681AE869ecfaedce4
     restart: unless-stopped
 
   kms:
     build:
       context: .
       dockerfile_inline: |
-        FROM rust:1.80@sha256:d22d8938f0403ee31c118b5bf2162b883313dd7f387f859d9f2accd7c884c385
+        FROM rust:1.84@sha256:e6e40c05cfe7dd55ad13794333d31b6d0818f0c6086876e7dc65871e6c8c0b21
         WORKDIR /app
         RUN apt-get update && apt-get install -y \
             git \
@@ -40,7 +40,7 @@ services:
             && rm -rf /var/lib/apt/lists/*
         RUN git clone https://github.com/Dstack-TEE/dstack.git && \
             cd dstack && \
-            git checkout 93b9f9c3a00d8efdf7755601c50041c473688b14
+            git checkout c70a6ed18858ed6ba42ed92f5dce1e120c4cf7c7
         WORKDIR /app/dstack
         RUN cargo build --release -p kms
         CMD ["./target/release/kms"]
