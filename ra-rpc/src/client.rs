@@ -150,7 +150,7 @@ impl RequestClient for RaClient {
             .body(body)
             .send()
             .await
-            .map_err(|err| Error::RpcError(format!("failed to send request: {:?}", err)))?;
+            .context("Failed to send request")?;
 
         self.try_validate_attestation(&response)
             .await
@@ -159,14 +159,12 @@ impl RequestClient for RaClient {
         let status = response.status();
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
-            return Err(Error::RpcError(format!(
-                "request failed with status={status}, error={body}",
-            )));
+            bail!("Request failed with status={status}, error={body}");
         }
         let body = response
             .bytes()
             .await
-            .map_err(|err| Error::RpcError(format!("failed to read response: {:?}", err)))?
+            .context("Failed to read response")?
             .to_vec();
         let response = serde_json::from_slice(&body).context("Failed to deserialize response")?;
         Ok(response)
