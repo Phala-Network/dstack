@@ -1,4 +1,6 @@
 use anyhow::{bail, Context, Result};
+use bollard::container::{ListContainersOptions, RemoveContainerOptions};
+use bollard::Docker;
 use clap::{Parser, Subcommand};
 use cmd_lib::run_cmd as cmd;
 use fde_setup::{cmd_setup_fde, SetupFdeArgs};
@@ -7,6 +9,8 @@ use getrandom::getrandom;
 use notify_client::NotifyClient;
 use ra_tls::{attestation::QuoteContentType, cert::CaCert};
 use scale::Decode;
+use serde::Deserialize;
+use std::{collections::HashMap, path::Path};
 use std::{
     io::{self, Read, Write},
     path::PathBuf,
@@ -56,6 +60,8 @@ enum Commands {
     Tboot(TbootArgs),
     /// Notify the host about the Tapp
     NotifyHost(HostNotifyArgs),
+    /// Remove orphaned containers
+    RemoveOrphans(RemoveOrphansArgs),
 }
 
 #[derive(Parser)]
@@ -172,6 +178,23 @@ struct HostNotifyArgs {
     #[arg(short = 'd', long)]
     payload: String,
 }
+
+#[derive(Parser)]
+/// Remove orphaned containers
+struct RemoveOrphansArgs {
+    /// path to the docker-compose.yaml file
+    #[arg(short = 'f', long)]
+    compose: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ComposeConfig {
+    name: Option<String>,
+    services: HashMap<String, ComposeService>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ComposeService {}
 
 fn cmd_quote() -> Result<()> {
     let mut report_data = [0; 64];
@@ -383,6 +406,89 @@ fn sha256(data: &[u8]) -> String {
     hex::encode(sha256.finalize())
 }
 
+fn get_project_name(compose_file: impl AsRef<Path>) -> Result<String> {
+    let project_name = fs::canonicalize(compose_file)
+        .context("Failed to canonicalize compose file")?
+        .parent()
+        .context("Failed to get parent directory of compose file")?
+        .file_name()
+        .context("Failed to get file name of compose file")?
+        .to_string_lossy()
+        .into_owned();
+    Ok(project_name)
+}
+
+async fn cmd_remove_orphans(compose_file: impl AsRef<Path>) -> Result<()> {
+    // Connect to Docker daemon
+    let docker =
+        Docker::connect_with_local_defaults().context("Failed to connect to Docker daemon")?;
+
+    // Read and parse docker-compose.yaml to get project name
+    let compose_content =
+        fs::read_to_string(compose_file.as_ref()).context("Failed to read docker-compose.yaml")?;
+    let docker_compose: ComposeConfig =
+        serde_yaml2::from_str(&compose_content).context("Failed to parse docker-compose.yaml")?;
+
+    // Get current project name from compose file or directory name
+    let project_name = match docker_compose.name {
+        Some(name) => name,
+        None => get_project_name(compose_file)?,
+    };
+
+    // List all containers
+    let options = ListContainersOptions::<String> {
+        all: true,
+        ..Default::default()
+    };
+
+    let containers = docker
+        .list_containers(Some(options))
+        .await
+        .context("Failed to list containers")?;
+
+    // Find and remove orphaned containers
+    for container in containers {
+        let Some(labels) = container.labels else {
+            continue;
+        };
+
+        // Check if container belongs to current project
+        let Some(container_project) = labels.get("com.docker.compose.project") else {
+            continue;
+        };
+
+        if container_project != &project_name {
+            continue;
+        }
+        // Check if service still exists in compose file
+        let Some(service_name) = labels.get("com.docker.compose.service") else {
+            continue;
+        };
+        if docker_compose.services.contains_key(service_name) {
+            continue;
+        }
+        // Service no longer exists in compose file, remove the container
+        let Some(container_id) = container.id else {
+            continue;
+        };
+
+        println!("Removing orphaned container {service_name} {container_id}");
+        docker
+            .remove_container(
+                &container_id,
+                Some(RemoveContainerOptions {
+                    v: true,
+                    force: true,
+                    ..Default::default()
+                }),
+            )
+            .await
+            .with_context(|| format!("Failed to remove container {}", container_id))?;
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     {
@@ -429,6 +535,9 @@ async fn main() -> Result<()> {
         }
         Commands::NotifyHost(args) => {
             cmd_notify_host(args).await?;
+        }
+        Commands::RemoveOrphans(args) => {
+            cmd_remove_orphans(args.compose).await?;
         }
     }
 
