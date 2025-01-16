@@ -328,7 +328,12 @@ impl App {
         self.config.run_path.join(id).join("shared")
     }
 
-    pub(crate) fn prepare_work_dir(&self, id: &str, req: &VmConfiguration) -> Result<VmWorkDir> {
+    pub(crate) fn prepare_work_dir(
+        &self,
+        id: &str,
+        req: &VmConfiguration,
+        app_id: &str,
+    ) -> Result<VmWorkDir> {
         let work_dir = self.work_dir(id);
         let shared_dir = work_dir.join("shared");
         fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
@@ -338,7 +343,6 @@ impl App {
             fs::write(shared_dir.join("encrypted-env"), &req.encrypted_env)
                 .context("Failed to write encrypted env")?;
         }
-        let app_id = req.app_id.clone().unwrap_or_default();
         if !app_id.is_empty() {
             let instance_info = serde_json::json!({
                 "app_id": app_id,

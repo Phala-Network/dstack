@@ -113,7 +113,7 @@ impl RpcHandler {
             rtmr1: report.rt_mr1.to_vec(),
             rtmr2: report.rt_mr2.to_vec(),
             rtmr3: report.rt_mr3.to_vec(),
-            mr_enclave: app_info.mr_enclave.to_vec(),
+            mr_aggregated: app_info.mr_aggregated.to_vec(),
             mr_image: app_info.mr_image.to_vec(),
             mr_key_provider: app_info.mr_key_provider.to_vec(),
             app_id: app_info.app_id,

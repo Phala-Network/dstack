@@ -14,7 +14,7 @@ jest.mock('../src/ethereum', () => {
 describe('Server', () => {
   let app: FastifyInstance;
   const mockBootInfo: BootInfo = {
-    mrEnclave: '0x1234',
+    mrAggregated: '0x1234',
     mrImage: '0x5678',
     appId: '0x9012345678901234567890123456789012345678',
     composeHash: '0xabcd',
@@ -59,7 +59,7 @@ describe('Server', () => {
         url: '/bootAuth/app',
         payload: {
           // Missing required fields
-          mrEnclave: '0x1234'
+          mrAggregated: '0x1234'
         }
       });
 
@@ -84,8 +84,6 @@ describe('Server', () => {
       });
 
       const result = JSON.parse(response.payload);
-      console.log('status:' + response.statusCode);
-      console.log('result:', result);
       expect(response.statusCode).toBe(200);
       expect(result.isAllowed).toBe(true);
       expect(result.reason).toBe('');

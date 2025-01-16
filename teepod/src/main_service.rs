@@ -84,7 +84,7 @@ impl TeepodRpc for RpcHandler {
             .collect::<Result<Vec<_>>>()?;
 
         let app_id = match &request.app_id {
-            Some(id) => id.clone(),
+            Some(id) => id.strip_prefix("0x").unwrap_or(id).to_lowercase(),
             None => app_id_of(&request.compose_file),
         };
         let id = uuid::Uuid::new_v4().to_string();
@@ -107,7 +107,7 @@ impl TeepodRpc for RpcHandler {
         vm_work_dir
             .put_manifest(&manifest)
             .context("Failed to write manifest")?;
-        let work_dir = self.prepare_work_dir(&id, &request)?;
+        let work_dir = self.prepare_work_dir(&id, &request, &app_id)?;
         if let Err(err) = vm_work_dir.set_started(true) {
             warn!("Failed to set started: {}", err);
         }

@@ -32,7 +32,7 @@ const _abi = [
           },
           {
             internalType: "bytes32",
-            name: "mrEnclave",
+            name: "mrAggregated",
             type: "bytes32",
           },
           {

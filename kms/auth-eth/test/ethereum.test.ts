@@ -39,7 +39,7 @@ describe('EthereumBackend', () => {
       composeHash: ethers.encodeBytes32String('0x1234567890abcdef'),
       instanceId: ethers.Wallet.createRandom().address,
       deviceId: ethers.encodeBytes32String('0x123'),
-      mrEnclave: ethers.encodeBytes32String('0x1234'),
+      mrAggregated: ethers.encodeBytes32String('0x1234'),
       mrImage: ethers.encodeBytes32String('0x5678')
     };
 
@@ -52,7 +52,7 @@ describe('EthereumBackend', () => {
     });
 
     // Register enclave and image
-    await kmsAuth.registerEnclave(mockBootInfo.mrEnclave);
+    await kmsAuth.registerAggregatedMr(mockBootInfo.mrAggregated);
     await kmsAuth.registerImage(mockBootInfo.mrImage);
     await appAuth.addComposeHash(mockBootInfo.composeHash);
   });
@@ -67,7 +67,7 @@ describe('EthereumBackend', () => {
     it('should return true when enclave is not allowed but image is allowed', async () => {
       const badBootInfo = {
         ...mockBootInfo,
-        mrEnclave: ethers.encodeBytes32String('0x9999'),
+        mrAggregated: ethers.encodeBytes32String('0x9999'),
       };
       const result = await backend.checkBoot(badBootInfo, false);
       expect(result.reason).toBe('');
@@ -85,15 +85,15 @@ describe('EthereumBackend', () => {
     });
 
     it('should return false when enclave and image are not registered', async () => {
-      const badMrEnclave = ethers.encodeBytes32String('9999');
+      const badMrAggregated = ethers.encodeBytes32String('9999');
       const badMrImage = ethers.encodeBytes32String('9999');
       const badBootInfo = {
         ...mockBootInfo,
-        mrEnclave: badMrEnclave,
+        mrAggregated: badMrAggregated,
         mrImage: badMrImage
       };
       const result = await backend.checkBoot(badBootInfo, false);
-      expect(result.reason).toBe('Neither enclave nor image is allowed');
+      expect(result.reason).toBe('Neither aggregated MR nor image is allowed');
       expect(result.isAllowed).toBe(false);
     });
 

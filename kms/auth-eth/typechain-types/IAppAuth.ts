@@ -26,7 +26,7 @@ export declare namespace IAppAuth {
     composeHash: BytesLike;
     instanceId: AddressLike;
     deviceId: BytesLike;
-    mrEnclave: BytesLike;
+    mrAggregated: BytesLike;
     mrImage: BytesLike;
   };
 
@@ -35,14 +35,14 @@ export declare namespace IAppAuth {
     composeHash: string,
     instanceId: string,
     deviceId: string,
-    mrEnclave: string,
+    mrAggregated: string,
     mrImage: string
   ] & {
     appId: string;
     composeHash: string;
     instanceId: string;
     deviceId: string;
-    mrEnclave: string;
+    mrAggregated: string;
     mrImage: string;
   };
 }

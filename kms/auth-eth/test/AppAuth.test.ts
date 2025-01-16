@@ -59,7 +59,7 @@ describe("AppAuth", function () {
   describe("isAppAllowed", function () {
     const composeHash = ethers.randomBytes(32);
     const deviceId = ethers.randomBytes(32);
-    const mrEnclave = ethers.randomBytes(32);
+    const mrAggregated = ethers.randomBytes(32);
     const mrImage = ethers.randomBytes(32);
     const instanceId = ethers.Wallet.createRandom().address;
 
@@ -70,11 +70,11 @@ describe("AppAuth", function () {
     it("Should allow valid boot info", async function () {
       const bootInfo = {
         appId: appId,
-        composeHash: composeHash,
-        instanceId: instanceId,
-        deviceId: deviceId,
-        mrEnclave: mrEnclave,
-        mrImage: mrImage
+        composeHash,
+        instanceId,
+        deviceId,
+        mrAggregated,
+        mrImage
       };
 
       const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);
@@ -85,11 +85,11 @@ describe("AppAuth", function () {
     it("Should reject invalid app ID", async function () {
       const bootInfo = {
         appId: ethers.Wallet.createRandom().address,
-        composeHash: composeHash,
-        instanceId: instanceId,
-        deviceId: deviceId,
-        mrEnclave: mrEnclave,
-        mrImage: mrImage
+        composeHash,
+        instanceId,
+        deviceId,
+        mrAggregated,
+        mrImage
       };
 
       const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);
@@ -101,10 +101,10 @@ describe("AppAuth", function () {
       const bootInfo = {
         appId: appId,
         composeHash: ethers.randomBytes(32),
-        instanceId: instanceId,
-        deviceId: deviceId,
-        mrEnclave: mrEnclave,
-        mrImage: mrImage
+        instanceId,
+        deviceId,
+        mrAggregated,
+        mrImage
       };
 
       const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);

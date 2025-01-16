@@ -28,7 +28,7 @@ export declare namespace IAppAuth {
     composeHash: BytesLike;
     instanceId: AddressLike;
     deviceId: BytesLike;
-    mrEnclave: BytesLike;
+    mrAggregated: BytesLike;
     mrImage: BytesLike;
   };
 
@@ -37,14 +37,14 @@ export declare namespace IAppAuth {
     composeHash: string,
     instanceId: string,
     deviceId: string,
-    mrEnclave: string,
+    mrAggregated: string,
     mrImage: string
   ] & {
     appId: string;
     composeHash: string;
     instanceId: string;
     deviceId: string;
-    mrEnclave: string;
+    mrAggregated: string;
     mrImage: string;
   };
 }
@@ -68,13 +68,13 @@ export declare namespace KmsAuth {
 export interface KmsAuthInterface extends Interface {
   getFunction(
     nameOrSignature:
-      | "allowedEnclaves"
+      | "allowedAggregatedMrs"
       | "allowedImages"
       | "allowedKmsComposeHashes"
       | "allowedKmsDeviceIds"
       | "apps"
       | "calculateAppId"
-      | "deregisterEnclave"
+      | "deregisterAggregatedMr"
       | "deregisterImage"
       | "deregisterKmsComposeHash"
       | "deregisterKmsDeviceId"
@@ -82,8 +82,8 @@ export interface KmsAuthInterface extends Interface {
       | "isKmsAllowed"
       | "kmsInfo"
       | "owner"
+      | "registerAggregatedMr"
       | "registerApp"
-      | "registerEnclave"
       | "registerImage"
       | "registerKmsComposeHash"
       | "registerKmsDeviceId"
@@ -97,9 +97,9 @@ export interface KmsAuthInterface extends Interface {
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "AggregatedMrDeregistered"
+      | "AggregatedMrRegistered"
       | "AppRegistered"
-      | "EnclaveDeregistered"
-      | "EnclaveRegistered"
       | "ImageDeregistered"
       | "ImageRegistered"
       | "KmsComposeHashDeregistered"
@@ -112,7 +112,7 @@ export interface KmsAuthInterface extends Interface {
   ): EventFragment;
 
   encodeFunctionData(
-    functionFragment: "allowedEnclaves",
+    functionFragment: "allowedAggregatedMrs",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
@@ -133,7 +133,7 @@ export interface KmsAuthInterface extends Interface {
     values: [AddressLike, BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "deregisterEnclave",
+    functionFragment: "deregisterAggregatedMr",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
@@ -159,12 +159,12 @@ export interface KmsAuthInterface extends Interface {
   encodeFunctionData(functionFragment: "kmsInfo", values?: undefined): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "registerApp",
-    values: [BytesLike, AddressLike]
+    functionFragment: "registerAggregatedMr",
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "registerEnclave",
-    values: [BytesLike]
+    functionFragment: "registerApp",
+    values: [BytesLike, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "registerImage",
@@ -204,7 +204,7 @@ export interface KmsAuthInterface extends Interface {
   ): string;
 
   decodeFunctionResult(
-    functionFragment: "allowedEnclaves",
+    functionFragment: "allowedAggregatedMrs",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -225,7 +225,7 @@ export interface KmsAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "deregisterEnclave",
+    functionFragment: "deregisterAggregatedMr",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -251,11 +251,11 @@ export interface KmsAuthInterface extends Interface {
   decodeFunctionResult(functionFragment: "kmsInfo", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "registerApp",
+    functionFragment: "registerAggregatedMr",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "registerEnclave",
+    functionFragment: "registerApp",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -293,35 +293,35 @@ export interface KmsAuthInterface extends Interface {
   ): Result;
 }
 
+export namespace AggregatedMrDeregisteredEvent {
+  export type InputTuple = [mrAggregated: BytesLike];
+  export type OutputTuple = [mrAggregated: string];
+  export interface OutputObject {
+    mrAggregated: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace AggregatedMrRegisteredEvent {
+  export type InputTuple = [mrAggregated: BytesLike];
+  export type OutputTuple = [mrAggregated: string];
+  export interface OutputObject {
+    mrAggregated: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace AppRegisteredEvent {
   export type InputTuple = [appId: AddressLike];
   export type OutputTuple = [appId: string];
   export interface OutputObject {
     appId: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace EnclaveDeregisteredEvent {
-  export type InputTuple = [mrEnclave: BytesLike];
-  export type OutputTuple = [mrEnclave: string];
-  export interface OutputObject {
-    mrEnclave: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace EnclaveRegisteredEvent {
-  export type InputTuple = [mrEnclave: BytesLike];
-  export type OutputTuple = [mrEnclave: string];
-  export interface OutputObject {
-    mrEnclave: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -481,7 +481,11 @@ export interface KmsAuth extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
-  allowedEnclaves: TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
+  allowedAggregatedMrs: TypedContractMethod<
+    [arg0: BytesLike],
+    [boolean],
+    "view"
+  >;
 
   allowedImages: TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
 
@@ -509,8 +513,8 @@ export interface KmsAuth extends BaseContract {
     "view"
   >;
 
-  deregisterEnclave: TypedContractMethod<
-    [mrEnclave: BytesLike],
+  deregisterAggregatedMr: TypedContractMethod<
+    [mrAggregated: BytesLike],
     [void],
     "nonpayable"
   >;
@@ -560,14 +564,14 @@ export interface KmsAuth extends BaseContract {
 
   owner: TypedContractMethod<[], [string], "view">;
 
-  registerApp: TypedContractMethod<
-    [salt: BytesLike, controller: AddressLike],
+  registerAggregatedMr: TypedContractMethod<
+    [mrAggregated: BytesLike],
     [void],
     "nonpayable"
   >;
 
-  registerEnclave: TypedContractMethod<
-    [mrEnclave: BytesLike],
+  registerApp: TypedContractMethod<
+    [salt: BytesLike, controller: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -619,7 +623,7 @@ export interface KmsAuth extends BaseContract {
   ): T;
 
   getFunction(
-    nameOrSignature: "allowedEnclaves"
+    nameOrSignature: "allowedAggregatedMrs"
   ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "allowedImages"
@@ -645,8 +649,8 @@ export interface KmsAuth extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "deregisterEnclave"
-  ): TypedContractMethod<[mrEnclave: BytesLike], [void], "nonpayable">;
+    nameOrSignature: "deregisterAggregatedMr"
+  ): TypedContractMethod<[mrAggregated: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "deregisterImage"
   ): TypedContractMethod<[mrImage: BytesLike], [void], "nonpayable">;
@@ -688,15 +692,15 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "registerAggregatedMr"
+  ): TypedContractMethod<[mrAggregated: BytesLike], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "registerApp"
   ): TypedContractMethod<
     [salt: BytesLike, controller: AddressLike],
     [void],
     "nonpayable"
   >;
-  getFunction(
-    nameOrSignature: "registerEnclave"
-  ): TypedContractMethod<[mrEnclave: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "registerImage"
   ): TypedContractMethod<[mrImage: BytesLike], [void], "nonpayable">;
@@ -726,25 +730,25 @@ export interface KmsAuth extends BaseContract {
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
 
   getEvent(
+    key: "AggregatedMrDeregistered"
+  ): TypedContractEvent<
+    AggregatedMrDeregisteredEvent.InputTuple,
+    AggregatedMrDeregisteredEvent.OutputTuple,
+    AggregatedMrDeregisteredEvent.OutputObject
+  >;
+  getEvent(
+    key: "AggregatedMrRegistered"
+  ): TypedContractEvent<
+    AggregatedMrRegisteredEvent.InputTuple,
+    AggregatedMrRegisteredEvent.OutputTuple,
+    AggregatedMrRegisteredEvent.OutputObject
+  >;
+  getEvent(
     key: "AppRegistered"
   ): TypedContractEvent<
     AppRegisteredEvent.InputTuple,
     AppRegisteredEvent.OutputTuple,
     AppRegisteredEvent.OutputObject
-  >;
-  getEvent(
-    key: "EnclaveDeregistered"
-  ): TypedContractEvent<
-    EnclaveDeregisteredEvent.InputTuple,
-    EnclaveDeregisteredEvent.OutputTuple,
-    EnclaveDeregisteredEvent.OutputObject
-  >;
-  getEvent(
-    key: "EnclaveRegistered"
-  ): TypedContractEvent<
-    EnclaveRegisteredEvent.InputTuple,
-    EnclaveRegisteredEvent.OutputTuple,
-    EnclaveRegisteredEvent.OutputObject
   >;
   getEvent(
     key: "ImageDeregistered"
@@ -811,6 +815,28 @@ export interface KmsAuth extends BaseContract {
   >;
 
   filters: {
+    "AggregatedMrDeregistered(bytes32)": TypedContractEvent<
+      AggregatedMrDeregisteredEvent.InputTuple,
+      AggregatedMrDeregisteredEvent.OutputTuple,
+      AggregatedMrDeregisteredEvent.OutputObject
+    >;
+    AggregatedMrDeregistered: TypedContractEvent<
+      AggregatedMrDeregisteredEvent.InputTuple,
+      AggregatedMrDeregisteredEvent.OutputTuple,
+      AggregatedMrDeregisteredEvent.OutputObject
+    >;
+
+    "AggregatedMrRegistered(bytes32)": TypedContractEvent<
+      AggregatedMrRegisteredEvent.InputTuple,
+      AggregatedMrRegisteredEvent.OutputTuple,
+      AggregatedMrRegisteredEvent.OutputObject
+    >;
+    AggregatedMrRegistered: TypedContractEvent<
+      AggregatedMrRegisteredEvent.InputTuple,
+      AggregatedMrRegisteredEvent.OutputTuple,
+      AggregatedMrRegisteredEvent.OutputObject
+    >;
+
     "AppRegistered(address)": TypedContractEvent<
       AppRegisteredEvent.InputTuple,
       AppRegisteredEvent.OutputTuple,
@@ -820,28 +846,6 @@ export interface KmsAuth extends BaseContract {
       AppRegisteredEvent.InputTuple,
       AppRegisteredEvent.OutputTuple,
       AppRegisteredEvent.OutputObject
-    >;
-
-    "EnclaveDeregistered(bytes32)": TypedContractEvent<
-      EnclaveDeregisteredEvent.InputTuple,
-      EnclaveDeregisteredEvent.OutputTuple,
-      EnclaveDeregisteredEvent.OutputObject
-    >;
-    EnclaveDeregistered: TypedContractEvent<
-      EnclaveDeregisteredEvent.InputTuple,
-      EnclaveDeregisteredEvent.OutputTuple,
-      EnclaveDeregisteredEvent.OutputObject
-    >;
-
-    "EnclaveRegistered(bytes32)": TypedContractEvent<
-      EnclaveRegisteredEvent.InputTuple,
-      EnclaveRegisteredEvent.OutputTuple,
-      EnclaveRegisteredEvent.OutputObject
-    >;
-    EnclaveRegistered: TypedContractEvent<
-      EnclaveRegisteredEvent.InputTuple,
-      EnclaveRegisteredEvent.OutputTuple,
-      EnclaveRegisteredEvent.OutputObject
     >;
 
     "ImageDeregistered(bytes32)": TypedContractEvent<

@@ -1,5 +1,5 @@
 export interface BootInfo {
-  mrEnclave: string;
+  mrAggregated: string;
   mrImage: string;
   appId: string;
   composeHash: string;

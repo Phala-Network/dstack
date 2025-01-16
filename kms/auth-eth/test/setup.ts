@@ -40,7 +40,7 @@ beforeAll(async () => {
   });
 
   // Register some test enclaves and images
-  await kmsAuth.registerEnclave(ethers.encodeBytes32String("11"));
+  await kmsAuth.registerAggregatedMr(ethers.encodeBytes32String("11"));
   await kmsAuth.registerImage(ethers.encodeBytes32String("22"));
   await appAuth.addComposeHash(ethers.encodeBytes32String("33"));
 

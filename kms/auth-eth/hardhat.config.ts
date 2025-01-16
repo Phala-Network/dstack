@@ -66,7 +66,7 @@ task("kms:deploy", "Deploy a new KmsAuth contract")
     console.log("KmsAuth deployed to:", address);
   });
 
-task("kms:transfer-ownership")
+task("kms:transfer-ownership", "Transfer ownership of the KmsAuth contract")
   .addPositionalParam("newOwner", "New owner address")
   .setAction(async ({ newOwner }, { ethers }) => {
     const contract = await getKmsAuth(ethers);
@@ -86,6 +86,7 @@ task("kms:set-info", "Set KMS information")
     await waitTx(tx);
     console.log("KMS info set successfully");
   });
+
 task("kms:set-info-file", "Set KMS information from file")
   .addPositionalParam("file", "File path")
   .setAction(async ({ file }, { ethers }) => {
@@ -96,7 +97,7 @@ task("kms:set-info-file", "Set KMS information from file")
     console.log("KMS info set successfully");
   });
 
-task("kms:set-tproxy")
+task("kms:set-tproxy", "Set the allowed TProxy App ID")
   .addPositionalParam("appId", "TProxy App ID")
   .setAction(async ({ appId }, { ethers }) => {
     const contract = await getKmsAuth(ethers);
@@ -106,7 +107,7 @@ task("kms:set-tproxy")
   });
 
 // App Management Tasks
-task("app:deploy")
+task("app:deploy", "Deploy a new AppAuth contract")
   .addPositionalParam("salt", "Salt for app deployment")
   .setAction(async ({ salt }, { ethers }) => {
     const [deployer] = await ethers.getSigners();
@@ -136,7 +137,7 @@ task("app:deploy")
     console.log("App registered in KMS successfully");
   });
 
-task("app:add-hash")
+task("app:add-hash", "Add a compose hash to the AppAuth contract")
   .addParam("appId", "App ID")
   .addPositionalParam("hash", "Compose hash to add")
   .setAction(async ({ appId, hash }, { ethers }) => {
@@ -146,7 +147,7 @@ task("app:add-hash")
     console.log("Compose hash added successfully");
   });
 
-task("app:remove-hash")
+task("app:remove-hash", "Remove a compose hash from the AppAuth contract")
   .addParam("appId", "App ID")
   .addPositionalParam("hash", "Compose hash to remove")
   .setAction(async ({ appId, hash }, { ethers }) => {
@@ -156,27 +157,27 @@ task("app:remove-hash")
     console.log("Compose hash removed successfully");
   });
 
-// Enclave Management Tasks
-task("enclave:register")
-  .addPositionalParam("mrEnclave", "Enclave measurement")
-  .setAction(async ({ mrEnclave }, { ethers }) => {
+// Mr Management Tasks
+task("kms:register-aggregated-mr", "Register an aggregated MR measurement")
+  .addPositionalParam("mrAggregated", "Aggregated MR measurement")
+  .setAction(async ({ mrAggregated }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.registerEnclave(mrEnclave);
+    const tx = await kmsAuth.registerAggregatedMr(mrAggregated);
     await waitTx(tx);
-    console.log("Enclave registered successfully");
+    console.log("Aggregated MR registered successfully");
   });
 
-task("enclave:deregister")
-  .addPositionalParam("mrEnclave", "Enclave measurement")
-  .setAction(async ({ mrEnclave }, { ethers }) => {
+task("kms:deregister-aggregated-mr", "Deregister an aggregated MR measurement")
+  .addPositionalParam("mrAggregated", "Aggregated MR measurement")
+  .setAction(async ({ mrAggregated }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.deregisterEnclave(mrEnclave);
+    const tx = await kmsAuth.deregisterAggregatedMr(mrAggregated);
     await waitTx(tx);
-    console.log("Enclave deregistered successfully");
+    console.log("Aggregated MR deregistered successfully");
   });
 
 // Image Management Tasks
-task("image:register")
+task("kms:register-image", "Register an image measurement")
   .addPositionalParam("mrImage", "Image measurement")
   .setAction(async ({ mrImage }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
@@ -185,7 +186,7 @@ task("image:register")
     console.log("Image registered successfully");
   });
 
-task("image:deregister")
+task("kms:deregister-image", "Deregister an image measurement")
   .addPositionalParam("mrImage", "Image measurement")
   .setAction(async ({ mrImage }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
@@ -195,7 +196,7 @@ task("image:deregister")
   });
 
 // Device Management Tasks
-task("device:register")
+task("kms:register-device", "Register a device ID")
   .addPositionalParam("deviceId", "Device ID to register")
   .setAction(async ({ deviceId }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
@@ -205,7 +206,7 @@ task("device:register")
     console.log("Device ID registered successfully");
   });
 
-task("device:deregister")
+task("kms:deregister-device", "Deregister a device ID")
   .addPositionalParam("deviceId", "Device ID to deregister")
   .setAction(async ({ deviceId }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
@@ -215,17 +216,35 @@ task("device:deregister")
     console.log("Device ID deregistered successfully");
   });
 
+task("kms:add-hash", "Add a compose hash of an KMS instance")
+  .addPositionalParam("hash", "Compose hash to add")
+  .setAction(async ({ hash }, { ethers }) => {
+    const kmsAuth = await getKmsAuth(ethers);
+    const tx = await kmsAuth.registerKmsComposeHash(hash);
+    await waitTx(tx);
+    console.log("KMS compose hash added successfully");
+  });
+
+task("kms:add-device", "Add a device ID of an KMS instance")
+  .addPositionalParam("deviceId", "Device ID")
+  .setAction(async ({ deviceId }, { ethers }) => {
+    const kmsAuth = await getKmsAuth(ethers);
+    const tx = await kmsAuth.registerKmsDeviceId(deviceId);
+    await waitTx(tx);
+    console.log("Device compose hash added successfully");
+  });
+
 // Status Check Tasks
 task("check:app", "Check if an app is allowed to boot")
   .addParam("appId", "App ID to check")
-  .addParam("mrEnclave", "Enclave measurement")
+  .addParam("mrAggregated", "Aggregated MR measurement")
   .addParam("mrImage", "Image measurement")
   .addParam("composeHash", "Compose hash")
-  .setAction(async ({ appId, mrEnclave, mrImage, composeHash }, { ethers }) => {
+  .setAction(async ({ appId, mrAggregated, mrImage, composeHash }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
     const [isAllowed, reason] = await kmsAuth.isAppAllowed({
       appId,
-      mrEnclave,
+      mrAggregated,
       mrImage,
       composeHash,
       deviceId: ethers.ZeroHash,
@@ -236,14 +255,14 @@ task("check:app", "Check if an app is allowed to boot")
   });
 
 task("check:kms", "Check if KMS is allowed to boot")
-  .addParam("mrEnclave", "Enclave measurement")
+  .addParam("mrAggregated", "Aggregated MR measurement")
   .addParam("composeHash", "Compose hash")
   .addParam("deviceId", "Device ID")
-  .setAction(async ({ mrEnclave, composeHash, deviceId }, { ethers }) => {
+  .setAction(async ({ mrAggregated, composeHash, deviceId }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
     const hashedId = ethers.keccak256(ethers.toUtf8Bytes(deviceId));
     const [isAllowed, reason] = await kmsAuth.isKmsAllowed({
-      mrEnclave,
+      mrAggregated,
       composeHash,
       deviceId: hashedId,
       mrImage: ethers.ZeroHash,
@@ -263,12 +282,12 @@ task("check:app-id")
     console.log("App ID is registered:", isRegistered);
   });
 
-task("check:enclave")
-  .addPositionalParam("mrEnclave", "Enclave measurement to check")
-  .setAction(async ({ mrEnclave }, { ethers }) => {
+task("check:mr-aggregated")
+  .addPositionalParam("mrAggregated", "MR Aggregated measurement to check")
+  .setAction(async ({ mrAggregated }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const isRegistered = await kmsAuth.allowedEnclaves(mrEnclave);
-    console.log("Enclave measurement is registered:", isRegistered);
+    const isRegistered = await kmsAuth.allowedEnclaves(mrAggregated);
+    console.log("MR Aggregated measurement is registered:", isRegistered);
   });
 
 task("check:image")
@@ -312,23 +331,4 @@ task("info:tproxy", "Get current TProxy App ID")
     const kmsAuth = await getKmsAuth(ethers);
     const appId = await kmsAuth.tproxyAppId();
     console.log("TProxy App ID:", appId);
-  });
-
-// KMS Management Tasks
-task("kms:add-hash")
-  .addPositionalParam("hash", "Compose hash to add")
-  .setAction(async ({ hash }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.registerKmsComposeHash(hash);
-    await waitTx(tx);
-    console.log("KMS compose hash added successfully");
-  });
-
-task("kms:add-device")
-  .addPositionalParam("deviceId", "Device ID")
-  .setAction(async ({ deviceId }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.registerKmsDeviceId(deviceId);
-    await waitTx(tx);
-    console.log("Device compose hash added successfully");
   });

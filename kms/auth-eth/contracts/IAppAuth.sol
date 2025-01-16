@@ -7,7 +7,7 @@ interface IAppAuth {
         bytes32 composeHash;
         address instanceId;
         bytes32 deviceId;
-        bytes32 mrEnclave;
+        bytes32 mrAggregated;
         bytes32 mrImage;
     }
 

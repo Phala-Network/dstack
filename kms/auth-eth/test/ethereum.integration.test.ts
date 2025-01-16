@@ -33,7 +33,7 @@ describe('Integration Tests', () => {
         appId,
         instanceId: ethers.Wallet.createRandom().address,
         deviceId: ethers.encodeBytes32String('123'),
-        mrEnclave: ethers.encodeBytes32String('11'),
+        mrAggregated: ethers.encodeBytes32String('11'),
         mrImage: ethers.encodeBytes32String('22'),
         composeHash: ethers.encodeBytes32String('33'),
       };
@@ -46,10 +46,10 @@ describe('Integration Tests', () => {
     });
 
     it('should return true when enclave is not registered but image is registered', async () => {
-      const badMrEnclave = ethers.encodeBytes32String('9999');
+      const badMrAggregated = ethers.encodeBytes32String('9999');
       const [isAllowed, reason] = await kmsAuth.isAppAllowed({
         ...mockBootInfo,
-        mrEnclave: badMrEnclave
+        mrAggregated: badMrAggregated
       });
 
       expect(isAllowed).toBe(true);
@@ -68,14 +68,14 @@ describe('Integration Tests', () => {
     });
 
     it('should return false when enclave and image are not registered', async () => {
-      const badMrEnclave = ethers.encodeBytes32String('9999');
+      const badMrAggregated = ethers.encodeBytes32String('9999');
       const badMrImage = ethers.encodeBytes32String('9999');
       const [isAllowed, reason] = await kmsAuth.isAppAllowed({
         ...mockBootInfo,
-        mrEnclave: badMrEnclave,
+        mrAggregated: badMrAggregated,
         mrImage: badMrImage
       });
-      expect(reason).toBe('Neither enclave nor image is allowed');
+      expect(reason).toBe('Neither aggregated MR nor image is allowed');
       expect(isAllowed).toBe(false);
     });
   });
@@ -91,7 +91,7 @@ describe('Integration Tests', () => {
         composeHash: ethers.encodeBytes32String("33"),
         instanceId: ethers.Wallet.createRandom().address,
         deviceId: ethers.encodeBytes32String("123"),
-        mrEnclave: ethers.encodeBytes32String("11"),
+        mrAggregated: ethers.encodeBytes32String("11"),
         mrImage: ethers.encodeBytes32String("22")
       };
     });
@@ -106,7 +106,7 @@ describe('Integration Tests', () => {
       it('should return true when enclave is not allowed but image is allowed', async () => {
         const badBootInfo = {
           ...mockBootInfo,
-          mrEnclave: ethers.encodeBytes32String('9999')
+          mrAggregated: ethers.encodeBytes32String('9999')
         };
         const result = await backend.checkBoot(badBootInfo, false);
         expect(result.reason).toBe('');
@@ -126,11 +126,11 @@ describe('Integration Tests', () => {
       it('should return false when enclave and image are not registered', async () => {
         const badBootInfo = {
           ...mockBootInfo,
-          mrEnclave: ethers.encodeBytes32String('9999'),
+          mrAggregated: ethers.encodeBytes32String('9999'),
           mrImage: ethers.encodeBytes32String('9999')
         };
         const result = await backend.checkBoot(badBootInfo, false);
-        expect(result.reason).toBe('Neither enclave nor image is allowed');
+        expect(result.reason).toBe('Neither aggregated MR nor image is allowed');
         expect(result.isAllowed).toBe(false);
       });
 

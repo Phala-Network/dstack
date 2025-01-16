@@ -162,7 +162,7 @@ impl<T> Attestation<T> {
         } else {
             sha256(&[&key_provider_info])
         };
-        let mr_enclave = sha256(&[
+        let mr_aggregated = sha256(&[
             &td_report.mr_td,
             &rtmrs[0],
             &rtmrs[1],
@@ -181,7 +181,7 @@ impl<T> Attestation<T> {
             rtmr1: rtmrs[1],
             rtmr2: rtmrs[2],
             rtmr3: rtmrs[3],
-            mr_enclave,
+            mr_aggregated,
             mr_image,
             mr_key_provider,
             key_provider_info,
@@ -345,7 +345,7 @@ pub struct AppInfo {
     pub rtmr3: [u8; 48],
     /// Measurement of the entire vm execution environment
     #[serde(with = "hex_bytes")]
-    pub mr_enclave: [u8; 32],
+    pub mr_aggregated: [u8; 32],
     /// Measurement of the app image
     #[serde(with = "hex_bytes")]
     pub mr_image: [u8; 32],

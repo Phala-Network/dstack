@@ -137,7 +137,7 @@ Example usage:
   "rtmr0": "abcdef1234567890...",
   "rtmr1": "9876543210fedcba...",
   "rtmr2": "fedcba0987654321...",
-  "mr_enclave": "0123456789abcdef...",
+  "mr_aggregated": "0123456789abcdef...",
   "mr_image": "fedcba9876543210..."
 }
 ```

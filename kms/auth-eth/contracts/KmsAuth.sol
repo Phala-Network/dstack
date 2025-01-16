@@ -30,8 +30,8 @@ contract KmsAuth is IAppAuth {
     // Mapping of registered apps
     mapping(address => AppConfig) public apps;
 
-    // Mapping of allowed enclave measurements
-    mapping(bytes32 => bool) public allowedEnclaves;
+    // Mapping of allowed aggregated MR measurements
+    mapping(bytes32 => bool) public allowedAggregatedMrs;
 
     // Mapping of allowed image measurements
     mapping(bytes32 => bool) public allowedImages;
@@ -45,8 +45,8 @@ contract KmsAuth is IAppAuth {
     // Events
     event AppRegistered(address appId);
     event KmsInfoSet(bytes k256Pubkey);
-    event EnclaveRegistered(bytes32 mrEnclave);
-    event EnclaveDeregistered(bytes32 mrEnclave);
+    event AggregatedMrRegistered(bytes32 mrAggregated);
+    event AggregatedMrDeregistered(bytes32 mrAggregated);
     event ImageRegistered(bytes32 mrImage);
     event ImageDeregistered(bytes32 mrImage);
     event KmsComposeHashRegistered(bytes32 composeHash);
@@ -118,16 +118,16 @@ contract KmsAuth is IAppAuth {
         emit AppRegistered(appId);
     }
 
-    // Function to register an enclave measurement
-    function registerEnclave(bytes32 mrEnclave) external onlyOwner {
-        allowedEnclaves[mrEnclave] = true;
-        emit EnclaveRegistered(mrEnclave);
+    // Function to register an aggregated MR measurement
+    function registerAggregatedMr(bytes32 mrAggregated) external onlyOwner {
+        allowedAggregatedMrs[mrAggregated] = true;
+        emit AggregatedMrRegistered(mrAggregated);
     }
 
-    // Function to deregister an enclave measurement
-    function deregisterEnclave(bytes32 mrEnclave) external onlyOwner {
-        allowedEnclaves[mrEnclave] = false;
-        emit EnclaveDeregistered(mrEnclave);
+    // Function to deregister an aggregated MR measurement
+    function deregisterAggregatedMr(bytes32 mrAggregated) external onlyOwner {
+        allowedAggregatedMrs[mrAggregated] = false;
+        emit AggregatedMrDeregistered(mrAggregated);
     }
 
     // Function to register an image measurement
@@ -170,9 +170,9 @@ contract KmsAuth is IAppAuth {
     function isKmsAllowed(
         AppBootInfo calldata bootInfo
     ) external view returns (bool isAllowed, string memory reason) {
-        // Check if the enclave is allowed
-        if (!allowedEnclaves[bootInfo.mrEnclave]) {
-            return (false, "Enclave not allowed");
+        // Check if the aggregated MR is allowed
+        if (!allowedAggregatedMrs[bootInfo.mrAggregated]) {
+            return (false, "Aggregated MR not allowed");
         }
 
         // Check if the KMS compose hash is allowed
@@ -197,12 +197,12 @@ contract KmsAuth is IAppAuth {
             return (false, "App not registered");
         }
 
-        // Check enclave and image measurements
+        // Check aggregated MR and image measurements
         if (
-            !allowedEnclaves[bootInfo.mrEnclave] &&
+            !allowedAggregatedMrs[bootInfo.mrAggregated] &&
             !allowedImages[bootInfo.mrImage]
         ) {
-            return (false, "Neither enclave nor image is allowed");
+            return (false, "Neither aggregated MR nor image is allowed");
         }
 
         // Ask the app controller if the app is allowed to boot

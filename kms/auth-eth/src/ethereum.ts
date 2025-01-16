@@ -34,7 +34,7 @@ export class EthereumBackend {
       instanceId: this.decodeHex(bootInfo.instanceId, 20),
       composeHash: this.decodeHex(bootInfo.composeHash, 32),
       deviceId: this.decodeHex(bootInfo.deviceId, 32),
-      mrEnclave: this.decodeHex(bootInfo.mrEnclave, 32),
+      mrAggregated: this.decodeHex(bootInfo.mrAggregated, 32),
       mrImage: this.decodeHex(bootInfo.mrImage, 32)
     };
     let response;
