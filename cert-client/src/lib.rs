@@ -23,7 +23,7 @@ impl CertRequestClient {
         match self {
             CertRequestClient::Local { ca } => {
                 let cert = ca
-                    .sign_csr(csr, None)
+                    .sign_csr(csr, None, "app:custom")
                     .context("Failed to sign certificate")?;
                 Ok(vec![cert.pem(), ca.pem_cert.clone()])
             }

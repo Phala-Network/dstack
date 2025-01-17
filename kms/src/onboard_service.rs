@@ -126,7 +126,7 @@ impl Keys {
         let ca_cert = CertRequest::builder()
             .org_name("Dstack")
             .subject("Dstack KMS CA")
-            .ca_level(0)
+            .ca_level(1)
             .key(&ca_key)
             .build()
             .self_signed()?;

@@ -11,7 +11,7 @@ use kms_rpc::{
 use ra_rpc::{Attestation, CallContext, RpcCall};
 use ra_tls::{
     attestation::VerifiedAttestation,
-    cert::{CaCert, CertSigningRequest},
+    cert::{CaCert, CertRequest, CertSigningRequest},
     kdf,
 };
 use scale::Decode;
@@ -138,6 +138,26 @@ impl RpcHandler {
             tproxy_app_id: response.tproxy_app_id,
         })
     }
+
+    fn derive_app_ca(&self, app_id: &[u8]) -> Result<CaCert> {
+        let context_data = vec![app_id, b"app-ca"];
+        let app_key = kdf::derive_ecdsa_key_pair(&self.state.root_ca.key, &context_data)
+            .context("Failed to derive app disk key")?;
+        let req = CertRequest::builder()
+            .key(&app_key)
+            .org_name("Dstack")
+            .subject("Dstack App CA")
+            .ca_level(0)
+            .app_id(app_id)
+            .special_usage("app:ca")
+            .build();
+        let app_ca = self
+            .state
+            .root_ca
+            .sign(req)
+            .context("Failed to sign App CA")?;
+        Ok(CaCert::from_parts(app_key, app_ca))
+    }
 }
 
 impl KmsRpc for RpcHandler {
@@ -245,13 +265,16 @@ impl KmsRpc for RpcHandler {
         let app_info = self
             .ensure_app_attestation_allowed(&attestation, false, true)
             .await?;
-        let cert = self
-            .state
-            .root_ca
-            .sign_csr(&csr, Some(&app_info.boot_info.app_id))
+        let app_ca = self.derive_app_ca(&app_info.boot_info.app_id)?;
+        let cert = app_ca
+            .sign_csr(&csr, Some(&app_info.boot_info.app_id), "app:custom")
             .context("Failed to sign certificate")?;
         Ok(SignCertResponse {
-            certificate_chain: vec![cert.pem(), self.state.root_ca.pem_cert.clone()],
+            certificate_chain: vec![
+                cert.pem(),
+                app_ca.pem_cert.clone(),
+                self.state.root_ca.pem_cert.clone(),
+            ],
         })
     }
 }

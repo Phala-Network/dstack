@@ -53,6 +53,15 @@ impl CaCert {
         })
     }
 
+    /// Instantiate a new CA certificate with a given private key and pem cert.
+    pub fn from_parts(key: KeyPair, cert: Certificate) -> Self {
+        Self {
+            pem_cert: cert.pem(),
+            cert,
+            key,
+        }
+    }
+
     /// Load a CA certificate and private key from files.
     pub fn load(cert_path: impl AsRef<Path>, key_path: impl AsRef<Path>) -> Result<Self> {
         let pem_key = fs::read_to_string(key_path).context("Failed to read key file")?;
@@ -66,7 +75,12 @@ impl CaCert {
     }
 
     /// Sign a remote certificate signing request.
-    pub fn sign_csr(&self, csr: &CertSigningRequest, app_id: Option<&[u8]>) -> Result<Certificate> {
+    pub fn sign_csr(
+        &self,
+        csr: &CertSigningRequest,
+        app_id: Option<&[u8]>,
+        usage: &str,
+    ) -> Result<Certificate> {
         let pki = rcgen::SubjectPublicKeyInfo::from_der(&csr.pubkey)
             .context("Failed to parse signature")?;
         let cfg = &csr.config;
@@ -80,6 +94,7 @@ impl CaCert {
             .maybe_quote(cfg.ext_quote.then_some(&csr.quote))
             .maybe_event_log(cfg.ext_quote.then_some(&csr.event_log))
             .maybe_app_id(app_id)
+            .special_usage(usage)
             .build();
         self.sign(req).context("Failed to sign certificate")
     }
