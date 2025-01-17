@@ -94,7 +94,6 @@ impl<'a> Setup<'a> {
         nc.notify_q("boot.progress", "setting up docker").await;
         self.setup_docker_registry()?;
         self.setup_docker_account()?;
-        self.prepare_docker_compose()?;
         Ok(())
     }
 
@@ -278,21 +277,6 @@ impl<'a> Setup<'a> {
             bail!("Missing token for {username}");
         }
         cmd!(docker login -u $username -p $token)?;
-        Ok(())
-    }
-
-    fn prepare_docker_compose(&self) -> Result<()> {
-        info!("Preparing docker compose");
-        if self.app_compose.runner == "docker-compose" {
-            let docker_compose = self
-                .app_compose
-                .docker_compose_file
-                .as_ref()
-                .context("Missing docker_compose_file")?;
-            fs::write(self.resolve("/tapp/docker-compose.yaml"), docker_compose)?;
-        } else {
-            bail!("Unsupported runner: {}", self.app_compose.runner);
-        }
         Ok(())
     }
 }

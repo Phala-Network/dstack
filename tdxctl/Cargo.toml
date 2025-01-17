@@ -42,6 +42,8 @@ rand.workspace = true
 sha3.workspace = true
 cert-client.workspace = true
 x509-parser.workspace = true
+serde_yaml2.workspace = true
+bollard.workspace = true
 
 [dev-dependencies]
 rand.workspace = true

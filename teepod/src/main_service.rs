@@ -176,14 +176,9 @@ impl TeepodRpc for RpcHandler {
 
     async fn upgrade_app(self, request: UpgradeAppRequest) -> Result<Id> {
         let new_id = if !request.compose_file.is_empty() {
-            {
-                // check the compose file is valid
-                let app_compose: AppCompose =
-                    serde_json::from_str(&request.compose_file).context("Invalid compose file")?;
-                if app_compose.docker_compose_file.is_none() {
-                    bail!("Docker compose file cannot be empty");
-                }
-            }
+            // check the compose file is valid
+            let _app_compose: AppCompose =
+                serde_json::from_str(&request.compose_file).context("Invalid compose file")?;
             let compose_file_path = self.compose_file_path(&request.id);
             if !compose_file_path.exists() {
                 bail!("The instance {} not found", request.id);

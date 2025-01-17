@@ -168,3 +168,4 @@ uuid = { version = "1.12.0", features = ["v4"] }
 which = "7.0.1"
 smallvec = "1.13.2"
 cmd_lib = "1.9.5"
+serde_yaml2 = "0.1.2"
