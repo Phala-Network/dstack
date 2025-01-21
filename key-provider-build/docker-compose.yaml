@@ -1,5 +1,14 @@
+x-common: &common-config
+  restart: always
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "100m"
+      max-file: "5"
+
 services:
   gramine-sealing-key-provider:
+    <<: *common-config
     container_name: gramine-sealing-key-provider
     build:
       context: .
@@ -18,6 +27,7 @@ services:
   # proxy to access the local pccs for the aesm service
   # The local PCCS is supposed to be running on the host machine and listening on 127.0.0.1:8081
   pccs-proxy:
+    <<: *common-config
     image: alpine/socat
     container_name: pccs-proxy
     network_mode: host
