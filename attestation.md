@@ -2,8 +2,6 @@
 
 This document outlines the process of verifying the authenticity and integrity of data produced by DStack Applications running within Intel TDX environments.
 
-This guide demonstrates how to validate that data generated within a TEE by a Dstack App can be trusted.
-
 ## 1. Review code safety
 
 - Review the Application code to ensure its logic is correct.

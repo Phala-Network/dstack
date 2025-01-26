@@ -47,6 +47,7 @@ CVMs running in dstack support three boot modes:
 
 3. **Authorization Contracts**
    - `KmsAuth.sol`
+      - Maintains a registry for all Applications
       - Maintains the allowed KMS Instance MRs
       - Maintains the allowed App Base Image MRs
       - Registers KMS root keys
@@ -65,6 +66,8 @@ The solidity contracts are deployed on an ethereum compatible chain.
 ## Trustness
 
 ### Local-Key-Provider Mode
+A instance of [`gramine-sealing-key-provider`](https://github.com/MoeMahhouk/gramine-sealing-key-provider) is required being deployed on the host machine. Can be deployed by [../key-provider-build](../key-provider-build/run.sh).
+
 In this mode, the CVM obtains application keys from the `gramine-sealing-key-provider`, which runs within an SGX enclave. The provider derives the application keys using:
 - The SGX sealing key
 - CVM measurements, including:
@@ -105,10 +108,8 @@ When deploying a new KMS instance (`B`) using an existing instance (`A`), the pr
    - Instance `A` checks KmsAuth contract for permissions
    - If approved, instance `A` transfers root keys to instance `B`
 
-3. **Completion**
-   - Instance `B` becomes a fully functional KMS node
-   - Both instances now share identical root keys
-   - Either instance can service App key requests
+After the replication is complete, the KMS node becomes a fully functional KMS node.
+Both instances now share identical root keys, and either instance can service App key requests.
 
 #### App Key Provisioning
 
@@ -121,36 +122,9 @@ When a KMS node receives a key provisioning request, it:
 
 ### Attestation
 
-#### Reproducible Build
-To attest an App running in dstack, the first step is Base Image attestation. This requires the Base Image to be built using a reproducible build system.
-For instructions on building a reproducible base image, see the [meta-dstack](https://github.com/Dstack-TEE/meta-dstack?tab=readme-ov-file#build-commands) repository.
+#### Vanilla TDX Quote attestation
 
-#### Computing Base Image MRs
-
-After building the Base Image, you can compute its MRs using the [dstack-mr](https://github.com/kvinwang/dstack-mr) tool.
-
-Example usage:
-```bash
-# dstack-mr -cpu 8 -memory 8G -json -metadata images/dstack-0.3.4/metadata.json
-{
-  "mrtd": "1234567890abcdef...",
-  "rtmr0": "abcdef1234567890...",
-  "rtmr1": "9876543210fedcba...",
-  "rtmr2": "fedcba0987654321...",
-  "mr_aggregated": "0123456789abcdef...",
-  "mr_image": "fedcba9876543210..."
-}
-```
-
-#### Computing App MRs (RTMR3)
-
-TODO
-
-#### Validating the TDX Quote of an App
-
-- Verify the TDX quote signature to confirm the app is running in a genuine CVM
-- Compare Base Image measurements to verify the correct Base Image and VM configuration
-- Validate the App's compose hash and attributes to confirm the intended application
+See [Attestation](../attestation.md) for more details.
 
 #### Validating Apps via the KMS Auth Chain
 
