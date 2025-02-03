@@ -53,7 +53,7 @@ dstack/
 
 ```bash
 # for Ubuntu 24.04
-sudo apt install -y build-essential chrpath diffstat lz4 wireguard-tools mkisofs
+sudo apt install -y build-essential chrpath diffstat lz4 wireguard-tools xorriso
 # install rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
