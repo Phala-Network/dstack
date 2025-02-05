@@ -227,7 +227,7 @@ impl<'r> FromRequest<'r> for RpcRequest<'r> {
     }
 }
 
-impl<'s, 'r, S> PrpcHandler<'s, 'r, S> {
+impl<S> PrpcHandler<'_, '_, S> {
     pub async fn handle<Call: RpcCall<S>>(self) -> Custom<Vec<u8>> {
         let json = self.request.json;
         let result = handle_prpc_impl::<S, Call>(self).await;

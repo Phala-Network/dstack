@@ -126,7 +126,7 @@ impl App {
             .supervisor
             .info(id)
             .await?
-            .map_or(false, |info| info.state.status.is_running());
+            .is_some_and(|info| info.state.status.is_running());
         self.set_started(id, true)?;
         let vm_config = {
             let mut state = self.lock();
@@ -170,7 +170,7 @@ impl App {
 
     pub async fn remove_vm(&self, id: &str) -> Result<()> {
         let info = self.supervisor.info(id).await?;
-        let is_running = info.as_ref().map_or(false, |i| i.state.status.is_running());
+        let is_running = info.as_ref().is_some_and(|i| i.state.status.is_running());
         if is_running {
             bail!("VM is running, stop it first");
         }
