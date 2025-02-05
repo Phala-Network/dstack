@@ -7,10 +7,10 @@ use ra_tls::kdf;
 pub(crate) fn derive_k256_key(
     parent_key: &SigningKey,
     app_id: &[u8],
-    context_data: &[&[u8]],
 ) -> Result<(SigningKey, Signature, RecoveryId)> {
+    let context_data = [app_id, b"app-key"];
     let derived_key_bytes: [u8; 32] =
-        kdf::derive_ecdsa_key(&parent_key.to_bytes(), context_data, 32)?
+        kdf::derive_ecdsa_key(&parent_key.to_bytes(), &context_data, 32)?
             .try_into()
             .ok()
             .context("Invalid derived key len")?;

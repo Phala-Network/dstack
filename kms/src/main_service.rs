@@ -184,12 +184,8 @@ impl KmsRpc for RpcHandler {
         };
 
         let (k256_key, k256_signature) = {
-            let (k256_app_key, signature, recid) = derive_k256_key(
-                &self.state.k256_key,
-                &app_id,
-                &[&app_id[..], "app-key".as_bytes()],
-            )
-            .context("Failed to derive app ecdsa key")?;
+            let (k256_app_key, signature, recid) = derive_k256_key(&self.state.k256_key, &app_id)
+                .context("Failed to derive app ecdsa key")?;
 
             let mut signature = signature.to_vec();
             signature.push(recid.to_byte());
