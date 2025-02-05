@@ -48,6 +48,7 @@ dstack/
 - A TDX host machine setup following [canonical/tdx](https://github.com/canonical/tdx)
 - Public IPv4 address assigned to the machine
 - A domain name you can modify DNS records
+- At least 16GB RAM, 100GB free disk space.
 
 ## Install dependencies
 
