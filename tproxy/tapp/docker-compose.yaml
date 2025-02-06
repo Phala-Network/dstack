@@ -1,0 +1,45 @@
+services:
+  tproxy:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM rust:1.84
+        WORKDIR /app
+        RUN apt-get update && apt-get install -y git build-essential libssl-dev protobuf-compiler libprotobuf-dev
+        RUN git clone https://github.com/Dstack-TEE/dstack.git && \
+            cd dstack && \
+            git checkout 4d9011d027af993e17a3fb8182a7249409b78a2e
+        WORKDIR /app/dstack/tproxy/tapp
+        RUN cargo build --release -p tproxy
+        RUN apt-get install -y wireguard-tools
+        RUN apt-get install -y iproute2
+
+    command: ["./entrypoint.sh", "./target/release/tproxy", "-c", "/etc/tproxy/tproxy.toml"]
+    volumes:
+      - /var/run/tappd.sock:/var/run/tappd.sock
+      - tproxy-volume:/data
+    configs:
+      - source: tproxy-config
+        target: /etc/tproxy/tproxy.toml
+    network_mode: host
+    privileged: true
+
+volumes:
+  tproxy-volume:
+
+configs:
+  tproxy-config:
+    content: |
+      [core]
+      kms_url = ""
+      tls_domain = "tproxy.1022.kvin.wang"
+      state_path = "/data/tproxy-state.json"
+      [core.wg]
+      public_key = ""
+      private_key = ""
+      ip = "10.0.0.1"
+      listen_port = 51820
+      client_ip_range = "10.0.0.0/24"
+      config_path = "/etc/wireguard/wg-tproxy.conf"
+      interface = "wg-tproxy"
+      endpoint = "10.0.2.2:51820"
