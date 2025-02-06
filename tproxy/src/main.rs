@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use config::{Config, TlsConfig};
+use http_client::prpc::PrpcClient;
 use main_service::{Proxy, RpcHandler};
 use ra_rpc::{client::RaClient, rocket_helper::QuoteVerifier};
 use rocket::fairing::AdHoc;
@@ -50,10 +51,9 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
     let tappd_socket = Path::new("/var/run/tappd.sock");
     if tappd_socket.exists() {
         info!("Using tappd for certificate generation");
-        let client = tappd_rpc::tappd_client::TappdClient::new(
-            RaClient::new(tappd_socket.to_str().unwrap().to_string(), true)
-                .context("Failed to create tappd client")?,
-        );
+        let http_client =
+            PrpcClient::new_unix(tappd_socket.display().to_string(), "/prpc".to_string());
+        let client = tappd_rpc::tappd_client::TappdClient::new(http_client);
         let response = client
             .derive_key(tappd_rpc::DeriveKeyArgs {
                 path: "".to_string(),
