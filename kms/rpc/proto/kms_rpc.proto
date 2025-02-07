@@ -39,7 +39,7 @@ message KmsKeys {
 }
 
 message KmsKeyResponse {
-  string tmp_ca_key = 1;
+  string temp_ca_key = 1;
   repeated KmsKeys keys = 2;
 }
 

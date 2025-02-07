@@ -167,7 +167,7 @@ impl Keys {
             return Err(anyhow::anyhow!("Invalid keys"));
         }
         let keys = keys_res.keys[0].clone();
-        let tmp_ca_key_pem = keys_res.tmp_ca_key;
+        let tmp_ca_key_pem = keys_res.temp_ca_key;
         let root_ca_key_pem = keys.ca_key;
         let root_k256_key = keys.k256_key;
 

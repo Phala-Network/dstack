@@ -232,7 +232,7 @@ impl KmsRpc for RpcHandler {
             let _info = self.ensure_kms_allowed().await?;
         }
         Ok(KmsKeyResponse {
-            tmp_ca_key: self.state.inner.temp_ca_key.clone(),
+            temp_ca_key: self.state.inner.temp_ca_key.clone(),
             keys: vec![KmsKeys {
                 ca_key: self.state.inner.root_ca.key.serialize_pem(),
                 k256_key: self.state.inner.k256_key.to_bytes().to_vec(),
