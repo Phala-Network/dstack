@@ -1,17 +1,28 @@
 #!/bin/bash
+set -e
 
-CONFIG_PATH="/etc/tproxy/tproxy.toml"
+BASE_DIR="/etc/tproxy"
+CONFIG_PATH="$BASE_DIR/tproxy.toml"
+CERTS_DIR="$BASE_DIR/certs"
+WG_KEY_PATH="$BASE_DIR/wg.key"
+KMS_URL=$(jq -j .kms_url /tapp/config.json)
 
 if [ -f "$CONFIG_PATH" ]; then
     echo "Configuration file already exists: $CONFIG_PATH"
-    exit 0
+    # exit 0
 fi
 
-mkdir -p /etc/tproxy/
+mkdir -p $BASE_DIR/
 mkdir -p /etc/wireguard/
 
-# Generate WireGuard keys directly in memory
-PRIVATE_KEY=$(wg genkey)
+# Generate or load WireGuard keys
+if [ -f "$WG_KEY_PATH" ]; then
+    PRIVATE_KEY=$(cat "$WG_KEY_PATH")
+else
+    PRIVATE_KEY=$(wg genkey)
+    echo "$PRIVATE_KEY" > "$WG_KEY_PATH"
+    chmod 600 "$WG_KEY_PATH"  # Secure the private key file
+fi
 PUBLIC_KEY=$(echo "$PRIVATE_KEY" | wg pubkey)
 
 # Create tproxy.toml configuration
@@ -20,11 +31,18 @@ keep_alive = 10
 log_level = "info"
 port = 8010
 
+[tls]
+key = "$CERTS_DIR/tproxy-rpc.key"
+certs = "$CERTS_DIR/tproxy-rpc.cert"
+
+[tls.mutual]
+ca_certs = "$CERTS_DIR/tproxy-ca.cert"
+mandatory = false
+
 [core]
-kms_url = ""
 state_path = "/data/tproxy-state.json"
 set_ulimit = true
-tls_domain = ""
+tls_domain = "tproxy.${SRV_DOMAIN}"
 
 [core.certbot]
 workdir = "/etc/certbot"
@@ -40,13 +58,11 @@ interface = "wg-tproxy"
 endpoint = "${WG_ENDPOINT}"
 
 [core.proxy]
-cert_chain = "/etc/rproxy/certs/cert.pem"
-cert_key = "/etc/rproxy/certs/key.pem"
-base_domain = "app.localhost"
+cert_chain = "/etc/rproxy/certs/live/cert.pem"
+cert_key = "/etc/rproxy/certs/live/key.pem"
+base_domain = "${SRV_DOMAIN}"
 listen_addr = "0.0.0.0"
 listen_port = 8443
-tappd_port = 8090
-buffer_size = 8192
 connect_top_n = 3
 
 [core.proxy.timeouts]
@@ -65,8 +81,7 @@ interval = "5m"
 timeout = "10h"
 EOF
 
-# Set appropriate permissions for the config file
-chmod 600 $CONFIG_PATH
-
-echo "Configuration files have been generated:"
+echo "Configuration file have been generated:"
 echo "- tproxy.toml in $CONFIG_PATH"
+
+exec "$@"
