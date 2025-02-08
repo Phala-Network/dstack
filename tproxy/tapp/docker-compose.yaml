@@ -1,5 +1,56 @@
 services:
   tproxy:
+    image: tproxy-built
+    entrypoint:
+      - /app/dstack/tproxy/tapp/tproxy-entrypoint.sh
+    command: ["/app/dstack/target/release/tproxy", "-c", "/etc/tproxy/tproxy.toml"]
+    volumes:
+      - /var/run/tappd.sock:/var/run/tappd.sock
+      - tproxy-volume:/data
+      - tproxy-conf:/etc/tproxy
+      - rproxy-conf:/etc/rproxy
+      - build:/tapp
+    network_mode: host
+    privileged: true
+    environment:
+      - WG_ENDPOINT=${WG_ENDPOINT}
+      - SRV_DOMAIN=${SRV_DOMAIN}
+    restart: always
+    depends_on:
+      - certbot-bootstrap
+  certbot-bootstrap:
+    image: tproxy-built
+    entrypoint:
+      - /app/dstack/tproxy/tapp/certbot-entrypoint.sh
+    command: ["/app/dstack/target/release/certbot", "renew", "--once", "-c", "/etc/certbot/certbot.toml"]
+    volumes:
+      - rproxy-conf:/etc/rproxy
+      - build:/tapp
+    environment:
+      - CF_API_TOKEN=${CF_API_TOKEN}
+      - CF_ZONE_ID=${CF_ZONE_ID}
+      - SRV_DOMAIN=${SRV_DOMAIN}
+    network_mode: host
+    restart: never
+    depends_on:
+      - builder
+  certbot-renew:
+    image: tproxy-built
+    entrypoint:
+      - /app/dstack/tproxy/tapp/certbot-entrypoint.sh
+    command: ["/app/dstack/target/release/certbot", "renew", "-c", "/etc/certbot/certbot.toml"]
+    volumes:
+      - rproxy-conf:/etc/rproxy
+      - build:/tapp
+    environment:
+      - CF_API_TOKEN=${CF_API_TOKEN}
+      - CF_ZONE_ID=${CF_ZONE_ID}
+      - SRV_DOMAIN=${SRV_DOMAIN}
+    network_mode: host
+    restart: always
+    depends_on:
+      - certbot-bootstrap
+  builder:
     build:
       context: .
       dockerfile_inline: |
@@ -10,49 +61,14 @@ services:
             cd dstack && \
             git checkout afc0824
         WORKDIR /app/dstack/tproxy/tapp
-        RUN apt-get install -y jq
-        RUN cargo build --release -p tproxy
-        COPY ./tproxy-entrypoint.sh /app/dstack/tproxy/tapp/
-    entrypoint:
-      - /app/dstack/tproxy/tapp/tproxy-entrypoint.sh
-    command: ["/app/dstack/target/release/tproxy", "-c", "/etc/tproxy/tproxy.toml"]
+        RUN cargo build --release -p certbot-cli -p tproxy
+    restart: never
+    image: tproxy-built
     volumes:
-      - /var/run/tappd.sock:/var/run/tappd.sock
-      - tproxy-volume:/data
-      - tproxy-conf:/etc/tproxy
-      - rproxy-conf:/etc/rproxy
-      - /tapp:/tapp
-    network_mode: host
-    privileged: true
-    environment:
-      - WG_ENDPOINT=${WG_ENDPOINT}
-      - SRV_DOMAIN=${SRV_DOMAIN}
-    depends_on:
-      - certbot
-  certbot:
-    build:
-      context: .
-      dockerfile_inline: |
-        FROM rust:1.84
-        WORKDIR /app
-        RUN apt-get update && apt-get install -y git build-essential libssl-dev protobuf-compiler libprotobuf-dev wireguard-tools iproute2 libclang-dev
-        RUN git clone https://github.com/Dstack-TEE/dstack.git && \
-            cd dstack && \
-            git checkout tproxy-dev
-        WORKDIR /app/dstack/tproxy/tapp
-        RUN cargo build --release -p certbot-cli
-        COPY ./certbot-entrypoint.sh /app/dstack/tproxy/tapp/
-    entrypoint:
-      - /app/dstack/tproxy/tapp/certbot-entrypoint.sh
-    command: ["/app/dstack/target/release/certbot", "renew", "-c", "/etc/certbot/certbot.toml"]
-    volumes:
-      - rproxy-conf:/etc/rproxy
-    environment:
-      - CF_API_TOKEN=${CF_API_TOKEN}
-      - CF_ZONE_ID=${CF_ZONE_ID}
-      - SRV_DOMAIN=${SRV_DOMAIN}
+      - build:/tapp
 
 volumes:
+  build:
   tproxy-volume:
   tproxy-conf:
   rproxy-conf:

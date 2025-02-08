@@ -24,6 +24,8 @@ renew_interval = 3600
 renew_days_before = 10
 # Renew timeout in seconds
 renew_timeout = 120
+# Command to run after renewal
+renewed_hook = "curl http://localhost:8011/TproxyAdmin.Exit"
 EOF
 
 exec "$@"

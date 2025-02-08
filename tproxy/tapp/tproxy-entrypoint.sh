@@ -39,6 +39,10 @@ certs = "$CERTS_DIR/tproxy-rpc.cert"
 ca_certs = "$CERTS_DIR/tproxy-ca.cert"
 mandatory = false
 
+[admin]
+enabled = true
+port = 8011
+
 [core]
 state_path = "/data/tproxy-state.json"
 set_ulimit = true
