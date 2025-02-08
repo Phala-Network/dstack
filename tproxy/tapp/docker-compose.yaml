@@ -1,15 +1,16 @@
 x-build-context: &build-context
   context: .
   dockerfile_inline: |
-    FROM rust:1.84
+    FROM rust:1.84@sha256:738ae99a3d75623f41e6882566b4ef37e38a9840244a47efd4a0ca22e9628b88
     WORKDIR /app
     RUN apt-get update && apt-get install -y git build-essential libssl-dev protobuf-compiler libprotobuf-dev wireguard-tools iproute2 libclang-dev
     RUN git clone https://github.com/Dstack-TEE/dstack.git && \
         cd dstack && \
-        git checkout da060a1
+        git checkout 3a63e95
     WORKDIR /app/dstack/tproxy/tapp
     RUN apt-get install -y jq
     RUN cargo build --release -p certbot-cli -p tproxy
+    COPY *.sh /app/dstack/tproxy/tapp/
 
 services:
   tproxy:
@@ -22,7 +23,6 @@ services:
       - tproxy-volume:/data
       - tproxy-conf:/etc/tproxy
       - rproxy-conf:/etc/rproxy
-      - build:/app
       - /tapp:/tapp
     network_mode: host
     privileged: true
@@ -40,7 +40,6 @@ services:
     command: ["/app/dstack/target/release/certbot", "renew", "--once", "-c", "/etc/certbot/certbot.toml"]
     volumes:
       - rproxy-conf:/etc/rproxy
-      - build:/app
     environment:
       - CF_API_TOKEN=${CF_API_TOKEN}
       - CF_ZONE_ID=${CF_ZONE_ID}
@@ -55,7 +54,6 @@ services:
     command: ["/app/dstack/target/release/certbot", "renew", "-c", "/etc/certbot/certbot.toml"]
     volumes:
       - rproxy-conf:/etc/rproxy
-      - build:/app
     environment:
       - CF_API_TOKEN=${CF_API_TOKEN}
       - CF_ZONE_ID=${CF_ZONE_ID}
@@ -66,7 +64,6 @@ services:
       - certbot-bootstrap
 
 volumes:
-  build:
   tproxy-volume:
   tproxy-conf:
   rproxy-conf:

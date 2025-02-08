@@ -29,7 +29,7 @@ PUBLIC_KEY=$(echo "$PRIVATE_KEY" | wg pubkey)
 cat > $CONFIG_PATH << EOF
 keep_alive = 10
 log_level = "info"
-port = 8010
+port = 8000
 
 [tls]
 key = "$CERTS_DIR/tproxy-rpc.key"
@@ -41,7 +41,7 @@ mandatory = false
 
 [admin]
 enabled = true
-port = 8011
+port = 8001
 
 [core]
 state_path = "/data/tproxy-state.json"
@@ -54,9 +54,9 @@ workdir = "/etc/certbot"
 [core.wg]
 public_key = "${PUBLIC_KEY}"
 private_key = "${PRIVATE_KEY}"
-ip = "10.0.0.1"
+ip = "10.4.0.1"
 listen_port = 51820
-client_ip_range = "10.0.0.0/24"
+client_ip_range = "10.4.0.0/22"
 config_path = "/etc/wireguard/wg-tproxy.conf"
 interface = "wg-tproxy"
 endpoint = "${WG_ENDPOINT}"
