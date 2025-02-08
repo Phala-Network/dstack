@@ -141,18 +141,6 @@ impl CertBot {
             )
             .await;
 
-        let todo = "remove this";
-        if let Some(hook) = &self.config.renewed_hook {
-            info!("running renewed hook");
-            let status = std::process::Command::new("/bin/sh")
-                .arg("-c")
-                .arg(hook)
-                .status()?;
-            if !status.success() {
-                error!("renewed hook failed with status: {}", status);
-            }
-        }
-
         match renewed {
             Ok(true) => {
                 info!(
