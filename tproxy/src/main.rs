@@ -1,13 +1,19 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
-use config::{Config, TlsConfig};
+use config::{AdminConfig, Config, TlsConfig};
 use http_client::prpc::PrpcClient;
-use main_service::{Proxy, RpcHandler};
 use ra_rpc::{client::RaClient, rocket_helper::QuoteVerifier};
-use rocket::fairing::AdHoc;
+use rocket::{
+    fairing::AdHoc,
+    figment::{providers::Serialized, Figment},
+};
 use std::path::Path;
 use tracing::info;
 
+use admin_service::AdminRpcHandler;
+use main_service::{Proxy, RpcHandler};
+
+mod admin_service;
 mod config;
 mod main_service;
 mod models;
@@ -142,6 +148,16 @@ async fn main() -> Result<()> {
     state.lock().reconfigure()?;
     proxy::start(proxy_config, state.clone());
 
+    let admin_figment = Figment::from(Serialized::defaults(
+        figment
+            .find_value("admin")
+            .context("admin section not found")?,
+    ));
+
+    let admin_config = admin_figment
+        .extract::<AdminConfig>()
+        .context("Failed to parse admin config")?;
+
     let mut rocket = rocket::custom(figment)
         .mount("/", web_routes::routes())
         .mount("/prpc", ra_rpc::prpc_routes!(Proxy, RpcHandler))
@@ -150,12 +166,28 @@ async fn main() -> Result<()> {
                 res.set_raw_header("X-App-Version", app_version());
             })
         }))
-        .manage(state);
+        .manage(state.clone());
     let verifier = QuoteVerifier::new(pccs_url);
     rocket = rocket.manage(verifier);
-    rocket
-        .launch()
-        .await
-        .map_err(|err| anyhow!(err.to_string()))?;
+    let main_srv = rocket.launch();
+    let admin_srv = async move {
+        if admin_config.enabled {
+            rocket::custom(admin_figment)
+                .mount("/", ra_rpc::prpc_routes!(Proxy, AdminRpcHandler))
+                .manage(state)
+                .launch()
+                .await
+        } else {
+            std::future::pending().await
+        }
+    };
+    tokio::select! {
+        result = main_srv => {
+            result.map_err(|err| anyhow!("Failed to start main server: {err:?}"))?;
+        }
+        result = admin_srv => {
+            result.map_err(|err| anyhow!("Failed to start admin server: {err:?}"))?;
+        }
+    }
     Ok(())
 }

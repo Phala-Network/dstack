@@ -135,6 +135,11 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct AdminConfig {
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct TlsConfig {
     pub key: String,
     pub certs: String,
