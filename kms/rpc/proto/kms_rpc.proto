@@ -18,11 +18,17 @@ message PublicKeyResponse {
 }
 
 message AppKeyResponse {
+  // TLS CA certificate which is used as the trust anchor for all HTTPS RPCs in the system.
   string ca_cert = 1;
+  // Disk encryption key used as the key phrase for the App's full disk encryption.
   bytes disk_crypt_key = 2;
+  // X25519 key for decrypting secret environment variables.
   bytes env_crypt_key = 3;
+  // ECDSA key for app's Ethereum-compatible signing operations.
   bytes k256_key = 4;
+  // Signature of the k256 key signed by the root k256 key.
   bytes k256_signature = 5;
+  // Reverse proxy app ID from KmsAuth contract.
   string tproxy_app_id = 6;
 }
 
