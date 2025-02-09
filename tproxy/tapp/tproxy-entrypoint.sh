@@ -7,6 +7,11 @@ CERTS_DIR="$BASE_DIR/certs"
 WG_KEY_PATH="$BASE_DIR/wg.key"
 KMS_URL=$(jq -j .kms_url /tapp/config.json)
 
+CERTBOT_WORKDIR="/etc/rproxy/certs"
+
+# ACME_URL="https://acme-v02.api.letsencrypt.org/directory"
+ACME_URL=https://acme-staging-v02.api.letsencrypt.org/directory
+
 if [ -f "$CONFIG_PATH" ]; then
     echo "Configuration file already exists: $CONFIG_PATH"
     # exit 0
@@ -29,6 +34,7 @@ PUBLIC_KEY=$(echo "$PRIVATE_KEY" | wg pubkey)
 cat > $CONFIG_PATH << EOF
 keep_alive = 10
 log_level = "info"
+address = "0.0.0.0"
 port = 8000
 
 [tls]
@@ -39,17 +45,26 @@ certs = "$CERTS_DIR/tproxy-rpc.cert"
 ca_certs = "$CERTS_DIR/tproxy-ca.cert"
 mandatory = false
 
-[admin]
-enabled = true
-port = 8001
-
 [core]
 state_path = "/data/tproxy-state.json"
 set_ulimit = true
 tls_domain = "tproxy.${SRV_DOMAIN}"
 
+[core.admin]
+enabled = true
+address = "0.0.0.0"
+port = 8001
+
 [core.certbot]
-workdir = "/etc/certbot"
+workdir = "$CERTBOT_WORKDIR"
+acme_url = "${ACME_URL}"
+cf_api_token = "${CF_API_TOKEN}"
+cf_zone_id = "${CF_ZONE_ID}"
+auto_set_caa = true
+domain = "*.${SRV_DOMAIN}"
+renew_interval = "1h"
+renew_before_expiration = "10d"
+renew_timeout = "120s"
 
 [core.wg]
 public_key = "${PUBLIC_KEY}"
@@ -62,11 +77,11 @@ interface = "wg-tproxy"
 endpoint = "${WG_ENDPOINT}"
 
 [core.proxy]
-cert_chain = "/etc/rproxy/certs/live/cert.pem"
-cert_key = "/etc/rproxy/certs/live/key.pem"
+cert_chain = "$CERTBOT_WORKDIR/live/cert.pem"
+cert_key = "$CERTBOT_WORKDIR/live/key.pem"
 base_domain = "${SRV_DOMAIN}"
 listen_addr = "0.0.0.0"
-listen_port = 8443
+listen_port = 443
 connect_top_n = 3
 
 [core.proxy.timeouts]
