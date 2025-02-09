@@ -56,6 +56,7 @@ address = "0.0.0.0"
 port = 8001
 
 [core.certbot]
+enabled = true
 workdir = "$CERTBOT_WORKDIR"
 acme_url = "${ACME_URL}"
 cf_api_token = "${CF_API_TOKEN}"
