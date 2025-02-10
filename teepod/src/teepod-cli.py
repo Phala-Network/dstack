@@ -256,7 +256,8 @@ class TeepodCLI:
         if envs:
             encrypt_pubkey = self.get_app_env_encrypt_pub_key(app_id)
             print(f"Encrypting environment variables with key: {encrypt_pubkey}")
-            params["encrypted_env"] = encrypt_env(envs, encrypt_pubkey)
+            envs_list = [{"key": k, "value": v} for k, v in envs.items()]
+            params["encrypted_env"] = encrypt_env(envs_list, encrypt_pubkey)
         response = self.rpc_call('CreateVm', params)
         print(f"Created VM with ID: {response.get('id')}")
         return response.get('id')
