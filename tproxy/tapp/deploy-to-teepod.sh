@@ -1,5 +1,6 @@
 #!/bin/bash
 
+USE_HEAD=${USE_HEAD:-yes}
 TEEPOD_RPC=${TEEPOD_RPC}
 CF_API_TOKEN=${CF_API_TOKEN}
 CF_ZONE_ID=${CF_ZONE_ID}
@@ -31,13 +32,25 @@ done
 
 CLI="../../teepod/src/teepod-cli.py --url $TEEPOD_RPC"
 
+COMPOSE_TMP=$(mktemp)
+
+if [ "$USE_HEAD" = "yes" ]; then
+  CURRENT_REV=$(git rev-parse HEAD)
+else
+  CURRENT_REV=86290e4038aba067d784b088532c129d7ad4c828
+fi
+sed "s/git checkout TPROXY_REV/git checkout ${CURRENT_REV}/g" docker-compose.yaml > "$COMPOSE_TMP"
+
 $CLI compose \
-    --docker-compose docker-compose.yaml \
+    --docker-compose "$COMPOSE_TMP" \
     --name tproxy \
     --kms \
     --public-logs \
     --public-sysinfo \
     --output .app-compose.json
+
+# Remove the temporary file as it is no longer needed
+rm "$COMPOSE_TMP"
 
 cat <<EOF > .env
 CF_API_TOKEN=$CF_API_TOKEN

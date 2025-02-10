@@ -10,7 +10,7 @@ services:
             libprotobuf-dev wireguard-tools iproute2 libclang-dev jq
         RUN git clone https://github.com/Dstack-TEE/dstack.git && \
             cd dstack && \
-            git checkout 86290e4038aba067d784b088532c129d7ad4c828
+            git checkout TPROXY_REV
         WORKDIR /app/dstack/tproxy/tapp
         RUN cargo build --release -p tproxy
     entrypoint:
