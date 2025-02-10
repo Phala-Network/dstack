@@ -9,8 +9,8 @@ KMS_URL=$(jq -j .kms_url /tapp/config.json)
 
 CERTBOT_WORKDIR="/etc/rproxy/certs"
 
-# ACME_URL="https://acme-v02.api.letsencrypt.org/directory"
-ACME_URL=https://acme-staging-v02.api.letsencrypt.org/directory
+ACME_URL="https://acme-v02.api.letsencrypt.org/directory"
+# ACME_URL=https://acme-staging-v02.api.letsencrypt.org/directory
 
 if [ -f "$CONFIG_PATH" ]; then
     echo "Configuration file already exists: $CONFIG_PATH"
