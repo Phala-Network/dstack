@@ -31,6 +31,7 @@ pub struct ProxyConfig {
     pub timeouts: Timeouts,
     pub buffer_size: usize,
     pub connect_top_n: usize,
+    pub localhost_enabled: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

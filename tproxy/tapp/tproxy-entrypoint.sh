@@ -84,6 +84,7 @@ base_domain = "${SRV_DOMAIN}"
 listen_addr = "0.0.0.0"
 listen_port = 443
 connect_top_n = 3
+localhost_enabled = true
 
 [core.proxy.timeouts]
 connect = "5s"

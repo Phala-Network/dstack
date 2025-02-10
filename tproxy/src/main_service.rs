@@ -209,6 +209,9 @@ impl ProxyState {
     }
 
     pub(crate) fn select_top_n_hosts(&mut self, id: &str) -> Result<AddressGroup> {
+        if self.config.proxy.localhost_enabled && id == "localhost" {
+            return Ok(smallvec![Ipv4Addr::new(127, 0, 0, 1)]);
+        }
         let n = self.config.proxy.connect_top_n;
         if let Some(instance) = self.state.instances.get(id) {
             return Ok(smallvec![instance.ip]);
