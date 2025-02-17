@@ -18,7 +18,7 @@ use smallvec::{smallvec, SmallVec};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
     AcmeInfoResponse, GetInfoRequest, GetInfoResponse, GetMetaResponse, HostInfo as PbHostInfo,
-    ListResponse, RegisterCvmRequest, RegisterCvmResponse, TappdConfig, WireGuardConfig,
+    ListResponse, RegisterCvmRequest, RegisterCvmResponse, TappdConfig, WireGuardConfig, WireGuardPeer,
 };
 use tracing::{debug, error, info, warn};
 
@@ -36,7 +36,15 @@ pub struct Proxy {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct ProxyNodeInfo {
+    pubkey: String,
+    endpoint: String,
+    last_seem: SystemTime,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct ProxyStateMut {
+    nodes: BTreeMap<String, ProxyNodeInfo>,
     apps: BTreeMap<String, BTreeSet<String>>,
     instances: BTreeMap<String, InstanceInfo>,
     allocated_addresses: BTreeSet<Ipv4Addr>,
@@ -78,6 +86,7 @@ impl Proxy {
             serde_json::from_str(&state_str).context("Failed to load state")?
         } else {
             ProxyStateMut {
+                nodes: BTreeMap::new(),
                 apps: BTreeMap::new(),
                 top_n: BTreeMap::new(),
                 instances: BTreeMap::new(),
@@ -171,6 +180,7 @@ impl ProxyState {
             ip,
             public_key: public_key.to_string(),
             reg_time: SystemTime::now(),
+            last_seen: SystemTime::now(),
         };
         self.state
             .instances
@@ -413,10 +423,12 @@ impl TproxyRpc for RpcHandler {
         }
         Ok(RegisterCvmResponse {
             wg: Some(WireGuardConfig {
-                server_public_key: state.config.wg.public_key.clone(),
                 client_ip: client_info.ip.to_string(),
-                server_ip: state.config.wg.ip.to_string(),
-                server_endpoint: state.config.wg.endpoint.clone(),
+                servers: vec![WireGuardPeer {
+                    pk: state.config.wg.public_key.clone(),
+                    ip: state.config.wg.ip.to_string(),
+                    endpoint: state.config.wg.endpoint.clone(),
+                }],
             }),
             tappd: Some(TappdConfig {
                 external_port: state.config.proxy.listen_port as u32,

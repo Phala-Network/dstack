@@ -165,31 +165,52 @@ impl<'a> Setup<'a> {
         let _tappd_info = response.tappd.context("Missing tappd info")?;
 
         let client_ip = &wg_info.client_ip;
-        let server_endpoint = &wg_info.server_endpoint;
-        let server_public_key = &wg_info.server_public_key;
-        let server_ip = &wg_info.server_ip;
 
         // Create WireGuard config
-        fs::create_dir_all(self.resolve("/etc/wireguard"))?;
         let wg_listen_port = "9182";
-        let config = format!(
+        let mut config = format!(
             "[Interface]\n\
             PrivateKey = {sk}\n\
             ListenPort = {wg_listen_port}\n\
-            Address = {client_ip}/32\n\n\
-            [Peer]\n\
-            PublicKey = {server_public_key}\n\
-            AllowedIPs = {server_ip}/32\n\
-            Endpoint = {server_endpoint}\n\
-            PersistentKeepalive = 25\n"
+            Address = {client_ip}/32\n\n"
         );
+        for peer in &wg_info.servers {
+            config.push_str(&format!(
+                "[Peer]\n\
+                PublicKey = {}\n\
+                AllowedIPs = {}/32\n\
+                Endpoint = {}\n\
+                PersistentKeepalive = 25\n",
+                peer.pk, peer.ip, peer.endpoint
+            ));
+        }
+        fs::create_dir_all(self.resolve("/etc/wireguard"))?;
         fs::write(self.resolve("/etc/wireguard/wg0.conf"), config)?;
-        // Add iptables rule to only allow packets from the WireGuard endpoint
-        let endpoint_ip = server_endpoint
-            .split(':')
-            .next()
-            .context("Invalid wireguard endpoint")?;
-        cmd!(iptables -A INPUT -p udp --dport $wg_listen_port ! -s $endpoint_ip -j DROP)?;
+
+        // Setup WireGuard iptables rules
+        cmd! {
+            // Create the chain if it doesn't exist
+            ignore iptables -N TPROXY_WG 2>/dev/null;
+            // Flush the chain
+            iptables -F TPROXY_WG;
+            // Remove any existing jump rule
+            ignore iptables -D INPUT -p udp --dport $wg_listen_port -j TPROXY_WG 2>/dev/null;
+            // Insert the new jump rule at the beginning of the INPUT chain
+            iptables -I INPUT -p udp --dport $wg_listen_port -j TPROXY_WG
+        }?;
+
+        for peer in &wg_info.servers {
+            // Avoid issues with field-access in the macro by binding the IP to a local variable.
+            let endpoint_ip = peer
+                .endpoint
+                .split(':')
+                .next()
+                .context("Invalid wireguard endpoint")?;
+            cmd!(iptables -A TPROXY_WG -s $endpoint_ip -j ACCEPT)?;
+        }
+
+        // Drop any UDP packets that don't come from an allowed IP.
+        cmd!(iptables -A TPROXY_WG -j DROP)?;
 
         info!("Starting WireGuard");
         cmd!(wg-quick up wg0)?;

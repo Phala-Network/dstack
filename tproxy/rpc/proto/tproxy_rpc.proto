@@ -18,16 +18,21 @@ message RegisterCvmResponse {
   TappdConfig tappd = 2;
 }
 
+message WireGuardPeer {
+  // The wireguard peer public key.
+  string pk = 1;
+  // The wireguard peer IP address.
+  string ip = 2;
+  // The wireguard peer endpoint.
+  string endpoint = 3;
+} 
+
 // WireGuardConfig is the configuration of the WireGuard.
 message WireGuardConfig {
-  // The public key of the WireGuard interface of the TProxy.
-  string server_public_key = 1;
   // The IP address of the CVM.
-  string client_ip = 2;
-  // The IP address of the TProxy.
-  string server_ip = 3;
-  // The endpoint of the TProxy.
-  string server_endpoint = 4;
+  string client_ip = 1;
+  // List of proxy nodes.
+  repeated WireGuardPeer servers = 2;
 }
 
 // TappdConfig is the configuration of the Tappd.
