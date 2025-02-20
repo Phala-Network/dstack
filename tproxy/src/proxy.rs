@@ -1,7 +1,7 @@
 use std::{
     net::Ipv4Addr,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
         Arc,
     },
 };
@@ -111,6 +111,20 @@ fn parse_destination(sni: &str, dotted_base_domain: &str) -> Result<DstInfo> {
     })
 }
 
+pub static NUM_CONNECTIONS: AtomicU64 = AtomicU64::new(0);
+struct ConnectionEntered;
+impl ConnectionEntered {
+    fn new() -> Self {
+        NUM_CONNECTIONS.fetch_add(1, Ordering::Relaxed);
+        Self
+    }
+}
+impl Drop for ConnectionEntered {
+    fn drop(&mut self) {
+        NUM_CONNECTIONS.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
 async fn handle_connection(
     mut inbound: TcpStream,
     state: Proxy,
@@ -169,6 +183,7 @@ pub async fn run(config: &ProxyConfig, app_state: Proxy) -> Result<()> {
             Ok((inbound, from)) => {
                 let span = info_span!("conn", id = next_connection_id());
                 let _enter = span.enter();
+                let conn_entered = ConnectionEntered::new();
 
                 info!(%from, "new connection");
                 let app_state = app_state.clone();
@@ -176,6 +191,7 @@ pub async fn run(config: &ProxyConfig, app_state: Proxy) -> Result<()> {
                 let tls_terminate_proxy = tls_terminate_proxy.clone();
                 tokio::spawn(
                     async move {
+                        let _conn_entered = conn_entered;
                         let timeouts = &app_state.config.proxy.timeouts;
                         let result = timeout(
                             timeouts.total,

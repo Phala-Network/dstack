@@ -57,6 +57,8 @@ message StatusResponse {
   string url = 4;
   // The bootnode URL.
   string bootnode_url = 5;
+  // Number of established proxy connections.
+  uint64 num_connections = 6;
 }
 
 // HostInfo is the information of a host.

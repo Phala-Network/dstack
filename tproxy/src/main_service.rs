@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     net::Ipv4Addr,
-    sync::{Arc, Mutex, MutexGuard, Weak},
+    sync::{atomic::Ordering, Arc, Mutex, MutexGuard, Weak},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -26,7 +26,7 @@ use tracing::{debug, error, info, warn};
 use crate::{
     config::Config,
     models::{InstanceInfo, WgConf},
-    proxy::AddressGroup,
+    proxy::{AddressGroup, NUM_CONNECTIONS},
 };
 
 mod sync_client;
@@ -595,6 +595,7 @@ impl TproxyRpc for RpcHandler {
             bootnode_url: state.config.sync.bootnode.clone(),
             nodes,
             hosts,
+            num_connections: NUM_CONNECTIONS.load(Ordering::Relaxed),
         })
     }
 

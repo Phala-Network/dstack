@@ -140,7 +140,7 @@
             background-color: #f8f8f8;
         }
     </style>
-    <title>CVM List - Tproxy</title>
+    <title>Dashboard - Tproxy</title>
     <script>
         function timeAgo(timestamp) {
             if (timestamp === 0) return 'never';
@@ -196,6 +196,10 @@
         <tr>
             <td>Bootnode URL</td>
             <td>{{ status.bootnode_url }}</td>
+        </tr>
+        <tr>
+            <td>Connections</td>
+            <td>{{ status.num_connections }}</td>
         </tr>
     </table>
 

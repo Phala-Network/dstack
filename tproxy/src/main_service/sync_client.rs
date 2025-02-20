@@ -1,4 +1,7 @@
-use std::{sync::{Arc, Mutex, Weak}, time::Duration};
+use std::{
+    sync::{Arc, Mutex, Weak},
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
 use ra_rpc::client::{RaClient, RaClientConfig};
@@ -157,7 +160,7 @@ pub(crate) async fn sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config
 
             // If no node succeeded, try bootnode as fallback
             if !success {
-                info!("Failed to sync state to any node, trying bootnode");
+                info!("Fallback to sync with bootnode");
                 sync_client
                     .sync_state_ignore_error(&config.sync.bootnode, &state)
                     .await;
