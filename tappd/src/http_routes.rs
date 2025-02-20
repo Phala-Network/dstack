@@ -37,7 +37,7 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         key_provider_info,
         compose_hash: _,
         tcb_info,
-        app_cert,
+        app_cert: _,
         public_logs,
         public_sysinfo,
     } = handler
@@ -56,7 +56,6 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         instance_id,
         device_id,
         key_provider_info,
-        app_cert,
         tcb_info,
         containers,
         system_info,

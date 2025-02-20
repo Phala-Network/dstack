@@ -38,7 +38,6 @@ pub struct Dashboard {
     pub instance_id: Vec<u8>,
     pub device_id: Vec<u8>,
     pub key_provider_info: String,
-    pub app_cert: String,
     pub tcb_info: String,
     pub containers: Vec<Container>,
     pub system_info: SystemInfo,
