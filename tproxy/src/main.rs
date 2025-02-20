@@ -58,7 +58,7 @@ fn tappd_client() -> Result<tappd_rpc::tappd_client::TappdClient<PrpcClient>> {
 }
 
 async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> {
-    if config.tls_domain.is_empty() {
+    if config.rpc_domain.is_empty() {
         info!("TLS domain is empty, skipping cert generation");
         return Ok(());
     }
@@ -70,7 +70,7 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
             .derive_key(tappd_rpc::DeriveKeyArgs {
                 path: "".to_string(),
                 subject: "tproxy".to_string(),
-                alt_names: vec![config.tls_domain.clone()],
+                alt_names: vec![config.rpc_domain.clone()],
                 usage_ra_tls: true,
                 usage_server_auth: true,
                 usage_client_auth: false,
@@ -104,7 +104,7 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
     let cert = ra_tls::cert::CertRequest::builder()
         .key(&key)
         .subject("tproxy")
-        .alt_names(&[config.tls_domain.clone()])
+        .alt_names(&[config.rpc_domain.clone()])
         .usage_server_auth(true)
         .build()
         .self_signed()

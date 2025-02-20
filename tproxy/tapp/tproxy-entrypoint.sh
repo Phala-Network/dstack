@@ -48,7 +48,8 @@ mandatory = false
 [core]
 state_path = "/data/tproxy-state.json"
 set_ulimit = true
-tls_domain = "tproxy.${SRV_DOMAIN}"
+rpc_domain = "tproxy.${SRV_DOMAIN}"
+run_as_tapp = true
 
 [core.admin]
 enabled = true

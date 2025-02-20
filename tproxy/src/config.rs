@@ -126,7 +126,7 @@ pub struct Config {
     pub recycle: RecycleConfig,
     pub state_path: String,
     pub set_ulimit: bool,
-    pub tls_domain: String,
+    pub rpc_domain: String,
     pub kms_url: String,
     pub admin: AdminConfig,
     pub run_as_tapp: bool,
