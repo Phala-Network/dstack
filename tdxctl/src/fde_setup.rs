@@ -343,11 +343,17 @@ impl SetupFdeArgs {
         let existing_rootfs_hash = fs::read(&hash_file).unwrap_or_default();
         if existing_rootfs_hash != self.rootfs_hash {
             info!("Rootfs hash changed, upgrading the rootfs");
+            let upgrading_file = self.rootfs_dir.join(".rootfs_upgrading");
+            if upgrading_file.exists() {
+                bail!("The previous rootfs upgrade is not finished, aborting");
+            }
+            fs::write(&upgrading_file, "").context("Failed to touch upgrading file")?;
             if hash_file.exists() {
                 fs::remove_file(&hash_file).context("Failed to remove old rootfs hash file")?;
             }
             host.notify_q("boot.progress", "upgrading rootfs").await;
             self.extract_rootfs(&self.rootfs_hash).await?;
+            fs::remove_file(&upgrading_file).context("Failed to remove upgrading file")?;
         }
         Ok(())
     }
