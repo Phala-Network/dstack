@@ -13,6 +13,7 @@ state_path = "./tproxy-state.json"
 # auto set soft ulimit to hard ulimit
 set_ulimit = true
 tls_domain = ""
+run_as_tapp = true
 
 [core.admin]
 enabled = false

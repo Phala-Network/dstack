@@ -16,7 +16,7 @@ impl TproxyAdminRpc for AdminRpcHandler {
         self.state.lock().exit();
     }
 
-    async fn renew_cert(self) -> anyhow::Result<RenewCertResponse> {
+    async fn renew_cert(self) -> Result<RenewCertResponse> {
         let bot = self.state.certbot.context("Certbot is not enabled")?;
         let renewed = bot.renew(true).await?;
         Ok(RenewCertResponse { renewed })

@@ -91,6 +91,26 @@ message GetMetaResponse {
   uint32 online = 2;
 }
 
+message ProxyNodeInfo {
+  string pubkey = 1;
+  string endpoint = 2;
+  uint64 last_seen = 3;
+}
+
+message AppInstanceInfo {
+  string app_id = 1;
+  string instance_id = 2;
+  string ip = 3;
+  string public_key = 4;
+  uint64 reg_time = 5;
+  uint64 last_seen = 6;
+}
+
+message TproxyState {
+  repeated ProxyNodeInfo nodes = 1;
+  repeated AppInstanceInfo apps = 2;
+}
+
 service Tproxy {
   // Register a new proxied CVM.
   rpc RegisterCvm(RegisterCvmRequest) returns (RegisterCvmResponse) {}
@@ -102,6 +122,8 @@ service Tproxy {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {}
   // Summary API for inspect.
   rpc GetMeta(google.protobuf.Empty) returns (GetMetaResponse);
+  // Merge state from other TProxy instances.
+  rpc UpdateState(TproxyState) returns (google.protobuf.Empty) {}
 }
 
 message RenewCertResponse {

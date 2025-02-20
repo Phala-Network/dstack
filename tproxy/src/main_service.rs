@@ -18,7 +18,8 @@ use smallvec::{smallvec, SmallVec};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
     AcmeInfoResponse, GetInfoRequest, GetInfoResponse, GetMetaResponse, HostInfo as PbHostInfo,
-    ListResponse, RegisterCvmRequest, RegisterCvmResponse, TappdConfig, WireGuardConfig, WireGuardPeer,
+    ListResponse, RegisterCvmRequest, RegisterCvmResponse, TappdConfig, TproxyState,
+    WireGuardConfig, WireGuardPeer,
 };
 use tracing::{debug, error, info, warn};
 
@@ -32,6 +33,7 @@ use crate::{
 pub struct Proxy {
     pub(crate) config: Arc<Config>,
     pub(crate) certbot: Option<Arc<CertBot>>,
+    my_app_id: Option<Vec<u8>>,
     inner: Arc<Mutex<ProxyState>>,
 }
 
@@ -62,7 +64,7 @@ impl Proxy {
         self.inner.lock().expect("Failed to lock AppState")
     }
 
-    pub async fn new(config: Config) -> Result<Self> {
+    pub async fn new(config: Config, my_app_id: Option<Vec<u8>>) -> Result<Self> {
         let certbot = if config.certbot.enabled {
             info!("Starting certbot...");
             let certbot = config
@@ -102,6 +104,7 @@ impl Proxy {
             config,
             inner,
             certbot,
+            my_app_id,
         })
     }
 }
@@ -396,8 +399,24 @@ impl ProxyState {
 }
 
 pub struct RpcHandler {
+    remote_app_id: Option<Vec<u8>>,
     attestation: Option<VerifiedAttestation>,
     state: Proxy,
+}
+
+impl RpcHandler {
+    fn ensure_from_tproxy(&self) -> Result<()> {
+        if !self.state.config.run_as_tapp {
+            return Ok(());
+        }
+        if self.remote_app_id.is_none() {
+            bail!("Client authentication is required");
+        }
+        if self.state.my_app_id != self.remote_app_id {
+            bail!("Remote app id is not from tproxy");
+        }
+        Ok(())
+    }
 }
 
 impl TproxyRpc for RpcHandler {
@@ -534,6 +553,12 @@ impl TproxyRpc for RpcHandler {
             online: online as u32,
         })
     }
+
+    async fn update_state(self, request: TproxyState) -> Result<()> {
+        self.ensure_from_tproxy()?;
+        let mut state = self.state.lock();
+        todo!()
+    }
 }
 
 impl RpcCall<Proxy> for RpcHandler {
@@ -541,6 +566,7 @@ impl RpcCall<Proxy> for RpcHandler {
 
     fn construct(context: CallContext<'_, Proxy>) -> Result<Self> {
         Ok(RpcHandler {
+            remote_app_id: context.remote_app_id,
             attestation: context.attestation,
             state: context.state.clone(),
         })

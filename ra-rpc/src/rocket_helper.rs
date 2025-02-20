@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 
 use anyhow::{Context, Result};
-use ra_tls::attestation::Attestation;
+use ra_tls::{attestation::Attestation, traits::CertExt};
 use rocket::{
     data::{ByteUnit, Data, Limits, ToByteUnit},
     http::{uri::Origin, ContentType, Method, Status},
@@ -239,6 +239,12 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
         method,
         data,
     } = args;
+    let remote_app_id = request
+        .certificate
+        .as_ref()
+        .map(|cert| RocketCertificate(cert).get_app_id())
+        .transpose()?
+        .flatten();
     let attestation = request
         .certificate
         .as_ref()
@@ -279,8 +285,23 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
         state,
         attestation,
         remote_endpoint: request.remote_addr.cloned().map(RemoteEndpoint::from),
+        remote_app_id,
     };
     let call = Call::construct(context).context("failed to construct call")?;
     let (status_code, output) = call.call(method.to_string(), payload, json, is_get).await;
     Ok(Custom(Status::new(status_code), output))
+}
+
+struct RocketCertificate<'a>(&'a rocket::mtls::Certificate<'a>);
+
+impl CertExt for RocketCertificate<'_> {
+    fn get_extension_der(&self, oid: &[u64]) -> Result<Option<Vec<u8>>> {
+        let oid = x509_parser::der_parser::Oid::from(oid)
+            .ok()
+            .context("invalid oid")?;
+        let Some(ext) = self.0.extensions().iter().find(|ext| ext.oid == oid) else {
+            return Ok(None);
+        };
+        Ok(Some(ext.value.to_vec()))
+    }
 }

@@ -129,6 +129,7 @@ pub struct Config {
     pub tls_domain: String,
     pub kms_url: String,
     pub admin: AdminConfig,
+    pub run_as_tapp: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
