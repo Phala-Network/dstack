@@ -132,6 +132,8 @@
             padding: 6px 12px;
             border-radius: 4px;
             border: 1px solid var(--border-color);
+            word-break: break-all;
+            overflow-wrap: break-word;
         }
     </style>
 </head>
@@ -175,21 +177,15 @@
             </div>
             <div class="info-row">
                 <div class="info-label">Memory Usage</div>
-                <div class="info-value">Used: {{system_info.used_memory|hsize}} / Total:
-                    {{system_info.total_memory|hsize}}
-                    (Available: {{system_info.available_memory|hsize}})</div>
+                <div class="info-value">Used: {{system_info.used_memory|hsize}} / Total: {{system_info.total_memory|hsize}} (Available: {{system_info.available_memory|hsize}})</div>
             </div>
             <div class="info-row">
                 <div class="info-label">Swap Usage</div>
-                <div class="info-value">Used: {{system_info.used_swap|hsize}} / Total: {{system_info.total_swap|hsize}}
-                    (Free:
-                    {{system_info.free_swap|hsize}})</div>
+                <div class="info-value">Used: {{system_info.used_swap|hsize}} / Total: {{system_info.total_swap|hsize}} (Free: {{system_info.free_swap|hsize}})</div>
             </div>
             <div class="info-row">
                 <div class="info-label">Load Average</div>
-                <div class="info-value">1min: {{system_info.loadavg_one as f32 / 100.0}}%, 5min:
-                    {{system_info.loadavg_five as f32 / 100.0}}%, 15min:
-                    {{system_info.loadavg_fifteen as f32 / 100.0}}%</div>
+                <div class="info-value">1min: {{system_info.loadavg_one as f32 / 100.0}}%, 5min: {{system_info.loadavg_five as f32 / 100.0}}%, 15min: {{system_info.loadavg_fifteen as f32 / 100.0}}%</div>
             </div>
             <div class="info-row">
                 <div class="info-label">System Uptime</div>
