@@ -79,6 +79,8 @@ struct InstanceInfo {
     #[serde(default)]
     bootstrapped: Option<bool>,
     #[serde(with = "hex_bytes", default)]
+    instance_id_seed: Vec<u8>,
+    #[serde(with = "hex_bytes", default)]
     instance_id: Vec<u8>,
     #[serde(with = "hex_bytes", default)]
     app_id: Vec<u8>,
@@ -86,7 +88,8 @@ struct InstanceInfo {
 
 impl InstanceInfo {
     fn is_bootstrapped(&self) -> bool {
-        self.bootstrapped.unwrap_or(!self.instance_id.is_empty())
+        self.bootstrapped
+            .unwrap_or(!self.instance_id_seed.is_empty())
     }
 }
 
@@ -478,14 +481,19 @@ impl SetupFdeArgs {
         }
 
         let disk_reusable = (!key_provider.is_none()) || !self.rootfs_encryption;
-        if (!disk_reusable) || instance_info.instance_id.is_empty() {
-            instance_info.instance_id = {
+        if (!disk_reusable) || instance_info.instance_id_seed.is_empty() {
+            instance_info.instance_id_seed = {
                 let mut rand_id = vec![0u8; 20];
                 getrandom::getrandom(&mut rand_id)?;
-                rand_id.extend_from_slice(&instance_info.app_id);
-                sha256(&rand_id)[..20].to_vec()
+                rand_id
             };
         }
+        let instance_id = {
+            let mut id_path = instance_info.instance_id_seed.clone();
+            id_path.extend_from_slice(&instance_info.app_id);
+            sha256(&id_path)[..20].to_vec()
+        };
+        instance_info.instance_id = instance_id.clone();
         if !kms_enabled && instance_info.app_id != truncated_compose_hash {
             bail!("App upgrade is not supported without KMS");
         }
@@ -496,7 +504,7 @@ impl SetupFdeArgs {
         extend_rtmr3("rootfs-hash", &self.rootfs_hash)?;
         extend_rtmr3("app-id", &instance_info.app_id)?;
         extend_rtmr3("compose-hash", &compose_hash)?;
-        extend_rtmr3("instance-id", &instance_info.instance_id)?;
+        extend_rtmr3("instance-id", &instance_id)?;
         extend_rtmr3("boot-mr-done", &[])?;
         // Show the RTMR
         cmd_show()?;
