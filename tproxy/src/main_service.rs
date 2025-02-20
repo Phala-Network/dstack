@@ -18,7 +18,7 @@ use smallvec::{smallvec, SmallVec};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
     AcmeInfoResponse, GetInfoRequest, GetInfoResponse, GetMetaResponse, HostInfo as PbHostInfo,
-    ListResponse, RegisterCvmRequest, RegisterCvmResponse, TappdConfig, TproxyState,
+    RegisterCvmRequest, RegisterCvmResponse, StatusResponse, TappdConfig, TproxyState,
     WireGuardConfig, WireGuardPeer,
 };
 use tracing::{debug, error, info, warn};
@@ -565,7 +565,7 @@ impl TproxyRpc for RpcHandler {
         })
     }
 
-    async fn list(self) -> Result<ListResponse> {
+    async fn status(self) -> Result<StatusResponse> {
         let mut state = self.state.lock();
         state.refresh_state()?;
         let base_domain = &state.config.proxy.base_domain;
@@ -582,7 +582,20 @@ impl TproxyRpc for RpcHandler {
                 latest_handshake: encode_ts(instance.last_seen),
             })
             .collect::<Vec<_>>();
-        Ok(ListResponse { hosts })
+        let nodes = state
+            .state
+            .nodes
+            .values()
+            .cloned()
+            .map(Into::into)
+            .collect::<Vec<_>>();
+        Ok(StatusResponse {
+            url: state.config.sync.my_url.clone(),
+            pubkey: state.config.wg.public_key.clone(),
+            bootnode_url: state.config.sync.bootnode.clone(),
+            nodes,
+            hosts,
+        })
     }
 
     async fn get_info(self, request: GetInfoRequest) -> Result<GetInfoResponse> {

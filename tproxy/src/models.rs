@@ -5,7 +5,7 @@ use std::{
     net::Ipv4Addr,
     time::SystemTime,
 };
-use tproxy_rpc::{AcmeInfoResponse, HostInfo as PbHostInfo};
+use tproxy_rpc::{AcmeInfoResponse, StatusResponse};
 
 mod filters {
     pub fn hex(data: impl AsRef<[u8]>) -> rinja::Result<String> {
@@ -64,8 +64,8 @@ pub struct WgConf<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "cvmlist.html")]
-pub struct CvmList<'a> {
-    pub hosts: &'a [PbHostInfo],
-    pub acme_info: &'a AcmeInfoResponse,
+#[template(path = "dashboard.html")]
+pub struct Dashboard {
+    pub status: StatusResponse,
+    pub acme_info: AcmeInfoResponse,
 }

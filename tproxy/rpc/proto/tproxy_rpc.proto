@@ -45,10 +45,18 @@ message TappdConfig {
   string domain = 3;
 }
 
-// ListResponse is the response for List.
-message ListResponse {
+// StatusResponse is the response for Status.
+message StatusResponse {
   // The list of proxied CVMs.
   repeated HostInfo hosts = 1;
+  // The list of proxy nodes.
+  repeated ProxyNodeInfo nodes = 2;
+  // My public key.
+  string pubkey = 3;
+  // My URL.
+  string url = 4;
+  // The bootnode URL.
+  string bootnode_url = 5;
 }
 
 // HostInfo is the information of a host.
@@ -117,8 +125,8 @@ message TproxyState {
 service Tproxy {
   // Register a new proxied CVM.
   rpc RegisterCvm(RegisterCvmRequest) returns (RegisterCvmResponse) {}
-  // List all proxied CVMs.
-  rpc List(google.protobuf.Empty) returns (ListResponse) {}
+  // Get the status of the TProxy.
+  rpc Status(google.protobuf.Empty) returns (StatusResponse) {}
   // List all ACME account URIs and the public key history of the certificates for the Content Addressable HTTPS.
   rpc AcmeInfo(google.protobuf.Empty) returns (AcmeInfoResponse) {}
   // Find Proxied HostInfo by instance ID
