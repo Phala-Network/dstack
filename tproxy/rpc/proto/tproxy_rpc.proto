@@ -92,8 +92,11 @@ message GetMetaResponse {
 }
 
 message ProxyNodeInfo {
+  // The wireguard public key of the node.
   string pubkey = 1;
-  string endpoint = 2;
+  // The RPC URL of the node.
+  string url = 2;
+  // The last seen time of the node.
   uint64 last_seen = 3;
 }
 

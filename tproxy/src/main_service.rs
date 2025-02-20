@@ -29,6 +29,8 @@ use crate::{
     proxy::AddressGroup,
 };
 
+mod sync_client;
+
 #[derive(Clone)]
 pub struct Proxy {
     pub(crate) config: Arc<Config>,
@@ -37,11 +39,11 @@ pub struct Proxy {
     inner: Arc<Mutex<ProxyState>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct ProxyNodeInfo {
-    pubkey: String,
-    endpoint: String,
-    last_seem: SystemTime,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ProxyNodeInfo {
+    pub pubkey: String,
+    pub url: String,
+    pub last_seen: SystemTime,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -87,8 +89,17 @@ impl Proxy {
             let state_str = fs::read_to_string(state_path).context("Failed to read state")?;
             serde_json::from_str(&state_str).context("Failed to load state")?
         } else {
+            let mut nodes = BTreeMap::new();
+            nodes.insert(
+                config.wg.public_key.clone(),
+                ProxyNodeInfo {
+                    pubkey: config.wg.public_key.clone(),
+                    url: config.sync.my_url.clone(),
+                    last_seen: SystemTime::now(),
+                },
+            );
             ProxyStateMut {
-                nodes: BTreeMap::new(),
+                nodes,
                 apps: BTreeMap::new(),
                 top_n: BTreeMap::new(),
                 instances: BTreeMap::new(),
@@ -100,6 +111,7 @@ impl Proxy {
             state,
         }));
         start_recycle_thread(Arc::downgrade(&inner), config.clone());
+        start_sync_task(Arc::downgrade(&inner), config.clone());
         Ok(Self {
             config,
             inner,
@@ -145,6 +157,19 @@ fn start_certbot_task(certbot: Arc<CertBot>) {
     });
 }
 
+fn start_sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config>) {
+    if !config.sync.enabled {
+        info!("sync is disabled");
+        return;
+    }
+    tokio::spawn(async move {
+        match sync_client::sync_task(proxy, config).await {
+            Ok(_) => info!("Sync task exited"),
+            Err(err) => error!("Failed to run sync task: {err}"),
+        }
+    });
+}
+
 impl ProxyState {
     fn alloc_ip(&mut self) -> Option<Ipv4Addr> {
         for ip in self.config.wg.client_ip_range.hosts() {
@@ -185,15 +210,17 @@ impl ProxyState {
             reg_time: SystemTime::now(),
             last_seen: SystemTime::now(),
         };
-        self.state
-            .instances
-            .insert(id.to_string(), host_info.clone());
+        self.add_instance(host_info.clone());
+        Some(host_info)
+    }
+
+    fn add_instance(&mut self, info: InstanceInfo) {
         self.state
             .apps
-            .entry(app_id.to_string())
+            .entry(info.app_id.clone())
             .or_default()
-            .insert(id.to_string());
-        Some(host_info)
+            .insert(info.id.clone());
+        self.state.instances.insert(info.id.clone(), info);
     }
 
     fn generate_wg_config(&self) -> Result<String> {
@@ -216,6 +243,11 @@ impl ProxyState {
             Ok(_) => info!("wg config updated"),
             Err(e) => error!("failed to set wg config: {e}"),
         }
+        self.save_state()?;
+        Ok(())
+    }
+
+    fn save_state(&self) -> Result<()> {
         let state_str = serde_json::to_string(&self.state).context("Failed to serialize state")?;
         safe_write(&self.config.state_path, state_str).context("Failed to write state")?;
         Ok(())
@@ -396,6 +428,82 @@ impl ProxyState {
     pub(crate) fn exit(&mut self) -> ! {
         std::process::exit(0);
     }
+
+    fn update_state(
+        &mut self,
+        proxy_nodes: Vec<ProxyNodeInfo>,
+        apps: Vec<InstanceInfo>,
+    ) -> Result<()> {
+        for node in proxy_nodes {
+            if let Some(existing) = self.state.nodes.get(&node.pubkey) {
+                if node.last_seen > existing.last_seen {
+                    continue;
+                }
+            }
+            self.state.nodes.insert(node.pubkey.clone(), node);
+        }
+
+        let mut wg_changed = false;
+        let mut state_changed = false;
+        for app in apps {
+            if let Some(existing) = self.state.instances.get(&app.id) {
+                let existing_ts = (existing.reg_time, existing.last_seen);
+                let update_ts = (app.reg_time, app.last_seen);
+                if update_ts <= existing_ts {
+                    continue;
+                }
+                if !wg_changed {
+                    wg_changed = existing.public_key != app.public_key || existing.ip != app.ip;
+                }
+            }
+            state_changed = true;
+            self.add_instance(app);
+        }
+        info!("updated, wg_changed: {wg_changed}, state_changed: {state_changed}");
+        if wg_changed {
+            self.reconfigure()?;
+        } else if state_changed {
+            self.save_state()?;
+        }
+        Ok(())
+    }
+
+    fn dump_state(&mut self) -> (Vec<ProxyNodeInfo>, Vec<InstanceInfo>) {
+        self.refresh_state().ok();
+        (
+            self.state.nodes.values().cloned().collect(),
+            self.state.instances.values().cloned().collect(),
+        )
+    }
+
+    fn refresh_state(&mut self) -> Result<()> {
+        let handshakes = self.latest_handshakes(None)?;
+        for instance in self.state.instances.values_mut() {
+            let Some((ts, _)) = handshakes.get(&instance.public_key).copied() else {
+                continue;
+            };
+            instance.last_seen = decode_ts(ts);
+        }
+        self.state.nodes.insert(
+            self.config.wg.public_key.clone(),
+            ProxyNodeInfo {
+                pubkey: self.config.wg.public_key.clone(),
+                url: self.config.sync.my_url.clone(),
+                last_seen: SystemTime::now(),
+            },
+        );
+        Ok(())
+    }
+}
+
+fn decode_ts(ts: u64) -> SystemTime {
+    UNIX_EPOCH
+        .checked_add(Duration::from_secs(ts))
+        .unwrap_or(UNIX_EPOCH)
+}
+
+fn encode_ts(ts: SystemTime) -> u64 {
+    ts.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 }
 
 pub struct RpcHandler {
@@ -458,9 +566,9 @@ impl TproxyRpc for RpcHandler {
     }
 
     async fn list(self) -> Result<ListResponse> {
-        let state = self.state.lock();
+        let mut state = self.state.lock();
+        state.refresh_state()?;
         let base_domain = &state.config.proxy.base_domain;
-        let handshakes = state.latest_handshakes(None)?;
         let hosts = state
             .state
             .instances
@@ -471,13 +579,7 @@ impl TproxyRpc for RpcHandler {
                 app_id: instance.app_id.clone(),
                 base_domain: base_domain.clone(),
                 port: state.config.proxy.listen_port as u32,
-                latest_handshake: {
-                    let (ts, _) = handshakes
-                        .get(&instance.public_key)
-                        .copied()
-                        .unwrap_or_default();
-                    ts
-                },
+                latest_handshake: encode_ts(instance.last_seen),
             })
             .collect::<Vec<_>>();
         Ok(ListResponse { hosts })
@@ -556,8 +658,33 @@ impl TproxyRpc for RpcHandler {
 
     async fn update_state(self, request: TproxyState) -> Result<()> {
         self.ensure_from_tproxy()?;
-        let mut state = self.state.lock();
-        todo!()
+        let mut nodes = vec![];
+        let mut apps = vec![];
+
+        for node in request.nodes {
+            nodes.push(ProxyNodeInfo {
+                pubkey: node.pubkey,
+                last_seen: decode_ts(node.last_seen),
+                url: node.url,
+            });
+        }
+
+        for app in request.apps {
+            apps.push(InstanceInfo {
+                id: app.instance_id,
+                app_id: app.app_id,
+                ip: app.ip.parse().context("Invalid IP address")?,
+                public_key: app.public_key,
+                reg_time: decode_ts(app.reg_time),
+                last_seen: decode_ts(app.last_seen),
+            });
+        }
+
+        self.state
+            .lock()
+            .update_state(nodes, apps)
+            .context("failed to update state")?;
+        Ok(())
     }
 }
 
@@ -570,6 +697,29 @@ impl RpcCall<Proxy> for RpcHandler {
             attestation: context.attestation,
             state: context.state.clone(),
         })
+    }
+}
+
+impl From<ProxyNodeInfo> for tproxy_rpc::ProxyNodeInfo {
+    fn from(node: ProxyNodeInfo) -> Self {
+        Self {
+            pubkey: node.pubkey,
+            last_seen: encode_ts(node.last_seen),
+            url: node.url,
+        }
+    }
+}
+
+impl From<InstanceInfo> for tproxy_rpc::AppInstanceInfo {
+    fn from(app: InstanceInfo) -> Self {
+        Self {
+            instance_id: app.id,
+            app_id: app.app_id,
+            ip: app.ip.to_string(),
+            public_key: app.public_key,
+            reg_time: encode_ts(app.reg_time),
+            last_seen: encode_ts(app.last_seen),
+        }
     }
 }
 

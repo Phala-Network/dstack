@@ -64,6 +64,17 @@ pub struct RecycleConfig {
     pub timeout: Duration,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct SyncConfig {
+    pub enabled: bool,
+    #[serde(with = "serde_duration")]
+    pub interval: Duration,
+    #[serde(with = "serde_duration")]
+    pub timeout: Duration,
+    pub my_url: String,
+    pub bootnode: String,
+}
+
 mod serde_duration {
     use serde::{Deserialize, Deserializer, Serializer};
     use std::time::Duration;
@@ -130,6 +141,7 @@ pub struct Config {
     pub kms_url: String,
     pub admin: AdminConfig,
     pub run_as_tapp: bool,
+    pub sync: SyncConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]

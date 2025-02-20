@@ -18,6 +18,7 @@ pub struct CertInfo {
     pub cert_der: Vec<u8>,
     pub attestation: Option<VerifiedAttestation>,
     pub special_usage: Option<String>,
+    pub app_id: Option<Vec<u8>>,
 }
 
 type CertValidator = Box<dyn Fn(Option<CertInfo>) -> Result<()> + Send + Sync + 'static>;
@@ -27,6 +28,8 @@ pub struct RaClientConfig {
     remote_uri: String,
     #[builder(default = false)]
     tls_no_check: bool,
+    #[builder(default = false)]
+    disable_ra: bool,
     #[builder(default = false)]
     tls_no_check_hostname: bool,
     tls_client_cert: Option<String>,
@@ -65,7 +68,8 @@ impl RaClientConfig {
             remote_uri: self.remote_uri,
             pccs_url: self.pccs_url,
             client,
-            attestation_validator: self.cert_validator,
+            cert_validator: self.cert_validator,
+            disable_ra: self.disable_ra,
         })
     }
 }
@@ -74,7 +78,8 @@ pub struct RaClient {
     remote_uri: String,
     pccs_url: Option<String>,
     client: Client,
-    attestation_validator: Option<CertValidator>,
+    cert_validator: Option<CertValidator>,
+    disable_ra: bool,
 }
 
 impl RaClient {
@@ -100,7 +105,7 @@ impl RaClient {
     }
 
     async fn try_validate_attestation(&self, response: &Response) -> Result<()> {
-        let Some(validator) = &self.attestation_validator else {
+        let Some(validator) = &self.cert_validator else {
             return Ok(());
         };
 
@@ -116,8 +121,12 @@ impl RaClient {
         let special_usage = cert
             .get_special_usage()
             .context("Failed to get special usage")?;
-        let attestation =
+        let app_id = cert.get_app_id().context("Failed to get app id")?;
+        let attestation = if self.disable_ra {
+            None
+        } else {
             match Attestation::from_cert(&cert).context("Failed to parse attestation")? {
+                None => None,
                 Some(attestation) => {
                     let verified_attestation = attestation
                         .verify_with_ra_pubkey(cert.public_key().raw, self.pccs_url.as_deref())
@@ -125,12 +134,13 @@ impl RaClient {
                         .context("Failed to verify the attestation report")?;
                     Some(verified_attestation)
                 }
-                None => None,
-            };
+            }
+        };
         let cert_info = CertInfo {
             cert_der,
             attestation,
             special_usage,
+            app_id,
         };
         validator(Some(cert_info))
     }

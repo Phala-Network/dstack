@@ -13,9 +13,8 @@ services:
             git checkout TPROXY_REV
         WORKDIR /app/dstack/tproxy/tapp
         RUN cargo build --release -p tproxy
-    entrypoint:
-      - /app/dstack/tproxy/tapp/tproxy-entrypoint.sh
-    command: ["/app/dstack/target/release/tproxy", "-c", "/etc/tproxy/tproxy.toml"]
+        ENTRYPOINT ["/app/dstack/tproxy/tapp/tproxy-entrypoint.sh"]
+        CMD ["/app/dstack/target/release/tproxy", "-c", "/etc/tproxy/tproxy.toml"]
     volumes:
       - /var/run/tappd.sock:/var/run/tappd.sock
       - /tapp:/tapp
@@ -29,6 +28,8 @@ services:
       - SRV_DOMAIN=${SRV_DOMAIN}
       - CF_API_TOKEN=${CF_API_TOKEN}
       - CF_ZONE_ID=${CF_ZONE_ID}
+      - MY_URL=${MY_URL}
+      - BOOTNODE_URL=${BOOTNODE_URL}
       - RUST_LOG=info,certbot=debug
     restart: always
 

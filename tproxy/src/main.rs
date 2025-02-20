@@ -7,7 +7,6 @@ use rocket::{
     fairing::AdHoc,
     figment::{providers::Serialized, Figment},
 };
-use tappd_rpc::DeriveKeyArgs;
 use tracing::info;
 
 use admin_service::AdminRpcHandler;
@@ -154,18 +153,6 @@ async fn main() -> Result<()> {
             .info()
             .await
             .context("Failed to get app info")?;
-        let keys = tappd_client
-            .derive_key(DeriveKeyArgs {
-                path: "/sync-state-client".into(),
-                subject: "".into(),
-                alt_names: vec![],
-                usage_ra_tls: false,
-                usage_server_auth: false,
-                usage_client_auth: true,
-                random_seed: true,
-            })
-            .await
-            .context("Failed to get sync-client keys")?;
         Some(info.app_id)
     } else {
         None

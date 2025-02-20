@@ -78,3 +78,11 @@ total = "5h"
 enabled = true
 interval = "5m"
 timeout = "10h"
+
+[core.sync]
+enabled = false
+interval = "30s"
+timeout = "2s"
+my_url = "https://localhost:8011"
+# The url of the bootnode used to join the network
+bootnode = "https://localhost:8011"
