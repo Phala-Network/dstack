@@ -48,6 +48,23 @@ validate_env "$CF_ZONE_ID"
 validate_env "$SRV_DOMAIN"
 validate_env "$WG_ENDPOINT"
 
+# Validate $SUBNET_INDEX, valid range is 0-15
+if [[ ! "$SUBNET_INDEX" =~ ^[0-9]+$ ]] || [ "$SUBNET_INDEX" -lt 0 ] || [ "$SUBNET_INDEX" -gt 15 ]; then
+    echo "Invalid SUBNET_INDEX: $SUBNET_INDEX"
+    exit 1
+fi
+
+# The IP address of this Tproxy node
+IP="10.4.0.$((SUBNET_INDEX + 1))/16"
+# Reserving 5 bits(32 IPs) for server use
+RESERVED_NET="10.4.0.0/27"
+# The client IP range this Tproxy node can allocate
+CLIENT_RANGE="10.4.$((SUBNET_INDEX * 16)).0/20"
+
+echo "IP: $IP"
+echo "RESERVED_NET: $RESERVED_NET"
+echo "CLIENT_RANGE: $CLIENT_RANGE"
+
 # Create tproxy.toml configuration
 cat >$CONFIG_PATH <<EOF
 keep_alive = 10
@@ -95,7 +112,8 @@ renew_timeout = "120s"
 [core.wg]
 public_key = "$PUBLIC_KEY"
 private_key = "$PRIVATE_KEY"
-ip = "10.4.0.1"
+ip = "10.4.0.1/22"
+reserved_net = "10.4.0.1/28"
 listen_port = 51820
 client_ip_range = "10.4.0.0/22"
 config_path = "$DATA_DIR/wireguard/wg-tproxy.conf"
