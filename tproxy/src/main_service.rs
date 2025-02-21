@@ -556,14 +556,16 @@ impl TproxyRpc for RpcHandler {
         if let Err(err) = state.reconfigure() {
             error!("failed to reconfigure: {}", err);
         }
+        let servers = state
+            .state
+            .nodes
+            .values()
+            .map(|n| n.wg_peer.clone())
+            .collect::<Vec<_>>();
         Ok(RegisterCvmResponse {
             wg: Some(WireGuardConfig {
                 client_ip: client_info.ip.to_string(),
-                servers: vec![WireGuardPeer {
-                    pk: state.config.wg.public_key.clone(),
-                    ip: state.config.wg.ip.to_string(),
-                    endpoint: state.config.wg.endpoint.clone(),
-                }],
+                servers,
             }),
             tappd: Some(TappdConfig {
                 external_port: state.config.proxy.listen_port as u32,
