@@ -16,9 +16,15 @@ use tokio::{
 };
 use tracing::{debug, error, info, info_span, Instrument};
 
-use crate::{config::ProxyConfig, main_service::Proxy};
+use crate::{config::ProxyConfig, main_service::Proxy, models::EnteredCounter};
 
-pub(crate) type AddressGroup = smallvec::SmallVec<[Ipv4Addr; 4]>;
+#[derive(Debug, Clone)]
+pub(crate) struct AddressInfo {
+    pub ip: Ipv4Addr,
+    pub counter: Arc<AtomicU64>,
+}
+
+pub(crate) type AddressGroup = smallvec::SmallVec<[AddressInfo; 4]>;
 
 mod io_bridge;
 mod sni;
@@ -112,18 +118,6 @@ fn parse_destination(sni: &str, dotted_base_domain: &str) -> Result<DstInfo> {
 }
 
 pub static NUM_CONNECTIONS: AtomicU64 = AtomicU64::new(0);
-struct ConnectionEntered;
-impl ConnectionEntered {
-    fn new() -> Self {
-        NUM_CONNECTIONS.fetch_add(1, Ordering::Relaxed);
-        Self
-    }
-}
-impl Drop for ConnectionEntered {
-    fn drop(&mut self) {
-        NUM_CONNECTIONS.fetch_sub(1, Ordering::Relaxed);
-    }
-}
 
 async fn handle_connection(
     mut inbound: TcpStream,
@@ -183,7 +177,7 @@ pub async fn run(config: &ProxyConfig, app_state: Proxy) -> Result<()> {
             Ok((inbound, from)) => {
                 let span = info_span!("conn", id = next_connection_id());
                 let _enter = span.enter();
-                let conn_entered = ConnectionEntered::new();
+                let conn_entered = EnteredCounter::new(&NUM_CONNECTIONS);
 
                 info!(%from, "new connection");
                 let app_state = app_state.clone();

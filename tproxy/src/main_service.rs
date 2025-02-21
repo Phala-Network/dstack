@@ -26,7 +26,7 @@ use tracing::{debug, error, info, warn};
 use crate::{
     config::Config,
     models::{InstanceInfo, WgConf},
-    proxy::{AddressGroup, NUM_CONNECTIONS},
+    proxy::{AddressGroup, AddressInfo, NUM_CONNECTIONS},
 };
 
 mod sync_client;
@@ -224,6 +224,7 @@ impl ProxyState {
             public_key: public_key.to_string(),
             reg_time: SystemTime::now(),
             last_seen: SystemTime::now(),
+            connections: Default::default(),
         };
         self.add_instance(host_info.clone());
         Some(host_info)
@@ -270,11 +271,17 @@ impl ProxyState {
 
     pub(crate) fn select_top_n_hosts(&mut self, id: &str) -> Result<AddressGroup> {
         if self.config.proxy.localhost_enabled && id == "localhost" {
-            return Ok(smallvec![Ipv4Addr::new(127, 0, 0, 1)]);
+            return Ok(smallvec![AddressInfo {
+                ip: Ipv4Addr::new(127, 0, 0, 1),
+                counter: Default::default(),
+            }]);
         }
         let n = self.config.proxy.connect_top_n;
         if let Some(instance) = self.state.instances.get(id) {
-            return Ok(smallvec![instance.ip]);
+            return Ok(smallvec![AddressInfo {
+                ip: instance.ip,
+                counter: instance.connections.clone(),
+            }]);
         };
         let app_instances = self.state.apps.get(id).context("app not found")?;
         if n == 0 {
@@ -301,19 +308,25 @@ impl ProxyState {
                 .filter_map(|instance_id| {
                     let instance = self.state.instances.get(instance_id)?;
                     let (_, elapsed) = handshakes.get(&instance.public_key)?;
-                    Some((instance.ip, *elapsed))
+                    Some((instance.ip, *elapsed, instance.connections.clone()))
                 })
                 .collect::<SmallVec<[_; 4]>>(),
         };
         instances.sort_by(|a, b| a.1.cmp(&b.1));
         instances.truncate(n);
-        Ok(instances.into_iter().map(|(ip, _)| ip).collect())
+        Ok(instances
+            .into_iter()
+            .map(|(ip, _, counter)| AddressInfo { ip, counter })
+            .collect())
     }
 
     fn random_select_a_host(&self, id: &str) -> Option<AddressGroup> {
         // Direct instance lookup first
         if let Some(info) = self.state.instances.get(id).cloned() {
-            return Some(smallvec![info.ip]);
+            return Some(smallvec![AddressInfo {
+                ip: info.ip,
+                counter: info.connections.clone(),
+            }]);
         }
 
         let app_instances = self.state.apps.get(id)?;
@@ -335,10 +348,12 @@ impl ProxyState {
         });
 
         let selected = healthy_instances.choose(&mut rand::thread_rng())?;
-        self.state
-            .instances
-            .get(selected)
-            .map(|info| smallvec![info.ip])
+        self.state.instances.get(selected).map(|info| {
+            smallvec![AddressInfo {
+                ip: info.ip,
+                counter: info.connections.clone(),
+            }]
+        })
     }
 
     /// Get latest handshakes
@@ -592,6 +607,7 @@ impl TproxyRpc for RpcHandler {
                 base_domain: base_domain.clone(),
                 port: state.config.proxy.listen_port as u32,
                 latest_handshake: encode_ts(instance.last_seen),
+                num_connections: instance.num_connections(),
             })
             .collect::<Vec<_>>();
         let nodes = state
@@ -630,6 +646,7 @@ impl TproxyRpc for RpcHandler {
                         .unwrap_or_default();
                     ts
                 },
+                num_connections: instance.num_connections(),
             };
             Ok(GetInfoResponse {
                 found: true,
@@ -704,6 +721,7 @@ impl TproxyRpc for RpcHandler {
                 public_key: app.public_key,
                 reg_time: decode_ts(app.reg_time),
                 last_seen: decode_ts(app.last_seen),
+                connections: Default::default(),
             });
         }
 
@@ -741,6 +759,7 @@ impl From<ProxyNodeInfo> for tproxy_rpc::ProxyNodeInfo {
 impl From<InstanceInfo> for tproxy_rpc::AppInstanceInfo {
     fn from(app: InstanceInfo) -> Self {
         Self {
+            num_connections: app.num_connections(),
             instance_id: app.id,
             app_id: app.app_id,
             ip: app.ip.to_string(),

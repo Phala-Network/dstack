@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Iter, BTreeMap},
     net::Ipv4Addr,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
     time::SystemTime,
 };
 use tproxy_rpc::{AcmeInfoResponse, StatusResponse};
@@ -53,6 +57,56 @@ pub struct InstanceInfo {
     pub public_key: String,
     pub reg_time: SystemTime,
     pub last_seen: SystemTime,
+    #[serde(skip)]
+    pub connections: Arc<AtomicU64>,
+}
+
+impl InstanceInfo {
+    pub fn num_connections(&self) -> u64 {
+        self.connections.load(Ordering::Relaxed)
+    }
+}
+
+pub trait Counting {
+    fn inc(&self);
+    fn dec(&self);
+    fn enter(self) -> EnteredCounter<Self>
+    where
+        Self: Sized,
+    {
+        EnteredCounter::new(self)
+    }
+}
+
+impl Counting for Arc<AtomicU64> {
+    fn inc(&self) {
+        self.fetch_add(1, Ordering::Relaxed);
+    }
+    fn dec(&self) {
+        self.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
+impl Counting for &'_ AtomicU64 {
+    fn inc(&self) {
+        self.fetch_add(1, Ordering::Relaxed);
+    }
+    fn dec(&self) {
+        self.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
+pub struct EnteredCounter<C: Counting = Arc<AtomicU64>>(C);
+impl<C: Counting> EnteredCounter<C> {
+    pub fn new(connections: C) -> Self {
+        connections.inc();
+        Self(connections)
+    }
+}
+impl<C: Counting> Drop for EnteredCounter<C> {
+    fn drop(&mut self) {
+        self.0.dec();
+    }
 }
 
 #[derive(Template)]

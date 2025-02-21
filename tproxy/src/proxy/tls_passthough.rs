@@ -3,7 +3,10 @@ use std::fmt::Debug;
 use tokio::{io::AsyncWriteExt, net::TcpStream, task::JoinSet, time::timeout};
 use tracing::{debug, info};
 
-use crate::main_service::Proxy;
+use crate::{
+    main_service::Proxy,
+    models::{Counting, EnteredCounter},
+};
 
 use super::{io_bridge::bridge, AddressGroup};
 
@@ -59,29 +62,31 @@ pub(crate) async fn proxy_with_sni(
 pub(crate) async fn connect_multiple_hosts(
     addresses: AddressGroup,
     port: u16,
-) -> Result<TcpStream> {
+) -> Result<(TcpStream, EnteredCounter)> {
     let mut join_set = JoinSet::new();
     for addr in addresses {
+        let counter = addr.counter.enter();
+        let addr = addr.ip;
         debug!("connecting to {addr}:{port}");
         let future = TcpStream::connect((addr, port));
-        join_set.spawn(async move { future.await.map_err(|e| (e, addr, port)) });
+        join_set.spawn(async move { (future.await.map_err(|e| (e, addr, port)), counter) });
     }
     // select the first successful connection
-    let connection = loop {
-        let result = join_set
+    let (connection, counter) = loop {
+        let (result, counter) = join_set
             .join_next()
             .await
             .context("No connection success")?
             .context("Failed to join the connect task")?;
         match result {
-            Ok(connection) => break connection,
+            Ok(connection) => break (connection, counter),
             Err((e, addr, port)) => {
                 info!("failed to connect to tapp@{addr}:{port}: {e}");
             }
         }
     };
     debug!("connected to {:?}", connection.peer_addr());
-    Ok(connection)
+    Ok((connection, counter))
 }
 
 pub(crate) async fn proxy_to_app(
@@ -92,7 +97,7 @@ pub(crate) async fn proxy_to_app(
     port: u16,
 ) -> Result<()> {
     let addresses = state.lock().select_top_n_hosts(app_id)?;
-    let mut outbound = timeout(
+    let (mut outbound, _counter) = timeout(
         state.config.proxy.timeouts.connect,
         connect_multiple_hosts(addresses.clone(), port),
     )

@@ -139,6 +139,13 @@
             font-family: monospace;
             background-color: #f8f8f8;
         }
+
+        .truncated-id {
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
     <title>Dashboard - Tproxy</title>
     <script>
@@ -233,7 +240,7 @@
         </tr>
         {% for node in status.nodes %}
         <tr class="{% if node.id == status.id %}me{% endif %}">
-            <td>{{ node.id|hex }}</td>
+            <td class="truncated-id" title="{{ node.id|hex }}">{{ node.id|hex }}</td>
             <td class="timestamp">{{ node.last_seen }}</td>
             {% if let Some(wg_peer) = node.wg_peer %}
             <td>{{ wg_peer.ip }}</td>
@@ -253,13 +260,15 @@
             <th>App ID</th>
             <th>IP</th>
             <th>Last Seen</th>
+            <th>Connections</th>
         </tr>
         {% for host in status.hosts %}
         <tr>
-            <td>{{ host.instance_id }}</td>
-            <td>{{ host.app_id }}</td>
+            <td class="truncated-id" title="{{ host.instance_id }}">{{ host.instance_id }}</td>
+            <td class="truncated-id" title="{{ host.app_id }}">{{ host.app_id }}</td>
             <td>{{ host.ip }}</td>
             <td class="timestamp">{{ host.latest_handshake }}</td>
+            <td>{{ host.num_connections }}</td>
         </tr>
         {% endfor %}
     </table>
