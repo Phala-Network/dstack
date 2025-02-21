@@ -2,7 +2,7 @@ use std::{fmt::Debug, path::Path};
 
 use anyhow::{Context, Result};
 use bollard::{container::ListContainersOptions, Docker};
-use cmd_lib::run_cmd as cmd;
+use cmd_lib::{run_cmd as cmd, run_fun};
 use fs_err as fs;
 use guest_api::{
     guest_api_server::{GuestApiRpc, GuestApiServer},
@@ -65,6 +65,7 @@ impl GuestApiRpc for GuestApiHandler {
             dns_servers: get_dns_servers(),
             gateways: get_gateways(),
             interfaces: get_interfaces(),
+            wg_info: get_wg_info().unwrap_or_else(|e| e.to_string()),
         })
     }
 
@@ -195,6 +196,11 @@ fn get_dns_servers() -> Vec<String> {
         }
     }
     dns_servers
+}
+
+fn get_wg_info() -> Result<String> {
+    let output = run_fun!(wg)?;
+    Ok(output)
 }
 
 pub async fn notify_host(event: &str, payload: &str) -> Result<()> {

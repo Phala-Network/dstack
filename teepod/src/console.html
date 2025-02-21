@@ -411,6 +411,13 @@
             border-radius: 4px;
             font-family: monospace;
         }
+
+        .truncated-id {
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
     <style>
         .docker-registry-section {
@@ -461,6 +468,15 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             font-family: monospace;
+        }
+    </style>
+    <style>
+        .ml-text-ro {
+            white-space: pre-wrap;
+            background: #f1f1f1;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
         }
     </style>
 </head>
@@ -636,7 +652,6 @@
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr>
-                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">App ID</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Name</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Status</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd;">Uptime</th>
@@ -652,10 +667,9 @@
                                         style="padding: 2px 6px; min-width: 24px;">
                                         {{ expandedVMs.has(vm.id) ? '−' : '+' }}
                                     </button>
-                                    {{ vm.app_id }}
+                                    {{ vm.name }}
                                 </div>
                             </td>
-                            <td style="padding: 12px;">{{ vm.name }}</td>
                             <td style="padding: 12px;">
                                 <span :class="'status-' + vm.status.toLowerCase()">{{ vmStatus(vm) }}</span>
                             </td>
@@ -734,6 +748,12 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        <div>
+                                            <div class="detail-item">
+                                                <span class="detail-label">WireGuard Info:</span>
+                                                <pre class="ml-text-ro">{{ networkInfo[vm.id].wg_info }}</pre>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <h4 style="margin: 0 0 12px 0;">VM Configuration</h4>
@@ -779,17 +799,20 @@
                                                 <span class="detail-value">{{ vm.appCompose?.name }}</span>
                                             </div>
                                             <div class="detail-item">
+                                                <span class="detail-label">App ID:</span>
+                                                <span class="detail-value truncated-id">{{ vm.app_id }}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="detail-label">Instance ID:</span>
+                                                <span class="detail-value truncated-id">{{ vm.instance_id }}</span>
+                                            </div>
+                                            <div class="detail-item">
                                                 <span class="detail-label">Runner:</span>
                                                 <span class="detail-value">{{ vm.appCompose?.runner }}</span>
                                             </div>
                                             <div class="detail-item">
                                                 <span class="detail-label">Features:</span>
-                                                <span class="detail-value">{{ getFlags(vm) ||
-                                                    'None' }}</span>
-                                            </div>
-                                            <div class="detail-item">
-                                                <span class="detail-label">Instance ID:</span>
-                                                <span class="detail-value">{{ vm.instance_id }}</span>
+                                                <span class="detail-value">{{ getFlags(vm) || 'None' }}</span>
                                             </div>
                                         </div>
 
