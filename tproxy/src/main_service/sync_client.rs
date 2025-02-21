@@ -63,6 +63,7 @@ impl SyncClient {
             .ok()
             .context("Timeout while syncing state")?
             .context("Failed to sync state")?;
+        info!("Synced state to {url}");
         Ok(())
     }
 

@@ -469,6 +469,8 @@ impl ProxyState {
                 if !wg_changed {
                     wg_changed = existing.public_key != app.public_key || existing.ip != app.ip;
                 }
+            } else {
+                wg_changed = true;
             }
             self.add_instance(app);
         }

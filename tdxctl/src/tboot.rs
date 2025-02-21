@@ -10,7 +10,7 @@ use ra_tls::{
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
-use tproxy_rpc::{tproxy_client::TproxyClient, RegisterCvmRequest};
+use tproxy_rpc::{tproxy_client::TproxyClient, RegisterCvmRequest, WireGuardPeer};
 use tracing::info;
 
 use crate::{
@@ -174,14 +174,14 @@ impl<'a> Setup<'a> {
             ListenPort = {wg_listen_port}\n\
             Address = {client_ip}/32\n\n"
         );
-        for peer in &wg_info.servers {
+        for WireGuardPeer { pk, ip, endpoint } in &wg_info.servers {
+            let ip = ip.split('/').next().unwrap_or_default();
             config.push_str(&format!(
                 "[Peer]\n\
-                PublicKey = {}\n\
-                AllowedIPs = {}/32\n\
-                Endpoint = {}\n\
+                PublicKey = {pk}\n\
+                AllowedIPs = {ip}/32\n\
+                Endpoint = {endpoint}\n\
                 PersistentKeepalive = 25\n",
-                peer.pk, peer.ip, peer.endpoint
             ));
         }
         fs::create_dir_all(self.resolve("/etc/wireguard"))?;

@@ -28,14 +28,14 @@ impl WgConfig {
 }
 
 fn validate(ip: Ipv4Net, reserved_net: Ipv4Net, client_ip_range: Ipv4Net) -> Result<()> {
-    // The reserved prefix must be in the network
-    if !reserved_net.contains(&ip.network()) {
+    // The reserved net must be in the network
+    if !ip.contains(&reserved_net) {
         bail!("Reserved net is not in the network");
     }
 
     // The ip must be in the reserved net
     if !reserved_net.contains(&ip.addr()) {
-        bail!("IP is not in the reserved net");
+        bail!("Wg peer IP is not in the reserved net");
     }
 
     // The client ip range must be in the network

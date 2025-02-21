@@ -226,14 +226,23 @@
     <table>
         <tr>
             <th>ID</th>
-            <th>URL</th>
             <th>Last Seen</th>
+            <th>Wg IP</th>
+            <th>Wg Endpoint</th>
+            <th>URL</th>
         </tr>
         {% for node in status.nodes %}
-        <tr>
-            <td>{{ node.id|hex }} {% if node.id == status.id %} (me) {% endif %}</td>
-            <td>{{ node.url }}</td>
+        <tr class="{% if node.id == status.id %}me{% endif %}">
+            <td>{{ node.id|hex }}</td>
             <td class="timestamp">{{ node.last_seen }}</td>
+            {% if let Some(wg_peer) = node.wg_peer %}
+            <td>{{ wg_peer.ip }}</td>
+            <td>{{ wg_peer.endpoint }}</td>
+            {% else %}
+            <td>N/A</td>
+            <td>N/A</td>
+            {% endif %}
+            <td>{{ node.url }}</td>
         </tr>
         {% endfor %}
     </table>
