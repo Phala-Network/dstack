@@ -84,28 +84,32 @@ impl Proxy {
             None
         };
         let config = Arc::new(config);
-        let state_path = &config.state_path;
-        let state = if fs::metadata(state_path).is_ok() {
-            let state_str = fs::read_to_string(state_path).context("Failed to read state")?;
-            serde_json::from_str(&state_str).context("Failed to load state")?
-        } else {
-            let mut nodes = BTreeMap::new();
-            nodes.insert(
-                config.wg.public_key.clone(),
-                ProxyNodeInfo {
-                    pubkey: config.wg.public_key.clone(),
-                    url: config.sync.my_url.clone(),
-                    last_seen: SystemTime::now(),
-                },
-            );
-            ProxyStateMut {
-                nodes,
-                apps: BTreeMap::new(),
-                top_n: BTreeMap::new(),
-                instances: BTreeMap::new(),
-                allocated_addresses: BTreeSet::new(),
-            }
-        };
+        let state = fs::metadata(&config.state_path)
+            .is_ok()
+            .then(|| load_state(&config.state_path))
+            .transpose()
+            .unwrap_or_else(|err| {
+                error!("Failed to load state: {err}");
+                None
+            })
+            .unwrap_or_else(|| {
+                let mut nodes = BTreeMap::new();
+                nodes.insert(
+                    config.wg.public_key.clone(),
+                    ProxyNodeInfo {
+                        pubkey: config.wg.public_key.clone(),
+                        url: config.sync.my_url.clone(),
+                        last_seen: SystemTime::now(),
+                    },
+                );
+                ProxyStateMut {
+                    nodes,
+                    apps: BTreeMap::new(),
+                    top_n: BTreeMap::new(),
+                    instances: BTreeMap::new(),
+                    allocated_addresses: BTreeSet::new(),
+                }
+            });
         let inner = Arc::new(Mutex::new(ProxyState {
             config: config.clone(),
             state,
@@ -119,6 +123,11 @@ impl Proxy {
             my_app_id,
         })
     }
+}
+
+fn load_state(state_path: &str) -> Result<ProxyStateMut> {
+    let state_str = fs::read_to_string(state_path).context("Failed to read state")?;
+    serde_json::from_str(&state_str).context("Failed to load state")
 }
 
 fn start_recycle_thread(state: Weak<Mutex<ProxyState>>, config: Arc<Config>) {
@@ -444,7 +453,6 @@ impl ProxyState {
         }
 
         let mut wg_changed = false;
-        let mut state_changed = false;
         for app in apps {
             if let Some(existing) = self.state.instances.get(&app.id) {
                 let existing_ts = (existing.reg_time, existing.last_seen);
@@ -456,13 +464,12 @@ impl ProxyState {
                     wg_changed = existing.public_key != app.public_key || existing.ip != app.ip;
                 }
             }
-            state_changed = true;
             self.add_instance(app);
         }
-        info!("updated, wg_changed: {wg_changed}, state_changed: {state_changed}");
+        info!("updated, wg_changed: {wg_changed}");
         if wg_changed {
             self.reconfigure()?;
-        } else if state_changed {
+        } else {
             self.save_state()?;
         }
         Ok(())

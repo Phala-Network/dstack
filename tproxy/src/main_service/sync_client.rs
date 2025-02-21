@@ -50,7 +50,7 @@ impl SyncClient {
                 .into_client()
                 .context("failed to create client")?
         } else {
-            RaClient::new(url.into(), true)?
+            RaClient::new(url, true)?
         };
         Ok(TproxyClient::new(client))
     }
