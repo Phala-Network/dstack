@@ -5359,6 +5359,7 @@ dependencies = [
  "safe-write",
  "serde",
  "serde_json",
+ "sha2",
  "shared_child",
  "smallvec",
  "tappd-rpc",

@@ -124,7 +124,12 @@ pub(crate) async fn sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config
 
         let (mut nodes, apps) = proxy.lock().unwrap().dump_state();
         // Sort nodes by pubkey
-        nodes.sort_by(|a, b| a.pubkey.cmp(&b.pubkey));
+        nodes.sort_by(|a, b| a.id.cmp(&b.id));
+
+        let self_idx = nodes
+            .iter()
+            .position(|n| n.wg_peer.pk == config.wg.public_key)
+            .unwrap_or(0);
 
         let state = TproxyState {
             nodes: nodes.into_iter().map(|n| n.into()).collect(),
@@ -138,13 +143,6 @@ pub(crate) async fn sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config
                 .await;
         } else {
             let nodes = &state.nodes;
-            // Find index of self node
-            let self_idx = state
-                .nodes
-                .iter()
-                .position(|n| n.pubkey == config.wg.public_key)
-                .unwrap_or(0);
-
             // Try nodes after self, wrapping around to beginning
             let mut success = false;
             for i in 1..nodes.len() {

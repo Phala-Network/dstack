@@ -41,8 +41,9 @@ pub struct Proxy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ProxyNodeInfo {
-    pub pubkey: String,
+    pub id: Vec<u8>,
     pub url: String,
+    pub wg_peer: WireGuardPeer,
     pub last_seen: SystemTime,
 }
 
@@ -81,8 +82,13 @@ impl Proxy {
                 nodes.insert(
                     config.wg.public_key.clone(),
                     ProxyNodeInfo {
-                        pubkey: config.wg.public_key.clone(),
+                        id: config.id(),
                         url: config.sync.my_url.clone(),
+                        wg_peer: WireGuardPeer {
+                            pk: config.wg.public_key.clone(),
+                            ip: config.wg.ip.to_string(),
+                            endpoint: config.wg.endpoint.clone(),
+                        },
                         last_seen: SystemTime::now(),
                     },
                 );
@@ -182,7 +188,7 @@ fn start_sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config>) {
 impl ProxyState {
     fn alloc_ip(&mut self) -> Option<Ipv4Addr> {
         for ip in self.config.wg.client_ip_range.hosts() {
-            if ip == self.config.wg.ip {
+            if self.config.wg.reserved_net.contains(&ip) {
                 continue;
             }
             if self.state.allocated_addresses.contains(&ip) {
@@ -444,12 +450,12 @@ impl ProxyState {
         apps: Vec<InstanceInfo>,
     ) -> Result<()> {
         for node in proxy_nodes {
-            if let Some(existing) = self.state.nodes.get(&node.pubkey) {
+            if let Some(existing) = self.state.nodes.get(&node.wg_peer.pk) {
                 if node.last_seen <= existing.last_seen {
                     continue;
                 }
             }
-            self.state.nodes.insert(node.pubkey.clone(), node);
+            self.state.nodes.insert(node.wg_peer.pk.clone(), node);
         }
 
         let mut wg_changed = false;
@@ -491,14 +497,9 @@ impl ProxyState {
             };
             instance.last_seen = decode_ts(ts);
         }
-        self.state.nodes.insert(
-            self.config.wg.public_key.clone(),
-            ProxyNodeInfo {
-                pubkey: self.config.wg.public_key.clone(),
-                url: self.config.sync.my_url.clone(),
-                last_seen: SystemTime::now(),
-            },
-        );
+        if let Some(node) = self.state.nodes.get_mut(&self.config.wg.public_key) {
+            node.last_seen = SystemTime::now();
+        }
         Ok(())
     }
 }
@@ -598,7 +599,7 @@ impl TproxyRpc for RpcHandler {
             .collect::<Vec<_>>();
         Ok(StatusResponse {
             url: state.config.sync.my_url.clone(),
-            pubkey: state.config.wg.public_key.clone(),
+            id: state.config.id(),
             bootnode_url: state.config.sync.bootnode.clone(),
             nodes,
             hosts,
@@ -684,7 +685,8 @@ impl TproxyRpc for RpcHandler {
 
         for node in request.nodes {
             nodes.push(ProxyNodeInfo {
-                pubkey: node.pubkey,
+                id: node.id,
+                wg_peer: node.wg_peer.context("wg_peer is missing")?,
                 last_seen: decode_ts(node.last_seen),
                 url: node.url,
             });
@@ -724,7 +726,8 @@ impl RpcCall<Proxy> for RpcHandler {
 impl From<ProxyNodeInfo> for tproxy_rpc::ProxyNodeInfo {
     fn from(node: ProxyNodeInfo) -> Self {
         Self {
-            pubkey: node.pubkey,
+            id: node.id,
+            wg_peer: Some(node.wg_peer),
             last_seen: encode_ts(node.last_seen),
             url: node.url,
         }

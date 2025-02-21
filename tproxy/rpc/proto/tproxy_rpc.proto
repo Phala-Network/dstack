@@ -47,18 +47,18 @@ message TappdConfig {
 
 // StatusResponse is the response for Status.
 message StatusResponse {
-  // The list of proxied CVMs.
-  repeated HostInfo hosts = 1;
-  // The list of proxy nodes.
-  repeated ProxyNodeInfo nodes = 2;
-  // My public key.
-  string pubkey = 3;
+  // Peer id
+  bytes id = 1;
   // My URL.
-  string url = 4;
+  string url = 2;
   // The bootnode URL.
-  string bootnode_url = 5;
+  string bootnode_url = 3;
   // Number of established proxy connections.
-  uint64 num_connections = 6;
+  uint64 num_connections = 4;
+  // The list of proxied CVMs.
+  repeated HostInfo hosts = 5;
+  // The list of proxy nodes.
+  repeated ProxyNodeInfo nodes = 6;
 }
 
 // HostInfo is the information of a host.
@@ -102,12 +102,14 @@ message GetMetaResponse {
 }
 
 message ProxyNodeInfo {
-  // The wireguard public key of the node.
-  string pubkey = 1;
+  // The ID of the node.
+  bytes id = 1;
   // The RPC URL of the node.
   string url = 2;
   // The last seen time of the node.
   uint64 last_seen = 3;
+  // The wireguard peer info.
+  WireGuardPeer wg_peer = 4;
 }
 
 message AppInstanceInfo {

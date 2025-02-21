@@ -191,7 +191,7 @@
         </tr>
         <tr>
             <td>ID</td>
-            <td>{{ status.pubkey }}</td>
+            <td>{{ status.id|hex }}</td>
         </tr>
         <tr>
             <td>Bootnode URL</td>
@@ -231,7 +231,7 @@
         </tr>
         {% for node in status.nodes %}
         <tr>
-            <td>{{ node.pubkey }} {% if node.pubkey == status.pubkey %} (me) {% endif %}</td>
+            <td>{{ node.id|hex }} {% if node.id == status.id %} (me) {% endif %}</td>
             <td>{{ node.url }}</td>
             <td class="timestamp">{{ node.last_seen }}</td>
         </tr>
