@@ -188,6 +188,9 @@ fn start_sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config>) {
 impl ProxyState {
     fn alloc_ip(&mut self) -> Option<Ipv4Addr> {
         for ip in self.config.wg.client_ip_range.hosts() {
+            if self.config.wg.ip.broadcast() == ip {
+                continue;
+            }
             if self.config.wg.reserved_net.contains(&ip) {
                 continue;
             }
