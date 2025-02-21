@@ -67,22 +67,6 @@ impl Proxy {
     }
 
     pub async fn new(config: Config, my_app_id: Option<Vec<u8>>) -> Result<Self> {
-        let certbot = if config.certbot.enabled {
-            info!("Starting certbot...");
-            let certbot = config
-                .certbot
-                .build_bot()
-                .await
-                .context("Failed to build certbot")?;
-            info!("First renewal...");
-            certbot.renew(false).await.context("Failed to renew cert")?;
-            let certbot = Arc::new(certbot);
-            start_certbot_task(certbot.clone());
-            Some(certbot)
-        } else {
-            info!("certbot is disabled");
-            None
-        };
         let config = Arc::new(config);
         let state = fs::metadata(&config.state_path)
             .is_ok()
@@ -116,6 +100,7 @@ impl Proxy {
         }));
         start_recycle_thread(Arc::downgrade(&inner), config.clone());
         start_sync_task(Arc::downgrade(&inner), config.clone());
+        let certbot = start_certbot_task(&config).await?;
         Ok(Self {
             config,
             inner,
@@ -146,24 +131,39 @@ fn start_recycle_thread(state: Weak<Mutex<ProxyState>>, config: Arc<Config>) {
     });
 }
 
-fn start_certbot_task(certbot: Arc<CertBot>) {
+async fn start_certbot_task(config: &Arc<Config>) -> Result<Option<Arc<CertBot>>> {
+    if !config.certbot.enabled {
+        info!("Certbot is disabled");
+        return Ok(None);
+    }
+    info!("Starting certbot...");
+    let certbot = config
+        .certbot
+        .build_bot()
+        .await
+        .context("Failed to build certbot")?;
+    info!("First renewal...");
+    certbot.renew(false).await.context("Failed to renew cert")?;
+    let certbot = Arc::new(certbot);
+    let certbot_clone = certbot.clone();
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(certbot.renew_interval()).await;
             match certbot.renew(false).await {
                 Err(e) => {
-                    error!("failed to run certbot: {e:?}");
+                    error!("Failed to run certbot: {e:?}");
                 }
                 Ok(renewed) => {
                     if renewed {
                         // Restart self
-                        info!("certificate renewed, restarting...");
+                        info!("Certificate renewed, restarting...");
                         std::process::exit(0);
                     }
                 }
             }
         }
     });
+    Ok(Some(certbot_clone))
 }
 
 fn start_sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config>) {
