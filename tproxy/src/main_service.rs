@@ -445,7 +445,7 @@ impl ProxyState {
     ) -> Result<()> {
         for node in proxy_nodes {
             if let Some(existing) = self.state.nodes.get(&node.pubkey) {
-                if node.last_seen > existing.last_seen {
+                if node.last_seen <= existing.last_seen {
                     continue;
                 }
             }
