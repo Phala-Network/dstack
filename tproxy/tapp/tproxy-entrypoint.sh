@@ -10,8 +10,11 @@ KMS_URL=$(jq -j .kms_url /tapp/config.json)
 
 CERTBOT_WORKDIR="$DATA_DIR/rproxy/certs"
 
-ACME_URL="https://acme-v02.api.letsencrypt.org/directory"
-# ACME_URL=https://acme-staging-v02.api.letsencrypt.org/directory
+if [ "$ACME_STAGING" = "yes" ]; then
+    ACME_URL="https://acme-staging-v02.api.letsencrypt.org/directory"
+else
+    ACME_URL="https://acme-v02.api.letsencrypt.org/directory"
+fi
 
 if [ -f "$CONFIG_PATH" ]; then
     echo "Configuration file already exists: $CONFIG_PATH"
@@ -26,8 +29,8 @@ if [ -f "$WG_KEY_PATH" ]; then
     PRIVATE_KEY=$(cat "$WG_KEY_PATH")
 else
     PRIVATE_KEY=$(wg genkey)
-    echo "$PRIVATE_KEY" > "$WG_KEY_PATH"
-    chmod 600 "$WG_KEY_PATH"  # Secure the private key file
+    echo "$PRIVATE_KEY" >"$WG_KEY_PATH"
+    chmod 600 "$WG_KEY_PATH" # Secure the private key file
 fi
 PUBLIC_KEY=$(echo "$PRIVATE_KEY" | wg pubkey)
 
@@ -46,7 +49,7 @@ validate_env "$SRV_DOMAIN"
 validate_env "$WG_ENDPOINT"
 
 # Create tproxy.toml configuration
-cat > $CONFIG_PATH << EOF
+cat >$CONFIG_PATH <<EOF
 keep_alive = 10
 log_level = "info"
 address = "0.0.0.0"
