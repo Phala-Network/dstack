@@ -107,7 +107,7 @@ auto_set_caa = true
 domain = "*.$SRV_DOMAIN"
 renew_interval = "1h"
 renew_before_expiration = "10d"
-renew_timeout = "120s"
+renew_timeout = "5m"
 
 [core.wg]
 public_key = "$PUBLIC_KEY"
