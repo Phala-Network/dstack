@@ -324,6 +324,8 @@ impl AcmeClient {
 
         let mut unsettled_challenges = challenges.to_vec();
 
+        info!("Unsettled challenges: {unsettled_challenges:#?}");
+
         'outer: loop {
             use hickory_resolver::AsyncResolver;
 
