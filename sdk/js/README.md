@@ -52,7 +52,7 @@ For `tdxQuote`, it supports a range of hash algorithms, including:
 The SDK provides integration with [viem](https://viem.sh/) for Ethereum account management:
 
 ```typescript
-import { toViemAccount } from 'tappd-sdk/viem';
+import { toViemAccount } from '@phala/dstack-sdk/viem';
 
 const keyResult = await client.deriveKey('<unique-id>');
 const account = toViemAccount(keyResult);
@@ -64,7 +64,7 @@ const account = toViemAccount(keyResult);
 The SDK provides integration with [Solana Web3.js](https://solana-labs.github.io/solana-web3.js/) for Solana account management:
 
 ```typescript
-import { toKeypair } from 'tappd-sdk/solana';
+import { toKeypair } from '@phala/dstack-sdk/solana';
 
 const keyResult = await client.deriveKey('<unique-id>');
 const keypair = toKeypair(keyResult);
@@ -76,7 +76,7 @@ const keypair = toKeypair(keyResult);
 The SDK includes utilities for encrypting environment variables using X25519 key exchange and AES-GCM. This feature is handy for interacting with the bare DStack Teepod API or the Phala Cloud API.
 
 ```typescript
-import { encryptEnvVars, type EnvVar } from 'tappd-sdk/encrypt-env-vars';
+import { encryptEnvVars, type EnvVar } from '@phala/dstack-sdk/encrypt-env-vars';
 
 const envVars: EnvVar[] = [
   { key: 'API_KEY', value: 'secret123' },
