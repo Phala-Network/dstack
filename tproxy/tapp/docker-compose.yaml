@@ -14,13 +14,11 @@ services:
         WORKDIR /app/dstack/tproxy/tapp
         RUN cargo build --release -p tproxy
         ENTRYPOINT ["/app/dstack/tproxy/tapp/tproxy-entrypoint.sh"]
-        CMD ["/app/dstack/target/release/tproxy", "-c", "/etc/tproxy/tproxy.toml"]
+        CMD ["/app/dstack/target/release/tproxy", "-c", "/data/tproxy/tproxy.toml"]
     volumes:
       - /var/run/tappd.sock:/var/run/tappd.sock
       - /tapp:/tapp
-      - tproxy-volume:/data
-      - tproxy-conf:/etc/tproxy
-      - rproxy-conf:/etc/rproxy
+      - data:/data
     network_mode: host
     privileged: true
     environment:
@@ -35,6 +33,4 @@ services:
     restart: always
 
 volumes:
-  tproxy-volume:
-  tproxy-conf:
-  rproxy-conf:
+  data:
