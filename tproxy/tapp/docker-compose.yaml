@@ -4,17 +4,17 @@ services:
       context: .
       dockerfile_inline: |
         FROM rust:1.84@sha256:738ae99a3d75623f41e6882566b4ef37e38a9840244a47efd4a0ca22e9628b88
-        WORKDIR /app
+        WORKDIR /src
         RUN apt-get update && apt-get install -y \
             git build-essential libssl-dev protobuf-compiler \
             libprotobuf-dev wireguard-tools iproute2 libclang-dev jq
         RUN git clone https://github.com/Dstack-TEE/dstack.git && \
             cd dstack && \
             git checkout TPROXY_REV
-        WORKDIR /app/dstack/tproxy/tapp
+        WORKDIR /src/dstack/tproxy/tapp
         RUN cargo build --release -p tproxy
-        ENTRYPOINT ["/app/dstack/tproxy/tapp/tproxy-entrypoint.sh"]
-        CMD ["/app/dstack/target/release/tproxy", "-c", "/data/tproxy/tproxy.toml"]
+        ENTRYPOINT ["/src/dstack/tproxy/tapp/tproxy-entrypoint.sh"]
+        CMD ["/src/dstack/target/release/tproxy", "-c", "/data/tproxy/tproxy.toml"]
     volumes:
       - /var/run/tappd.sock:/var/run/tappd.sock
       - /tapp:/tapp

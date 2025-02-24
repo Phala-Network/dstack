@@ -52,7 +52,7 @@ pub(crate) struct ProxyNodeInfo {
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct ProxyStateMut {
-    nodes: BTreeMap<Vec<u8>, ProxyNodeInfo>,
+    nodes: BTreeMap<String, ProxyNodeInfo>,
     apps: BTreeMap<String, BTreeSet<String>>,
     instances: BTreeMap<String, InstanceInfo>,
     allocated_addresses: BTreeSet<Ipv4Addr>,
@@ -82,7 +82,7 @@ impl Proxy {
             })
             .unwrap_or_default();
         state.nodes.insert(
-            config.id().clone(),
+            config.wg.public_key.clone(),
             ProxyNodeInfo {
                 id: config.id(),
                 url: config.sync.my_url.clone(),
@@ -433,7 +433,7 @@ impl ProxyState {
                 continue;
             }
             if node.last_seen.elapsed().unwrap_or_default() > self.config.recycle.node_timeout {
-                staled_nodes.push(node.id.clone());
+                staled_nodes.push(node.wg_peer.pk.clone());
             }
         }
         for id in staled_nodes {
@@ -490,7 +490,7 @@ impl ProxyState {
             }
         }
         for node in node_map.into_values() {
-            self.state.nodes.insert(node.id.clone(), node);
+            self.state.nodes.insert(node.wg_peer.pk.clone(), node);
         }
     }
 
@@ -506,12 +506,12 @@ impl ProxyState {
             if node.url == self.config.sync.my_url {
                 continue;
             }
-            if let Some(existing) = self.state.nodes.get(&node.id) {
+            if let Some(existing) = self.state.nodes.get(&node.wg_peer.pk) {
                 if node.last_seen <= existing.last_seen {
                     continue;
                 }
             }
-            self.state.nodes.insert(node.id.clone(), node);
+            self.state.nodes.insert(node.wg_peer.pk.clone(), node);
         }
         self.dedup_nodes();
 
@@ -556,7 +556,7 @@ impl ProxyState {
             };
             instance.last_seen = decode_ts(ts);
         }
-        if let Some(node) = self.state.nodes.get_mut(&self.config.id()) {
+        if let Some(node) = self.state.nodes.get_mut(&self.config.wg.public_key) {
             node.last_seen = SystemTime::now();
         }
         Ok(())
