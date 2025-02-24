@@ -15,6 +15,11 @@
       "import": "./dist/encrypt-env-vars.js",
       "require": "./dist/encrypt-env-vars.js",
       "types": "./dist/encrypt-env-vars.d.ts"
+    },
+    "./solana": {
+      "import": "./dist/solana.js",
+      "require": "./dist/solana.js",
+      "types": "./dist/solana.d.ts"
     }
   },
   "engines": {
@@ -36,17 +41,22 @@
   },
   "optionalDependencies": {
     "viem": "^2.21.0 <3.0.0",
-    "@noble/curves": "^1.8.1"
+    "@noble/curves": "^1.8.1",
+    "@solana/web3.js": "^1.98.0"
   },
   "peerDependencies": {
     "viem": "^2.21.0 <3.0.0",
-    "@noble/curves": "^1.8.1"
+    "@noble/curves": "^1.8.1",
+    "@solana/web3.js": "^1.98.0"
   },
   "peerDependenciesMeta": {
     "viem": {
       "optional": true
     },
     "@noble/curves": {
+      "optional": true
+    },
+    "@solana/web3.js": {
       "optional": true
     }
   }

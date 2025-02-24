@@ -15,7 +15,7 @@ import { TappdClient } from '@phala/dstack-sdk';
 
 const client = new TappdClient();
 
-// Causion: You don’t need to do this most of the time.
+// Causion: You don't need to do this most of the time.
 const httpClient = new TappdClient('http://localhost:8000');
 
 // Get the information of the Base Image.
@@ -57,6 +57,18 @@ import { toViemAccount } from 'tappd-sdk/viem';
 const keyResult = await client.deriveKey('<unique-id>');
 const account = toViemAccount(keyResult);
 // Use the account with viem operations
+```
+
+## Solana Integration
+
+The SDK provides integration with [Solana Web3.js](https://solana-labs.github.io/solana-web3.js/) for Solana account management:
+
+```typescript
+import { toKeypair } from 'tappd-sdk/solana';
+
+const keyResult = await client.deriveKey('<unique-id>');
+const keypair = toKeypair(keyResult);
+// Use the keypair with Solana Web3.js operations
 ```
 
 ## Environment Variables Encryption
