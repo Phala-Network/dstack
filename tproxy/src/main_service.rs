@@ -15,6 +15,8 @@ use rinja::Template as _;
 use safe_write::safe_write;
 use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
+use sync_client::SyncEvent;
+use tokio::sync::mpsc::{self, Receiver, Sender};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
     AcmeInfoResponse, GetInfoRequest, GetInfoResponse, GetMetaResponse, HostInfo as PbHostInfo,
@@ -36,6 +38,7 @@ pub struct Proxy {
     pub(crate) config: Arc<Config>,
     pub(crate) certbot: Option<Arc<CertBot>>,
     my_app_id: Option<Vec<u8>>,
+    sync_tx: Sender<SyncEvent>,
     inner: Arc<Mutex<ProxyState>>,
 }
 
@@ -96,13 +99,15 @@ impl Proxy {
             state,
         }));
         start_recycle_thread(Arc::downgrade(&inner), config.clone());
-        start_sync_task(Arc::downgrade(&inner), config.clone());
+        let (sync_tx, sync_rx) = mpsc::channel(100);
+        start_sync_task(Arc::downgrade(&inner), config.clone(), sync_rx);
         let certbot = start_certbot_task(&config).await?;
         Ok(Self {
             config,
             inner,
             certbot,
             my_app_id,
+            sync_tx,
         })
     }
 }
@@ -163,13 +168,17 @@ async fn start_certbot_task(config: &Arc<Config>) -> Result<Option<Arc<CertBot>>
     Ok(Some(certbot_clone))
 }
 
-fn start_sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config>) {
+fn start_sync_task(
+    proxy: Weak<Mutex<ProxyState>>,
+    config: Arc<Config>,
+    event_rx: Receiver<SyncEvent>,
+) {
     if !config.sync.enabled {
         info!("sync is disabled");
         return;
     }
     tokio::spawn(async move {
-        match sync_client::sync_task(proxy, config).await {
+        match sync_client::sync_task(proxy, config, event_rx).await {
             Ok(_) => info!("Sync task exited"),
             Err(err) => error!("Failed to run sync task: {err}"),
         }
@@ -594,7 +603,7 @@ impl TproxyRpc for RpcHandler {
             .values()
             .map(|n| n.wg_peer.clone())
             .collect::<Vec<_>>();
-        Ok(RegisterCvmResponse {
+        let response = RegisterCvmResponse {
             wg: Some(WireGuardConfig {
                 client_ip: client_info.ip.to_string(),
                 servers,
@@ -604,7 +613,11 @@ impl TproxyRpc for RpcHandler {
                 internal_port: state.config.proxy.tappd_port as u32,
                 domain: state.config.proxy.base_domain.clone(),
             }),
-        })
+        };
+        if let Err(err) = self.state.sync_tx.try_send(SyncEvent::Broadcast) {
+            warn!("Failed to talk to sync task: {err}");
+        }
+        Ok(response)
     }
 
     async fn status(self) -> Result<StatusResponse> {

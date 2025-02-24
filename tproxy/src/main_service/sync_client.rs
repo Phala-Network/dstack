@@ -7,12 +7,17 @@ use std::{
 use anyhow::{Context, Result};
 use ra_rpc::client::{RaClient, RaClientConfig};
 use tappd_rpc::DeriveKeyArgs;
+use tokio::sync::mpsc::Receiver;
 use tproxy_rpc::{tproxy_client::TproxyClient, TproxyState};
 use tracing::{error, info};
 
 use crate::{config::Config, tappd_client};
 
 use super::{ProxyNodeInfo, ProxyState};
+
+pub enum SyncEvent {
+    Broadcast,
+}
 
 struct SyncClient {
     in_tapp: bool,
@@ -79,7 +84,11 @@ impl SyncClient {
     }
 }
 
-pub(crate) async fn sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config>) -> Result<()> {
+pub(crate) async fn sync_task(
+    proxy: Weak<Mutex<ProxyState>>,
+    config: Arc<Config>,
+    mut event_rx: Receiver<SyncEvent>,
+) -> Result<()> {
     let sync_client = if config.run_as_tapp {
         let tappd_client = tappd_client().context("Failed to create tappd_client")?;
         let keys = tappd_client
@@ -119,9 +128,8 @@ pub(crate) async fn sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config
     };
 
     let mut last_broadcast_time = Instant::now();
-
+    let mut broadcast = false;
     loop {
-        let broadcast = last_broadcast_time.elapsed() >= config.sync.broadcast_interval;
         if broadcast {
             last_broadcast_time = Instant::now();
         }
@@ -187,7 +195,22 @@ pub(crate) async fn sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config
             }
         }
 
-        tokio::time::sleep(config.sync.interval).await;
+        tokio::select! {
+            event = event_rx.recv() => {
+                let Some(event) = event else {
+                    info!("Event channel closed, stopping sync task");
+                    break;
+                };
+                match event {
+                    SyncEvent::Broadcast => {
+                        broadcast = true;
+                    }
+                }
+            }
+            _ = tokio::time::sleep(config.sync.interval) => {
+                broadcast = last_broadcast_time.elapsed() >= config.sync.broadcast_interval;
+            }
+        }
     }
     Ok(())
 }
