@@ -47,7 +47,7 @@ pub(crate) struct ProxyNodeInfo {
     pub last_seen: SystemTime,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 struct ProxyStateMut {
     nodes: BTreeMap<Vec<u8>, ProxyNodeInfo>,
     apps: BTreeMap<String, BTreeSet<String>>,
@@ -69,7 +69,7 @@ impl Proxy {
 
     pub async fn new(config: Config, my_app_id: Option<Vec<u8>>) -> Result<Self> {
         let config = Arc::new(config);
-        let state = fs::metadata(&config.state_path)
+        let mut state = fs::metadata(&config.state_path)
             .is_ok()
             .then(|| load_state(&config.state_path))
             .transpose()
@@ -77,29 +77,20 @@ impl Proxy {
                 error!("Failed to load state: {err}");
                 None
             })
-            .unwrap_or_else(|| {
-                let mut nodes = BTreeMap::new();
-                nodes.insert(
-                    config.id().clone(),
-                    ProxyNodeInfo {
-                        id: config.id(),
-                        url: config.sync.my_url.clone(),
-                        wg_peer: WireGuardPeer {
-                            pk: config.wg.public_key.clone(),
-                            ip: config.wg.ip.to_string(),
-                            endpoint: config.wg.endpoint.clone(),
-                        },
-                        last_seen: SystemTime::now(),
-                    },
-                );
-                ProxyStateMut {
-                    nodes,
-                    apps: BTreeMap::new(),
-                    top_n: BTreeMap::new(),
-                    instances: BTreeMap::new(),
-                    allocated_addresses: BTreeSet::new(),
-                }
-            });
+            .unwrap_or_default();
+        state.nodes.insert(
+            config.id().clone(),
+            ProxyNodeInfo {
+                id: config.id(),
+                url: config.sync.my_url.clone(),
+                wg_peer: WireGuardPeer {
+                    pk: config.wg.public_key.clone(),
+                    ip: config.wg.ip.to_string(),
+                    endpoint: config.wg.endpoint.clone(),
+                },
+                last_seen: SystemTime::now(),
+            },
+        );
         let inner = Arc::new(Mutex::new(ProxyState {
             config: config.clone(),
             state,
