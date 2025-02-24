@@ -99,7 +99,7 @@ impl Proxy {
             state,
         }));
         start_recycle_thread(Arc::downgrade(&inner), config.clone());
-        let (sync_tx, sync_rx) = mpsc::channel(100);
+        let (sync_tx, sync_rx) = mpsc::channel(1);
         start_sync_task(Arc::downgrade(&inner), config.clone(), sync_rx);
         let certbot = start_certbot_task(&config).await?;
         Ok(Self {
