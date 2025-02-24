@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex, Weak},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result};
@@ -118,7 +118,14 @@ pub(crate) async fn sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config
         }
     };
 
+    let mut last_broadcast_time = Instant::now();
+
     loop {
+        let broadcast = last_broadcast_time.elapsed() >= config.sync.broadcast_interval;
+        if broadcast {
+            last_broadcast_time = Instant::now();
+        }
+
         let Some(proxy) = proxy.upgrade() else {
             info!("Proxy state was dropped, stopping sync task");
             break;
@@ -165,7 +172,9 @@ pub(crate) async fn sync_task(proxy: Weak<Mutex<ProxyState>>, config: Arc<Config
                     .await
                 {
                     success = true;
-                    break;
+                    if !broadcast {
+                        break;
+                    }
                 }
             }
 

@@ -97,6 +97,8 @@ pub struct SyncConfig {
     #[serde(with = "serde_duration")]
     pub interval: Duration,
     #[serde(with = "serde_duration")]
+    pub broadcast_interval: Duration,
+    #[serde(with = "serde_duration")]
     pub timeout: Duration,
     pub my_url: String,
     pub bootnode: String,

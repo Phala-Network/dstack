@@ -84,6 +84,7 @@ node_timeout = "10m"
 [core.sync]
 enabled = false
 interval = "30s"
+broadcast_interval = "10m"
 timeout = "2s"
 my_url = "https://localhost:8011"
 # The url of the bootnode used to join the network
