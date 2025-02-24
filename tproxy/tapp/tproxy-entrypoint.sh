@@ -112,10 +112,10 @@ renew_timeout = "5m"
 [core.wg]
 public_key = "$PUBLIC_KEY"
 private_key = "$PRIVATE_KEY"
-ip = "10.4.0.1/22"
-reserved_net = "10.4.0.1/28"
+ip = "$IP"
+reserved_net = "$RESERVED_NET"
 listen_port = 51820
-client_ip_range = "10.4.0.0/22"
+client_ip_range = "$CLIENT_RANGE"
 config_path = "$DATA_DIR/wireguard/wg-tproxy.conf"
 interface = "wg-tproxy"
 endpoint = "$WG_ENDPOINT"
