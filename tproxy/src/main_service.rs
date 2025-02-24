@@ -477,6 +477,23 @@ impl ProxyState {
         std::process::exit(0);
     }
 
+    fn dedup_nodes(&mut self) {
+        // Dedup nodes by URL, keeping the latest one
+        let mut node_map = BTreeMap::<String, ProxyNodeInfo>::new();
+
+        for node in std::mem::take(&mut self.state.nodes).into_values() {
+            match node_map.get(&node.wg_peer.endpoint) {
+                Some(existing) if existing.last_seen >= node.last_seen => {}
+                _ => {
+                    node_map.insert(node.wg_peer.endpoint.clone(), node);
+                }
+            }
+        }
+        for node in node_map.into_values() {
+            self.state.nodes.insert(node.id.clone(), node);
+        }
+    }
+
     fn update_state(
         &mut self,
         proxy_nodes: Vec<ProxyNodeInfo>,
@@ -496,6 +513,7 @@ impl ProxyState {
             }
             self.state.nodes.insert(node.id.clone(), node);
         }
+        self.dedup_nodes();
 
         let mut wg_changed = false;
         for app in apps {

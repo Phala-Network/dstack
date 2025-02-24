@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeMap,
     sync::{Arc, Mutex, Weak},
     time::{Duration, Instant},
 };
@@ -13,7 +12,7 @@ use tracing::{error, info};
 
 use crate::{config::Config, tappd_client};
 
-use super::{ProxyNodeInfo, ProxyState};
+use super::ProxyState;
 
 pub enum SyncEvent {
     Broadcast,
@@ -140,17 +139,6 @@ pub(crate) async fn sync_task(
         };
 
         let (mut nodes, apps) = proxy.lock().unwrap().dump_state();
-        // Dedup nodes by URL, keeping the latest one
-        let mut url_map = BTreeMap::<String, ProxyNodeInfo>::new();
-        for node in nodes {
-            match url_map.get(&node.url) {
-                Some(existing) if existing.last_seen >= node.last_seen => {}
-                _ => {
-                    url_map.insert(node.url.clone(), node);
-                }
-            }
-        }
-        nodes = url_map.into_values().collect();
         // Sort nodes by pubkey
         nodes.sort_by(|a, b| a.id.cmp(&b.id));
 
