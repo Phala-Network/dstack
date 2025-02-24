@@ -79,6 +79,7 @@ total = "5h"
 enabled = true
 interval = "5m"
 timeout = "10h"
+node_timeout = "10m"
 
 [core.sync]
 enabled = false

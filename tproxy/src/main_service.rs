@@ -49,7 +49,7 @@ pub(crate) struct ProxyNodeInfo {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ProxyStateMut {
-    nodes: BTreeMap<String, ProxyNodeInfo>,
+    nodes: BTreeMap<Vec<u8>, ProxyNodeInfo>,
     apps: BTreeMap<String, BTreeSet<String>>,
     instances: BTreeMap<String, InstanceInfo>,
     allocated_addresses: BTreeSet<Ipv4Addr>,
@@ -80,7 +80,7 @@ impl Proxy {
             .unwrap_or_else(|| {
                 let mut nodes = BTreeMap::new();
                 nodes.insert(
-                    config.wg.public_key.clone(),
+                    config.id().clone(),
                     ProxyNodeInfo {
                         id: config.id(),
                         url: config.sync.my_url.clone(),
@@ -426,6 +426,21 @@ impl ProxyState {
     }
 
     fn recycle(&mut self) -> Result<()> {
+        // Recycle stale Tproxy nodes
+        let mut staled_nodes = vec![];
+        for node in self.state.nodes.values() {
+            if node.wg_peer.pk == self.config.wg.public_key {
+                continue;
+            }
+            if node.last_seen.elapsed().unwrap_or_default() > self.config.recycle.node_timeout {
+                staled_nodes.push(node.id.clone());
+            }
+        }
+        for id in staled_nodes {
+            self.state.nodes.remove(&id);
+        }
+
+        // Recycle stale CVM instances
         let stale_timeout = self.config.recycle.timeout;
         let stale_handshakes = self.latest_handshakes(Some(stale_timeout))?;
         if tracing::enabled!(tracing::Level::DEBUG) {
@@ -468,12 +483,18 @@ impl ProxyState {
         apps: Vec<InstanceInfo>,
     ) -> Result<()> {
         for node in proxy_nodes {
-            if let Some(existing) = self.state.nodes.get(&node.wg_peer.pk) {
+            if node.wg_peer.pk == self.config.wg.public_key {
+                continue;
+            }
+            if node.url == self.config.sync.my_url {
+                continue;
+            }
+            if let Some(existing) = self.state.nodes.get(&node.id) {
                 if node.last_seen <= existing.last_seen {
                     continue;
                 }
             }
-            self.state.nodes.insert(node.wg_peer.pk.clone(), node);
+            self.state.nodes.insert(node.id.clone(), node);
         }
 
         let mut wg_changed = false;
@@ -517,7 +538,7 @@ impl ProxyState {
             };
             instance.last_seen = decode_ts(ts);
         }
-        if let Some(node) = self.state.nodes.get_mut(&self.config.wg.public_key) {
+        if let Some(node) = self.state.nodes.get_mut(&self.config.id()) {
             node.last_seen = SystemTime::now();
         }
         Ok(())

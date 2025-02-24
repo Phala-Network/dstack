@@ -87,6 +87,8 @@ pub struct RecycleConfig {
     pub interval: Duration,
     #[serde(with = "serde_duration")]
     pub timeout: Duration,
+    #[serde(with = "serde_duration")]
+    pub node_timeout: Duration,
 }
 
 #[derive(Debug, Clone, Deserialize)]
