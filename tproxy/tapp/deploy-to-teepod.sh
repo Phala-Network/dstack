@@ -18,11 +18,11 @@ TPROXY_SERVING_PORT=$((SUBNET_INDEX * 10 + BASE_PORT + 2))
 TAPPD_PORT=$((SUBNET_INDEX * 10 + BASE_PORT + 3))
 WG_PORT=$((SUBNET_INDEX * 10 + BASE_PORT))
 
-MY_URL="https://${SRV_DOMAIN}:${TPROXY_RPC_PORT}"
+MY_URL="https://tproxy.${SRV_DOMAIN}:${TPROXY_RPC_PORT}"
 if [ "$SUBNET_INDEX" -eq 0 ]; then
-  BOOTNODE_URL="https://${SRV_DOMAIN}:$((10 + BASE_PORT))"
+  BOOTNODE_URL="https://tproxy.${SRV_DOMAIN}:$((10 + BASE_PORT))"
 else
-  BOOTNODE_URL="https://${SRV_DOMAIN}:${BASE_PORT}"
+  BOOTNODE_URL="https://tproxy.${SRV_DOMAIN}:${BASE_PORT}"
 fi
 
 required_env_vars=(
