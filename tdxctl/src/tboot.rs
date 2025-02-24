@@ -35,26 +35,24 @@ impl TbootArgs {
     }
 }
 
-struct RaValidator {
-    remote_app_id: String,
+struct AppIdValidator {
+    allowed_app_id: String,
 }
 
-impl RaValidator {
+impl AppIdValidator {
     fn validate(&self, cert: Option<CertInfo>) -> Result<()> {
-        if self.remote_app_id == "any" {
+        if self.allowed_app_id == "any" {
             return Ok(());
         }
         let Some(cert) = cert else {
-            bail!("Missing cert");
+            bail!("Missing TLS certificate info");
         };
-        let Some(attestation) = cert.attestation else {
-            bail!("Missing attestation");
+        let Some(app_id) = cert.app_id else {
+            bail!("Missing app id");
         };
-        let app_id = attestation
-            .decode_app_id()
-            .context("Failed to decode app id")?;
-        if app_id != self.remote_app_id {
-            bail!("Invalid app id: {}", app_id);
+        let app_id = hex::encode(app_id);
+        if !self.allowed_app_id.contains(&app_id) {
+            bail!("Invalid tproxy app id: {app_id}");
         }
         Ok(())
     }
@@ -119,9 +117,6 @@ impl<'a> Setup<'a> {
             .context("Missing tproxy_url")?;
 
         let url = format!("{}/prpc", tproxy_url);
-        let ra_validator = RaValidator {
-            remote_app_id: self.app_keys.tproxy_app_id.clone(),
-        };
         let cert_client =
             CertRequestClient::create(&self.app_keys, self.local_config.pccs_url.as_deref())
                 .await
@@ -142,6 +137,9 @@ impl<'a> Setup<'a> {
             .context("Failed to request cert")?;
         let client_cert = client_certs.join("\n");
         let ca_cert = self.app_keys.ca_cert.clone();
+        let cert_validator = AppIdValidator {
+            allowed_app_id: self.app_keys.tproxy_app_id.clone(),
+        };
         let client = RaClientConfig::builder()
             .remote_uri(url)
             .maybe_pccs_url(self.local_config.pccs_url.clone())
@@ -150,7 +148,8 @@ impl<'a> Setup<'a> {
             .tls_ca_cert(ca_cert)
             .tls_built_in_root_certs(false)
             .tls_no_check(self.app_keys.tproxy_app_id == "any")
-            .cert_validator(Box::new(move |cert| ra_validator.validate(cert)))
+            .verify_server_attestation(false)
+            .cert_validator(Box::new(move |cert| cert_validator.validate(cert)))
             .build()
             .into_client()
             .context("Failed to create RA client")?;

@@ -29,9 +29,9 @@ impl SyncClient {
         let client = if self.in_tapp {
             RaClientConfig::builder()
                 .remote_uri(url)
-                // Don't verify RA because we use the CA cert from KMS to verify
+                // Don't verify server RA because we use the CA cert from KMS to verify
                 // the server cert.
-                .disable_ra(true)
+                .verify_server_attestation(false)
                 .tls_no_check(true)
                 .tls_no_check_hostname(false)
                 .tls_client_cert(self.cert_pem.clone())

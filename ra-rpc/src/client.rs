@@ -28,8 +28,8 @@ pub struct RaClientConfig {
     remote_uri: String,
     #[builder(default = false)]
     tls_no_check: bool,
-    #[builder(default = false)]
-    disable_ra: bool,
+    #[builder(default = true)]
+    verify_server_attestation: bool,
     #[builder(default = false)]
     tls_no_check_hostname: bool,
     tls_client_cert: Option<String>,
@@ -69,7 +69,7 @@ impl RaClientConfig {
             pccs_url: self.pccs_url,
             client,
             cert_validator: self.cert_validator,
-            disable_ra: self.disable_ra,
+            verify_server_attestation: self.verify_server_attestation,
         })
     }
 }
@@ -79,7 +79,7 @@ pub struct RaClient {
     pccs_url: Option<String>,
     client: Client,
     cert_validator: Option<CertValidator>,
-    disable_ra: bool,
+    verify_server_attestation: bool,
 }
 
 impl RaClient {
@@ -122,7 +122,7 @@ impl RaClient {
             .get_special_usage()
             .context("Failed to get special usage")?;
         let app_id = cert.get_app_id().context("Failed to get app id")?;
-        let attestation = if self.disable_ra {
+        let attestation = if !self.verify_server_attestation {
             None
         } else {
             match Attestation::from_cert(&cert).context("Failed to parse attestation")? {
