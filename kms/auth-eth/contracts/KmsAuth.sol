@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.22;
 
 import "./IAppAuth.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract KmsAuth is IAppAuth {
-    // Contract owner
-    address public owner;
-
+contract KmsAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth {
     // Struct for KMS information
     struct KmsInfo {
         bytes k256Pubkey;
@@ -53,29 +53,21 @@ contract KmsAuth is IAppAuth {
     event KmsComposeHashDeregistered(bytes32 composeHash);
     event KmsDeviceIdRegistered(bytes32 deviceId);
     event KmsDeviceIdDeregistered(bytes32 deviceId);
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
     event TProxyAppIdSet(string tproxyAppId);
 
-    // Constructor
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
-        owner = msg.sender;
+        _disableInitializers();
     }
 
     // Initialize the contract with the owner wallet address
-    function initialize(address _owner) public {
-        require(owner == address(0), "Already initialized");
-        require(_owner != address(0), "Invalid owner address");
-        owner = _owner;
+    function initialize(address initialOwner) public initializer {
+        __Ownable_init(initialOwner);
+        __UUPSUpgradeable_init();
     }
 
-    // Modifier to restrict access to owner
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can call this function");
-        _;
-    }
+    // Function to authorize upgrades (required by UUPSUpgradeable)
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     // Function to set KMS information
     function setKmsInfo(KmsInfo memory info) external onlyOwner {
