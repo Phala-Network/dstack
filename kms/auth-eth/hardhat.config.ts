@@ -66,15 +66,6 @@ task("kms:deploy", "Deploy a new KmsAuth contract")
     console.log("KmsAuth deployed to:", address);
   });
 
-task("kms:transfer-ownership", "Transfer ownership of the KmsAuth contract")
-  .addPositionalParam("newOwner", "New owner address")
-  .setAction(async ({ newOwner }, { ethers }) => {
-    const contract = await getKmsAuth(ethers);
-    const tx = await contract.transferOwnership(newOwner);
-    await waitTx(tx);
-    console.log("Ownership transferred successfully");
-  });
-
 task("kms:set-info", "Set KMS information")
   .addParam("k256Pubkey", "K256 public key")
   .addParam("caPubkey", "CA public key")

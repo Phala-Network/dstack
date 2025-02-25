@@ -55,10 +55,10 @@ export interface AppAuthInterface extends Interface {
       | "addComposeHash"
       | "allowedComposeHashes"
       | "appId"
+      | "initialize"
       | "isAppAllowed"
       | "owner"
       | "removeComposeHash"
-      | "transferOwnership"
   ): FunctionFragment;
 
   getEvent(
@@ -78,6 +78,10 @@ export interface AppAuthInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "appId", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "initialize",
+    values: [AddressLike, AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "isAppAllowed",
     values: [IAppAuth.AppBootInfoStruct]
   ): string;
@@ -85,10 +89,6 @@ export interface AppAuthInterface extends Interface {
   encodeFunctionData(
     functionFragment: "removeComposeHash",
     values: [BytesLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "transferOwnership",
-    values: [AddressLike]
   ): string;
 
   decodeFunctionResult(
@@ -100,6 +100,7 @@ export interface AppAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "appId", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "initialize", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "isAppAllowed",
     data: BytesLike
@@ -107,10 +108,6 @@ export interface AppAuthInterface extends Interface {
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "removeComposeHash",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "transferOwnership",
     data: BytesLike
   ): Result;
 }
@@ -209,6 +206,12 @@ export interface AppAuth extends BaseContract {
 
   appId: TypedContractMethod<[], [string], "view">;
 
+  initialize: TypedContractMethod<
+    [_owner: AddressLike, _appId: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
   isAppAllowed: TypedContractMethod<
     [bootInfo: IAppAuth.AppBootInfoStruct],
     [[boolean, string] & { isAllowed: boolean; reason: string }],
@@ -219,12 +222,6 @@ export interface AppAuth extends BaseContract {
 
   removeComposeHash: TypedContractMethod<
     [composeHash: BytesLike],
-    [void],
-    "nonpayable"
-  >;
-
-  transferOwnership: TypedContractMethod<
-    [newOwner: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -243,6 +240,13 @@ export interface AppAuth extends BaseContract {
     nameOrSignature: "appId"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "initialize"
+  ): TypedContractMethod<
+    [_owner: AddressLike, _appId: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "isAppAllowed"
   ): TypedContractMethod<
     [bootInfo: IAppAuth.AppBootInfoStruct],
@@ -255,9 +259,6 @@ export interface AppAuth extends BaseContract {
   getFunction(
     nameOrSignature: "removeComposeHash"
   ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
-  getFunction(
-    nameOrSignature: "transferOwnership"
-  ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
 
   getEvent(
     key: "ComposeHashAdded"

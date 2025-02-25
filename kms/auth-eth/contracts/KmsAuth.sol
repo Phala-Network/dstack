@@ -64,18 +64,17 @@ contract KmsAuth is IAppAuth {
         owner = msg.sender;
     }
 
+    // Initialize the contract with the owner wallet address
+    function initialize(address _owner) public {
+        require(owner == address(0), "Already initialized");
+        require(_owner != address(0), "Invalid owner address");
+        owner = _owner;
+    }
+
     // Modifier to restrict access to owner
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function");
         _;
-    }
-
-    // Transfer ownership
-    function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "Invalid new owner address");
-        address oldOwner = owner;
-        owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
     }
 
     // Function to set KMS information

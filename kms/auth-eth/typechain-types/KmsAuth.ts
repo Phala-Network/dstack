@@ -78,6 +78,7 @@ export interface KmsAuthInterface extends Interface {
       | "deregisterImage"
       | "deregisterKmsComposeHash"
       | "deregisterKmsDeviceId"
+      | "initialize"
       | "isAppAllowed"
       | "isKmsAllowed"
       | "kmsInfo"
@@ -92,7 +93,6 @@ export interface KmsAuthInterface extends Interface {
       | "setKmsQuote"
       | "setTProxyAppId"
       | "tproxyAppId"
-      | "transferOwnership"
   ): FunctionFragment;
 
   getEvent(
@@ -149,6 +149,10 @@ export interface KmsAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "initialize",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "isAppAllowed",
     values: [IAppAuth.AppBootInfoStruct]
   ): string;
@@ -198,10 +202,6 @@ export interface KmsAuthInterface extends Interface {
     functionFragment: "tproxyAppId",
     values?: undefined
   ): string;
-  encodeFunctionData(
-    functionFragment: "transferOwnership",
-    values: [AddressLike]
-  ): string;
 
   decodeFunctionResult(
     functionFragment: "allowedAggregatedMrs",
@@ -240,6 +240,7 @@ export interface KmsAuthInterface extends Interface {
     functionFragment: "deregisterKmsDeviceId",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "initialize", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "isAppAllowed",
     data: BytesLike
@@ -285,10 +286,6 @@ export interface KmsAuthInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "tproxyAppId",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "transferOwnership",
     data: BytesLike
   ): Result;
 }
@@ -537,6 +534,8 @@ export interface KmsAuth extends BaseContract {
     "nonpayable"
   >;
 
+  initialize: TypedContractMethod<[_owner: AddressLike], [void], "nonpayable">;
+
   isAppAllowed: TypedContractMethod<
     [bootInfo: IAppAuth.AppBootInfoStruct],
     [[boolean, string] & { isAllowed: boolean; reason: string }],
@@ -612,12 +611,6 @@ export interface KmsAuth extends BaseContract {
 
   tproxyAppId: TypedContractMethod<[], [string], "view">;
 
-  transferOwnership: TypedContractMethod<
-    [newOwner: AddressLike],
-    [void],
-    "nonpayable"
-  >;
-
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -660,6 +653,9 @@ export interface KmsAuth extends BaseContract {
   getFunction(
     nameOrSignature: "deregisterKmsDeviceId"
   ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "initialize"
+  ): TypedContractMethod<[_owner: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "isAppAllowed"
   ): TypedContractMethod<
@@ -725,9 +721,6 @@ export interface KmsAuth extends BaseContract {
   getFunction(
     nameOrSignature: "tproxyAppId"
   ): TypedContractMethod<[], [string], "view">;
-  getFunction(
-    nameOrSignature: "transferOwnership"
-  ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
 
   getEvent(
     key: "AggregatedMrDeregistered"

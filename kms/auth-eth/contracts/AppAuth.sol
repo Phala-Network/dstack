@@ -22,20 +22,19 @@ contract AppAuth is IAppAuth {
         appId = _appId;
     }
 
+    // Initialize the contract with the owner wallet address and app ID.
+    function initialize(address _owner, address _appId) public {
+        require(owner == address(0), "Already initialized");
+        require(_owner != address(0), "Invalid owner address");
+        require(_appId != address(0), "Invalid app ID");
+        owner = _owner;
+        appId = _appId;
+    }
+
     // Modifiers
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function");
         _;
-    }
-
-    /**
-     * @dev Transfers ownership to a new address
-     * @param newOwner The address to transfer ownership to
-     */
-    function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "New owner cannot be zero address");
-        emit OwnershipTransferred(owner, newOwner);
-        owner = newOwner;
     }
 
     /**
