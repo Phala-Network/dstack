@@ -324,7 +324,7 @@ impl AcmeClient {
 
         let mut unsettled_challenges = challenges.to_vec();
 
-        info!("Unsettled challenges: {unsettled_challenges:#?}");
+        debug!("Unsettled challenges: {unsettled_challenges:#?}");
 
         'outer: loop {
             use hickory_resolver::AsyncResolver;
@@ -339,7 +339,7 @@ impl AcmeClient {
                 let settled = match dns_resolver.txt_lookup(&challenge.acme_domain).await {
                     Ok(record) => record.iter().any(|txt| {
                         let actual_txt = txt.to_string();
-                        info!("Expected challenge: {expected_txt}, actual: {actual_txt}",);
+                        debug!("Expected challenge: {expected_txt}, actual: {actual_txt}");
                         actual_txt == *expected_txt
                     }),
                     Err(err) => {
