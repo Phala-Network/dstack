@@ -1,3 +1,4 @@
+import "@openzeppelin/hardhat-upgrades";
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-ethers";
@@ -330,4 +331,40 @@ task("info:tproxy", "Get current TProxy App ID")
     const kmsAuth = await getKmsAuth(ethers);
     const appId = await kmsAuth.tproxyAppId();
     console.log("TProxy App ID:", appId);
+  });
+
+task("kms:deploy-proxy", "Deploy KmsAuth with a UUPS proxy")
+  .setAction(async (_, { ethers, upgrades }) => {
+    console.log("Deploying KmsAuth with proxy...");
+
+    const [deployer] = await ethers.getSigners();
+    console.log("Deploying with account:", await deployer.getAddress());
+
+    const KmsAuth = await ethers.getContractFactory("KmsAuth");
+    const kmsAuth = await upgrades.deployProxy(
+      KmsAuth,
+      [await deployer.getAddress()],
+      { kind: 'uups' }
+    );
+
+    await kmsAuth.waitForDeployment();
+
+    const proxyAddress = await kmsAuth.getAddress();
+    const implementationAddress = await upgrades.erc1967.getImplementationAddress(
+      proxyAddress
+    );
+
+    console.log("Proxy deployed to:", proxyAddress);
+    console.log("Implementation deployed to:", implementationAddress);
+  });
+
+task("kms:upgrade", "Upgrade the KmsAuth implementation")
+  .addParam("proxy", "The proxy contract address")
+  .setAction(async ({ proxy }, { ethers, upgrades }) => {
+    console.log("Upgrading KmsAuth implementation...");
+
+    const KmsAuth = await ethers.getContractFactory("KmsAuth");
+    const upgraded = await upgrades.upgradeProxy(proxy, KmsAuth);
+
+    console.log("KmsAuth upgraded at proxy address:", await upgraded.getAddress());
   });
