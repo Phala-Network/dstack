@@ -1,75 +1,59 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.22;
 
 import "./IAppAuth.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract AppAuth is IAppAuth {
-    // Contract owner
-    address public owner;
-    // The app ID this contract controls
+contract AppAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth {
+    // App ID this contract is managing
     address public appId;
 
-    // Mapping of allowed compose hashes
+    // Mapping of allowed compose hashes for this app
     mapping(bytes32 => bool) public allowedComposeHashes;
 
     // Events
     event ComposeHashAdded(bytes32 composeHash);
     event ComposeHashRemoved(bytes32 composeHash);
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    constructor(address _appId) {
-        owner = msg.sender;
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    // Initialize the contract
+    function initialize(address initialOwner, address _appId) public initializer {
         appId = _appId;
+        __Ownable_init(initialOwner);
+        __UUPSUpgradeable_init();
     }
 
-    // Initialize the contract with the owner wallet address and app ID.
-    function initialize(address _owner, address _appId) public {
-        require(owner == address(0), "Already initialized");
-        require(_owner != address(0), "Invalid owner address");
-        require(_appId != address(0), "Invalid app ID");
-        owner = _owner;
-        appId = _appId;
-    }
+    // Function to authorize upgrades (required by UUPSUpgradeable)
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    // Modifiers
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can call this function");
-        _;
-    }
-
-    /**
-     * @dev Add an allowed compose hash
-     * @param composeHash The compose hash to allow
-     */
+    // Add a compose hash to allowed list
     function addComposeHash(bytes32 composeHash) external onlyOwner {
         allowedComposeHashes[composeHash] = true;
         emit ComposeHashAdded(composeHash);
     }
 
-    /**
-     * @dev Remove an allowed compose hash
-     * @param composeHash The compose hash to remove
-     */
+    // Remove a compose hash from allowed list
     function removeComposeHash(bytes32 composeHash) external onlyOwner {
         allowedComposeHashes[composeHash] = false;
         emit ComposeHashRemoved(composeHash);
     }
 
-    /**
-     * @notice Check if the app is allowed to run with the given boot info
-     * @param bootInfo The boot information to validate
-     * @return isAllowed Returns true if the app is allowed to run
-     * @return reason Returns a message explaining why the app is not allowed, if applicable
-     */
+    // Check if an app is allowed to boot
     function isAppAllowed(
-        AppBootInfo calldata bootInfo
+        IAppAuth.AppBootInfo calldata bootInfo
     ) external view override returns (bool isAllowed, string memory reason) {
-        // Check if this is the correct app ID
+        // Check if this controller is responsible for the app
         if (bootInfo.appId != appId) {
-            return (false, "Invalid app ID");
+            return (false, "Wrong app controller");
         }
 
-        // Check if the compose hash is allowed
+        // Check if compose hash is allowed
         if (!allowedComposeHashes[bootInfo.composeHash]) {
             return (false, "Compose hash not allowed");
         }

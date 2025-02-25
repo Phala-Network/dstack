@@ -3,6 +3,7 @@
 /* eslint-disable */
 import type {
   BaseContract,
+  BigNumberish,
   BytesLike,
   FunctionFragment,
   Result,
@@ -52,22 +53,33 @@ export declare namespace IAppAuth {
 export interface AppAuthInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "UPGRADE_INTERFACE_VERSION"
       | "addComposeHash"
       | "allowedComposeHashes"
       | "appId"
       | "initialize"
       | "isAppAllowed"
       | "owner"
+      | "proxiableUUID"
       | "removeComposeHash"
+      | "renounceOwnership"
+      | "transferOwnership"
+      | "upgradeToAndCall"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
       | "ComposeHashAdded"
       | "ComposeHashRemoved"
+      | "Initialized"
       | "OwnershipTransferred"
+      | "Upgraded"
   ): EventFragment;
 
+  encodeFunctionData(
+    functionFragment: "UPGRADE_INTERFACE_VERSION",
+    values?: undefined
+  ): string;
   encodeFunctionData(
     functionFragment: "addComposeHash",
     values: [BytesLike]
@@ -87,10 +99,30 @@ export interface AppAuthInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "proxiableUUID",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "removeComposeHash",
     values: [BytesLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "renounceOwnership",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "transferOwnership",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "upgradeToAndCall",
+    values: [AddressLike, BytesLike]
+  ): string;
 
+  decodeFunctionResult(
+    functionFragment: "UPGRADE_INTERFACE_VERSION",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "addComposeHash",
     data: BytesLike
@@ -107,7 +139,23 @@ export interface AppAuthInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "proxiableUUID",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "removeComposeHash",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "transferOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "upgradeToAndCall",
     data: BytesLike
   ): Result;
 }
@@ -136,12 +184,36 @@ export namespace ComposeHashRemovedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace InitializedEvent {
+  export type InputTuple = [version: BigNumberish];
+  export type OutputTuple = [version: bigint];
+  export interface OutputObject {
+    version: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace OwnershipTransferredEvent {
   export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
   export type OutputTuple = [previousOwner: string, newOwner: string];
   export interface OutputObject {
     previousOwner: string;
     newOwner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace UpgradedEvent {
+  export type InputTuple = [implementation: AddressLike];
+  export type OutputTuple = [implementation: string];
+  export interface OutputObject {
+    implementation: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -192,6 +264,8 @@ export interface AppAuth extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  UPGRADE_INTERFACE_VERSION: TypedContractMethod<[], [string], "view">;
+
   addComposeHash: TypedContractMethod<
     [composeHash: BytesLike],
     [void],
@@ -207,7 +281,7 @@ export interface AppAuth extends BaseContract {
   appId: TypedContractMethod<[], [string], "view">;
 
   initialize: TypedContractMethod<
-    [_owner: AddressLike, _appId: AddressLike],
+    [initialOwner: AddressLike, _appId: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -220,16 +294,35 @@ export interface AppAuth extends BaseContract {
 
   owner: TypedContractMethod<[], [string], "view">;
 
+  proxiableUUID: TypedContractMethod<[], [string], "view">;
+
   removeComposeHash: TypedContractMethod<
     [composeHash: BytesLike],
     [void],
     "nonpayable"
   >;
 
+  renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+
+  transferOwnership: TypedContractMethod<
+    [newOwner: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
+  upgradeToAndCall: TypedContractMethod<
+    [newImplementation: AddressLike, data: BytesLike],
+    [void],
+    "payable"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
 
+  getFunction(
+    nameOrSignature: "UPGRADE_INTERFACE_VERSION"
+  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "addComposeHash"
   ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
@@ -242,7 +335,7 @@ export interface AppAuth extends BaseContract {
   getFunction(
     nameOrSignature: "initialize"
   ): TypedContractMethod<
-    [_owner: AddressLike, _appId: AddressLike],
+    [initialOwner: AddressLike, _appId: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -257,8 +350,24 @@ export interface AppAuth extends BaseContract {
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "proxiableUUID"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
     nameOrSignature: "removeComposeHash"
   ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "renounceOwnership"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "transferOwnership"
+  ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "upgradeToAndCall"
+  ): TypedContractMethod<
+    [newImplementation: AddressLike, data: BytesLike],
+    [void],
+    "payable"
+  >;
 
   getEvent(
     key: "ComposeHashAdded"
@@ -275,11 +384,25 @@ export interface AppAuth extends BaseContract {
     ComposeHashRemovedEvent.OutputObject
   >;
   getEvent(
+    key: "Initialized"
+  ): TypedContractEvent<
+    InitializedEvent.InputTuple,
+    InitializedEvent.OutputTuple,
+    InitializedEvent.OutputObject
+  >;
+  getEvent(
     key: "OwnershipTransferred"
   ): TypedContractEvent<
     OwnershipTransferredEvent.InputTuple,
     OwnershipTransferredEvent.OutputTuple,
     OwnershipTransferredEvent.OutputObject
+  >;
+  getEvent(
+    key: "Upgraded"
+  ): TypedContractEvent<
+    UpgradedEvent.InputTuple,
+    UpgradedEvent.OutputTuple,
+    UpgradedEvent.OutputObject
   >;
 
   filters: {
@@ -305,6 +428,17 @@ export interface AppAuth extends BaseContract {
       ComposeHashRemovedEvent.OutputObject
     >;
 
+    "Initialized(uint64)": TypedContractEvent<
+      InitializedEvent.InputTuple,
+      InitializedEvent.OutputTuple,
+      InitializedEvent.OutputObject
+    >;
+    Initialized: TypedContractEvent<
+      InitializedEvent.InputTuple,
+      InitializedEvent.OutputTuple,
+      InitializedEvent.OutputObject
+    >;
+
     "OwnershipTransferred(address,address)": TypedContractEvent<
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
@@ -314,6 +448,17 @@ export interface AppAuth extends BaseContract {
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
       OwnershipTransferredEvent.OutputObject
+    >;
+
+    "Upgraded(address)": TypedContractEvent<
+      UpgradedEvent.InputTuple,
+      UpgradedEvent.OutputTuple,
+      UpgradedEvent.OutputObject
+    >;
+    Upgraded: TypedContractEvent<
+      UpgradedEvent.InputTuple,
+      UpgradedEvent.OutputTuple,
+      UpgradedEvent.OutputObject
     >;
   };
 }

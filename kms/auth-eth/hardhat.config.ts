@@ -368,3 +368,56 @@ task("kms:upgrade", "Upgrade the KmsAuth implementation")
 
     console.log("KmsAuth upgraded at proxy address:", await upgraded.getAddress());
   });
+
+task("app:deploy-proxy", "Deploy AppAuth with a UUPS proxy")
+  .addPositionalParam("salt", "Salt for app deployment")
+  .setAction(async ({ salt }, { ethers, upgrades }) => {
+    const [deployer] = await ethers.getSigners();
+    const deployerAddress = await deployer.getAddress();
+    
+    // Calculate app ID
+    const saltHash = ethers.keccak256(ethers.toUtf8Bytes(salt));
+    const fullHash = ethers.keccak256(
+      ethers.solidityPacked(
+        ['address', 'bytes32'],
+        [deployerAddress, saltHash]
+      )
+    );
+    const appId = ethers.getAddress('0x' + fullHash.slice(-40));
+    console.log("App ID:", appId);
+    
+    // Deploy the AppAuth contract with proxy
+    const AppAuth = await ethers.getContractFactory("AppAuth");
+    const appAuth = await upgrades.deployProxy(
+      AppAuth,
+      [appId, deployerAddress],
+      { kind: 'uups' }
+    );
+    
+    await appAuth.waitForDeployment();
+    
+    const proxyAddress = await appAuth.getAddress();
+    const implementationAddress = await upgrades.erc1967.getImplementationAddress(
+      proxyAddress
+    );
+    
+    console.log("AppAuth proxy deployed to:", proxyAddress);
+    console.log("AppAuth implementation deployed to:", implementationAddress);
+    
+    // Register the app with KmsAuth
+    const kmsContract = await getKmsAuth(ethers);
+    const tx = await kmsContract.registerApp(saltHash, proxyAddress);
+    await waitTx(tx);
+    console.log("App registered in KMS successfully");
+  });
+
+task("app:upgrade", "Upgrade the AppAuth implementation")
+  .addParam("proxy", "The proxy contract address")
+  .setAction(async ({ proxy }, { ethers, upgrades }) => {
+    console.log("Upgrading AppAuth implementation...");
+    
+    const AppAuth = await ethers.getContractFactory("AppAuth");
+    const upgraded = await upgrades.upgradeProxy(proxy, AppAuth);
+    
+    console.log("AppAuth upgraded at proxy address:", await upgraded.getAddress());
+  }); 
