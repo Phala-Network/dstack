@@ -1,79 +1,72 @@
-import { ethers } from "hardhat";
-import { network as hardhatNetwork } from "hardhat";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+import * as helpers from "../lib/deployment-helpers";
 
-async function main() {
+// This function should be called directly by Hardhat tasks
+export async function deployContract(hre: HardhatRuntimeEnvironment, contractName: string, initializerArgs: any[] = []) {
   try {
-    console.log("Starting deployment process...");
+    console.log(`Starting ${contractName} deployment process...`);
 
     // Get network info
-    const network = await ethers.provider.getNetwork();
-    console.log("Network:", network);
-    console.log("Network:", {
-      name: network.name,
-      chainId: network.chainId.toString(),
-      rpcUrl: hardhatNetwork.config.url || "default hardhat network"
-    });
-
-    // Get signer info
-    const [deployer] = await ethers.getSigners();
-    console.log("Deploying with account:", await deployer.getAddress());
-    console.log("Account balance:", ethers.formatEther(await deployer.provider.getBalance(await deployer.getAddress())));
+    await helpers.logNetworkInfo(hre);
 
     console.log("Getting contract factory...");
-    const KmsAuth = await ethers.getContractFactory("KmsAuth");
+    const contractFactory = await hre.ethers.getContractFactory(contractName);
 
     // Estimate gas for deployment
-    console.log("Estimating deployment costs...");
-    const deploymentGas = await ethers.provider.estimateGas(
-      await KmsAuth.getDeployTransaction()
+    await helpers.estimateDeploymentCost(
+      hre,
+      contractName,
+      initializerArgs
     );
-    const feeData = await ethers.provider.getFeeData();
-    const gasPrice = feeData.gasPrice;
-    const estimatedCost = deploymentGas * gasPrice;
-
-    console.log("Deployment details:", {
-      estimatedGas: deploymentGas.toString(),
-      gasPrice: ethers.formatUnits(gasPrice, "gwei") + " gwei",
-      estimatedCost: ethers.formatEther(estimatedCost) + " ETH"
-    });
-
-    // Convert to ETH for better readability
-    const estimatedEth = ethers.formatEther(estimatedCost);
-    console.log(`Estimated deployment cost: ${estimatedEth} ETH`);
 
     // Prompt for confirmation
-    const readline = require('readline').createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
-
-    const confirm = await new Promise(resolve => {
-      readline.question('Do you want to proceed with deployment? (y/N): ', answer => {
-        readline.close();
-        resolve(answer.toLowerCase() === 'y');
-      });
-    });
-
-    if (!confirm) {
+    if (!(await helpers.confirmAction('Do you want to proceed with deployment?'))) {
       console.log('Deployment cancelled');
       return;
     }
 
-    const kmsAuth = await KmsAuth.deploy();
-    await kmsAuth.waitForDeployment();
+    // Deploy using proxy pattern
+    console.log("Deploying proxy...");
+    const contract = await hre.upgrades.deployProxy(contractFactory,
+      initializerArgs,
+      { kind: 'uups' }
+    );
+    console.log("Waiting for deployment...");
+    await contract.waitForDeployment();
 
-    const address = await kmsAuth.getAddress();
-    console.log("KmsAuth deployed to:", address);
+    const address = await contract.getAddress();
+    console.log(`${contractName} Proxy deployed to:`, address);
 
+    // Verify deployment
+    await helpers.verifyDeployment(hre, address);
+
+    const tx = await contract.deploymentTransaction();
+    console.log("Transaction hash:", tx?.hash);
     // Wait for a few block confirmations to ensure the contract is deployed
-    await kmsAuth.deploymentTransaction()?.wait(5);
+    await tx?.wait(5);
+    console.log("Deployment completed successfully");
+
+    return contract;
   } catch (error) {
     console.error("Error during deployment:", error);
-    process.exitCode = 1;
+    throw error;
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+// For backward compatibility when running the script directly
+async function main() {
+  const hre = require("hardhat");
+  const deployer = await helpers.getSigner(hre);
+  const address = await deployer.getAddress();
+  console.log("Deploying with account:", address);
+  console.log("Account balance:", await helpers.accountBalance(hre.ethers, address));
+  await deployContract(hre, "KmsAuth", [address]);
+}
+
+// Only execute if directly run
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

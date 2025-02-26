@@ -57,6 +57,7 @@ export interface AppAuthInterface extends Interface {
       | "addComposeHash"
       | "allowedComposeHashes"
       | "appId"
+      | "disableUpgrades"
       | "initialize"
       | "isAppAllowed"
       | "owner"
@@ -74,6 +75,7 @@ export interface AppAuthInterface extends Interface {
       | "Initialized"
       | "OwnershipTransferred"
       | "Upgraded"
+      | "UpgradesDisabled"
   ): EventFragment;
 
   encodeFunctionData(
@@ -90,8 +92,12 @@ export interface AppAuthInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "appId", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "disableUpgrades",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "initialize",
-    values: [AddressLike, AddressLike]
+    values: [AddressLike, AddressLike, boolean]
   ): string;
   encodeFunctionData(
     functionFragment: "isAppAllowed",
@@ -132,6 +138,10 @@ export interface AppAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "appId", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "disableUpgrades",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "initialize", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "isAppAllowed",
@@ -221,6 +231,16 @@ export namespace UpgradedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace UpgradesDisabledEvent {
+  export type InputTuple = [];
+  export type OutputTuple = [];
+  export interface OutputObject {}
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export interface AppAuth extends BaseContract {
   connect(runner?: ContractRunner | null): AppAuth;
   waitForDeployment(): Promise<this>;
@@ -280,8 +300,10 @@ export interface AppAuth extends BaseContract {
 
   appId: TypedContractMethod<[], [string], "view">;
 
+  disableUpgrades: TypedContractMethod<[], [void], "nonpayable">;
+
   initialize: TypedContractMethod<
-    [initialOwner: AddressLike, _appId: AddressLike],
+    [initialOwner: AddressLike, _appId: AddressLike, _disableUpgrades: boolean],
     [void],
     "nonpayable"
   >;
@@ -333,9 +355,12 @@ export interface AppAuth extends BaseContract {
     nameOrSignature: "appId"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "disableUpgrades"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "initialize"
   ): TypedContractMethod<
-    [initialOwner: AddressLike, _appId: AddressLike],
+    [initialOwner: AddressLike, _appId: AddressLike, _disableUpgrades: boolean],
     [void],
     "nonpayable"
   >;
@@ -404,6 +429,13 @@ export interface AppAuth extends BaseContract {
     UpgradedEvent.OutputTuple,
     UpgradedEvent.OutputObject
   >;
+  getEvent(
+    key: "UpgradesDisabled"
+  ): TypedContractEvent<
+    UpgradesDisabledEvent.InputTuple,
+    UpgradesDisabledEvent.OutputTuple,
+    UpgradesDisabledEvent.OutputObject
+  >;
 
   filters: {
     "ComposeHashAdded(bytes32)": TypedContractEvent<
@@ -459,6 +491,17 @@ export interface AppAuth extends BaseContract {
       UpgradedEvent.InputTuple,
       UpgradedEvent.OutputTuple,
       UpgradedEvent.OutputObject
+    >;
+
+    "UpgradesDisabled()": TypedContractEvent<
+      UpgradesDisabledEvent.InputTuple,
+      UpgradesDisabledEvent.OutputTuple,
+      UpgradesDisabledEvent.OutputObject
+    >;
+    UpgradesDisabled: TypedContractEvent<
+      UpgradesDisabledEvent.InputTuple,
+      UpgradesDisabledEvent.OutputTuple,
+      UpgradesDisabledEvent.OutputObject
     >;
   };
 }

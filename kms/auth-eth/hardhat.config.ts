@@ -1,8 +1,11 @@
 import "@openzeppelin/hardhat-upgrades";
-import { HardhatUserConfig, task } from "hardhat/config";
+import { HardhatUserConfig, task, types } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-ethers";
 import fs from 'fs';
+import { deployContract } from "./scripts/deploy";
+import { upgradeContract } from "./scripts/upgrade";
+import { accountBalance } from "./lib/deployment-helpers";
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -35,17 +38,20 @@ const config: HardhatUserConfig = {
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts"
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY
   }
 };
 
 export default config;
 
 // Contract addresses from environment
-const KMS_CONTRACT_ADDRESS = process.env.KMS_CONTRACT_ADDRESS || "0xdA5C549EC47735570334CFf23ac27fBeDb52c82f";
+const KMS_CONTRACT_ADDRESS = process.env.KMS_CONTRACT_ADDRESS || "0xda1d4bc372fe139d63b85f6160d2f849ffed9c10";
 
 async function waitTx(tx: any) {
   console.log(`Waiting for transaction ${tx.hash} to be confirmed...`);
-  await tx.wait();
+  return await tx.wait();
 }
 
 async function getKmsAuth(ethers: any) {
@@ -60,19 +66,21 @@ async function getAppAuth(ethers: any, appId: string) {
 }
 
 // KMS Contract Tasks
-task("kms:deploy", "Deploy a new KmsAuth contract")
-  .setAction(async (_, { ethers }) => {
-    console.log("Starting deployment process...");
+task("kms:deploy", "Deploy the KmsAuth contract")
+  .setAction(async (_, hre) => {
+    const { ethers } = hre;
     const [deployer] = await ethers.getSigners();
-    console.log("Deploying with account:", await deployer.getAddress());
+    const deployerAddress = await deployer.getAddress();
+    console.log("Deploying with account:", deployerAddress);
+    console.log("Account balance:", await accountBalance(ethers, deployerAddress));
+    await deployContract(hre, "KmsAuth", [deployerAddress]);
+  });
 
-    const KmsAuth = await ethers.getContractFactory("KmsAuth");
-    const kmsAuth = await KmsAuth.deploy();
-    console.log("Deployment transaction hash:", kmsAuth.deploymentTransaction()?.hash);
-    await kmsAuth.waitForDeployment();
-
-    const address = await kmsAuth.getAddress();
-    console.log("KmsAuth deployed to:", address);
+task("kms:upgrade", "Upgrade the KmsAuth contract")
+  .addParam("address", "The address of the contract to upgrade", undefined, types.string, false)
+  .addFlag("dryRun", "Simulate the upgrade without executing it")
+  .setAction(async (taskArgs, hre) => {
+    await upgradeContract(hre, "KmsAuth", taskArgs.address, taskArgs.dryRun);
   });
 
 task("kms:set-info", "Set KMS information")
@@ -104,37 +112,6 @@ task("kms:set-tproxy", "Set the allowed TProxy App ID")
     const tx = await contract.setTProxyAppId(appId);
     await waitTx(tx);
     console.log("TProxy App ID set successfully");
-  });
-
-// App Management Tasks
-task("app:deploy", "Deploy a new AppAuth contract")
-  .addPositionalParam("salt", "Salt for app deployment")
-  .setAction(async ({ salt }, { ethers }) => {
-    const [deployer] = await ethers.getSigners();
-    const deployerAddress = await deployer.getAddress();
-
-    const saltHash = ethers.keccak256(ethers.toUtf8Bytes(salt));
-    const fullHash = ethers.keccak256(
-      ethers.solidityPacked(
-        ['address', 'bytes32'],
-        [deployerAddress, saltHash]
-      )
-    );
-    const appId = ethers.getAddress('0x' + fullHash.slice(-40));
-    console.log("App ID:", appId);
-
-    const AppAuth = await ethers.getContractFactory("AppAuth");
-    const appAuth = await AppAuth.deploy(appId);
-    console.log("Deployment transaction hash:", appAuth.deploymentTransaction()?.hash);
-    await appAuth.waitForDeployment();
-
-    const address = await appAuth.getAddress();
-    console.log("AppAuth deployed to:", address);
-
-    const kmsContract = await getKmsAuth(ethers);
-    const tx = await kmsContract.registerApp(saltHash, address);
-    await waitTx(tx);
-    console.log("App registered in KMS successfully");
   });
 
 task("app:add-hash", "Add a compose hash to the AppAuth contract")
@@ -333,48 +310,15 @@ task("info:tproxy", "Get current TProxy App ID")
     console.log("TProxy App ID:", appId);
   });
 
-task("kms:deploy-proxy", "Deploy KmsAuth with a UUPS proxy")
-  .setAction(async (_, { ethers, upgrades }) => {
-    console.log("Deploying KmsAuth with proxy...");
-
-    const [deployer] = await ethers.getSigners();
-    console.log("Deploying with account:", await deployer.getAddress());
-
-    const KmsAuth = await ethers.getContractFactory("KmsAuth");
-    const kmsAuth = await upgrades.deployProxy(
-      KmsAuth,
-      [await deployer.getAddress()],
-      { kind: 'uups' }
-    );
-
-    await kmsAuth.waitForDeployment();
-
-    const proxyAddress = await kmsAuth.getAddress();
-    const implementationAddress = await upgrades.erc1967.getImplementationAddress(
-      proxyAddress
-    );
-
-    console.log("Proxy deployed to:", proxyAddress);
-    console.log("Implementation deployed to:", implementationAddress);
-  });
-
-task("kms:upgrade", "Upgrade the KmsAuth implementation")
-  .addParam("proxy", "The proxy contract address")
-  .setAction(async ({ proxy }, { ethers, upgrades }) => {
-    console.log("Upgrading KmsAuth implementation...");
-
-    const KmsAuth = await ethers.getContractFactory("KmsAuth");
-    const upgraded = await upgrades.upgradeProxy(proxy, KmsAuth);
-
-    console.log("KmsAuth upgraded at proxy address:", await upgraded.getAddress());
-  });
-
-task("app:deploy-proxy", "Deploy AppAuth with a UUPS proxy")
+task("app:deploy", "Deploy AppAuth with a UUPS proxy")
   .addPositionalParam("salt", "Salt for app deployment")
-  .setAction(async ({ salt }, { ethers, upgrades }) => {
+  .setAction(async ({ salt }, hre) => {
+    const { ethers, upgrades } = hre;
     const [deployer] = await ethers.getSigners();
     const deployerAddress = await deployer.getAddress();
-    
+    console.log("Deploying with account:", deployerAddress);
+    console.log("Account balance:", await accountBalance(ethers, deployerAddress));
+
     // Calculate app ID
     const saltHash = ethers.keccak256(ethers.toUtf8Bytes(salt));
     const fullHash = ethers.keccak256(
@@ -385,39 +329,35 @@ task("app:deploy-proxy", "Deploy AppAuth with a UUPS proxy")
     );
     const appId = ethers.getAddress('0x' + fullHash.slice(-40));
     console.log("App ID:", appId);
-    
-    // Deploy the AppAuth contract with proxy
-    const AppAuth = await ethers.getContractFactory("AppAuth");
-    const appAuth = await upgrades.deployProxy(
-      AppAuth,
-      [appId, deployerAddress],
-      { kind: 'uups' }
-    );
-    
-    await appAuth.waitForDeployment();
-    
+
+    const appAuth = await deployContract(hre, "AppAuth", [deployerAddress, appId, false]);
+    if (!appAuth) {
+      return;
+    }
+
     const proxyAddress = await appAuth.getAddress();
-    const implementationAddress = await upgrades.erc1967.getImplementationAddress(
-      proxyAddress
-    );
-    
-    console.log("AppAuth proxy deployed to:", proxyAddress);
-    console.log("AppAuth implementation deployed to:", implementationAddress);
-    
-    // Register the app with KmsAuth
     const kmsContract = await getKmsAuth(ethers);
     const tx = await kmsContract.registerApp(saltHash, proxyAddress);
-    await waitTx(tx);
-    console.log("App registered in KMS successfully");
+    const receipt = await waitTx(tx);
+    // Parse the AppRegistered event from the logs
+    const appRegisteredEvent = receipt.logs
+      .filter((log: any) => log.fragment?.name === 'AppRegistered')
+      .map((log: any) => {
+        const { appId } = log.args;
+        return { appId };
+      })[0];
+
+    if (appRegisteredEvent) {
+      console.log("App registered in KMS successfully");
+      console.log("Registered AppId:", appRegisteredEvent.appId);
+    } else {
+      console.log("App registered in KMS successfully (event not found)");
+    }
   });
 
-task("app:upgrade", "Upgrade the AppAuth implementation")
-  .addParam("proxy", "The proxy contract address")
-  .setAction(async ({ proxy }, { ethers, upgrades }) => {
-    console.log("Upgrading AppAuth implementation...");
-    
-    const AppAuth = await ethers.getContractFactory("AppAuth");
-    const upgraded = await upgrades.upgradeProxy(proxy, AppAuth);
-    
-    console.log("AppAuth upgraded at proxy address:", await upgraded.getAddress());
-  }); 
+task("app:upgrade", "Upgrade the AppAuth contract")
+  .addParam("address", "The address of the contract to upgrade", undefined, types.string, false)
+  .addFlag("dryRun", "Simulate the upgrade without executing it")
+  .setAction(async (taskArgs, hre) => {
+    await upgradeContract(hre, "AppAuth", taskArgs.address, taskArgs.dryRun);
+  });

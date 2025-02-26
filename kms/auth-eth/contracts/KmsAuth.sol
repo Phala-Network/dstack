@@ -102,6 +102,7 @@ contract KmsAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth
 
     // Function to register an app
     function registerApp(bytes32 salt, address controller) external {
+        require(controller != address(0), "Invalid controller address");
         address appId = calculateAppId(msg.sender, salt);
         require(!apps[appId].isRegistered, "App already registered");
         apps[appId].isRegistered = true;
@@ -203,4 +204,7 @@ contract KmsAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth
         }
         return IAppAuth(controller).isAppAllowed(bootInfo);
     }
+
+    // Add storage gap for upgradeable contracts
+    uint256[50] private __gap;
 }
