@@ -4,6 +4,7 @@ import { EthereumBackend } from '../src/ethereum';
 import { BootInfo } from '../src/types';
 import { KmsAuth } from "../typechain-types/KmsAuth";
 import { IAppAuth } from "../typechain-types/IAppAuth";
+import { expect } from "chai";
 
 describe('Integration Tests', () => {
   let kmsAuth: KmsAuth;
@@ -41,8 +42,8 @@ describe('Integration Tests', () => {
 
     it('should return true when all checks pass', async () => {
       const [isAllowed, reason] = await kmsAuth.isAppAllowed(mockBootInfo);
-      expect(reason).toBe('');
-      expect(isAllowed).toBe(true);
+      expect(reason).to.equal('');
+      expect(isAllowed).to.equal(true);
     });
 
     it('should return true when enclave is not registered but image is registered', async () => {
@@ -52,8 +53,8 @@ describe('Integration Tests', () => {
         mrAggregated: badMrAggregated
       });
 
-      expect(isAllowed).toBe(true);
-      expect(reason).toBe('');
+      expect(isAllowed).to.equal(true);
+      expect(reason).to.equal('');
     });
 
     it('should return true when image is not registered but enclave is registered', async () => {
@@ -63,8 +64,8 @@ describe('Integration Tests', () => {
         mrImage: badMrImage
       });
 
-      expect(reason).toBe('');
-      expect(isAllowed).toBe(true);
+      expect(reason).to.equal('');
+      expect(isAllowed).to.equal(true);
     });
 
     it('should return false when enclave and image are not registered', async () => {
@@ -75,8 +76,8 @@ describe('Integration Tests', () => {
         mrAggregated: badMrAggregated,
         mrImage: badMrImage
       });
-      expect(reason).toBe('Neither aggregated MR nor image is allowed');
-      expect(isAllowed).toBe(false);
+      expect(reason).to.equal('Neither aggregated MR nor image is allowed');
+      expect(isAllowed).to.equal(false);
     });
   });
 
@@ -99,8 +100,8 @@ describe('Integration Tests', () => {
     describe('checkBoot', () => {
       it('should return true when all checks pass', async () => {
         const result = await backend.checkBoot(mockBootInfo, false);
-        expect(result.reason).toBe('');
-        expect(result.isAllowed).toBe(true);
+        expect(result.reason).to.equal('');
+        expect(result.isAllowed).to.equal(true);
       });
 
       it('should return true when enclave is not allowed but image is allowed', async () => {
@@ -109,8 +110,8 @@ describe('Integration Tests', () => {
           mrAggregated: ethers.encodeBytes32String('9999')
         };
         const result = await backend.checkBoot(badBootInfo, false);
-        expect(result.reason).toBe('');
-        expect(result.isAllowed).toBe(true);
+        expect(result.reason).to.equal('');
+        expect(result.isAllowed).to.equal(true);
       });
 
       it('should return true when image is not allowed but enclave is allowed', async () => {
@@ -119,8 +120,8 @@ describe('Integration Tests', () => {
           mrImage: ethers.encodeBytes32String('9999')
         };
         const result = await backend.checkBoot(badBootInfo, false);
-        expect(result.reason).toBe('');
-        expect(result.isAllowed).toBe(true);
+        expect(result.reason).to.equal('');
+        expect(result.isAllowed).to.equal(true);
       });
 
       it('should return false when enclave and image are not registered', async () => {
@@ -130,8 +131,8 @@ describe('Integration Tests', () => {
           mrImage: ethers.encodeBytes32String('9999')
         };
         const result = await backend.checkBoot(badBootInfo, false);
-        expect(result.reason).toBe('Neither aggregated MR nor image is allowed');
-        expect(result.isAllowed).toBe(false);
+        expect(result.reason).to.equal('Neither aggregated MR nor image is allowed');
+        expect(result.isAllowed).to.equal(false);
       });
 
       it('should return false when app is not registered', async () => {
@@ -140,8 +141,8 @@ describe('Integration Tests', () => {
           appId: ethers.Wallet.createRandom().address
         };
         const result = await backend.checkBoot(badBootInfo, false);
-        expect(result.reason).toBe('App not registered');
-        expect(result.isAllowed).toBe(false);
+        expect(result.reason).to.equal('App not registered');
+        expect(result.isAllowed).to.equal(false);
       });
     });
   });

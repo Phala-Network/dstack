@@ -5,16 +5,6 @@ import { BootInfo } from '../src/types';
 import { KmsAuth } from "../typechain-types/KmsAuth";
 import { AppAuth } from "../typechain-types/AppAuth";
 
-// Declare global test contracts
-declare global {
-  var testContracts: {
-    kmsAuth: KmsAuth;
-    appAuth: AppAuth;
-    appId: string;
-    owner: SignerWithAddress;
-  };
-}
-
 describe('EthereumBackend', () => {
   let kmsAuth: KmsAuth;
   let owner: SignerWithAddress;

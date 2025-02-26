@@ -1,7 +1,9 @@
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import hre from "hardhat";
 import { ethers } from "hardhat";
 import { KmsAuth } from "../typechain-types";
 import { AppAuth } from "../typechain-types/AppAuth";
+import { deployContract } from "../scripts/deploy";
 
 declare global {
   var testContracts: {
@@ -13,21 +15,18 @@ declare global {
 }
 
 beforeAll(async () => {
+
   // Get signers
   const [owner] = await ethers.getSigners();
 
   // Deploy contracts
-  const KmsAuth = await ethers.getContractFactory("KmsAuth");
-  const kmsAuth = await KmsAuth.deploy();
-  await kmsAuth.waitForDeployment();
+  const kmsAuth = await deployContract(hre, "KmsAuth", [owner.address], true) as KmsAuth;
 
   // Initialize the contract with an app and KMS info
   const salt = ethers.randomBytes(32);
   const appId = await kmsAuth.calculateAppId(owner.address, salt);
 
-  const AppAuth = await ethers.getContractFactory("AppAuth");
-  const appAuth = await AppAuth.deploy(appId);
-  await appAuth.waitForDeployment();
+  const appAuth = await deployContract(hre, "AppAuth", [owner.address, appId, false], true) as AppAuth;
 
   await kmsAuth.registerApp(salt, await appAuth.getAddress());
 

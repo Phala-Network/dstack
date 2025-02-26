@@ -2,20 +2,19 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { AppAuth } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import { deployContract } from "../scripts/deploy";
+import hre from "hardhat";
 
 describe("AppAuth", function () {
   let appAuth: AppAuth;
   let owner: SignerWithAddress;
   let user: SignerWithAddress;
   let appId: string;
-  
+
   beforeEach(async function () {
     [owner, user] = await ethers.getSigners();
     appId = ethers.Wallet.createRandom().address;
-    
-    const AppAuth = await ethers.getContractFactory("AppAuth");
-    appAuth = await AppAuth.deploy(appId);
-    await appAuth.waitForDeployment();
+    appAuth = await deployContract(hre, "AppAuth", [owner.address, appId, false], true) as AppAuth;
   });
 
   describe("Basic functionality", function () {
@@ -94,7 +93,7 @@ describe("AppAuth", function () {
 
       const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);
       expect(isAllowed).to.be.false;
-      expect(reason).to.equal("Invalid app ID");
+      expect(reason).to.equal("Wrong app controller");
     });
 
     it("Should reject unallowed compose hash", async function () {
@@ -119,14 +118,14 @@ describe("AppAuth", function () {
     it("Should prevent non-owners from adding compose hash", async function () {
       await expect(
         appAuth.connect(user).addComposeHash(testHash)
-      ).to.be.revertedWith("Only owner can call this function");
+      ).to.be.revertedWithCustomError(appAuth, "OwnableUnauthorizedAccount");
     });
 
     it("Should prevent non-owners from removing compose hash", async function () {
       await appAuth.addComposeHash(testHash);
       await expect(
         appAuth.connect(user).removeComposeHash(testHash)
-      ).to.be.revertedWith("Only owner can call this function");
+      ).to.be.revertedWithCustomError(appAuth, "OwnableUnauthorizedAccount");
     });
   });
 });

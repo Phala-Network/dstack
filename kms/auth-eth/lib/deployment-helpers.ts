@@ -110,7 +110,8 @@ export async function estimateDeploymentCost(
  */
 export async function verifyDeployment(
     hre: HardhatRuntimeEnvironment,
-    contractAddress: string
+    contractAddress: string,
+    quiet: boolean = false
 ) {
     // Verify that contract was deployed successfully
     const code = await hre.ethers.provider.getCode(contractAddress);
@@ -122,7 +123,9 @@ export async function verifyDeployment(
     const implementationAddress = await hre.upgrades.erc1967.getImplementationAddress(
         contractAddress
     );
-    console.log("Implementation deployed to:", implementationAddress);
+    if (!quiet) {
+        console.log("Implementation deployed to:", implementationAddress);
+    }
 
     return {
         contractAddress,

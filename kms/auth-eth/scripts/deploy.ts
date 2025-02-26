@@ -2,49 +2,57 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import * as helpers from "../lib/deployment-helpers";
 
 // This function should be called directly by Hardhat tasks
-export async function deployContract(hre: HardhatRuntimeEnvironment, contractName: string, initializerArgs: any[] = []) {
+export async function deployContract(hre: HardhatRuntimeEnvironment, contractName: string, initializerArgs: any[] = [], quiet: boolean = false) {
   try {
-    console.log(`Starting ${contractName} deployment process...`);
+    function log(...msgs: any[]) {
+      if (!quiet) {
+        console.log(...msgs);
+      }
+    }
 
-    // Get network info
-    await helpers.logNetworkInfo(hre);
+    log(`Starting ${contractName} deployment process...`);
 
-    console.log("Getting contract factory...");
+    if (!quiet) {
+      // Get network info
+      await helpers.logNetworkInfo(hre);
+    }
+
+    log("Getting contract factory...");
     const contractFactory = await hre.ethers.getContractFactory(contractName);
 
-    // Estimate gas for deployment
-    await helpers.estimateDeploymentCost(
-      hre,
-      contractName,
-      initializerArgs
-    );
+    if (!quiet) {
+      // Estimate gas for deployment
+      await helpers.estimateDeploymentCost(
+        hre,
+        contractName,
+        initializerArgs
+      );
 
-    // Prompt for confirmation
-    if (!(await helpers.confirmAction('Do you want to proceed with deployment?'))) {
-      console.log('Deployment cancelled');
-      return;
+      // Prompt for confirmation
+      if (!(await helpers.confirmAction('Do you want to proceed with deployment?'))) {
+        log('Deployment cancelled');
+        return;
+      }
     }
 
     // Deploy using proxy pattern
-    console.log("Deploying proxy...");
+    log("Deploying proxy...");
     const contract = await hre.upgrades.deployProxy(contractFactory,
       initializerArgs,
       { kind: 'uups' }
     );
-    console.log("Waiting for deployment...");
+    log("Waiting for deployment...");
     await contract.waitForDeployment();
 
     const address = await contract.getAddress();
-    console.log(`${contractName} Proxy deployed to:`, address);
+    log(`${contractName} Proxy deployed to:`, address);
 
     // Verify deployment
-    await helpers.verifyDeployment(hre, address);
+    await helpers.verifyDeployment(hre, address, quiet);
 
     const tx = await contract.deploymentTransaction();
-    console.log("Transaction hash:", tx?.hash);
-    // Wait for a few block confirmations to ensure the contract is deployed
-    await tx?.wait(5);
-    console.log("Deployment completed successfully");
+    log("Deployment completed successfully");
+    log("Transaction hash:", tx?.hash);
 
     return contract;
   } catch (error) {

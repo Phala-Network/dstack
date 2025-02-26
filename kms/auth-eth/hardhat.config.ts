@@ -19,7 +19,7 @@ const config: HardhatUserConfig = {
       }
     }
   },
-  defaultNetwork: "phala",
+  defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       chainId: 1337
