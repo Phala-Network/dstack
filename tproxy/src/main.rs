@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use config::{Config, TlsConfig};
 use http_client::prpc::PrpcClient;
@@ -7,7 +7,6 @@ use rocket::{
     fairing::AdHoc,
     figment::{providers::Serialized, Figment},
 };
-use std::path::Path;
 use tracing::info;
 
 use admin_service::AdminRpcHandler;
@@ -48,23 +47,29 @@ fn set_max_ulimit() -> Result<()> {
     Ok(())
 }
 
+fn tappd_client() -> Result<tappd_rpc::tappd_client::TappdClient<PrpcClient>> {
+    let uds_path = "/var/run/tappd.sock";
+    if !std::fs::exists(uds_path).unwrap_or_default() {
+        bail!("tappd socket({uds_path}) not found");
+    }
+    let http_client = PrpcClient::new_unix(uds_path.to_string(), "/prpc".to_string());
+    Ok(tappd_rpc::tappd_client::TappdClient::new(http_client))
+}
+
 async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> {
-    if config.tls_domain.is_empty() {
+    if config.rpc_domain.is_empty() {
         info!("TLS domain is empty, skipping cert generation");
         return Ok(());
     }
 
-    let tappd_socket = Path::new("/var/run/tappd.sock");
-    if tappd_socket.exists() {
+    if config.run_as_tapp {
         info!("Using tappd for certificate generation");
-        let http_client =
-            PrpcClient::new_unix(tappd_socket.display().to_string(), "/prpc".to_string());
-        let client = tappd_rpc::tappd_client::TappdClient::new(http_client);
-        let response = client
+        let tappd_client = tappd_client().context("Failed to create tappd client")?;
+        let response = tappd_client
             .derive_key(tappd_rpc::DeriveKeyArgs {
                 path: "".to_string(),
                 subject: "tproxy".to_string(),
-                alt_names: vec![config.tls_domain.clone()],
+                alt_names: vec![config.rpc_domain.clone()],
                 usage_ra_tls: true,
                 usage_server_auth: true,
                 usage_client_auth: false,
@@ -98,7 +103,7 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
     let cert = ra_tls::cert::CertRequest::builder()
         .key(&key)
         .subject("tproxy")
-        .alt_names(&[config.tls_domain.clone()])
+        .alt_names(&[config.rpc_domain.clone()])
         .usage_server_auth(true)
         .build()
         .self_signed()
@@ -142,10 +147,20 @@ async fn main() -> Result<()> {
         set_max_ulimit()?;
     }
 
+    let my_app_id = if config.run_as_tapp {
+        let tappd_client = tappd_client().context("Failed to create tappd client")?;
+        let info = tappd_client
+            .info()
+            .await
+            .context("Failed to get app info")?;
+        Some(info.app_id)
+    } else {
+        None
+    };
     let proxy_config = config.proxy.clone();
     let pccs_url = config.pccs_url.clone();
     let admin_enabled = config.admin.enabled;
-    let state = main_service::Proxy::new(config).await?;
+    let state = main_service::Proxy::new(config, my_app_id).await?;
     state.lock().reconfigure()?;
     proxy::start(proxy_config, state.clone());
 
@@ -159,7 +174,6 @@ async fn main() -> Result<()> {
             ));
 
     let mut rocket = rocket::custom(figment)
-        .mount("/", web_routes::routes())
         .mount("/prpc", ra_rpc::prpc_routes!(Proxy, RpcHandler))
         .attach(AdHoc::on_response("Add app version header", |_req, res| {
             Box::pin(async move {
@@ -173,6 +187,7 @@ async fn main() -> Result<()> {
     let admin_srv = async move {
         if admin_enabled {
             rocket::custom(admin_figment)
+                .mount("/", web_routes::routes())
                 .mount("/", ra_rpc::prpc_routes!(Proxy, AdminRpcHandler))
                 .manage(state)
                 .launch()

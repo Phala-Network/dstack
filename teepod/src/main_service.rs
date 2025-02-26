@@ -74,7 +74,7 @@ impl TeepodRpc for RpcHandler {
                     bail!("Port mapping is not allowed for {}:{}", p.protocol, from);
                 }
                 let protocol = p.protocol.parse().context("Invalid protocol")?;
-                let address = if p.host_address.is_empty() {
+                let address = if !p.host_address.is_empty() {
                     p.host_address.parse().context("Invalid host address")?
                 } else {
                     pm_cfg.address

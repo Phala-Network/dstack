@@ -18,16 +18,21 @@ message RegisterCvmResponse {
   TappdConfig tappd = 2;
 }
 
+message WireGuardPeer {
+  // The wireguard peer public key.
+  string pk = 1;
+  // The wireguard peer IP address.
+  string ip = 2;
+  // The wireguard peer endpoint.
+  string endpoint = 3;
+} 
+
 // WireGuardConfig is the configuration of the WireGuard.
 message WireGuardConfig {
-  // The public key of the WireGuard interface of the TProxy.
-  string server_public_key = 1;
   // The IP address of the CVM.
-  string client_ip = 2;
-  // The IP address of the TProxy.
-  string server_ip = 3;
-  // The endpoint of the TProxy.
-  string server_endpoint = 4;
+  string client_ip = 1;
+  // List of proxy nodes.
+  repeated WireGuardPeer servers = 2;
 }
 
 // TappdConfig is the configuration of the Tappd.
@@ -40,10 +45,20 @@ message TappdConfig {
   string domain = 3;
 }
 
-// ListResponse is the response for List.
-message ListResponse {
+// StatusResponse is the response for Status.
+message StatusResponse {
+  // Peer id
+  bytes id = 1;
+  // My URL.
+  string url = 2;
+  // The bootnode URL.
+  string bootnode_url = 3;
+  // Number of established proxy connections.
+  uint64 num_connections = 4;
   // The list of proxied CVMs.
-  repeated HostInfo hosts = 1;
+  repeated HostInfo hosts = 5;
+  // The list of proxy nodes.
+  repeated ProxyNodeInfo nodes = 6;
 }
 
 // HostInfo is the information of a host.
@@ -60,8 +75,9 @@ message HostInfo {
   uint32 port = 5;
   // The latest handshake time of the host.
   uint64 latest_handshake = 6;
+  // The number of connections of the host.
+  uint64 num_connections = 7;
 }
-
 
 // AcmeInfoResponse is the response for AcmeInfo.
 message AcmeInfoResponse {
@@ -86,17 +102,45 @@ message GetMetaResponse {
   uint32 online = 2;
 }
 
+message ProxyNodeInfo {
+  // The ID of the node.
+  bytes id = 1;
+  // The RPC URL of the node.
+  string url = 2;
+  // The last seen time of the node.
+  uint64 last_seen = 3;
+  // The wireguard peer info.
+  WireGuardPeer wg_peer = 4;
+}
+
+message AppInstanceInfo {
+  string app_id = 1;
+  string instance_id = 2;
+  string ip = 3;
+  string public_key = 4;
+  uint64 reg_time = 5;
+  uint64 last_seen = 6;
+  uint64 num_connections = 7;
+}
+
+message TproxyState {
+  repeated ProxyNodeInfo nodes = 1;
+  repeated AppInstanceInfo apps = 2;
+}
+
 service Tproxy {
   // Register a new proxied CVM.
   rpc RegisterCvm(RegisterCvmRequest) returns (RegisterCvmResponse) {}
-  // List all proxied CVMs.
-  rpc List(google.protobuf.Empty) returns (ListResponse) {}
+  // Get the status of the TProxy.
+  rpc Status(google.protobuf.Empty) returns (StatusResponse) {}
   // List all ACME account URIs and the public key history of the certificates for the Content Addressable HTTPS.
   rpc AcmeInfo(google.protobuf.Empty) returns (AcmeInfoResponse) {}
   // Find Proxied HostInfo by instance ID
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {}
   // Summary API for inspect.
   rpc GetMeta(google.protobuf.Empty) returns (GetMetaResponse);
+  // Merge state from other TProxy instances.
+  rpc UpdateState(TproxyState) returns (google.protobuf.Empty) {}
 }
 
 message RenewCertResponse {

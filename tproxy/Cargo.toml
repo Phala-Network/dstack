@@ -39,6 +39,7 @@ kms-rpc.workspace = true
 ra-tls.workspace = true
 tappd-rpc.workspace = true
 http-client = { workspace = true, features = ["prpc"] }
+sha2.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 nix = { workspace = true, features = ["resource"] }

@@ -12,7 +12,8 @@ kms_url = ""
 state_path = "./tproxy-state.json"
 # auto set soft ulimit to hard ulimit
 set_ulimit = true
-tls_domain = ""
+rpc_domain = ""
+run_as_tapp = true
 
 [core.admin]
 enabled = false
@@ -33,9 +34,10 @@ renew_timeout = "120s"
 [core.wg]
 public_key = ""
 private_key = ""
-ip = "10.0.0.1"
 listen_port = 51820
-client_ip_range = "10.0.0.0/24"
+ip = "10.0.0.1/24"
+reserved_net = "10.0.0.1/32"
+client_ip_range = "10.0.0.0/25"
 config_path = "/etc/wireguard/wg0.conf"
 interface = "wg0"
 endpoint = "10.0.2.2:51820"
@@ -77,3 +79,13 @@ total = "5h"
 enabled = true
 interval = "5m"
 timeout = "10h"
+node_timeout = "10m"
+
+[core.sync]
+enabled = false
+interval = "30s"
+broadcast_interval = "10m"
+timeout = "2s"
+my_url = "https://localhost:8011"
+# The url of the bootnode used to join the network
+bootnode = "https://localhost:8011"

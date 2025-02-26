@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 
-use crate::oids::PHALA_RATLS_CERT_USAGE;
+use crate::oids::{PHALA_RATLS_APP_ID, PHALA_RATLS_CERT_USAGE};
 
 /// Types that can get custom cert extensions from.
 pub trait CertExt {
@@ -27,5 +27,13 @@ pub trait CertExt {
         };
         let found = String::from_utf8(found).context("Failed to decode special usage as utf8")?;
         Ok(Some(found))
+    }
+
+    /// Get the app id from the certificate
+    fn get_app_id(&self) -> Result<Option<Vec<u8>>> {
+        let app_id = self
+            .get_extension_bytes(PHALA_RATLS_APP_ID)
+            .context("Failed to get extension")?;
+        Ok(app_id)
     }
 }

@@ -1,7 +1,7 @@
 use std::{
     net::Ipv4Addr,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
         Arc,
     },
 };
@@ -16,9 +16,15 @@ use tokio::{
 };
 use tracing::{debug, error, info, info_span, Instrument};
 
-use crate::{config::ProxyConfig, main_service::Proxy};
+use crate::{config::ProxyConfig, main_service::Proxy, models::EnteredCounter};
 
-pub(crate) type AddressGroup = smallvec::SmallVec<[Ipv4Addr; 4]>;
+#[derive(Debug, Clone)]
+pub(crate) struct AddressInfo {
+    pub ip: Ipv4Addr,
+    pub counter: Arc<AtomicU64>,
+}
+
+pub(crate) type AddressGroup = smallvec::SmallVec<[AddressInfo; 4]>;
 
 mod io_bridge;
 mod sni;
@@ -111,6 +117,8 @@ fn parse_destination(sni: &str, dotted_base_domain: &str) -> Result<DstInfo> {
     })
 }
 
+pub static NUM_CONNECTIONS: AtomicU64 = AtomicU64::new(0);
+
 async fn handle_connection(
     mut inbound: TcpStream,
     state: Proxy,
@@ -169,6 +177,7 @@ pub async fn run(config: &ProxyConfig, app_state: Proxy) -> Result<()> {
             Ok((inbound, from)) => {
                 let span = info_span!("conn", id = next_connection_id());
                 let _enter = span.enter();
+                let conn_entered = EnteredCounter::new(&NUM_CONNECTIONS);
 
                 info!(%from, "new connection");
                 let app_state = app_state.clone();
@@ -176,6 +185,7 @@ pub async fn run(config: &ProxyConfig, app_state: Proxy) -> Result<()> {
                 let tls_terminate_proxy = tls_terminate_proxy.clone();
                 tokio::spawn(
                     async move {
+                        let _conn_entered = conn_entered;
                         let timeouts = &app_state.config.proxy.timeouts;
                         let result = timeout(
                             timeouts.total,

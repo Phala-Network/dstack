@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Context, Result};
 use cmd_lib::run_cmd as cmd;
 use ipnet::Ipv4Net;
 use load_config::load_config;
@@ -13,11 +13,36 @@ pub struct WgConfig {
     pub public_key: String,
     pub private_key: String,
     pub listen_port: u16,
-    pub ip: Ipv4Addr,
+    pub ip: Ipv4Net,
+    pub reserved_net: Ipv4Net,
     pub client_ip_range: Ipv4Net,
     pub interface: String,
     pub config_path: String,
     pub endpoint: String,
+}
+
+impl WgConfig {
+    fn validate(&self) -> Result<()> {
+        validate(self.ip, self.reserved_net, self.client_ip_range)
+    }
+}
+
+fn validate(ip: Ipv4Net, reserved_net: Ipv4Net, client_ip_range: Ipv4Net) -> Result<()> {
+    // The reserved net must be in the network
+    if !ip.contains(&reserved_net) {
+        bail!("Reserved net is not in the network");
+    }
+
+    // The ip must be in the reserved net
+    if !reserved_net.contains(&ip.addr()) {
+        bail!("Wg peer IP is not in the reserved net");
+    }
+
+    // The client ip range must be in the network
+    if !ip.trunc().contains(&client_ip_range) {
+        bail!("Client IP range is not in the network");
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -62,6 +87,21 @@ pub struct RecycleConfig {
     pub interval: Duration,
     #[serde(with = "serde_duration")]
     pub timeout: Duration,
+    #[serde(with = "serde_duration")]
+    pub node_timeout: Duration,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SyncConfig {
+    pub enabled: bool,
+    #[serde(with = "serde_duration")]
+    pub interval: Duration,
+    #[serde(with = "serde_duration")]
+    pub broadcast_interval: Duration,
+    #[serde(with = "serde_duration")]
+    pub timeout: Duration,
+    pub my_url: String,
+    pub bootnode: String,
 }
 
 mod serde_duration {
@@ -126,9 +166,20 @@ pub struct Config {
     pub recycle: RecycleConfig,
     pub state_path: String,
     pub set_ulimit: bool,
-    pub tls_domain: String,
+    pub rpc_domain: String,
     pub kms_url: String,
     pub admin: AdminConfig,
+    pub run_as_tapp: bool,
+    pub sync: SyncConfig,
+}
+
+impl Config {
+    pub fn id(&self) -> Vec<u8> {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(self.wg.public_key.as_bytes());
+        hasher.finalize()[..20].to_vec()
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -206,6 +257,8 @@ pub fn load_config_figment(config_file: Option<&str>) -> Figment {
 }
 
 pub fn setup_wireguard(config: &WgConfig) -> Result<()> {
+    config.validate().context("Invalid wireguard config")?;
+
     info!("Setting up wireguard interface");
 
     let ifname = &config.interface;
@@ -216,7 +269,7 @@ pub fn setup_wireguard(config: &WgConfig) -> Result<()> {
         return Ok(());
     }
 
-    let addr = format!("{}/{}", config.ip, config.client_ip_range.prefix_len());
+    let addr = format!("{}", config.ip);
     // Interface doesn't exist, create and configure it
     cmd! {
         ip link add $ifname type wireguard;
@@ -227,4 +280,65 @@ pub fn setup_wireguard(config: &WgConfig) -> Result<()> {
     info!("Created and configured WireGuard interface {ifname}");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_validate() {
+        // Valid configuration
+        let ip = Ipv4Net::from_str("10.1.2.3/24").unwrap();
+        let reserved_net = Ipv4Net::from_str("10.1.2.0/30").unwrap();
+        let result = validate(
+            ip,
+            reserved_net,
+            Ipv4Net::from_str("10.1.2.128/25").unwrap(),
+        );
+        assert!(result.is_ok());
+
+        // Reserved net does not contain network
+        let ip = Ipv4Net::from_str("10.2.0.1/24").unwrap();
+        let reserved_net = Ipv4Net::from_str("10.1.0.0/16").unwrap();
+        let result = validate(
+            ip,
+            reserved_net,
+            Ipv4Net::from_str("10.2.0.128/25").unwrap(),
+        );
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Reserved net is not in the network"
+        );
+
+        // IP not in reserved net
+        let ip = Ipv4Net::from_str("10.1.2.16/24").unwrap();
+        let reserved_net = Ipv4Net::from_str("10.1.2.0/30").unwrap();
+        let result = validate(
+            ip,
+            reserved_net,
+            Ipv4Net::from_str("10.1.2.128/25").unwrap(),
+        );
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "IP is not in the reserved net"
+        );
+
+        // Client IP range not in network
+        let ip = Ipv4Net::from_str("10.1.2.3/24").unwrap();
+        let reserved_net = Ipv4Net::from_str("10.1.2.0/30").unwrap();
+        let result = validate(
+            ip,
+            reserved_net,
+            Ipv4Net::from_str("10.1.3.128/25").unwrap(),
+        );
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Client IP range is not in the network"
+        );
+    }
 }

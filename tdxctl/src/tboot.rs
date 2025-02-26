@@ -10,7 +10,7 @@ use ra_tls::{
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
-use tproxy_rpc::{tproxy_client::TproxyClient, RegisterCvmRequest};
+use tproxy_rpc::{tproxy_client::TproxyClient, RegisterCvmRequest, WireGuardPeer};
 use tracing::info;
 
 use crate::{
@@ -35,26 +35,24 @@ impl TbootArgs {
     }
 }
 
-struct RaValidator {
-    remote_app_id: String,
+struct AppIdValidator {
+    allowed_app_id: String,
 }
 
-impl RaValidator {
+impl AppIdValidator {
     fn validate(&self, cert: Option<CertInfo>) -> Result<()> {
-        if self.remote_app_id == "any" {
+        if self.allowed_app_id == "any" {
             return Ok(());
         }
         let Some(cert) = cert else {
-            bail!("Missing cert");
+            bail!("Missing TLS certificate info");
         };
-        let Some(attestation) = cert.attestation else {
-            bail!("Missing attestation");
+        let Some(app_id) = cert.app_id else {
+            bail!("Missing app id");
         };
-        let app_id = attestation
-            .decode_app_id()
-            .context("Failed to decode app id")?;
-        if app_id != self.remote_app_id {
-            bail!("Invalid app id: {}", app_id);
+        let app_id = hex::encode(app_id);
+        if !self.allowed_app_id.contains(&app_id) {
+            bail!("Invalid tproxy app id: {app_id}");
         }
         Ok(())
     }
@@ -119,9 +117,6 @@ impl<'a> Setup<'a> {
             .context("Missing tproxy_url")?;
 
         let url = format!("{}/prpc", tproxy_url);
-        let ra_validator = RaValidator {
-            remote_app_id: self.app_keys.tproxy_app_id.clone(),
-        };
         let cert_client =
             CertRequestClient::create(&self.app_keys, self.local_config.pccs_url.as_deref())
                 .await
@@ -142,6 +137,9 @@ impl<'a> Setup<'a> {
             .context("Failed to request cert")?;
         let client_cert = client_certs.join("\n");
         let ca_cert = self.app_keys.ca_cert.clone();
+        let cert_validator = AppIdValidator {
+            allowed_app_id: self.app_keys.tproxy_app_id.clone(),
+        };
         let client = RaClientConfig::builder()
             .remote_uri(url)
             .maybe_pccs_url(self.local_config.pccs_url.clone())
@@ -150,7 +148,8 @@ impl<'a> Setup<'a> {
             .tls_ca_cert(ca_cert)
             .tls_built_in_root_certs(false)
             .tls_no_check(self.app_keys.tproxy_app_id == "any")
-            .cert_validator(Box::new(move |cert| ra_validator.validate(cert)))
+            .verify_server_attestation(false)
+            .cert_validator(Box::new(move |cert| cert_validator.validate(cert)))
             .build()
             .into_client()
             .context("Failed to create RA client")?;
@@ -165,31 +164,52 @@ impl<'a> Setup<'a> {
         let _tappd_info = response.tappd.context("Missing tappd info")?;
 
         let client_ip = &wg_info.client_ip;
-        let server_endpoint = &wg_info.server_endpoint;
-        let server_public_key = &wg_info.server_public_key;
-        let server_ip = &wg_info.server_ip;
 
         // Create WireGuard config
-        fs::create_dir_all(self.resolve("/etc/wireguard"))?;
         let wg_listen_port = "9182";
-        let config = format!(
+        let mut config = format!(
             "[Interface]\n\
             PrivateKey = {sk}\n\
             ListenPort = {wg_listen_port}\n\
-            Address = {client_ip}/32\n\n\
-            [Peer]\n\
-            PublicKey = {server_public_key}\n\
-            AllowedIPs = {server_ip}/32\n\
-            Endpoint = {server_endpoint}\n\
-            PersistentKeepalive = 25\n"
+            Address = {client_ip}/32\n\n"
         );
+        for WireGuardPeer { pk, ip, endpoint } in &wg_info.servers {
+            let ip = ip.split('/').next().unwrap_or_default();
+            config.push_str(&format!(
+                "[Peer]\n\
+                PublicKey = {pk}\n\
+                AllowedIPs = {ip}/32\n\
+                Endpoint = {endpoint}\n\
+                PersistentKeepalive = 25\n",
+            ));
+        }
+        fs::create_dir_all(self.resolve("/etc/wireguard"))?;
         fs::write(self.resolve("/etc/wireguard/wg0.conf"), config)?;
-        // Add iptables rule to only allow packets from the WireGuard endpoint
-        let endpoint_ip = server_endpoint
-            .split(':')
-            .next()
-            .context("Invalid wireguard endpoint")?;
-        cmd!(iptables -A INPUT -p udp --dport $wg_listen_port ! -s $endpoint_ip -j DROP)?;
+
+        // Setup WireGuard iptables rules
+        cmd! {
+            // Create the chain if it doesn't exist
+            ignore iptables -N TPROXY_WG 2>/dev/null;
+            // Flush the chain
+            iptables -F TPROXY_WG;
+            // Remove any existing jump rule
+            ignore iptables -D INPUT -p udp --dport $wg_listen_port -j TPROXY_WG 2>/dev/null;
+            // Insert the new jump rule at the beginning of the INPUT chain
+            iptables -I INPUT -p udp --dport $wg_listen_port -j TPROXY_WG
+        }?;
+
+        for peer in &wg_info.servers {
+            // Avoid issues with field-access in the macro by binding the IP to a local variable.
+            let endpoint_ip = peer
+                .endpoint
+                .split(':')
+                .next()
+                .context("Invalid wireguard endpoint")?;
+            cmd!(iptables -A TPROXY_WG -s $endpoint_ip -j ACCEPT)?;
+        }
+
+        // Drop any UDP packets that don't come from an allowed IP.
+        cmd!(iptables -A TPROXY_WG -j DROP)?;
 
         info!("Starting WireGuard");
         cmd!(wg-quick up wg0)?;

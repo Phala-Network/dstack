@@ -138,7 +138,7 @@ impl TlsTerminateProxy {
         .await
         .context("handshake timeout")?
         .context("failed to accept tls connection")?;
-        let outbound = timeout(
+        let (outbound, _counter) = timeout(
             self.app_state.config.proxy.timeouts.connect,
             connect_multiple_hosts(addresses, port),
         )

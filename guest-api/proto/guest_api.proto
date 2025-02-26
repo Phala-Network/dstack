@@ -46,6 +46,7 @@ message NetworkInformation {
   repeated string dns_servers = 1;
   repeated Gateway gateways = 2;
   repeated Interface interfaces = 3;
+  string wg_info = 4;
 }
 
 message ListContainersResponse {

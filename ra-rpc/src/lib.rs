@@ -28,6 +28,7 @@ pub struct CallContext<'a, State> {
     pub state: &'a State,
     pub attestation: Option<VerifiedAttestation>,
     pub remote_endpoint: Option<RemoteEndpoint>,
+    pub remote_app_id: Option<Vec<u8>>,
 }
 
 pub trait RpcCall<State>: Sized {
