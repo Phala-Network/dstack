@@ -82,8 +82,8 @@ impl AppCompose {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct LocalConfig {
-    pub kms_url: Option<String>,
-    pub tproxy_url: Option<String>,
+    pub kms_urls: Vec<String>,
+    pub tproxy_urls: Vec<String>,
     pub pccs_url: Option<String>,
     pub docker_registry: Option<String>,
     pub host_api_url: String,

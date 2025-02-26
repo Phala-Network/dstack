@@ -3,6 +3,7 @@ use std::{fmt::Debug, path::Path};
 use anyhow::{Context, Result};
 use bollard::{container::ListContainersOptions, Docker};
 use cmd_lib::{run_cmd as cmd, run_fun};
+use dstack_types::LocalConfig;
 use fs_err as fs;
 use guest_api::{
     guest_api_server::{GuestApiRpc, GuestApiServer},
@@ -11,16 +12,10 @@ use guest_api::{
 };
 use host_api::Notification;
 use ra_rpc::{CallContext, RpcCall};
-use serde::Deserialize;
 use tappd_rpc::worker_server::WorkerRpc as _;
 use tracing::error;
 
 use crate::{rpc_service::ExternalRpcHandler, AppState};
-
-#[derive(Deserialize)]
-struct LocalConfig {
-    host_api_url: String,
-}
 
 pub struct GuestApiHandler {
     state: AppState,

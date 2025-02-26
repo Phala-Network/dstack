@@ -305,10 +305,26 @@ impl TeepodRpc for RpcHandler {
     async fn get_meta(self) -> Result<GetMetaResponse> {
         Ok(GetMetaResponse {
             kms: Some(KmsSettings {
-                url: self.app.config.cvm.kms_url.clone(),
+                url: self
+                    .app
+                    .config
+                    .cvm
+                    .kms_urls
+                    .first()
+                    .cloned()
+                    .unwrap_or_default(),
+                urls: self.app.config.cvm.kms_urls.clone(),
             }),
             tproxy: Some(TProxySettings {
-                url: self.app.config.cvm.tproxy_url.clone(),
+                url: self
+                    .app
+                    .config
+                    .cvm
+                    .tproxy_urls
+                    .first()
+                    .cloned()
+                    .unwrap_or_default(),
+                urls: self.app.config.cvm.tproxy_urls.clone(),
                 base_domain: self.app.config.gateway.base_domain.clone(),
                 port: self.app.config.gateway.port.into(),
                 tappd_port: self.app.config.gateway.tappd_port.into(),

@@ -73,9 +73,9 @@ pub struct CvmConfig {
     #[serde(default)]
     pub qemu_path: PathBuf,
     /// The URL of the KMS server
-    pub kms_url: String,
+    pub kms_urls: Vec<String>,
     /// The URL of the TProxy server
-    pub tproxy_url: String,
+    pub tproxy_urls: Vec<String>,
     /// The URL of the PCCS server
     #[serde(default)]
     pub pccs_url: String,
