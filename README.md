@@ -72,7 +72,7 @@ cd build
 # This outputs the following message:
 # Config file ../build-config.sh created, please edit it to configure the build
 
-vim ../build-config.sh
+vim ./build-config.sh
 ```
 
 Now edit the config file. The following configurations values must be changed properly according to your environment:
