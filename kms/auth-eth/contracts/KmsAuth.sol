@@ -53,7 +53,7 @@ contract KmsAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth
     event KmsComposeHashDeregistered(bytes32 composeHash);
     event KmsDeviceIdRegistered(bytes32 deviceId);
     event KmsDeviceIdDeregistered(bytes32 deviceId);
-    event TProxyAppIdSet(string tproxyAppId);
+    event TproxyAppIdSet(string tproxyAppId);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -86,9 +86,9 @@ contract KmsAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth
     }
 
     // Function to set trusted TProxy App ID
-    function setTProxyAppId(string memory appId) external onlyOwner {
+    function setTproxyAppId(string memory appId) external onlyOwner {
         tproxyAppId = appId;
-        emit TProxyAppIdSet(appId);
+        emit TproxyAppIdSet(appId);
     }
 
     // Function to calculate the app ID

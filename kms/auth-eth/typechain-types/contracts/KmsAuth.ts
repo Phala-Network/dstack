@@ -95,7 +95,7 @@ export interface KmsAuthInterface extends Interface {
       | "setKmsEventlog"
       | "setKmsInfo"
       | "setKmsQuote"
-      | "setTProxyAppId"
+      | "setTproxyAppId"
       | "tproxyAppId"
       | "transferOwnership"
       | "upgradeToAndCall"
@@ -115,7 +115,7 @@ export interface KmsAuthInterface extends Interface {
       | "KmsDeviceIdRegistered"
       | "KmsInfoSet"
       | "OwnershipTransferred"
-      | "TProxyAppIdSet"
+      | "TproxyAppIdSet"
       | "Upgraded"
   ): EventFragment;
 
@@ -215,7 +215,7 @@ export interface KmsAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "setTProxyAppId",
+    functionFragment: "setTproxyAppId",
     values: [string]
   ): string;
   encodeFunctionData(
@@ -321,7 +321,7 @@ export interface KmsAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "setTProxyAppId",
+    functionFragment: "setTproxyAppId",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -483,7 +483,7 @@ export namespace OwnershipTransferredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace TProxyAppIdSetEvent {
+export namespace TproxyAppIdSetEvent {
   export type InputTuple = [tproxyAppId: string];
   export type OutputTuple = [tproxyAppId: string];
   export interface OutputObject {
@@ -689,7 +689,7 @@ export interface KmsAuth extends BaseContract {
 
   setKmsQuote: TypedContractMethod<[quote: BytesLike], [void], "nonpayable">;
 
-  setTProxyAppId: TypedContractMethod<[appId: string], [void], "nonpayable">;
+  setTproxyAppId: TypedContractMethod<[appId: string], [void], "nonpayable">;
 
   tproxyAppId: TypedContractMethod<[], [string], "view">;
 
@@ -819,7 +819,7 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "setKmsQuote"
   ): TypedContractMethod<[quote: BytesLike], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "setTProxyAppId"
+    nameOrSignature: "setTproxyAppId"
   ): TypedContractMethod<[appId: string], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "tproxyAppId"
@@ -920,11 +920,11 @@ export interface KmsAuth extends BaseContract {
     OwnershipTransferredEvent.OutputObject
   >;
   getEvent(
-    key: "TProxyAppIdSet"
+    key: "TproxyAppIdSet"
   ): TypedContractEvent<
-    TProxyAppIdSetEvent.InputTuple,
-    TProxyAppIdSetEvent.OutputTuple,
-    TProxyAppIdSetEvent.OutputObject
+    TproxyAppIdSetEvent.InputTuple,
+    TproxyAppIdSetEvent.OutputTuple,
+    TproxyAppIdSetEvent.OutputObject
   >;
   getEvent(
     key: "Upgraded"
@@ -1067,15 +1067,15 @@ export interface KmsAuth extends BaseContract {
       OwnershipTransferredEvent.OutputObject
     >;
 
-    "TProxyAppIdSet(string)": TypedContractEvent<
-      TProxyAppIdSetEvent.InputTuple,
-      TProxyAppIdSetEvent.OutputTuple,
-      TProxyAppIdSetEvent.OutputObject
+    "TproxyAppIdSet(string)": TypedContractEvent<
+      TproxyAppIdSetEvent.InputTuple,
+      TproxyAppIdSetEvent.OutputTuple,
+      TproxyAppIdSetEvent.OutputObject
     >;
-    TProxyAppIdSet: TypedContractEvent<
-      TProxyAppIdSetEvent.InputTuple,
-      TProxyAppIdSetEvent.OutputTuple,
-      TProxyAppIdSetEvent.OutputObject
+    TproxyAppIdSet: TypedContractEvent<
+      TproxyAppIdSetEvent.InputTuple,
+      TproxyAppIdSetEvent.OutputTuple,
+      TproxyAppIdSetEvent.OutputObject
     >;
 
     "Upgraded(address)": TypedContractEvent<

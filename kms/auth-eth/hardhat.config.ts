@@ -109,7 +109,7 @@ task("kms:set-tproxy", "Set the allowed TProxy App ID")
   .addPositionalParam("appId", "TProxy App ID")
   .setAction(async ({ appId }, { ethers }) => {
     const contract = await getKmsAuth(ethers);
-    const tx = await contract.setTProxyAppId(appId);
+    const tx = await contract.setTproxyAppId(appId);
     await waitTx(tx);
     console.log("TProxy App ID set successfully");
   });

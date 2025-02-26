@@ -176,7 +176,7 @@ const _abi = [
         type: "string",
       },
     ],
-    name: "TProxyAppIdSet",
+    name: "TproxyAppIdSet",
     type: "event",
   },
   {
@@ -660,7 +660,7 @@ const _abi = [
         type: "string",
       },
     ],
-    name: "setTProxyAppId",
+    name: "setTproxyAppId",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
