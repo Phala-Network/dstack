@@ -1116,7 +1116,8 @@
                         "tproxy_enabled": vmForm.value.tproxy_enabled,
                         "public_logs": vmForm.value.public_logs,
                         "public_sysinfo": vmForm.value.public_sysinfo,
-                        "local_key_provider_enabled": vmForm.value.local_key_provider_enabled
+                        "local_key_provider_enabled": vmForm.value.local_key_provider_enabled,
+                        "allowed_envs": vmForm.value.encrypted_envs.map(env => env.key),
                     };
 
                     if (vmForm.value.preLaunchScript?.trim()) {
