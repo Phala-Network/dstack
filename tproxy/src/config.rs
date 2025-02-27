@@ -324,7 +324,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "IP is not in the reserved net"
+            "Wg peer IP is not in the reserved net"
         );
 
         // Client IP range not in network
