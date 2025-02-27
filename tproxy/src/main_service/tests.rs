@@ -4,7 +4,9 @@ use crate::config::{load_config_figment, Config};
 async fn create_test_state() -> Proxy {
     let figment = load_config_figment(None);
     let config = figment.focus("core").extract::<Config>().unwrap();
-    Proxy::new(config, None).await.expect("failed to create app state")
+    Proxy::new(config, None)
+        .await
+        .expect("failed to create app state")
 }
 
 #[tokio::test]

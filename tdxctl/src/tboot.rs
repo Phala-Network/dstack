@@ -17,7 +17,10 @@ use tracing::{info, warn};
 
 use crate::{
     host_api::HostApi,
-    utils::{deserialize_json_file, AppCompose, AppKeys, LocalConfig},
+    utils::{deserialize_json_file, AppCompose, AppKeys, SysConfig},
+};
+use dstack_types::shared_filenames::{
+    APP_COMPOSE, APP_KEYS, DECRYPTED_ENV_JSON, HOST_SHARED_DIR, SYS_CONFIG, USER_CONFIG,
 };
 
 #[derive(Parser)]
@@ -33,7 +36,11 @@ pub(crate) struct TbootArgs {
 
 impl TbootArgs {
     pub(crate) fn resolve(&self, path: &str) -> String {
-        format!("{}/{}", self.prefix, path)
+        format!("{}/{}", self.prefix, path.trim_start_matches("/"))
+    }
+
+    pub(crate) fn host_shared_file(&self, name: &str) -> String {
+        format!("{}{HOST_SHARED_DIR}/{name}", self.prefix)
     }
 }
 
@@ -62,24 +69,20 @@ impl AppIdValidator {
 
 struct Setup<'a> {
     args: &'a TbootArgs,
-    local_config: LocalConfig,
     app_compose: AppCompose,
+    sys_config: SysConfig,
     app_keys: AppKeys,
-    encrypted_env: BTreeMap<String, String>,
+    decrypted_env: BTreeMap<String, String>,
 }
 
 impl<'a> Setup<'a> {
     fn load(args: &'a TbootArgs) -> Result<Self> {
         Ok(Self {
             args,
-            local_config: deserialize_json_file(args.resolve("/tapp/config.json"))
-                .context("Failed to read config.json")?,
-            app_compose: deserialize_json_file(args.resolve("/tapp/app-compose.json"))
-                .context("Failed to read app-compose.json")?,
-            app_keys: deserialize_json_file(args.resolve("/tapp/appkeys.json"))
-                .context("Failed to read appkeys.json")?,
-            encrypted_env: deserialize_json_file(args.resolve("/tapp/env.json"))
-                .context("Failed to read env.json")?,
+            app_compose: deserialize_json_file(args.host_shared_file(APP_COMPOSE))?,
+            sys_config: deserialize_json_file(args.host_shared_file(SYS_CONFIG))?,
+            app_keys: deserialize_json_file(args.host_shared_file(APP_KEYS))?,
+            decrypted_env: deserialize_json_file(args.host_shared_file(DECRYPTED_ENV_JSON))?,
         })
     }
 
@@ -88,8 +91,9 @@ impl<'a> Setup<'a> {
     }
 
     async fn setup(&self, nc: &HostApi) -> Result<()> {
-        nc.notify_q("boot.progress", "setting up tproxy net").await;
+        self.prepare_fs()?;
         self.setup_tappd_config()?;
+        nc.notify_q("boot.progress", "setting up tproxy net").await;
         self.setup_tproxy_net().await?;
         nc.notify_q("boot.progress", "setting up docker").await;
         self.setup_docker_registry()?;
@@ -111,7 +115,7 @@ impl<'a> Setup<'a> {
         };
         let client = RaClientConfig::builder()
             .remote_uri(url)
-            .maybe_pccs_url(self.local_config.pccs_url.clone())
+            .maybe_pccs_url(self.sys_config.pccs_url.clone())
             .tls_client_cert(client_cert)
             .tls_client_key(client_key)
             .tls_ca_cert(ca_cert)
@@ -154,7 +158,7 @@ impl<'a> Setup<'a> {
             ext_quote: true,
         };
         let cert_client =
-            CertRequestClient::create(&self.app_keys, self.local_config.pccs_url.as_deref())
+            CertRequestClient::create(&self.app_keys, self.sys_config.pccs_url.as_deref())
                 .await
                 .context("Failed to create cert client")?;
         let client_key =
@@ -166,12 +170,12 @@ impl<'a> Setup<'a> {
         let client_cert = client_certs.join("\n");
         let client_key = client_key.serialize_pem();
 
-        if self.local_config.tproxy_urls.is_empty() {
+        if self.sys_config.tproxy_urls.is_empty() {
             bail!("Missing tproxy urls");
         }
         // Read config and make API call
         let response = 'out: {
-            for tproxy_url in self.local_config.tproxy_urls.iter() {
+            for tproxy_url in self.sys_config.tproxy_urls.iter() {
                 let response = self
                     .register_cvm(
                         tproxy_url,
@@ -247,6 +251,18 @@ impl<'a> Setup<'a> {
         Ok(())
     }
 
+    fn prepare_fs(&self) -> Result<()> {
+        let app_compose_file = self.args.host_shared_file(APP_COMPOSE);
+        let user_config_file = self.args.host_shared_file(USER_CONFIG);
+        let prefix = &self.args.prefix;
+        cmd! {
+            cd ${prefix}/tapp;
+            ln -sf $app_compose_file;
+            ln -sf $user_config_file user_config;
+        }?;
+        Ok(())
+    }
+
     fn setup_tappd_config(&self) -> Result<()> {
         info!("Setting up tappd config");
         let config = serde_json::json!({
@@ -255,7 +271,7 @@ impl<'a> Setup<'a> {
                     "app_name": self.app_compose.name,
                     "public_logs": self.app_compose.public_logs,
                     "public_sysinfo": self.app_compose.public_sysinfo,
-                    "pccs_url": self.local_config.pccs_url,
+                    "pccs_url": self.sys_config.pccs_url,
                 }
             }
         });
@@ -273,7 +289,7 @@ impl<'a> Setup<'a> {
             .as_deref()
             .unwrap_or_default();
         let registry_url = if registry_url.is_empty() {
-            self.local_config
+            self.sys_config
                 .docker_registry
                 .as_deref()
                 .unwrap_or_default()
@@ -321,7 +337,7 @@ impl<'a> Setup<'a> {
             return Ok(());
         }
         let token = self
-            .encrypted_env
+            .decrypted_env
             .get(token_key)
             .with_context(|| format!("Missing token for {username}"))?;
         if token.is_empty() {

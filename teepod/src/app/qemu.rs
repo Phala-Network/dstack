@@ -13,6 +13,7 @@ use std::{
 use super::{image::Image, VmState};
 use anyhow::{bail, Context, Result};
 use bon::Builder;
+use dstack_types::shared_filenames::{APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, USER_CONFIG};
 use fs_err as fs;
 use serde::{Deserialize, Serialize};
 use supervisor_client::supervisor::{ProcessConfig, ProcessInfo};
@@ -94,6 +95,7 @@ impl VmInfo {
                     fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
                 },
                 encrypted_env: { fs::read(workdir.encrypted_env_path()).unwrap_or_default() },
+                user_config: { fs::read_to_string(workdir.user_config_path()).unwrap_or_default() },
                 vcpu: self.manifest.vcpu,
                 memory: self.manifest.memory,
                 disk_size: self.manifest.disk_size,
@@ -355,11 +357,19 @@ impl VmWorkDir {
     }
 
     pub fn app_compose_path(&self) -> PathBuf {
-        self.shared_dir().join("app-compose.json")
+        self.shared_dir().join(APP_COMPOSE)
+    }
+
+    pub fn user_config_path(&self) -> PathBuf {
+        self.shared_dir().join(USER_CONFIG)
     }
 
     pub fn encrypted_env_path(&self) -> PathBuf {
-        self.shared_dir().join("encrypted-env")
+        self.shared_dir().join(ENCRYPTED_ENV)
+    }
+
+    pub fn instance_info_path(&self) -> PathBuf {
+        self.shared_dir().join(INSTANCE_INFO)
     }
 
     pub fn serial_file(&self) -> PathBuf {
@@ -392,10 +402,6 @@ impl VmWorkDir {
 
     pub fn path(&self) -> &Path {
         &self.workdir
-    }
-
-    pub fn instance_info_path(&self) -> PathBuf {
-        self.shared_dir().join(".instance_info")
     }
 }
 

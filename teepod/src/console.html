@@ -553,6 +553,12 @@
                             placeholder="Optional: Bash script to run before starting containers"></textarea>
                     </div>
 
+                    <div class="form-group">
+                        <label for="userConfig">User Config</label>
+                        <textarea id="userConfig" v-model="vmForm.user_config"
+                            placeholder="Optional: User config to be put at /tapp/.user-config in the CVM"></textarea>
+                    </div>
+
                     <div class="form-group full-width" v-if="config.portMappingEnabled">
                         <label>Port Mappings</label>
                         <div v-for="(port, index) in vmForm.ports" :key="index"
@@ -880,6 +886,12 @@
                         <textarea id="upgradePrelauncher" v-model="upgradeDialog.preLaunchScript"
                             placeholder="Optional: Bash script to run before starting containers"></textarea>
                     </div>
+
+                    <div class="form-group">
+                        <label for="userConfig">User Config</label>
+                        <textarea id="userConfig" v-model="upgradeDialog.user_config"
+                            placeholder="Optional: User config to be put at /tapp/.user-config in the CVM"></textarea>
+                    </div>
                 </div>
                 <div style="display: flex; align-items: center; margin-top: 16px;">
                     <input type="checkbox" v-model="upgradeDialog.resetSecrets" style="width: 16px; height: 16px;">
@@ -1002,7 +1014,8 @@
                     local_key_provider_enabled: false,
                     tproxy_enabled: true,
                     public_logs: true,
-                    public_sysinfo: true
+                    public_sysinfo: true,
+                    user_config: ''
                 });
                 const availableImages = ref([]);
                 const upgradeDialog = ref({
@@ -1189,7 +1202,8 @@
                                 vmForm.value.encrypted_envs,
                                 vmForm.value.kms_enabled,
                                 vmForm.value.app_id
-                            )
+                            ),
+                            user_config: vmForm.value.user_config
                         };
                         const _response = await rpcCall('CreateVm', form);
                         loadVMList();
@@ -1323,6 +1337,7 @@
                         dockerComposeFile: vm.appCompose.docker_compose_file,
                         preLaunchScript: vm.appCompose.pre_launch_script,
                         resetSecrets: false,
+                        user_config: vm.configuration?.user_config,
                         vcpu: vm.configuration?.vcpu,
                         memory: vm.configuration?.memory,
                         disk_size: vm.configuration?.disk_size,

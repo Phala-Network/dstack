@@ -6,7 +6,7 @@ After=docker.service tboot.service tappd.service
 [Service]
 Type=oneshot
 RemainAfterExit=true
-EnvironmentFile=-/tapp/env
+EnvironmentFile=-/tapp/.host-shared/.decrypted-env
 WorkingDirectory=/tapp
 ExecStart=/bin/app-compose.sh
 ExecStop=/bin/docker compose stop

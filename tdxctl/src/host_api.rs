@@ -1,7 +1,8 @@
 use std::time::{Duration, SystemTime};
 
-use crate::utils::{deserialize_json_file, sha256, LocalConfig};
+use crate::utils::{deserialize_json_file, sha256, SysConfig};
 use anyhow::{anyhow, bail, Context, Result};
+use dstack_types::shared_filenames::{HOST_SHARED_DIR, SYS_CONFIG};
 use host_api::{
     client::{new_client, DefaultClient},
     Notification,
@@ -37,7 +38,8 @@ impl HostApi {
         let api = match url {
             Some(url) => Self::new(url, None),
             None => {
-                let local_config: LocalConfig = deserialize_json_file("/tapp/config.json")?;
+                let local_config: SysConfig =
+                    deserialize_json_file(format!("{HOST_SHARED_DIR}/{SYS_CONFIG}"))?;
                 Self::new(
                     local_config.host_api_url.clone(),
                     local_config.pccs_url.clone(),

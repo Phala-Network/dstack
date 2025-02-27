@@ -81,7 +81,7 @@ impl AppCompose {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct LocalConfig {
+pub struct SysConfig {
     pub kms_urls: Vec<String>,
     pub tproxy_urls: Vec<String>,
     pub pccs_url: Option<String>,
@@ -121,3 +121,5 @@ impl KeyProviderInfo {
         Self { name, id }
     }
 }
+
+pub mod shared_filenames;

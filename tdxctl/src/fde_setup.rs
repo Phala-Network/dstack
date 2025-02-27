@@ -6,7 +6,13 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use dstack_types::{KeyProvider, KeyProviderInfo};
+use dstack_types::{
+    shared_filenames::{
+        APP_COMPOSE, APP_KEYS, DECRYPTED_ENV, DECRYPTED_ENV_JSON, ENCRYPTED_ENV, INSTANCE_INFO,
+        SYS_CONFIG, USER_CONFIG,
+    },
+    KeyProvider, KeyProviderInfo,
+};
 use fs_err as fs;
 use kms_rpc::GetAppKeyRequest;
 use ra_rpc::client::{RaClient, RaClientConfig};
@@ -21,7 +27,7 @@ use crate::{
     host_api::HostApi,
     utils::{
         deserialize_json_file, extend_rtmr3, sha256, sha256_file, AppCompose, AppKeys, HashingFile,
-        KeyProviderKind, LocalConfig,
+        KeyProviderKind, SysConfig,
     },
     GenAppKeysArgs,
 };
@@ -41,7 +47,7 @@ pub struct SetupFdeArgs {
     #[arg(long)]
     host_shared: PathBuf,
     /// Copied host-shared directory
-    #[arg(long)]
+    #[arg(long, default_value = "/tapp/.host-shared")]
     host_shared_copy: PathBuf,
     /// Working directory
     #[arg(long)]
@@ -112,25 +118,25 @@ impl HostShareDir {
     }
 
     fn app_compose_file(&self) -> PathBuf {
-        self.base_dir.join("app-compose.json")
+        self.base_dir.join(APP_COMPOSE)
     }
 
     fn encrypted_env_file(&self) -> PathBuf {
-        self.base_dir.join("encrypted-env")
+        self.base_dir.join(ENCRYPTED_ENV)
     }
 
-    fn vm_config_file(&self) -> PathBuf {
-        self.base_dir.join("config.json")
+    fn sys_config_file(&self) -> PathBuf {
+        self.base_dir.join(SYS_CONFIG)
     }
 
     fn instance_info_file(&self) -> PathBuf {
-        self.base_dir.join(".instance_info")
+        self.base_dir.join(INSTANCE_INFO)
     }
 }
 
 struct HostShared {
     dir: HostShareDir,
-    vm_config: LocalConfig,
+    vm_config: SysConfig,
     app_compose: AppCompose,
     encrypted_env: Vec<u8>,
     instance_info: InstanceInfo,
@@ -139,7 +145,7 @@ struct HostShared {
 impl HostShared {
     fn load(host_shared_dir: impl Into<HostShareDir>) -> Result<Self> {
         let host_shared_dir = host_shared_dir.into();
-        let vm_config = deserialize_json_file(host_shared_dir.vm_config_file())?;
+        let vm_config = deserialize_json_file(host_shared_dir.sys_config_file())?;
         let app_compose = deserialize_json_file(host_shared_dir.app_compose_file())?;
         let instance_info_file = host_shared_dir.instance_info_file();
         let instance_info = if instance_info_file.exists() {
@@ -168,19 +174,45 @@ fn truncate(s: &[u8], len: usize) -> &[u8] {
 
 impl SetupFdeArgs {
     fn app_keys_file(&self) -> PathBuf {
-        self.host_shared_copy.join("appkeys.json")
+        self.host_shared_copy.join(APP_KEYS)
     }
 
     fn copy_host_shared(&self) -> Result<HostShared> {
         let host_shared_dir = &self.host_shared;
         let host_shared_copy_dir = &self.host_shared_copy;
+
+        const SZ_1KB: u64 = 1024;
+        const SZ_1MB: u64 = 1024 * SZ_1KB;
+
+        let copy = |src: &str, max_size: u64, ignore_missing: bool| -> Result<()> {
+            let src_path = host_shared_dir.join(src);
+            let dst_path = host_shared_copy_dir.join(src);
+            if !src_path.exists() {
+                if ignore_missing {
+                    return Ok(());
+                }
+                bail!("Source file {src} does not exist");
+            }
+            let src_size = src_path.metadata()?.len();
+            if src_size > max_size {
+                bail!("Source file {src} is too large, max size is {max_size} bytes");
+            }
+            std::fs::copy(src_path, dst_path)?;
+            Ok(())
+        };
         cmd! {
             info "Mounting host-shared";
             mkdir -p $host_shared_dir;
             mount -t 9p -o trans=virtio,version=9p2000.L,ro host-shared $host_shared_dir;
-            info "Copying host-shared";
-            mkdir -p $host_shared_copy_dir;
-            cp -r $host_shared_dir/. $host_shared_copy_dir;
+            mkdir -p $host_shared_copy_dir/;
+            info "Copying host-shared files";
+        }?;
+        copy(APP_COMPOSE, SZ_1KB * 128, false)?;
+        copy(SYS_CONFIG, SZ_1KB * 10, false)?;
+        copy(INSTANCE_INFO, SZ_1KB * 10, true)?;
+        copy(ENCRYPTED_ENV, SZ_1KB * 256, true)?;
+        copy(USER_CONFIG, SZ_1MB, true)?;
+        cmd! {
             info "Unmounting host-shared";
             umount $host_shared_dir;
         }?;
@@ -485,11 +517,11 @@ impl SetupFdeArgs {
     fn write_decrypted_env(&self, decrypted_env: &BTreeMap<String, String>) -> Result<()> {
         info!("Writing env");
         fs::write(
-            self.host_shared_copy.join("env"),
+            self.host_shared_copy.join(DECRYPTED_ENV),
             env_process::convert_env_to_str(decrypted_env),
         )
         .context("Failed to write decrypted env file")?;
-        let env_json = fs::File::create(self.host_shared_copy.join("env.json"))
+        let env_json = fs::File::create(self.host_shared_copy.join(DECRYPTED_ENV_JSON))
             .context("Failed to create env file")?;
         serde_json::to_writer(env_json, &decrypted_env)
             .context("Failed to write decrypted env file")?;
