@@ -25,6 +25,8 @@ pub struct AppCompose {
     pub local_key_provider_enabled: bool,
     #[serde(default)]
     pub key_provider: Option<KeyProviderKind>,
+    #[serde(default)]
+    pub allowed_envs: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
@@ -81,7 +83,7 @@ impl AppCompose {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct LocalConfig {
+pub struct SysConfig {
     pub kms_urls: Vec<String>,
     pub tproxy_urls: Vec<String>,
     pub pccs_url: Option<String>,
@@ -121,3 +123,5 @@ impl KeyProviderInfo {
         Self { name, id }
     }
 }
+
+pub mod shared_filenames;

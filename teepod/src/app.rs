@@ -2,6 +2,9 @@ use crate::config::{Config, Protocol};
 
 use anyhow::{bail, Context, Result};
 use bon::Builder;
+use dstack_types::shared_filenames::{
+    APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, SYS_CONFIG, USER_CONFIG,
+};
 use fs_err as fs;
 use guest_api::client::DefaultClient as GuestClient;
 use id_pool::IdPool;
@@ -317,11 +320,15 @@ impl App {
     }
 
     pub(crate) fn compose_file_path(&self, id: &str) -> PathBuf {
-        self.shared_dir(id).join("app-compose.json")
+        self.shared_dir(id).join(APP_COMPOSE)
     }
 
     pub(crate) fn encrypted_env_path(&self, id: &str) -> PathBuf {
-        self.shared_dir(id).join("encrypted-env")
+        self.shared_dir(id).join(ENCRYPTED_ENV)
+    }
+
+    pub(crate) fn user_config_path(&self, id: &str) -> PathBuf {
+        self.shared_dir(id).join(USER_CONFIG)
     }
 
     pub(crate) fn shared_dir(&self, id: &str) -> PathBuf {
@@ -337,18 +344,22 @@ impl App {
         let work_dir = self.work_dir(id);
         let shared_dir = work_dir.join("shared");
         fs::create_dir_all(&shared_dir).context("Failed to create shared directory")?;
-        fs::write(shared_dir.join("app-compose.json"), &req.compose_file)
+        fs::write(shared_dir.join(APP_COMPOSE), &req.compose_file)
             .context("Failed to write compose file")?;
         if !req.encrypted_env.is_empty() {
-            fs::write(shared_dir.join("encrypted-env"), &req.encrypted_env)
+            fs::write(shared_dir.join(ENCRYPTED_ENV), &req.encrypted_env)
                 .context("Failed to write encrypted env")?;
+        }
+        if !req.user_config.is_empty() {
+            fs::write(shared_dir.join(USER_CONFIG), &req.user_config)
+                .context("Failed to write user config")?;
         }
         if !app_id.is_empty() {
             let instance_info = serde_json::json!({
                 "app_id": app_id,
             });
             fs::write(
-                shared_dir.join(".instance_info"),
+                shared_dir.join(INSTANCE_INFO),
                 serde_json::to_string(&instance_info)?,
             )
             .context("Failed to write vm config")?;
@@ -367,7 +378,7 @@ impl App {
         let rootfs_hash = image_info
             .rootfs_hash
             .context("Rootfs hash not found in image info")?;
-        let vm_config = serde_json::json!({
+        let sys_config = serde_json::json!({
             "rootfs_hash": rootfs_hash,
             "kms_urls": cfg.cvm.kms_urls,
             "tproxy_urls": cfg.cvm.tproxy_urls,
@@ -375,9 +386,9 @@ impl App {
             "docker_registry": cfg.cvm.docker_registry,
             "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
         });
-        let vm_config_str =
-            serde_json::to_string(&vm_config).context("Failed to serialize vm config")?;
-        fs::write(shared_dir.join("config.json"), vm_config_str)
+        let sys_config_str =
+            serde_json::to_string(&sys_config).context("Failed to serialize vm config")?;
+        fs::write(shared_dir.join(SYS_CONFIG), sys_config_str)
             .context("Failed to write vm config")?;
         Ok(())
     }

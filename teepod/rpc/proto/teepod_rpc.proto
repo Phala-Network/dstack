@@ -61,6 +61,8 @@ message VmConfiguration {
   // If provided, and KMS is enabled, it assumes the app is upgraded from given app_id.
   // If provided, and KMS is disabled, it must equal to the actual app_id computed from compose_file, or the VM will fail to start.
   optional string app_id = 9;
+  // User config that would be put at /tapp/.user-config in the CVM.
+  string user_config = 10;
 }
 
 // Message for port mapping
@@ -83,6 +85,8 @@ message UpgradeAppRequest {
   string compose_file = 2;
   // Optional update encrypted environment variables. Leave empty to not update.
   bytes encrypted_env = 3;
+  // Optional update user config. Leave empty to not update.
+  string user_config = 4;
 }
 
 // Message for VM list response

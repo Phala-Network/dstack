@@ -200,6 +200,11 @@ impl TeepodRpc for RpcHandler {
             fs::write(encrypted_env_path, &request.encrypted_env)
                 .context("Failed to write encrypted env")?;
         }
+        if !request.user_config.is_empty() {
+            let user_config_path = self.user_config_path(&request.id);
+            fs::write(user_config_path, &request.user_config)
+                .context("Failed to write user config")?;
+        }
         Ok(Id { id: new_id })
     }
 

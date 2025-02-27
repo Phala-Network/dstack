@@ -6,7 +6,6 @@ TPROXY_BASE_DIR="$DATA_DIR/tproxy"
 CONFIG_PATH="$TPROXY_BASE_DIR/tproxy.toml"
 CERTS_DIR="$TPROXY_BASE_DIR/certs"
 WG_KEY_PATH="$TPROXY_BASE_DIR/wg.key"
-KMS_URL=$(jq -j .kms_url /tapp/config.json)
 
 CERTBOT_WORKDIR="$DATA_DIR/rproxy/certs"
 

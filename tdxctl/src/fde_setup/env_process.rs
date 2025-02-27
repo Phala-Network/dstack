@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use tracing::warn;
 
 fn escape_value(v: &str) -> String {
     let mut needs_quotes = false;
@@ -41,7 +42,10 @@ struct Data {
     env: Vec<Pair>,
 }
 
-pub fn parse_env(decrypted_json: &[u8]) -> Result<BTreeMap<String, String>> {
+pub fn parse_env(
+    decrypted_json: &[u8],
+    allowed: &BTreeSet<String>,
+) -> Result<BTreeMap<String, String>> {
     const MAX_ITEMS: usize = 1024;
     const MAX_TOTAL_SIZE: usize = 1024 * 1024;
 
@@ -59,6 +63,10 @@ pub fn parse_env(decrypted_json: &[u8]) -> Result<BTreeMap<String, String>> {
     let mut total_size = 0;
 
     for Pair { key, value } in data.env {
+        if !allowed.contains(&key) {
+            warn!("Skipping unauthorized environment variable: {key}");
+            continue;
+        }
         // Check key length (common Linux limit is 255)
         if key.len() > 255 {
             bail!("Environment variable name too long: {}", key);

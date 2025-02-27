@@ -1,8 +1,7 @@
 ---
 source: tproxy/src/main_service/tests.rs
-assertion_line: 32
+assertion_line: 36
 expression: info1
-snapshot_kind: text
 ---
 InstanceInfo {
     id: "test-id-1",
@@ -13,4 +12,9 @@ InstanceInfo {
         tv_sec: 0,
         tv_nsec: 0,
     },
+    last_seen: SystemTime {
+        tv_sec: 0,
+        tv_nsec: 0,
+    },
+    connections: 0,
 }

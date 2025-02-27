@@ -61,12 +61,12 @@ async fn dispatch_prpc(
     query: bool,
     server: impl PrpcService + Send + 'static,
 ) -> (u16, Vec<u8>) {
-    info!("dispatching request: {}", path);
+    info!("dispatching request: {path}");
     let result = server.dispatch_request(&path, data, json, query).await;
     let (code, data) = match result {
         Ok(data) => (200, data),
         Err(err) => {
-            error!("rpc error: {:?}", err);
+            error!("rpc error: {err:?}");
             (400, encode_error(json, format!("{err:?}")))
         }
     };

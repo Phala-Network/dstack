@@ -3,7 +3,8 @@ use std::{fmt::Debug, path::Path};
 use anyhow::{Context, Result};
 use bollard::{container::ListContainersOptions, Docker};
 use cmd_lib::{run_cmd as cmd, run_fun};
-use dstack_types::LocalConfig;
+use dstack_types::shared_filenames::{HOST_SHARED_DIR, SYS_CONFIG};
+use dstack_types::SysConfig;
 use fs_err as fs;
 use guest_api::{
     guest_api_server::{GuestApiRpc, GuestApiServer},
@@ -199,8 +200,9 @@ fn get_wg_info() -> Result<String> {
 }
 
 pub async fn notify_host(event: &str, payload: &str) -> Result<()> {
-    let local_config: LocalConfig =
-        serde_json::from_str(&fs::read_to_string("/tapp/config.json")?)?;
+    let local_config: SysConfig = serde_json::from_str(&fs::read_to_string(format!(
+        "{HOST_SHARED_DIR}/{SYS_CONFIG}"
+    ))?)?;
     let nc = host_api::client::new_client(local_config.host_api_url);
     nc.notify(Notification {
         event: event.to_string(),
