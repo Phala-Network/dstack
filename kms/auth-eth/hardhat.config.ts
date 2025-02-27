@@ -40,7 +40,20 @@ const config: HardhatUserConfig = {
     artifacts: "./artifacts"
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY
+    apiKey: {
+      'sepolia': process.env.ETHERSCAN_API_KEY || "",
+      'phala': 'empty',
+    },
+    customChains: [
+      {
+        network: "phala",
+        chainId: 2035,
+        urls: {
+          apiURL: "https://explorer-phala-mainnet-0.t.conduit.xyz/api",
+          browserURL: "https://explorer-phala-mainnet-0.t.conduit.xyz:443"
+        }
+      }
+    ]
   }
 };
 

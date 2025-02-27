@@ -12,8 +12,6 @@ async function main() {
     });
 
     console.log("\nVerification completed successfully!");
-    console.log("You can now view the contracts on Etherscan:");
-    console.log(`Proxy: https://etherscan.io/address/${PROXY_ADDRESS}`);
   } catch (error) {
     console.error("Error during verification:", error);
     process.exitCode = 1;
