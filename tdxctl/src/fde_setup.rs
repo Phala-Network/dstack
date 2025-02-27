@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     io::{Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -350,7 +350,12 @@ impl SetupFdeArgs {
         deserialize_json_file(self.app_keys_file()).context("Failed to decode app keys")
     }
 
-    fn decrypt_env_vars(&self, key: &[u8], ciphertext: &[u8]) -> Result<BTreeMap<String, String>> {
+    fn decrypt_env_vars(
+        &self,
+        key: &[u8],
+        ciphertext: &[u8],
+        allowed: &BTreeSet<String>,
+    ) -> Result<BTreeMap<String, String>> {
         let vars = if !key.is_empty() && !ciphertext.is_empty() {
             info!("Processing encrypted env");
             let env_crypt_key: [u8; 32] = key
@@ -359,7 +364,7 @@ impl SetupFdeArgs {
                 .context("Invalid env crypt key length")?;
             let decrypted_json =
                 dh_decrypt(env_crypt_key, ciphertext).context("Failed to decrypt env file")?;
-            env_process::parse_env(&decrypted_json)?
+            env_process::parse_env(&decrypted_json, allowed)?
         } else {
             info!("No encrypted env, using default");
             Default::default()
@@ -577,9 +582,18 @@ impl SetupFdeArgs {
             bail!("Failed to get valid key phrase from KMS");
         }
         host.notify_q("boot.progress", "decrypting env").await;
+        let allowed_envs: BTreeSet<String> = host_shared
+            .app_compose
+            .allowed_envs
+            .iter()
+            .cloned()
+            .collect();
         // Decrypt env file
-        let decrypted_env =
-            self.decrypt_env_vars(&app_keys.env_crypt_key, &host_shared.encrypted_env)?;
+        let decrypted_env = self.decrypt_env_vars(
+            &app_keys.env_crypt_key,
+            &host_shared.encrypted_env,
+            &allowed_envs,
+        )?;
         let disk_key = hex::encode(&app_keys.disk_crypt_key);
         if is_bootstrapped {
             host.notify_q("boot.progress", "mounting rootfs").await;

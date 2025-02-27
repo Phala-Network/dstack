@@ -1198,6 +1198,7 @@
                         const form = {
                             ...vmForm.value,
                             compose_file: makeAppComposeFile(),
+                            allowed_envs: vmForm.value.encrypted_envs.map(env => env.key),
                             encrypted_env: await makeEncryptedEnv(
                                 vmForm.value.encrypted_envs,
                                 vmForm.value.kms_enabled,
