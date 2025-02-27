@@ -132,6 +132,7 @@ message ResizeVmRequest {
 
 message KmsSettings {
   string url = 1;
+  repeated string urls = 2;
 }
 
 message TProxySettings {
@@ -139,6 +140,7 @@ message TProxySettings {
   string base_domain = 2;
   uint32 port = 3;
   uint32 tappd_port = 4;
+  repeated string urls = 5;
 }
 
 message ResourcesSettings {

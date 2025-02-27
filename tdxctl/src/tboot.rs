@@ -10,8 +10,10 @@ use ra_tls::{
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
-use tproxy_rpc::{tproxy_client::TproxyClient, RegisterCvmRequest, WireGuardPeer};
-use tracing::info;
+use tproxy_rpc::{
+    tproxy_client::TproxyClient, RegisterCvmRequest, RegisterCvmResponse, WireGuardPeer,
+};
+use tracing::{info, warn};
 
 use crate::{
     host_api::HostApi,
@@ -95,6 +97,40 @@ impl<'a> Setup<'a> {
         Ok(())
     }
 
+    async fn register_cvm(
+        &self,
+        tproxy_url: &str,
+        client_key: String,
+        client_cert: String,
+        wg_pk: String,
+    ) -> Result<RegisterCvmResponse> {
+        let url = format!("{}/prpc", tproxy_url);
+        let ca_cert = self.app_keys.ca_cert.clone();
+        let cert_validator = AppIdValidator {
+            allowed_app_id: self.app_keys.tproxy_app_id.clone(),
+        };
+        let client = RaClientConfig::builder()
+            .remote_uri(url)
+            .maybe_pccs_url(self.local_config.pccs_url.clone())
+            .tls_client_cert(client_cert)
+            .tls_client_key(client_key)
+            .tls_ca_cert(ca_cert)
+            .tls_built_in_root_certs(false)
+            .tls_no_check(self.app_keys.tproxy_app_id == "any")
+            .verify_server_attestation(false)
+            .cert_validator(Box::new(move |cert| cert_validator.validate(cert)))
+            .build()
+            .into_client()
+            .context("Failed to create RA client")?;
+        let tproxy_client = TproxyClient::new(client);
+        tproxy_client
+            .register_cvm(RegisterCvmRequest {
+                client_public_key: wg_pk,
+            })
+            .await
+            .context("Failed to register CVM")
+    }
+
     async fn setup_tproxy_net(&self) -> Result<()> {
         if !self.app_compose.tproxy_enabled() {
             info!("tproxy is not enabled");
@@ -109,20 +145,6 @@ impl<'a> Setup<'a> {
         let sk = cmd!(wg genkey)?;
         let pk = cmd!(echo $sk | wg pubkey).or(Err(anyhow!("Failed to generate public key")))?;
 
-        // Read config and make API call
-        let tproxy_url = self
-            .local_config
-            .tproxy_url
-            .as_ref()
-            .context("Missing tproxy_url")?;
-
-        let url = format!("{}/prpc", tproxy_url);
-        let cert_client =
-            CertRequestClient::create(&self.app_keys, self.local_config.pccs_url.as_deref())
-                .await
-                .context("Failed to create cert client")?;
-        let client_key =
-            KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).context("Failed to generate key")?;
         let config = CertConfig {
             org_name: None,
             subject: "tappd".to_string(),
@@ -131,35 +153,44 @@ impl<'a> Setup<'a> {
             usage_client_auth: true,
             ext_quote: true,
         };
+        let cert_client =
+            CertRequestClient::create(&self.app_keys, self.local_config.pccs_url.as_deref())
+                .await
+                .context("Failed to create cert client")?;
+        let client_key =
+            KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).context("Failed to generate key")?;
         let client_certs = cert_client
             .request_cert(&client_key, config)
             .await
             .context("Failed to request cert")?;
         let client_cert = client_certs.join("\n");
-        let ca_cert = self.app_keys.ca_cert.clone();
-        let cert_validator = AppIdValidator {
-            allowed_app_id: self.app_keys.tproxy_app_id.clone(),
+        let client_key = client_key.serialize_pem();
+
+        if self.local_config.tproxy_urls.is_empty() {
+            bail!("Missing tproxy urls");
+        }
+        // Read config and make API call
+        let response = 'out: {
+            for tproxy_url in self.local_config.tproxy_urls.iter() {
+                let response = self
+                    .register_cvm(
+                        tproxy_url,
+                        client_key.clone(),
+                        client_cert.clone(),
+                        pk.clone(),
+                    )
+                    .await;
+                match response {
+                    Ok(response) => {
+                        break 'out response;
+                    }
+                    Err(err) => {
+                        warn!("Failed to register CVM: {err:?}, retrying with next tproxy");
+                    }
+                }
+            }
+            bail!("Failed to register CVM, all tproxy urls are down");
         };
-        let client = RaClientConfig::builder()
-            .remote_uri(url)
-            .maybe_pccs_url(self.local_config.pccs_url.clone())
-            .tls_client_cert(client_cert)
-            .tls_client_key(client_key.serialize_pem())
-            .tls_ca_cert(ca_cert)
-            .tls_built_in_root_certs(false)
-            .tls_no_check(self.app_keys.tproxy_app_id == "any")
-            .verify_server_attestation(false)
-            .cert_validator(Box::new(move |cert| cert_validator.validate(cert)))
-            .build()
-            .into_client()
-            .context("Failed to create RA client")?;
-        let tproxy_client = TproxyClient::new(client);
-        let response = tproxy_client
-            .register_cvm(RegisterCvmRequest {
-                client_public_key: pk.to_string(),
-            })
-            .await
-            .context("Failed to register CVM")?;
         let wg_info = response.wg.context("Missing wg info")?;
         let _tappd_info = response.tappd.context("Missing tappd info")?;
 

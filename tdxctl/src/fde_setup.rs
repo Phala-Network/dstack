@@ -187,14 +187,12 @@ impl SetupFdeArgs {
         HostShared::load(host_shared_copy_dir.as_path())
     }
 
-    async fn request_app_keys_from_kms(&self, host_shared: &HostShared) -> Result<()> {
-        let Some(kms_url) = &host_shared.vm_config.kms_url else {
-            bail!("KMS URL is not set");
-        };
+    async fn request_app_keys_from_kms_url(
+        &self,
+        kms_url: String,
+        app_compose: String,
+    ) -> Result<AppKeys> {
         info!("Requesting app keys from KMS: {kms_url}");
-        let gen_certs_dir = self.work_dir.join("certs");
-        fs::create_dir_all(&gen_certs_dir).context("Failed to create certs dir")?;
-        let kms_url = format!("{kms_url}/prpc");
 
         let tmp_ca = {
             info!("Getting temp ca cert");
@@ -230,28 +228,53 @@ impl SetupFdeArgs {
             .context("Failed to create client")?;
         let kms_client = kms_rpc::kms_client::KmsClient::new(ra_client);
         let response = kms_client
-            .get_app_key(GetAppKeyRequest {
-                app_compose: fs::read_to_string(host_shared.dir.app_compose_file())
-                    .context("Failed to read app compose file")?,
-            })
+            .get_app_key(GetAppKeyRequest { app_compose })
             .await
             .context("Failed to get app key")?;
-        {
-            let (_, ca_pem) = x509_parser::pem::parse_x509_pem(tmp_ca.ca_cert.as_bytes())
-                .context("Failed to parse ca cert")?;
-            let x509 = ca_pem.parse_x509().context("Failed to parse ca cert")?;
-            let id = hex::encode(x509.public_key().raw);
-            let provider_info = KeyProviderInfo::new("kms".into(), id);
-            emit_key_provider_info(&provider_info)?;
-        };
         let keys = AppKeys {
-            ca_cert: response.ca_cert,
+            ca_cert: tmp_ca.ca_cert,
             disk_crypt_key: response.disk_crypt_key,
             env_crypt_key: response.env_crypt_key,
             k256_key: response.k256_key,
             k256_signature: response.k256_signature,
             tproxy_app_id: response.tproxy_app_id,
             key_provider: KeyProvider::Kms { url: kms_url },
+        };
+        Ok(keys)
+    }
+
+    async fn request_app_keys_from_kms(&self, host_shared: &HostShared) -> Result<()> {
+        if host_shared.vm_config.kms_urls.is_empty() {
+            bail!("No KMS URLs are set");
+        }
+        let gen_certs_dir = self.work_dir.join("certs");
+        fs::create_dir_all(&gen_certs_dir).context("Failed to create certs dir")?;
+        let app_compose = fs::read_to_string(host_shared.dir.app_compose_file())
+            .context("Failed to read app compose file")?;
+        let keys = 'out: {
+            for kms_url in host_shared.vm_config.kms_urls.iter() {
+                let kms_url = format!("{kms_url}/prpc");
+                let response = self
+                    .request_app_keys_from_kms_url(kms_url.clone(), app_compose.clone())
+                    .await;
+                match response {
+                    Ok(response) => {
+                        break 'out response;
+                    }
+                    Err(err) => {
+                        warn!("Failed to get app keys from KMS {kms_url}: {err:?}");
+                    }
+                }
+            }
+            bail!("Failed to get app keys from KMS");
+        };
+        {
+            let (_, ca_pem) = x509_parser::pem::parse_x509_pem(keys.ca_cert.as_bytes())
+                .context("Failed to parse ca cert")?;
+            let x509 = ca_pem.parse_x509().context("Failed to parse ca cert")?;
+            let id = hex::encode(x509.public_key().raw);
+            let provider_info = KeyProviderInfo::new("kms".into(), id);
+            emit_key_provider_info(&provider_info)?;
         };
         let keys_json = serde_json::to_string(&keys).context("Failed to serialize app keys")?;
         fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;

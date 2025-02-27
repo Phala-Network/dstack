@@ -369,8 +369,8 @@ impl App {
             .context("Rootfs hash not found in image info")?;
         let vm_config = serde_json::json!({
             "rootfs_hash": rootfs_hash,
-            "kms_url": cfg.cvm.kms_url,
-            "tproxy_url": cfg.cvm.tproxy_url,
+            "kms_urls": cfg.cvm.kms_urls,
+            "tproxy_urls": cfg.cvm.tproxy_urls,
             "pccs_url": cfg.cvm.pccs_url,
             "docker_registry": cfg.cvm.docker_registry,
             "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
