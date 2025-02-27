@@ -217,6 +217,7 @@ impl TeepodRpc for RpcHandler {
             .await?;
         Ok(PublicKeyResponse {
             public_key: response.public_key,
+            signature: response.signature,
         })
     }
 

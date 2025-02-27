@@ -17,7 +17,10 @@ use ra_tls::{
 use scale::Decode;
 use upgrade_authority::BootInfo;
 
-use crate::{config::KmsConfig, crypto::derive_k256_key};
+use crate::{
+    config::KmsConfig,
+    crypto::{derive_k256_key, sign_message},
+};
 
 mod upgrade_authority;
 
@@ -184,11 +187,8 @@ impl KmsRpc for RpcHandler {
         };
 
         let (k256_key, k256_signature) = {
-            let (k256_app_key, signature, recid) = derive_k256_key(&self.state.k256_key, &app_id)
+            let (k256_app_key, signature) = derive_k256_key(&self.state.k256_key, &app_id)
                 .context("Failed to derive app ecdsa key")?;
-
-            let mut signature = signature.to_vec();
-            signature.push(recid.to_byte());
             (k256_app_key.to_bytes().to_vec(), signature)
         };
 
@@ -210,8 +210,19 @@ impl KmsRpc for RpcHandler {
         .context("Failed to derive env encrypt key")?;
         let secret = x25519_dalek::StaticSecret::from(secret);
         let pubkey = x25519_dalek::PublicKey::from(&secret);
+
+        let public_key = pubkey.to_bytes().to_vec();
+        let signature = sign_message(
+            &self.state.k256_key,
+            b"dstack-env-encrypt-pubkey",
+            &request.app_id,
+            &public_key,
+        )
+        .context("Failed to sign the public key")?;
+
         Ok(PublicKeyResponse {
-            public_key: pubkey.to_bytes().to_vec(),
+            public_key,
+            signature,
         })
     }
 

@@ -15,6 +15,7 @@ message AppId {
 
 message PublicKeyResponse {
   bytes public_key = 1;
+  bytes signature = 2;
 }
 
 message AppKeyResponse {
