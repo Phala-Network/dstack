@@ -415,6 +415,7 @@ def main():
     compose_parser.add_argument('--prelaunch-script', default=None, help='Path to prelaunch script')
     compose_parser.add_argument('--kms', action='store_true', help='Enable KMS')
     compose_parser.add_argument('--tproxy', action='store_true', help='Enable TProxy')
+    compose_parser.add_argument('--local-key-provider', action='store_true', help='Enable local key provider')
     compose_parser.add_argument('--public-logs', action='store_true', help='Enable public logs')
     compose_parser.add_argument('--public-sysinfo', action='store_true', help='Enable public sysinfo')
     compose_parser.add_argument('--output', required=True, help='Path to output app-compose.json file')
@@ -456,6 +457,7 @@ def main():
                 docker_compose=args.docker_compose,
                 kms_enabled=args.kms,
                 tproxy_enabled=args.tproxy,
+                local_key_provider_enabled=args.local_key_provider,
                 public_logs=args.public_logs,
                 public_sysinfo=args.public_sysinfo,
                 output=args.output

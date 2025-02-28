@@ -57,8 +57,8 @@ fi
 
 $CLI compose \
     --docker-compose "$COMPOSE_TMP" \
-    --name tproxy \
-    --kms \
+    --name kms \
+    --local-key-provider \
     --public-logs \
     --public-sysinfo \
     --output .app-compose.json
