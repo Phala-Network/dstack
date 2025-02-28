@@ -202,6 +202,7 @@ class TeepodCLI:
     def create_app_compose(self, name: str, prelaunch_script: str, docker_compose: str,
                            kms_enabled: bool, tproxy_enabled: bool, local_key_provider_enabled: bool,
                            public_logs: bool, public_sysinfo: bool,
+                           envs: Optional[Dict] = None,
                            output: str,
                            ) -> None:
         """Create a new app compose file"""
@@ -215,6 +216,7 @@ class TeepodCLI:
             "local_key_provider_enabled": local_key_provider_enabled,
             "public_logs": public_logs,
             "public_sysinfo": public_sysinfo,
+            "allowed_envs": [k for k in envs.keys()],
         }
         if prelaunch_script:
             app_compose["prelaunch_script"] = prelaunch_script
@@ -419,6 +421,7 @@ def main():
     compose_parser.add_argument('--local-key-provider', action='store_true', help='Enable local key provider')
     compose_parser.add_argument('--public-logs', action='store_true', help='Enable public logs')
     compose_parser.add_argument('--public-sysinfo', action='store_true', help='Enable public sysinfo')
+    compose_parser.add_argument('--env-file', help='File with environment variables to encrypt', default=None)
     compose_parser.add_argument('--output', required=True, help='Path to output app-compose.json file')
 
     # Deploy command
@@ -461,6 +464,7 @@ def main():
                 local_key_provider_enabled=args.local_key_provider,
                 public_logs=args.public_logs,
                 public_sysinfo=args.public_sysinfo,
+                envs=parse_env_file(args.env_file),
                 output=args.output
             )
         elif args.command == 'deploy':

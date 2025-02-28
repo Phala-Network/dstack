@@ -58,17 +58,6 @@ sed -i "s/\${ACME_STAGING}/$ACME_STAGING/g" "$COMPOSE_TMP"
 echo "Docker compose file:"
 cat "$COMPOSE_TMP"
 
-$CLI compose \
-    --docker-compose "$COMPOSE_TMP" \
-    --name tproxy \
-    --kms \
-    --public-logs \
-    --public-sysinfo \
-    --output .app-compose.json
-
-# Remove the temporary file as it is no longer needed
-rm "$COMPOSE_TMP"
-
 cat <<EOF > .env
 CF_API_TOKEN=$CF_API_TOKEN
 CF_ZONE_ID=$CF_ZONE_ID
@@ -78,6 +67,18 @@ MY_URL=$MY_URL
 BOOTNODE_URL=$BOOTNODE_URL
 SUBNET_INDEX=$SUBNET_INDEX
 EOF
+
+$CLI compose \
+    --docker-compose "$COMPOSE_TMP" \
+    --name tproxy \
+    --kms \
+    --env-file .env \
+    --public-logs \
+    --public-sysinfo \
+    --output .app-compose.json
+
+# Remove the temporary file as it is no longer needed
+rm "$COMPOSE_TMP"
 
 echo "Configuration:"
 echo "TEEPOD_RPC: $TEEPOD_RPC"
