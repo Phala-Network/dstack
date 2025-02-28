@@ -41,8 +41,8 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      'sepolia': process.env.ETHERSCAN_API_KEY || "",
       'phala': 'empty',
+      default: process.env.ETHERSCAN_API_KEY || ""
     },
     customChains: [
       {
@@ -60,7 +60,7 @@ const config: HardhatUserConfig = {
 export default config;
 
 // Contract addresses from environment
-const KMS_CONTRACT_ADDRESS = process.env.KMS_CONTRACT_ADDRESS || "0xda1d4bc372fe139d63b85f6160d2f849ffed9c10";
+const KMS_CONTRACT_ADDRESS = process.env.KMS_CONTRACT_ADDRESS || "0x59E4a36B01a87fD9D1A4C12377253FE9a7b018Ba";
 
 async function waitTx(tx: any) {
   console.log(`Waiting for transaction ${tx.hash} to be confirmed...`);

@@ -2,8 +2,8 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers } from "hardhat";
 import { EthereumBackend } from '../src/ethereum';
 import { BootInfo } from '../src/types';
-import { KmsAuth } from "../typechain-types/KmsAuth";
-import { AppAuth } from "../typechain-types/AppAuth";
+import { KmsAuth } from "../typechain-types/contracts/KmsAuth";
+import { AppAuth } from "../typechain-types/contracts/AppAuth";
 
 describe('EthereumBackend', () => {
   let kmsAuth: KmsAuth;

@@ -200,7 +200,7 @@ class TeepodCLI:
         return compose_hash[:40]
 
     def create_app_compose(self, name: str, prelaunch_script: str, docker_compose: str,
-                           kms_enabled: bool, tproxy_enabled: bool,
+                           kms_enabled: bool, tproxy_enabled: bool, local_key_provider_enabled: bool,
                            public_logs: bool, public_sysinfo: bool,
                            output: str,
                            ) -> None:
@@ -212,6 +212,7 @@ class TeepodCLI:
             "docker_compose_file": open(docker_compose, 'rb').read().decode('utf-8'),
             "kms_enabled": kms_enabled,
             "tproxy_enabled": tproxy_enabled,
+            "local_key_provider_enabled": local_key_provider_enabled,
             "public_logs": public_logs,
             "public_sysinfo": public_sysinfo,
         }

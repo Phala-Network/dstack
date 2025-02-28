@@ -2,8 +2,8 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers } from "hardhat";
 import { EthereumBackend } from '../src/ethereum';
 import { BootInfo } from '../src/types';
-import { KmsAuth } from "../typechain-types/KmsAuth";
-import { IAppAuth } from "../typechain-types/IAppAuth";
+import { KmsAuth } from "../typechain-types/contracts/KmsAuth";
+import { IAppAuth } from "../typechain-types/contracts/IAppAuth";
 import { expect } from "chai";
 
 describe('Integration Tests', () => {

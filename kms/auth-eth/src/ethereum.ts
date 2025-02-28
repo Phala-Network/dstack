@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { BootInfo, BootResponse } from './types';
-import { KmsAuth__factory } from '../typechain-types/factories/KmsAuth__factory';
-import { KmsAuth } from '../typechain-types/KmsAuth';
+import { KmsAuth__factory } from '../typechain-types/factories/contracts/KmsAuth__factory';
+import { KmsAuth } from '../typechain-types/contracts/KmsAuth';
 import { HardhatEthersProvider } from '@nomicfoundation/hardhat-ethers/internal/hardhat-ethers-provider';
 
 export class EthereumBackend {
