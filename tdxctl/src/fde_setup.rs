@@ -572,8 +572,11 @@ impl SetupFdeArgs {
         extend_rtmr3("compose-hash", &compose_hash)?;
         extend_rtmr3("instance-id", &instance_id)?;
         extend_rtmr3("boot-mr-done", &[])?;
-        // Show the RTMR
-        cmd_show()?;
+
+        if host_shared.app_compose.key_provider().is_kms() {
+            // Show the RTMR
+            cmd_show()?;
+        }
 
         host.notify_q("boot.progress", "requesting app keys").await;
 
@@ -606,6 +609,11 @@ impl SetupFdeArgs {
         self.write_decrypted_env(&decrypted_env)?;
         extend_rtmr3("system-ready", &[])?;
         host.notify_q("boot.progress", "rootfs ready").await;
+
+        if !host_shared.app_compose.key_provider().is_kms() {
+            // Show the RTMR
+            cmd_show()?;
+        }
         Ok(())
     }
 }

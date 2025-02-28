@@ -41,6 +41,10 @@ impl KeyProviderKind {
     pub fn is_none(&self) -> bool {
         matches!(self, KeyProviderKind::None)
     }
+
+    pub fn is_kms(&self) -> bool {
+        matches!(self, KeyProviderKind::Kms)
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
