@@ -7,28 +7,37 @@ x-common: &common-config
       max-file: "5"
 
 services:
-  gramine-sealing-key-provider:
+  aesmd:
     <<: *common-config
-    container_name: gramine-sealing-key-provider
+    container_name: aesmd
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.aesmd
     privileged: true
     devices:
       - "/dev/sgx_enclave:/dev/sgx_enclave"
       - "/dev/sgx_provision:/dev/sgx_provision"
     volumes:
       - "./sgx_default_qcnl.conf:/etc/sgx_default_qcnl.conf"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "aesmd:/var/run/aesmd/"
+    network_mode: "host"
+  
+  gramine-sealing-key-provider:
+    <<: *common-config
+    container_name: gramine-sealing-key-provider
+    build:
+      context: .
+      dockerfile: Dockerfile.key-provider
+    privileged: true
+    devices:
+      - "/dev/sgx_enclave:/dev/sgx_enclave"
+      - "/dev/sgx_provision:/dev/sgx_provision"
+    depends_on:
+      - aesmd
+    volumes:
+      - "aesmd:/var/run/aesmd/"
     ports:
       - "127.0.0.1:3443:3443"
 
-  # proxy to access the local pccs for the aesm service
-  # The local PCCS is supposed to be running on the host machine and listening on 127.0.0.1:8081
-  pccs-proxy:
-    <<: *common-config
-    image: alpine/socat
-    container_name: pccs-proxy
-    network_mode: host
-    command: TCP-LISTEN:8082,bind=172.17.0.1,fork,reuseaddr TCP:127.0.0.1:8081
+volumes:
+  aesmd:
