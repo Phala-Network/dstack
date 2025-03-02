@@ -378,6 +378,31 @@ class TeepodCLI:
         print(f"Created VM with ID: {response.get('id')}")
         return response.get('id')
 
+    def update_vm_env(self, vm_id: str, envs: Dict[str, str]) -> None:
+        """Update environment variables for a VM"""
+        # First get the VM info to retrieve the app_id
+        vm_info_response = self.rpc_call('GetInfo', {'id': vm_id})
+        
+        if not vm_info_response.get('found', False) or 'info' not in vm_info_response:
+            raise Exception(f"VM with ID {vm_id} not found")
+        
+        app_id = vm_info_response['info']['app_id']
+        print(f"Retrieved app ID: {app_id}")
+        
+        # Now get the encryption key for the app
+        response = self.rpc_call('GetAppEnvEncryptPubKey', {'app_id': app_id})
+        if 'public_key' not in response:
+            raise Exception("Failed to get encryption public key for the VM")
+
+        encrypt_pubkey = response['public_key']
+        print(f"Encrypting environment variables with key: {encrypt_pubkey}")
+        envs_list = [{"key": k, "value": v} for k, v in envs.items()]
+        encrypted_env = encrypt_env(envs_list, encrypt_pubkey)
+
+        # Use UpdateApp with the VM ID
+        self.rpc_call('UpgradeApp', {'id': vm_id, 'encrypted_env': encrypted_env})
+        print(f"Environment variables updated for VM {vm_id}")
+
 def format_table(rows, headers):
     """Simple table formatter"""
     if not rows:
@@ -551,6 +576,11 @@ def main():
 
     # Images command
     _images_parser = subparsers.add_parser('images', help='List available images')
+    
+    # Update environment variables command
+    update_env_parser = subparsers.add_parser('update-env', help='Update environment variables for a VM')
+    update_env_parser.add_argument('vm_id', help='VM ID to update')
+    update_env_parser.add_argument('--env-file', required=True, help='File with environment variables to encrypt')
 
     args = parser.parse_args()
 
@@ -597,6 +627,8 @@ def main():
             headers = ['Name', 'Version']
             rows = [[img['name'], img.get('version', '-')] for img in images]
             print(format_table(rows, headers))
+        elif args.command == 'update-env':
+            cli.update_vm_env(args.vm_id, parse_env_file(args.env_file))
         else:
             parser.print_help()
 

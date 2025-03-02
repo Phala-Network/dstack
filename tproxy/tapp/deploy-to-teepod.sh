@@ -69,6 +69,7 @@ required_env_vars=(
   "CF_ZONE_ID"
   "SRV_DOMAIN"
   "PUBLIC_IP"
+  "WG_ADDR"
   "TPROXY_APP_ID"
   "MY_URL"
   "BOOTNODE_URL"
@@ -85,6 +86,7 @@ done
 
 CLI="../../teepod/src/teepod-cli.py --url $TEEPOD_RPC"
 
+WG_PORT=$(echo $WG_ADDR | cut -d':' -f2)
 COMPOSE_TMP=$(mktemp)
 
 GIT_REV=$(git rev-parse $GIT_REV)
