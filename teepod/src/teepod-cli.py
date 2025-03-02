@@ -4,14 +4,16 @@ import os
 import sys
 import json
 import argparse
-import requests
 import hashlib
 from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import serialization
 import re
+import socket
+import http.client
+import urllib.parse
 
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Tuple, Union, BinaryIO, Any
 
 
 def encrypt_env(envs, hex_public_key: str) -> str:
@@ -92,20 +94,121 @@ def parse_port_mapping(port_str: str) -> Dict:
         raise argparse.ArgumentTypeError(f"Invalid port mapping format: {port_str}")
 
 
+class UnixSocketHTTPConnection(http.client.HTTPConnection):
+    """HTTPConnection that connects to a Unix domain socket."""
+    
+    def __init__(self, socket_path, timeout=None):
+        super().__init__('localhost', timeout=timeout)
+        self.socket_path = socket_path
+    
+    def connect(self):
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        if self.timeout:
+            sock.settimeout(self.timeout)
+        sock.connect(self.socket_path)
+        self.sock = sock
+
+
+class TeepodClient:
+    """A unified HTTP client that supports both regular HTTP and Unix Domain Sockets."""
+    
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip('/')
+        self.use_uds = self.base_url.startswith('unix:')
+        
+        if self.use_uds:
+            self.uds_path = self.base_url[5:]  # Remove 'unix:' prefix
+        else:
+            # Parse the base URL for regular HTTP connections
+            self.parsed_url = urllib.parse.urlparse(self.base_url)
+            self.host = self.parsed_url.netloc
+            self.is_https = self.parsed_url.scheme == 'https'
+    
+    def request(self, method: str, path: str, headers: Dict[str, str] = None, 
+                body: Any = None, stream: bool = False) -> Tuple[int, Union[Dict, str, BinaryIO]]:
+        """
+        Make an HTTP request to the server.
+        
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            path: URL path
+            headers: HTTP headers
+            body: Request body (will be JSON serialized if a dict)
+            stream: If True, return a file-like object for reading the response
+            
+        Returns:
+            Tuple of (status_code, response_data)
+        """
+        if headers is None:
+            headers = {}
+        
+        # Prepare the body
+        if isinstance(body, dict):
+            body = json.dumps(body).encode('utf-8')
+            if 'Content-Type' not in headers:
+                headers['Content-Type'] = 'application/json'
+        
+        # Create the appropriate connection
+        if self.use_uds:
+            conn = UnixSocketHTTPConnection(self.uds_path)
+        else:
+            if self.is_https:
+                conn = http.client.HTTPSConnection(self.host)
+            else:
+                conn = http.client.HTTPConnection(self.host)
+        
+        try:
+            # Make the request
+            conn.request(method, path, body=body, headers=headers)
+            response = conn.getresponse()
+            
+            status = response.status
+            
+            # Handle the response based on the stream parameter
+            if stream:
+                return status, response
+            else:
+                data = response.read()
+                
+                # Try to parse as JSON if it looks like JSON
+                content_type = response.getheader('Content-Type', '')
+                if 'application/json' in content_type or data.startswith(b'{') or data.startswith(b'['):
+                    try:
+                        return status, json.loads(data.decode('utf-8'))
+                    except json.JSONDecodeError:
+                        pass
+                
+                # Return as string if not JSON
+                return status, data.decode('utf-8')
+        except Exception as e:
+            if not stream:
+                conn.close()
+            raise e
+            
+        # Note: when stream=True, the caller must close the connection when done
+
+
 class TeepodCLI:
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip('/')
         self.headers = {
             'Content-Type': 'application/json'
         }
+        self.client = TeepodClient(base_url)
 
     def rpc_call(self, method: str, params: Optional[Dict] = None) -> Dict:
         """Make an RPC call to the Teepod API"""
-        url = f"{self.base_url}/prpc/Teepod.{method}?json"
-        response = requests.post(url, headers=self.headers, json=params or {})
-        if not response.ok:
-            raise Exception(f"API call failed: {response.text}")
-        return response.json()
+        path = f"/prpc/Teepod.{method}?json"
+        status, response = self.client.request('POST', path, headers=self.headers, body=params or {})
+        
+        if status != 200:
+            if isinstance(response, str):
+                error_msg = response
+            else:
+                error_msg = str(response)
+            raise Exception(f"API call failed: {error_msg}")
+        
+        return response
 
     def list_vms(self, verbose: bool = False) -> None:
         """List all VMs and their status"""
@@ -164,25 +267,35 @@ class TeepodCLI:
 
     def show_logs(self, vm_id: str, lines: int = 20, follow: bool = False) -> None:
         """Show VM logs"""
-        url = f"{self.base_url}/logs?id={vm_id}&follow={str(follow).lower()}&ansi=false&lines={lines}"
-
-        # Use stream=True for follow mode
-        response = requests.get(url, headers=self.headers, stream=follow)
-        if not response.ok:
-            print(f"Failed to get logs: {response.text}")
+        path = f"/logs?id={vm_id}&follow={str(follow).lower()}&ansi=false&lines={lines}"
+        
+        status, response = self.client.request('GET', path, headers=self.headers, stream=follow)
+        
+        if status != 200:
+            if isinstance(response, str):
+                error_msg = response
+            else:
+                error_msg = str(response)
+            print(f"Failed to get logs: {error_msg}")
             return
-
+        
         if follow:
             try:
-                # Stream the response line by line
-                for line in response.iter_lines(decode_unicode=True):
-                    if line:  # Filter out keep-alive empty lines
-                        print(line)
+                # For streamed responses, response is a file-like object
+                while True:
+                    line = response.readline()
+                    if not line:
+                        break
+                    print(line.decode('utf-8').rstrip())
             except KeyboardInterrupt:
                 # Allow clean exit with Ctrl+C
                 return
+            finally:
+                # Close the connection when done
+                response.close()
         else:
-            print(response.text)
+            # For non-streamed responses, response is already the data
+            print(response)
 
     def list_images(self) -> List[Dict]:
         """Get list of available images"""
@@ -202,7 +315,7 @@ class TeepodCLI:
     def create_app_compose(self, name: str, prelaunch_script: str, docker_compose: str,
                            kms_enabled: bool, tproxy_enabled: bool, local_key_provider_enabled: bool,
                            public_logs: bool, public_sysinfo: bool,
-                           envs: Optional[Dict] = None,
+                           envs: Optional[Dict],
                            output: str,
                            ) -> None:
         """Create a new app compose file"""
