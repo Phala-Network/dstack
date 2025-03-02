@@ -6,7 +6,12 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract KmsAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth {
+contract KmsAuth is
+    Initializable,
+    OwnableUpgradeable,
+    UUPSUpgradeable,
+    IAppAuth
+{
     // Struct for KMS information
     struct KmsInfo {
         bytes k256Pubkey;
@@ -42,6 +47,9 @@ contract KmsAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth
     // Mapping of allowed KMS device IDs
     mapping(bytes32 => bool) public allowedKmsDeviceIds;
 
+    // Sequence number for app IDs - per user
+    mapping(address => uint256) public nextAppSequence;
+
     // Events
     event AppRegistered(address appId);
     event KmsInfoSet(bytes k256Pubkey);
@@ -67,7 +75,9 @@ contract KmsAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth
     }
 
     // Function to authorize upgrades (required by UUPSUpgradeable)
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 
     // Function to set KMS information
     function setKmsInfo(KmsInfo memory info) external onlyOwner {
@@ -91,22 +101,22 @@ contract KmsAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth
         emit TproxyAppIdSet(appId);
     }
 
-    // Function to calculate the app ID
-    function calculateAppId(
-        address sender,
-        bytes32 salt
-    ) public pure returns (address appId) {
-        bytes32 fullHash = keccak256(abi.encodePacked(sender, salt));
+    // View next app id
+    function nextAppId() public view returns (address appId) {
+        bytes32 fullHash = keccak256(
+            abi.encodePacked(address(this), msg.sender, nextAppSequence[msg.sender])
+        );
         return address(uint160(uint256(fullHash)));
     }
 
     // Function to register an app
-    function registerApp(bytes32 salt, address controller) external {
+    function registerApp(address controller) external {
         require(controller != address(0), "Invalid controller address");
-        address appId = calculateAppId(msg.sender, salt);
+        address appId = nextAppId();
         require(!apps[appId].isRegistered, "App already registered");
         apps[appId].isRegistered = true;
         apps[appId].controller = controller;
+        nextAppSequence[msg.sender]++;
         emit AppRegistered(appId);
     }
 
@@ -206,5 +216,5 @@ contract KmsAuth is Initializable, OwnableUpgradeable, UUPSUpgradeable, IAppAuth
     }
 
     // Add storage gap for upgradeable contracts
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 }

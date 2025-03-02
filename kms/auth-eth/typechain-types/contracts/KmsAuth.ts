@@ -75,7 +75,6 @@ export interface KmsAuthInterface extends Interface {
       | "allowedKmsComposeHashes"
       | "allowedKmsDeviceIds"
       | "apps"
-      | "calculateAppId"
       | "deregisterAggregatedMr"
       | "deregisterImage"
       | "deregisterKmsComposeHash"
@@ -84,6 +83,8 @@ export interface KmsAuthInterface extends Interface {
       | "isAppAllowed"
       | "isKmsAllowed"
       | "kmsInfo"
+      | "nextAppId"
+      | "nextAppSequence"
       | "owner"
       | "proxiableUUID"
       | "registerAggregatedMr"
@@ -141,10 +142,6 @@ export interface KmsAuthInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "apps", values: [AddressLike]): string;
   encodeFunctionData(
-    functionFragment: "calculateAppId",
-    values: [AddressLike, BytesLike]
-  ): string;
-  encodeFunctionData(
     functionFragment: "deregisterAggregatedMr",
     values: [BytesLike]
   ): string;
@@ -173,6 +170,11 @@ export interface KmsAuthInterface extends Interface {
     values: [IAppAuth.AppBootInfoStruct]
   ): string;
   encodeFunctionData(functionFragment: "kmsInfo", values?: undefined): string;
+  encodeFunctionData(functionFragment: "nextAppId", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "nextAppSequence",
+    values: [AddressLike]
+  ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "proxiableUUID",
@@ -184,7 +186,7 @@ export interface KmsAuthInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "registerApp",
-    values: [BytesLike, AddressLike]
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "registerImage",
@@ -253,10 +255,6 @@ export interface KmsAuthInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "apps", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "calculateAppId",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "deregisterAggregatedMr",
     data: BytesLike
   ): Result;
@@ -282,6 +280,11 @@ export interface KmsAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "kmsInfo", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "nextAppId", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "nextAppSequence",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "proxiableUUID",
@@ -578,12 +581,6 @@ export interface KmsAuth extends BaseContract {
     "view"
   >;
 
-  calculateAppId: TypedContractMethod<
-    [sender: AddressLike, salt: BytesLike],
-    [string],
-    "view"
-  >;
-
   deregisterAggregatedMr: TypedContractMethod<
     [mrAggregated: BytesLike],
     [void],
@@ -639,6 +636,10 @@ export interface KmsAuth extends BaseContract {
     "view"
   >;
 
+  nextAppId: TypedContractMethod<[], [string], "view">;
+
+  nextAppSequence: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
   owner: TypedContractMethod<[], [string], "view">;
 
   proxiableUUID: TypedContractMethod<[], [string], "view">;
@@ -650,7 +651,7 @@ export interface KmsAuth extends BaseContract {
   >;
 
   registerApp: TypedContractMethod<
-    [salt: BytesLike, controller: AddressLike],
+    [controller: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -732,13 +733,6 @@ export interface KmsAuth extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "calculateAppId"
-  ): TypedContractMethod<
-    [sender: AddressLike, salt: BytesLike],
-    [string],
-    "view"
-  >;
-  getFunction(
     nameOrSignature: "deregisterAggregatedMr"
   ): TypedContractMethod<[mrAggregated: BytesLike], [void], "nonpayable">;
   getFunction(
@@ -782,6 +776,12 @@ export interface KmsAuth extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "nextAppId"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "nextAppSequence"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -792,11 +792,7 @@ export interface KmsAuth extends BaseContract {
   ): TypedContractMethod<[mrAggregated: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "registerApp"
-  ): TypedContractMethod<
-    [salt: BytesLike, controller: AddressLike],
-    [void],
-    "nonpayable"
-  >;
+  ): TypedContractMethod<[controller: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "registerImage"
   ): TypedContractMethod<[mrImage: BytesLike], [void], "nonpayable">;
