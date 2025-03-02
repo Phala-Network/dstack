@@ -1,30 +1,68 @@
 #!/bin/bash
 
-USE_HEAD=${USE_HEAD:-yes}
-TEEPOD_RPC=${TEEPOD_RPC}
-CF_API_TOKEN=${CF_API_TOKEN}
-CF_ZONE_ID=${CF_ZONE_ID}
-SRV_DOMAIN=${SRV_DOMAIN}
-PUBLIC_IP=${PUBLIC_IP}
-TPROXY_APP_ID=${TPROXY_APP_ID}
-ACME_STAGING=${ACME_STAGING:-yes}
-SUBNET_INDEX=${SUBNET_INDEX:-0}
-OS_IMAGE=${OS_IMAGE:-dstack-0.4.0}
-
-BASE_PORT=6100
-TPROXY_RPC_PORT=$((SUBNET_INDEX * 10 + BASE_PORT))
-TPROXY_ADMIN_RPC_PORT=$((SUBNET_INDEX * 10 + BASE_PORT + 1))
-TPROXY_SERVING_PORT=$((SUBNET_INDEX * 10 + BASE_PORT + 2))
-TAPPD_PORT=$((SUBNET_INDEX * 10 + BASE_PORT + 3))
-WG_PORT=$((SUBNET_INDEX * 10 + BASE_PORT))
-
-MY_URL="https://tproxy.${SRV_DOMAIN}:${TPROXY_RPC_PORT}"
-if [ "$SUBNET_INDEX" -eq 0 ]; then
-  BOOTNODE_URL="https://tproxy.${SRV_DOMAIN}:$((10 + BASE_PORT))"
+# Check if .env exists
+if [ -f ".env" ]; then
+  # Load variables from .env
+  echo "Loading environment variables from .env file..."
+  set -a
+  source .env
+  set +a
 else
-  BOOTNODE_URL="https://tproxy.${SRV_DOMAIN}:${BASE_PORT}"
+  # Create a template .env file
+  echo "Creating template .env file..."
+  cat >.env <<EOF
+# Required environment variables for Tproxy deployment
+# Please uncomment and set values for the following variables:
+
+# The URL of the TEEPOD RPC service
+# TEEPOD_RPC=unix:../../../build/teepod.sock
+
+# Cloudflare API token for DNS challenge
+# CF_API_TOKEN=your_cloudflare_api_token
+
+# Cloudflare Zone ID
+# CF_ZONE_ID=your_zone_id
+
+# Service domain
+# SRV_DOMAIN=test5.dstack.phala.network
+
+# Public IP address
+PUBLIC_IP=$(curl -s4 ifconfig.me)
+
+# Tproxy application ID. Register the app in KmsAuth first to get the app ID.
+# TPROXY_APP_ID=31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
+
+# Whether to use ACME staging (yes/no)
+ACME_STAGING=yes
+
+# Subnet index. 0~15
+SUBNET_INDEX=0
+
+# My URL
+# MY_URL=https://tproxy.test5.dstack.phala.network:9202
+
+# Bootnode URL
+# BOOTNODE_URL=https://tproxy.test2.dstack.phala.network:9202
+
+# DStack OS image name
+OS_IMAGE=dstack-0.4.0
+
+# Set defaults for variables that might not be in .env
+GIT_REV=HEAD
+
+# Port configurations
+TPROXY_RPC_ADDR=0.0.0.0:9202
+TPROXY_ADMIN_RPC_ADDR=127.0.0.1:9203
+TPROXY_SERVING_ADDR=0.0.0.0:9204
+TAPPD_ADDR=127.0.0.1:9206
+WG_ADDR=0.0.0.0:9202
+
+EOF
+  echo "Please edit the .env file and set the required variables, then run this script again."
+  exit 1
 fi
 
+# Define required environment variables
 required_env_vars=(
   "TEEPOD_RPC"
   "CF_API_TOKEN"
@@ -36,9 +74,11 @@ required_env_vars=(
   "BOOTNODE_URL"
 )
 
+# Validate required environment variables
 for var in "${required_env_vars[@]}"; do
   if [ -z "${!var}" ]; then
-    echo "Please set env variable $var"
+    echo "Error: Required environment variable $var is not set."
+    echo "Please edit the .env file and set a value for $var, then run this script again."
     exit 1
   fi
 done
@@ -47,18 +87,22 @@ CLI="../../teepod/src/teepod-cli.py --url $TEEPOD_RPC"
 
 COMPOSE_TMP=$(mktemp)
 
-if [ "$USE_HEAD" = "yes" ]; then
-  CURRENT_REV=$(git rev-parse HEAD)
-else
-  CURRENT_REV=86290e4038aba067d784b088532c129d7ad4c828
-fi
-sed "s/git checkout TPROXY_REV/git checkout ${CURRENT_REV}/g" docker-compose.yaml > "$COMPOSE_TMP"
-sed -i "s/\${ACME_STAGING}/$ACME_STAGING/g" "$COMPOSE_TMP"
+GIT_REV=$(git rev-parse $GIT_REV)
+
+cp docker-compose.yaml "$COMPOSE_TMP"
+
+subvar() {
+  sed -i "s|\${$1}|${!1}|g" "$COMPOSE_TMP"
+}
+
+subvar GIT_REV
+subvar ACME_STAGING
 
 echo "Docker compose file:"
 cat "$COMPOSE_TMP"
 
-cat <<EOF > .env
+# Update .env file with current values
+cat <<EOF >.app_env
 CF_API_TOKEN=$CF_API_TOKEN
 CF_ZONE_ID=$CF_ZONE_ID
 SRV_DOMAIN=$SRV_DOMAIN
@@ -69,13 +113,13 @@ SUBNET_INDEX=$SUBNET_INDEX
 EOF
 
 $CLI compose \
-    --docker-compose "$COMPOSE_TMP" \
-    --name tproxy \
-    --kms \
-    --env-file .env \
-    --public-logs \
-    --public-sysinfo \
-    --output .app-compose.json
+  --docker-compose "$COMPOSE_TMP" \
+  --name tproxy \
+  --kms \
+  --env-file .app_env \
+  --public-logs \
+  --public-sysinfo \
+  --output .app-compose.json
 
 # Remove the temporary file as it is no longer needed
 rm "$COMPOSE_TMP"
@@ -88,25 +132,36 @@ echo "TPROXY_APP_ID: $TPROXY_APP_ID"
 echo "MY_URL: $MY_URL"
 echo "BOOTNODE_URL: $BOOTNODE_URL"
 echo "SUBNET_INDEX: $SUBNET_INDEX"
-echo "WG_PORT: $WG_PORT"
-echo "TPROXY_RPC_PORT: $TPROXY_RPC_PORT"
-echo "TPROXY_ADMIN_RPC_PORT: $TPROXY_ADMIN_RPC_PORT"
-echo "TPROXY_SERVING_PORT: $TPROXY_SERVING_PORT"
-echo "TAPPD_PORT: $TAPPD_PORT"
+echo "WG_ADDR: $WG_ADDR"
+echo "TPROXY_RPC_ADDR: $TPROXY_RPC_ADDR"
+echo "TPROXY_ADMIN_RPC_ADDR: $TPROXY_ADMIN_RPC_ADDR"
+echo "TPROXY_SERVING_ADDR: $TPROXY_SERVING_ADDR"
+echo "TAPPD_ADDR: $TAPPD_ADDR"
+
+if [ -t 0 ]; then
+  # Only ask for confirmation if running in an interactive terminal
+  read -p "Continue? [y/N] " -n 1 -r
+  echo
+
+  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Deployment cancelled"
+    exit 1
+  fi
+fi
 
 echo "Deploying Tproxy to Teepod..."
 
 $CLI deploy \
-    --name tproxy \
-    --app-id "$TPROXY_APP_ID" \
-    --compose .app-compose.json \
-    --env-file .env \
-    --image $OS_IMAGE \
-    --port tcp:0.0.0.0:$TPROXY_RPC_PORT:8000 \
-    --port tcp:127.0.0.1:$TPROXY_ADMIN_RPC_PORT:8001 \
-    --port tcp:0.0.0.0:$TPROXY_SERVING_PORT:443 \
-    --port tcp:127.0.0.1:$TAPPD_PORT:8090 \
-    --port udp:0.0.0.0:$WG_PORT:51820 \
-    --vcpu 8 \
-    --memory 8G \
-    --disk 50G
+  --name tproxy \
+  --app-id "$TPROXY_APP_ID" \
+  --compose .app-compose.json \
+  --env-file .app_env \
+  --image $OS_IMAGE \
+  --port tcp:$TPROXY_RPC_ADDR:8000 \
+  --port tcp:$TPROXY_ADMIN_RPC_ADDR:8001 \
+  --port tcp:$TPROXY_SERVING_ADDR:443 \
+  --port tcp:$TAPPD_ADDR:8090 \
+  --port udp:$WG_ADDR:51820 \
+  --vcpu 8 \
+  --memory 8G \
+

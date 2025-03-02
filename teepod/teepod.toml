@@ -4,7 +4,8 @@ ident = "Teepod"
 temp_dir = "/tmp"
 keep_alive = 10
 log_level = "debug"
-port = 8080
+address = "unix:./teepod.sock"
+reuse = true
 kms_url = "http://127.0.0.1:8081"
 
 

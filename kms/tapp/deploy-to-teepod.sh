@@ -15,7 +15,7 @@ else
 # Please uncomment and set values for the following variables:
 
 # The URL of the TEEPOD RPC service used to deploy the KMS Tapp
-# TEEPOD_RPC=http://localhost:8000
+# TEEPOD_RPC=unix:../../../build/teepod.sock
 
 # The address of the KMS contract
 # KMS_CONTRACT_ADDR=0x59E4a36B01a87fD9D1A4C12377253FE9a7b018Ba
