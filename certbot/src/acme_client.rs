@@ -36,7 +36,16 @@ struct Challenge {
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Credentials {
     pub(crate) account_id: String,
+    #[serde(default)]
+    acme_url: String,
     credentials: AccountCredentials,
+}
+
+pub(crate) fn acme_matches(encoded_credentials: &str, acme_url: &str) -> bool {
+    let Ok(credentials) = serde_json::from_str::<Credentials>(encoded_credentials) else {
+        return false;
+    };
+    credentials.acme_url == acme_url
 }
 
 impl AcmeClient {
@@ -65,6 +74,7 @@ impl AcmeClient {
         .await
         .context("failed to create new account")?;
         let credentials = Credentials {
+            acme_url: acme_url.to_string(),
             account_id: account.id().to_string(),
             credentials,
         };
