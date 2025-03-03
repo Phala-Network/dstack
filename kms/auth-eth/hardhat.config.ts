@@ -333,6 +333,7 @@ task("app:deploy", "Deploy AppAuth with a UUPS proxy")
 
     const kmsContract = await getKmsAuth(ethers);
     const appId = await kmsContract.nextAppId();
+    console.log("App ID:", appId);
     const appAuth = await deployContract(hre, "AppAuth", [deployerAddress, appId, false]);
     if (!appAuth) {
       return;
