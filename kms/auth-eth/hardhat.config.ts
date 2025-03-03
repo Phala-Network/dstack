@@ -324,9 +324,8 @@ task("info:tproxy", "Get current TProxy App ID")
   });
 
 task("app:deploy", "Deploy AppAuth with a UUPS proxy")
-  .addPositionalParam("salt", "Salt for app deployment")
   .setAction(async (_, hre) => {
-    const { ethers, upgrades } = hre;
+    const { ethers } = hre;
     const [deployer] = await ethers.getSigners();
     const deployerAddress = await deployer.getAddress();
     console.log("Deploying with account:", deployerAddress);
