@@ -1,3 +1,4 @@
 /.app-compose.json
 /.env
 /.venv
+/.app_env
