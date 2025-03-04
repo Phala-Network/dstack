@@ -324,33 +324,22 @@ task("info:tproxy", "Get current TProxy App ID")
   });
 
 task("app:deploy", "Deploy AppAuth with a UUPS proxy")
-  .addPositionalParam("salt", "Salt for app deployment")
-  .setAction(async ({ salt }, hre) => {
-    const { ethers, upgrades } = hre;
+  .setAction(async (_, hre) => {
+    const { ethers } = hre;
     const [deployer] = await ethers.getSigners();
     const deployerAddress = await deployer.getAddress();
     console.log("Deploying with account:", deployerAddress);
     console.log("Account balance:", await accountBalance(ethers, deployerAddress));
 
-    // Calculate app ID
-    const saltHash = ethers.keccak256(ethers.toUtf8Bytes(salt));
-    const fullHash = ethers.keccak256(
-      ethers.solidityPacked(
-        ['address', 'bytes32'],
-        [deployerAddress, saltHash]
-      )
-    );
-    const appId = ethers.getAddress('0x' + fullHash.slice(-40));
+    const kmsContract = await getKmsAuth(ethers);
+    const appId = await kmsContract.nextAppId();
     console.log("App ID:", appId);
-
     const appAuth = await deployContract(hre, "AppAuth", [deployerAddress, appId, false]);
     if (!appAuth) {
       return;
     }
-
     const proxyAddress = await appAuth.getAddress();
-    const kmsContract = await getKmsAuth(ethers);
-    const tx = await kmsContract.registerApp(saltHash, proxyAddress);
+    const tx = await kmsContract.registerApp(proxyAddress);
     const receipt = await waitTx(tx);
     // Parse the AppRegistered event from the logs
     const appRegisteredEvent = receipt.logs

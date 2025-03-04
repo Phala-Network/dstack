@@ -23,12 +23,11 @@ beforeAll(async () => {
   const kmsAuth = await deployContract(hre, "KmsAuth", [owner.address], true) as KmsAuth;
 
   // Initialize the contract with an app and KMS info
-  const salt = ethers.randomBytes(32);
-  const appId = await kmsAuth.calculateAppId(owner.address, salt);
+  const appId = await kmsAuth.nextAppId();
 
   const appAuth = await deployContract(hre, "AppAuth", [owner.address, appId, false], true) as AppAuth;
 
-  await kmsAuth.registerApp(salt, await appAuth.getAddress());
+  await kmsAuth.registerApp(await appAuth.getAddress());
 
   // Set up KMS info with the generated app ID
   await kmsAuth.setKmsInfo({
