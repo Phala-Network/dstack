@@ -6,7 +6,7 @@ To set up TProxy for production, you need a wildcard domain and SSL certificate.
 
 Set up a second-level wildcard domain using Cloudflare; make sure to disable proxy mode and use **DNS Only**.
 
-![add-wildcard-domain](./docs/assets/tproxy-add-wildcard-domain.jpg)
+![add-wildcard-domain](./assets/tproxy-add-wildcard-domain.jpg)
 
 ## Step 2: Request a Wildcard Domain SSL Certificate with Certbot
 
