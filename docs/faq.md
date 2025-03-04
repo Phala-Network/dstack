@@ -2,7 +2,14 @@
 
 ## CVM status turns to `exited` immediately
 
-You can see an error message in CVM's stderr output:
+First, check the stderr output of the CVM.
+
+> [!TIP]
+> To view the CVM's stderr, append `ch=stderr` to the end of the log URL.
+> If the log URL is `/logs?id=<uuid>&follow=true&ansi=false&lines=20`
+> The stderr URL would be `/logs?id=<uuid>&follow=true&ansi=false&lines=20&ch=stderr`.
+
+If you see an error message in CVM's stderr output:
 
 ```
 Could not access KVM kernel module: Permission denied
