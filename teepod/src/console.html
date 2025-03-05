@@ -698,6 +698,9 @@
                                     <button class="action-btn" @click="showLog(vm.id)" title="View Logs">
                                         <i class="fas fa-file-alt"></i> Logs
                                     </button>
+                                    <button class="action-btn" @click="showLog(vm.id, 'stderr')" title="View stderr">
+                                        <i class="fas fa-file-alt"></i> Stderr
+                                    </button>
                                     <button v-if="dashboardAvailable(vm)" class="action-btn" @click="showDashboard(vm)"
                                         title="View App Info">
                                         <i class="fas fa-info-circle"></i> Board
@@ -1271,8 +1274,12 @@
                     }
                 };
 
-                const showLog = async (id) => {
-                    window.open(`/logs?id=${id}&follow=true&ansi=false&lines=50`, '_blank');
+                const showLog = async (id, stream) => {
+                    if (stream == 'stderr') {
+                        window.open(`/logs?id=${id}&follow=true&ansi=false&lines=50&ch=stderr`, '_blank');
+                    } else {
+                        window.open(`/logs?id=${id}&follow=true&ansi=false&lines=50`, '_blank');
+                    }
                 };
 
                 const showDashboard = async (vm) => {
