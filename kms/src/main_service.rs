@@ -233,7 +233,13 @@ impl KmsRpc for RpcHandler {
         Ok(GetMetaResponse {
             ca_cert: self.state.inner.root_ca.pem_cert.clone(),
             allow_any_upgrade: self.state.inner.config.auth_api.is_dev(),
-            k256_pubkey: self.state.inner.k256_key.to_bytes().to_vec(),
+            k256_pubkey: self
+                .state
+                .inner
+                .k256_key
+                .verifying_key()
+                .to_bytes()
+                .to_vec(),
             bootstrap_info,
         })
     }
