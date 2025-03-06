@@ -13,7 +13,13 @@ import socket
 import http.client
 import urllib.parse
 
+from eth_keys import keys
+from eth_utils import keccak
+
 from typing import Optional, Dict, List, Tuple, Union, BinaryIO, Any
+
+# Default whitelist file location
+DEFAULT_KMS_WHITELIST_PATH = os.path.expanduser("~/.teepod/kms-whitelist.json")
 
 
 def encrypt_env(envs, hex_public_key: str) -> str:
@@ -305,8 +311,81 @@ class TeepodCLI:
     def get_app_env_encrypt_pub_key(self, app_id: str) -> Dict:
         """Get the encryption public key for the specified application ID"""
         response = self.rpc_call('GetAppEnvEncryptPubKey', {'app_id': app_id})
+        
+        # Verify the signature if available
+        if 'signature' not in response:
+            if not self.confirm_untrusted_signer("none"):
+                raise Exception("Aborted due to invalid signature")
+            return response['public_key']
+
+        public_key = bytes(response['public_key'])
+        signature = bytes(response['signature'])
+        
+        signer_pubkey = verify_signature(public_key, signature, app_id)
+        if signer_pubkey:
+            whitelist = load_whitelist()
+            if whitelist and signer_pubkey not in whitelist:
+                print(f"WARNING: Signer {signer_pubkey} is not in the trusted whitelist!")
+                if not self.confirm_untrusted_signer(signer_pubkey):
+                    raise Exception("Aborted due to untrusted signer")
+            else:
+                print(f"Verified signature from: {signer_pubkey}")
+        else:
+            print("WARNING: Could not verify signature!")
+            if not self.confirm_untrusted_signer("unknown"):
+                raise Exception("Aborted due to invalid signature")
+        
         return response['public_key']
     
+    def confirm_untrusted_signer(self, signer: str) -> bool:
+        """Ask user to confirm using an untrusted signer"""
+        response = input(f"Continue with untrusted signer {signer}? (y/N): ")
+        return response.lower() in ('y', 'yes')
+    
+    def manage_kms_whitelist(self, action: str, pubkey: str = None) -> None:
+        """Manage the whitelist of trusted signers"""
+        whitelist = load_whitelist()
+        
+        if action == 'list':
+            if not whitelist:
+                print("Whitelist is empty")
+            else:
+                print("Trusted signers:")
+                for addr in whitelist:
+                    print(f"  {addr}")
+            return
+        
+        # Normalize pubkey format - trim 0x prefix if present
+        if pubkey and pubkey.startswith('0x'):
+            pubkey = pubkey[2:]
+        # Convert to bytes for validation
+        try:
+            pubkey = bytes.fromhex(pubkey)
+        except ValueError:
+            raise Exception(f"Invalid public key format: {pubkey}")
+        if len(pubkey) != 33:
+            raise Exception(f"Invalid public key length: {len(pubkey)}")
+        pubkey = pubkey.hex()
+        
+        if action == 'add':
+            if pubkey in whitelist:
+                print(f"Public key {pubkey} is already in the whitelist")
+            else:
+                whitelist.append(pubkey)
+                save_whitelist(whitelist)
+                print(f"Added {pubkey} to the whitelist")
+        
+        elif action == 'remove':
+            if pubkey not in whitelist:
+                print(f"Public key {pubkey} is not in the whitelist")
+            else:
+                whitelist.remove(pubkey)
+                save_whitelist(whitelist)
+                print(f"Removed {pubkey} from the whitelist")
+        
+        else:
+            raise Exception(f"Unknown action: {action}")
+
     def calc_app_id(self, compose_file: str) -> str:
         """Calculate the application ID from the compose file"""
         compose_hash = hashlib.sha256(compose_file.encode()).hexdigest()
@@ -520,6 +599,77 @@ def parse_disk_size(s: str) -> int:
     """Parse a disk size string into GB."""
     return parse_size(s, "GB")
 
+def verify_signature(public_key: bytes, signature: bytes, app_id: str) -> Optional[str]:
+    """
+    Verify the signature of a public key.
+    
+    Args:
+        public_key: The public key bytes to verify
+        signature: The signature bytes
+        app_id: The application ID
+        
+    Returns:
+        The compressed public key if valid, None otherwise
+    
+    Examples:
+        >>> public_key = bytes.fromhex('e33a1832c6562067ff8f844a61e51ad051f1180b66ec2551fb0251735f3ee90a')
+        >>> signature = bytes.fromhex('8542c49081fbf4e03f62034f13fbf70630bdf256a53032e38465a27c36fd6bed7a5e7111652004aef37f7fd92fbfc1285212c4ae6a6154203a48f5e16cad2cef00')
+        >>> app_id = '00' * 20
+        >>> compressed_pubkey = verify_signature(public_key, signature, app_id)
+        >>> print(compressed_pubkey)
+        0x0217610d74cbd39b6143842c6d8bc310d79da1d82cc9d17f8876376221eda0c38f
+    """
+    if len(signature) != 65:
+        return None
+    
+    # Create the message to verify
+    prefix = b"dstack-env-encrypt-pubkey"
+    message = prefix + b":" + bytes.fromhex(app_id) + public_key
+    
+    # Hash the message with Keccak-256
+    message_hash = keccak(message)
+    
+    # Recover the public key from the signature
+    try:
+        # Create a Signature object with vrs
+        sig = keys.Signature(signature_bytes=signature)
+        
+        recovered_key = sig.recover_public_key_from_msg_hash(message_hash)
+        return '0x' + recovered_key.to_compressed_bytes().hex()
+    except Exception as e:
+        print(f"Signature verification failed: {e}", file=sys.stderr)
+        return None
+
+
+def load_whitelist() -> List[str]:
+    """
+    Load the whitelist of trusted signers from a file.
+
+    Returns:
+        List of trusted Ethereum addresses
+    """
+    if not os.path.exists(DEFAULT_KMS_WHITELIST_PATH):
+        os.makedirs(os.path.dirname(DEFAULT_KMS_WHITELIST_PATH), exist_ok=True)
+        return []
+    
+    try:
+        with open(DEFAULT_KMS_WHITELIST_PATH, 'r') as f:
+            data = json.load(f)
+            return data.get('trusted_signers', [])
+    except (json.JSONDecodeError, FileNotFoundError):
+        return []
+
+def save_whitelist(whitelist: List[str]) -> None:
+    """
+    Save the whitelist of trusted signers to a file.
+    
+    Args:
+        whitelist: List of trusted Ethereum addresses
+    """
+    os.makedirs(os.path.dirname(DEFAULT_KMS_WHITELIST_PATH), exist_ok=True)
+    with open(DEFAULT_KMS_WHITELIST_PATH, 'w') as f:
+        json.dump({'trusted_signers': whitelist}, f, indent=2)
+
 def main():
     parser = argparse.ArgumentParser(description='Teepod CLI - Manage VMs')
     parser.add_argument('--url', default='http://localhost:8080', help='Teepod API URL')
@@ -582,6 +732,21 @@ def main():
     update_env_parser.add_argument('vm_id', help='VM ID to update')
     update_env_parser.add_argument('--env-file', required=True, help='File with environment variables to encrypt')
 
+    # Whitelist command
+    kms_parser = subparsers.add_parser('kms', help='Manage trusted KMS whitelist')
+    kms_subparsers = kms_parser.add_subparsers(dest='kms_action', help='KMS actions')
+    
+    # List whitelist
+    list_kms_parser = kms_subparsers.add_parser('list', help='List trusted signers')
+    
+    # Add to whitelist
+    add_kms_parser = kms_subparsers.add_parser('add', help='Add public key to trusted signers')
+    add_kms_parser.add_argument('pubkey', help='Public key to add')
+    
+    # Remove from whitelist
+    remove_kms_parser = kms_subparsers.add_parser('remove', help='Remove public key from trusted signers')
+    remove_kms_parser.add_argument('pubkey', help='Public key to remove')
+
     args = parser.parse_args()
 
     try:
@@ -629,6 +794,14 @@ def main():
             print(format_table(rows, headers))
         elif args.command == 'update-env':
             cli.update_vm_env(args.vm_id, parse_env_file(args.env_file))
+        elif args.command == 'kms':
+            if not args.kms_action:
+                kms_parser.print_help()
+            else:
+                cli.manage_kms_whitelist(
+                    action=args.kms_action,
+                    pubkey=getattr(args, 'pubkey', None),
+                )
         else:
             parser.print_help()
 
