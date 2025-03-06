@@ -238,7 +238,7 @@ impl KmsRpc for RpcHandler {
                 .inner
                 .k256_key
                 .verifying_key()
-                .to_bytes()
+                .to_sec1_bytes()
                 .to_vec(),
             bootstrap_info,
         })
