@@ -357,7 +357,7 @@ impl TeepodRpc for RpcHandler {
     }
 
     async fn list_gpus(self) -> Result<ListGpusResponse> {
-        let gpus = self.app.list_gpus()?;
+        let gpus = self.app.list_gpus().await?;
         Ok(ListGpusResponse { gpus })
     }
 }

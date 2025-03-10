@@ -160,11 +160,6 @@ impl App {
             }
             teapot.add(VmState::new(vm_config));
         };
-        let started = vm_work_dir.started().context("Failed to read VM state")?;
-        if started {
-            self.start_vm(&vm_id).await?;
-        }
-
         Ok(())
     }
 
@@ -195,12 +190,17 @@ impl App {
                 }
             }
 
+            self.refresh_gpu_state().await?;
             let devices = self.try_allocate_gpus(&vm_config.manifest)?;
             let process_config = vm_config.config_qemu(&work_dir, &self.config.cvm, &devices)?;
             self.supervisor
                 .deploy(process_config)
                 .await
                 .with_context(|| format!("Failed to start VM {id}"))?;
+
+            let mut state = self.lock();
+            let vm_state = state.get_mut(id).context("VM not found")?;
+            vm_state.state.devices = devices;
         }
         Ok(())
     }
@@ -215,6 +215,11 @@ impl App {
     pub async fn stop_vm(&self, id: &str) -> Result<()> {
         self.set_started(id, false)?;
         self.supervisor.stop(id).await?;
+        {
+            let mut state = self.lock();
+            let vm_state = state.get_mut(id).context("VM not found")?;
+            vm_state.state.devices.clear();
+        }
         Ok(())
     }
 
@@ -247,11 +252,11 @@ impl App {
     pub async fn reload_vms(&self) -> Result<()> {
         let vm_path = self.vm_dir();
         let running_vms = self.supervisor.list().await.context("Failed to list VMs")?;
-        let occupied_devices: HashSet<String> = running_vms
+        let occupied_devices: HashMap<String, Vec<String>> = running_vms
             .iter()
-            .flat_map(|p| {
+            .map(|p| {
                 let note: ProcessNote = serde_json::from_str(&p.config.note).unwrap_or_default();
-                note.devices.into_iter()
+                (p.config.id.clone(), note.devices.clone())
             })
             .collect();
         let occupied_cids = running_vms
@@ -263,8 +268,8 @@ impl App {
             for cid in occupied_cids.values() {
                 state.cid_pool.occupy(*cid)?;
             }
-            for slot in occupied_devices {
-                let Some(gpu) = state.gpu_pool.iter_mut().find(|gpu| gpu.slot == slot) else {
+            for slot in occupied_devices.values().flat_map(|od| od.iter()) {
+                let Some(gpu) = state.gpu_pool.iter_mut().find(|gpu| gpu.slot == *slot) else {
                     continue;
                 };
                 info!("Occupied GPU: {slot}");
@@ -279,6 +284,14 @@ impl App {
                     if let Err(err) = self.load_vm(vm_path, &occupied_cids).await {
                         error!("Failed to load VM: {err:?}");
                     }
+                }
+            }
+        }
+        {
+            let mut state = self.lock();
+            for vm in state.vms.values_mut() {
+                if let Some(od) = occupied_devices.get(&vm.config.manifest.id) {
+                    vm.state.devices = od.to_vec();
                 }
             }
         }
@@ -462,13 +475,18 @@ impl App {
         )))
     }
 
-    fn refresh_gpu_state(&self) -> Result<()> {
+    async fn refresh_gpu_state(&self) -> Result<()> {
         if !self.config.cvm.gpu.enabled {
             return Ok(());
         }
-        let devices = self.config.cvm.gpu.list_devices()?;
+
+        let pci_devices = self.config.cvm.gpu.list_devices()?;
         let mut state = self.lock();
-        for device in devices {
+        state.gpu_pool.iter_mut().for_each(|gpu| {
+            gpu.pci_in_use = false;
+            gpu.allocated = false;
+        });
+        for device in pci_devices {
             let Some(gpu) = state
                 .gpu_pool
                 .iter_mut()
@@ -478,6 +496,18 @@ impl App {
             };
             gpu.pci_in_use = device.in_use();
         }
+        let mut allocated_devices = HashSet::new();
+        for vm in state.vms.values() {
+            if vm.config.manifest.gpus.is_empty() {
+                continue;
+            }
+            allocated_devices.extend(vm.state.devices.iter().cloned());
+        }
+        for gpu in state.gpu_pool.iter_mut() {
+            if allocated_devices.contains(&gpu.slot) {
+                gpu.allocated = true;
+            }
+        }
         Ok(())
     }
 
@@ -485,7 +515,6 @@ impl App {
         if !self.config.cvm.gpu.enabled {
             return Ok(Vec::new());
         }
-        self.refresh_gpu_state()?;
         let mut state = self.lock();
         let mut cloned_pool = state.gpu_pool.clone();
         let mut allocated_devices = Vec::new();
@@ -516,11 +545,11 @@ impl App {
         Ok(allocated_devices)
     }
 
-    pub(crate) fn list_gpus(&self) -> Result<Vec<GpuInfo>> {
+    pub(crate) async fn list_gpus(&self) -> Result<Vec<GpuInfo>> {
         if !self.config.cvm.gpu.enabled {
             return Ok(Vec::new());
         }
-        self.refresh_gpu_state()?;
+        self.refresh_gpu_state().await?;
         let state = self.lock();
         Ok(state
             .gpu_pool
@@ -546,6 +575,7 @@ struct VmStateMut {
     boot_progress: String,
     boot_error: String,
     shutdown_progress: String,
+    devices: Vec<String>,
 }
 
 impl VmStateMut {

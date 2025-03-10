@@ -531,11 +531,24 @@
                     </div>
 
                     <div class="form-group" v-if="availableGpus.length > 0">
-                        <label for="gpuSelection">GPU (optional)</label>
-                        <select id="gpuSelection" v-model="vmForm.selected_gpu">
+                        <label for="gpuSelection">GPU</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                            <label style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                                <input type="checkbox" id="pinGpu" v-model="vmForm.pin_gpu" style="margin-right: 5px;">
+                                Pin to specific GPU
+                            </label>
+                        </div>
+                        <select id="gpuSelection" v-model="vmForm.selected_gpu_slot" v-if="vmForm.pin_gpu">
                             <option value="">No GPU</option>
                             <option v-for="gpu in availableGpus" :key="gpu.slot" :value="gpu.slot">
                                 {{ gpu.slot }}: {{ gpu.description }} {{ gpu.is_free ? '' : '(in use)' }}
+                            </option>
+                        </select>
+                        <select id="gpuSelection" v-model="vmForm.selected_gpu_product" v-if="!vmForm.pin_gpu">
+                            <option value="">No GPU</option>
+                            <option v-for="product in availableGpuProducts" :key="product.product_id"
+                                :value="product.product_id">
+                                {{ product.description }}
                             </option>
                         </select>
                     </div>
@@ -1028,7 +1041,9 @@
                     vcpu: 1,
                     memory: 1024,
                     disk_size: 20,
-                    selected_gpu: '',
+                    selected_gpu_slot: '',
+                    selected_gpu_product: '',
+                    pin_gpu: true,
                     ports: [],
                     encrypted_envs: [],
                     docker_config: {
@@ -1048,6 +1063,7 @@
                 });
                 const availableImages = ref([]);
                 const availableGpus = ref([]);
+                const availableGpuProducts = ref([]);
                 const upgradeDialog = ref({
                     show: false,
                     vm: null,
@@ -1224,15 +1240,19 @@
                     vmForm.value.app_id = null;
                 };
 
-                const configGpu = (slot) => {
-                    if (!slot) return [];
-                    const gpu = availableGpus.value.find(gpu => gpu.slot == slot);
-                    if (!gpu) return [];
-                    return [{
-                        // Do not use slot, so that teepod can find a free slot for the GPU with the same product_id
-                        // slot: slot,
-                        product_id: gpu.product_id,
-                    }];
+                const configGpu = () => {
+                    if (vmForm.value.pin_gpu) {
+                        if (!vmForm.value.selected_gpu_slot) return [];
+                        return [{
+                            slot: vmForm.value.selected_gpu_slot,
+                        }];
+                    } else {
+                        if (!vmForm.value.selected_gpu_product) return [];
+                        return [{
+                            // Do not use slot, so that teepod can find a free slot for the GPU with the same product_id
+                            product_id: vmForm.value.selected_gpu_product,
+                        }];
+                    }
                 };
 
                 const createVm = async () => {
@@ -1247,7 +1267,7 @@
                                 vmForm.value.app_id
                             ),
                             user_config: vmForm.value.user_config,
-                            gpus: configGpu(vmForm.value.selected_gpu),
+                            gpus: configGpu(),
                         };
                         const _response = await rpcCall('CreateVm', form);
                         loadVMList();
@@ -1381,7 +1401,15 @@
                     try {
                         const response = await rpcCall('ListGpus');
                         const data = await response.json();
-                        availableGpus.value = data.gpus || [];
+                        const gpus = data.gpus || [];
+                        availableGpus.value = gpus;
+                        availableGpuProducts.value = [];
+                        for (const gpu of gpus) {
+                            if (!availableGpuProducts.value.find(product => product.product_id == gpu.product_id)) {
+                                console.log('appending gpu', gpu);
+                                availableGpuProducts.value.push(gpu);
+                            }
+                        }
                     } catch (error) {
                         console.error('error loading GPUs:', error);
                     }
@@ -1650,6 +1678,7 @@
                     vmForm,
                     availableImages,
                     availableGpus,
+                    availableGpuProducts,
                     createVm,
                     stopVm,
                     startVm,
