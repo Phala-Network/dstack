@@ -257,6 +257,7 @@ impl App {
         let running_vms = self.supervisor.list().await.context("Failed to list VMs")?;
         let occupied_devices: HashMap<String, Vec<String>> = running_vms
             .iter()
+            .filter(|p| p.state.started)
             .map(|p| {
                 let note: ProcessNote = serde_json::from_str(&p.config.note).unwrap_or_default();
                 (p.config.id.clone(), note.devices.clone())
