@@ -115,11 +115,6 @@
         }
     </style>
     <style>
-        .create-vm-form {
-            max-width: 600px;
-            margin: 20px 0;
-        }
-
         .form-group {
             margin-bottom: 15px;
         }
@@ -176,7 +171,7 @@
     <style>
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 15px;
             margin-bottom: 15px;
         }
@@ -252,7 +247,7 @@
             background: white;
             padding: 20px;
             border-radius: 8px;
-            width: 500px;
+            width: 800px;
             max-width: 90%;
             margin: 20px auto;
         }
@@ -588,7 +583,7 @@
 
                     <div class="form-group full-width">
                         <label>Features</label>
-                        <div style="display: flex; gap: 20px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
                             <label style="display: flex; align-items: center; gap: 5px;">
                                 <input type="checkbox" v-model="vmForm.kms_enabled">
                                 KMS
@@ -608,6 +603,14 @@
                             <label style="display: flex; align-items: center; gap: 5px;">
                                 <input type="checkbox" v-model="vmForm.public_sysinfo">
                                 Public Sysinfo
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" v-model="vmForm.pin_numa">
+                                Pin NUMA
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" v-model="vmForm.hugepages">
+                                Hugepages
                             </label>
                         </div>
                     </div>
@@ -1039,6 +1042,8 @@
                     tproxy_enabled: true,
                     public_logs: true,
                     public_sysinfo: true,
+                    pin_numa: false,
+                    hugepages: false,
                     user_config: ''
                 });
                 const availableImages = ref([]);
