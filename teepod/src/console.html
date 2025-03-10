@@ -485,7 +485,7 @@
                     placeholder="Enter API token for RPC authentication">
             </div>
         </div>
-        <button class="action-btn" @click="showCreateDialog = true; clearEncryptedEnv()">Deploy a new instance</button>
+        <button class="action-btn" @click="showDeployDialog()">Deploy a new instance</button>
 
         <div v-if="showCreateDialog" class="dialog-overlay">
             <div class="dialog">
@@ -1255,6 +1255,12 @@
                     }
                 };
 
+                const showDeployDialog = () => {
+                    showCreateDialog.value = true;
+                    clearEncryptedEnv();
+                    loadGpus();
+                };
+
                 const createVm = async () => {
                     try {
                         const form = {
@@ -1715,6 +1721,7 @@
                     tproxyEnabled,
                     getFlags,
                     version,
+                    showDeployDialog,
                 };
             }
         }).mount('#app');
