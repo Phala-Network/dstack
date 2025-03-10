@@ -314,6 +314,7 @@ impl TeepodRpc for RpcHandler {
 
     async fn shutdown_vm(self, request: Id) -> Result<()> {
         self.tappd_client(&request.id)?.shutdown().await?;
+        self.app.release_devices(&request.id)?;
         Ok(())
     }
 

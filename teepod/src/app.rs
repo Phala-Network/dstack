@@ -212,14 +212,17 @@ impl App {
             .context("Failed to set started")
     }
 
+    pub fn release_devices(&self, id: &str) -> Result<()> {
+        let mut state = self.lock();
+        let vm_state = state.get_mut(id).context("VM not found")?;
+        vm_state.state.devices.clear();
+        Ok(())
+    }
+
     pub async fn stop_vm(&self, id: &str) -> Result<()> {
         self.set_started(id, false)?;
         self.supervisor.stop(id).await?;
-        {
-            let mut state = self.lock();
-            let vm_state = state.get_mut(id).context("VM not found")?;
-            vm_state.state.devices.clear();
-        }
+        self.release_devices(id)?;
         Ok(())
     }
 
@@ -537,7 +540,7 @@ impl App {
                     cloned_pool[index].allocated = true;
                     allocated_devices.push(cloned_pool[index].slot.clone());
                 }
-                None => bail!("No matching GPU found for the requested specification"),
+                None => bail!("No available GPU found"),
             }
         }
         state.gpu_pool = cloned_pool;
