@@ -35,6 +35,7 @@ members = [
     "key-provider-client",
     "dstack-types",
     "cert-client",
+    "lspci",
 ]
 resolver = "2"
 
@@ -60,6 +61,7 @@ load_config = { path = "load_config" }
 key-provider-client = { path = "key-provider-client" }
 dstack-types = { path = "dstack-types" }
 cert-client = { path = "cert-client" }
+lspci = { path = "lspci" }
 
 # Core dependencies
 anyhow = "1.0.95"

@@ -2539,6 +2539,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "lspci"
+version = "0.3.4"
+dependencies = [
+ "anyhow",
+ "insta",
+]
+
+[[package]]
 name = "match_cfg"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5011,11 +5019,14 @@ dependencies = [
  "git-version",
  "guest-api",
  "hex",
+ "hex_fmt",
  "host-api",
  "humantime",
+ "insta",
  "key-provider-client",
  "kms-rpc",
  "load_config",
+ "lspci",
  "path-absolutize",
  "ra-rpc",
  "rocket",

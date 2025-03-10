@@ -8,12 +8,12 @@ use ra_rpc::{CallContext, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
     AppId, GetInfoResponse, GetMetaResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse,
-    KmsSettings, PublicKeyResponse, ResizeVmRequest, ResourcesSettings, StatusResponse,
-    TProxySettings, UpgradeAppRequest, VersionResponse, VmConfiguration,
+    KmsSettings, ListGpusResponse, PublicKeyResponse, ResizeVmRequest, ResourcesSettings,
+    StatusResponse, TProxySettings, UpgradeAppRequest, VersionResponse, VmConfiguration,
 };
 use tracing::{info, warn};
 
-use crate::app::{App, Manifest, PortMapping, VmWorkDir};
+use crate::app::{App, GpuSpec, Manifest, PortMapping, VmWorkDir};
 
 fn hex_sha256(data: &str) -> String {
     use sha2::Digest;
@@ -107,6 +107,18 @@ impl TeepodRpc for RpcHandler {
             .disk_size(request.disk_size)
             .port_map(port_map)
             .created_at_ms(now)
+            .hugepages(request.hugepages)
+            .pin_numa(request.pin_numa)
+            .gpus(
+                request
+                    .gpus
+                    .iter()
+                    .map(|gpu| GpuSpec {
+                        product_id: gpu.product_id.clone(),
+                        slot: gpu.slot.clone(),
+                    })
+                    .collect(),
+            )
             .build();
         let vm_work_dir = self.app.work_dir(&id);
         vm_work_dir
@@ -342,6 +354,11 @@ impl TeepodRpc for RpcHandler {
                 max_disk_size_in_gb: self.app.config.cvm.max_disk_size,
             }),
         })
+    }
+
+    async fn list_gpus(self) -> Result<ListGpusResponse> {
+        let gpus = self.app.list_gpus()?;
+        Ok(ListGpusResponse { gpus })
     }
 }
 

@@ -535,6 +535,16 @@
                         </div>
                     </div>
 
+                    <div class="form-group" v-if="availableGpus.length > 0">
+                        <label for="gpuSelection">GPU (optional)</label>
+                        <select id="gpuSelection" v-model="vmForm.selected_gpu">
+                            <option value="">No GPU</option>
+                            <option v-for="gpu in availableGpus" :key="gpu.slot" :value="gpu.slot">
+                                {{ gpu.description }} {{ gpu.is_free ? '' : '(in use)' }}
+                            </option>
+                        </select>
+                    </div>
+
                     <div class="form-group">
                         <label for="appId">App ID (optional)</label>
                         <input id="appId" v-model="vmForm.app_id" type="text"
@@ -783,6 +793,16 @@
                                             <span class="detail-label">Disk Size:</span>
                                             <span class="detail-value">{{ vm.configuration?.disk_size }} GB</span>
                                         </div>
+                                        <div class="detail-item"
+                                            v-if="vm.configuration?.gpus && vm.configuration.gpus.length > 0">
+                                            <span class="detail-label">GPUs:</span>
+                                            <div>
+                                                <div v-for="(gpu, index) in vm.configuration.gpus" :key="index"
+                                                    class="detail-value">
+                                                    {{ gpu.description }} ({{ gpu.product_id }})
+                                                </div>
+                                            </div>
+                                        </div>
                                         <div class="detail-item">
                                             <span class="detail-label">VM ID:</span>
                                             <span class="detail-value">{{ vm.id }}</span>
@@ -1005,6 +1025,7 @@
                     vcpu: 1,
                     memory: 1024,
                     disk_size: 20,
+                    selected_gpu: '',
                     ports: [],
                     encrypted_envs: [],
                     docker_config: {
@@ -1021,6 +1042,7 @@
                     user_config: ''
                 });
                 const availableImages = ref([]);
+                const availableGpus = ref([]);
                 const upgradeDialog = ref({
                     show: false,
                     vm: null,
@@ -1197,6 +1219,17 @@
                     vmForm.value.app_id = null;
                 };
 
+                const configGpu = (slot) => {
+                    if (!slot) return [];
+                    const gpu = availableGpus.value.find(gpu => gpu.slot == slot);
+                    if (!gpu) return [];
+                    return [{
+                        // Do not use slot, so that teepod can find a free slot for the GPU with the same product_id
+                        // slot: slot,
+                        product_id: gpu.product_id,
+                    }];
+                };
+
                 const createVm = async () => {
                     try {
                         const form = {
@@ -1208,7 +1241,8 @@
                                 vmForm.value.kms_enabled,
                                 vmForm.value.app_id
                             ),
-                            user_config: vmForm.value.user_config
+                            user_config: vmForm.value.user_config,
+                            gpus: configGpu(vmForm.value.selected_gpu),
                         };
                         const _response = await rpcCall('CreateVm', form);
                         loadVMList();
@@ -1335,6 +1369,16 @@
                         availableImages.value = data.images;
                     } catch (error) {
                         console.error('error loading images:', error);
+                    }
+                };
+
+                const loadGpus = async () => {
+                    try {
+                        const response = await rpcCall('ListGpus');
+                        const data = await response.json();
+                        availableGpus.value = data.gpus || [];
+                    } catch (error) {
+                        console.error('error loading GPUs:', error);
                     }
                 };
 
@@ -1510,6 +1554,7 @@
                         }
                     })();
                     loadImages();
+                    loadGpus();
                     loadVersion();
                 });
 
@@ -1599,6 +1644,7 @@
                     vms,
                     vmForm,
                     availableImages,
+                    availableGpus,
                     createVm,
                     stopVm,
                     startVm,

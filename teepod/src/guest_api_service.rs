@@ -34,34 +34,27 @@ impl ProxiedGuestApiRpc for GuestApiHandler {
         self.tappd_client(&request.id)?
             .info()
             .await
-            .map_err(Into::into)
     }
 
     async fn sys_info(self, request: Id) -> Result<SystemInfo> {
         self.tappd_client(&request.id)?
             .sys_info()
             .await
-            .map_err(Into::into)
     }
 
     async fn network_info(self, request: Id) -> Result<NetworkInformation> {
         self.tappd_client(&request.id)?
             .network_info()
             .await
-            .map_err(Into::into)
     }
 
     async fn list_containers(self, request: Id) -> Result<ListContainersResponse> {
         self.tappd_client(&request.id)?
             .list_containers()
             .await
-            .map_err(Into::into)
     }
 
     async fn shutdown(self, request: Id) -> Result<()> {
-        self.tappd_client(&request.id)?
-            .shutdown()
-            .await
-            .map_err(Into::into)
+        self.tappd_client(&request.id)?.shutdown().await
     }
 }
