@@ -134,6 +134,10 @@ impl TeepodRpc for RpcHandler {
             .load_vm(&work_dir, &Default::default())
             .await
             .context("Failed to load VM");
+        let result = match result {
+            Ok(()) => self.app.start_vm(&id).await,
+            Err(err) => Err(err),
+        };
         if let Err(err) = result {
             if let Err(err) = fs::remove_dir_all(&work_dir) {
                 warn!("Failed to remove work dir: {}", err);
