@@ -540,7 +540,7 @@
                         <select id="gpuSelection" v-model="vmForm.selected_gpu">
                             <option value="">No GPU</option>
                             <option v-for="gpu in availableGpus" :key="gpu.slot" :value="gpu.slot">
-                                {{ gpu.description }} {{ gpu.is_free ? '' : '(in use)' }}
+                                {{ gpu.slot }}: {{ gpu.description }} {{ gpu.is_free ? '' : '(in use)' }}
                             </option>
                         </select>
                     </div>
