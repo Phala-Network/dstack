@@ -54,6 +54,63 @@ For `tdx_quote`, it supports a range of hash algorithms, including:
 - `keccak512`: Keccak-512 hash algorithm
 - `raw`: No hashing, use raw data (must be <= 64 bytes)
 
+## Web3 Integration
+
+The SDK provides integration with various blockchain ecosystems. You need to install the SDK with the appropriate optional dependencies:
+
+```bash
+# For Ethereum support
+pip install "dstack-sdk[eth]"
+
+# For Solana support
+pip install "dstack-sdk[sol]"
+
+# For both
+pip install "dstack-sdk[all]"
+```
+
+### Ethereum
+
+You can use derived keys with the built-in Ethereum integration:
+
+```python
+from dstack_sdk import TappdClient
+from dstack_sdk.ethereum import to_account
+
+# Derive a key
+client = TappdClient()
+key_result = client.derive_key('eth-account')
+
+# Convert to Ethereum account
+account = to_account(key_result)
+print(f"Ethereum address: {account.address}")
+
+# Use with Web3
+from web3 import Web3
+w3 = Web3(Web3.HTTPProvider('https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY'))
+# Sign transactions, etc.
+```
+
+### Solana
+
+For Solana integration, use the built-in helper:
+
+```python
+from dstack_sdk import TappdClient
+from dstack_sdk.solana import to_keypair
+
+# Derive a key
+client = TappdClient()
+key_result = client.derive_key('solana-account')
+
+# Convert to Solana keypair
+keypair = to_keypair(key_result)
+print(f"Solana public key: {keypair.pubkey()}")
+
+# Use with Solana transactions
+# ... (sign transactions, etc.)
+```
+
 ## API Reference
 
 ### TappdClient and AsyncTappdClient
