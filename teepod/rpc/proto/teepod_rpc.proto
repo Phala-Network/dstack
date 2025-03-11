@@ -63,6 +63,17 @@ message VmConfiguration {
   optional string app_id = 9;
   // User config that would be put at /tapp/.user-config in the CVM.
   string user_config = 10;
+  // Hugepages enabled
+  bool hugepages = 11;
+  // Pin NUMA enabled
+  bool pin_numa = 12;
+  // GPUs
+  repeated GpuSpec gpus = 13;
+}
+
+message GpuSpec {
+  string product_id = 1;
+  string slot = 2;
 }
 
 // Message for port mapping
@@ -166,6 +177,17 @@ message VersionResponse {
   string rev = 2;
 }
 
+message ListGpusResponse {
+  repeated GpuInfo gpus = 1;
+}
+
+message GpuInfo {
+  string slot = 1;
+  string product_id = 2;
+  string description = 3;
+  bool is_free = 4;
+}
+
 // Service definition for Teepod
 service Teepod {
   // RPC to create a VM
@@ -199,4 +221,7 @@ service Teepod {
 
   // Get version info of the Teepod
   rpc GetMeta(google.protobuf.Empty) returns (GetMetaResponse);
+
+  // List GPUs
+  rpc ListGpus(google.protobuf.Empty) returns (ListGpusResponse);
 }

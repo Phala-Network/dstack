@@ -26,7 +26,10 @@ cid_start = 1000
 cid_pool_size = 1000
 max_allocable_vcpu = 20
 max_allocable_memory_in_mb = 100_000 # MB
+# Enable QMP socket
 qmp_socket = true
+# Use sudo to run the VM
+sudo = false
 
 [cvm.port_mapping]
 enabled = false
@@ -34,6 +37,14 @@ address = "127.0.0.1"
 range = [
     { protocol = "tcp", from = 1, to = 20000 },
 ]
+
+[cvm.gpu]
+enabled = false
+# The product IDs of the GPUs to discover
+# H200: 10de:2335
+listing = ["10de:2335"]
+# The PCI addresses of the cards to exclude
+exclude = []
 
 [gateway]
 base_domain = "localhost"

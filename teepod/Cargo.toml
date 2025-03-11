@@ -40,3 +40,8 @@ guest-api = { workspace = true, features = ["client"] }
 load_config.workspace = true
 key-provider-client.workspace = true
 dstack-types.workspace = true
+hex_fmt.workspace = true
+lspci.workspace = true
+
+[dev-dependencies]
+insta.workspace = true

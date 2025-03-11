@@ -1,7 +1,7 @@
 //! QEMU related code
 use crate::{
     app::Manifest,
-    config::{CvmConfig, GatewayConfig, Networking},
+    config::{CvmConfig, GatewayConfig, Networking, ProcessNote},
 };
 use std::{
     ops::Deref,
@@ -111,6 +111,17 @@ impl VmInfo {
                     })
                     .collect(),
                 app_id: Some(self.manifest.app_id.clone()),
+                hugepages: self.manifest.hugepages,
+                pin_numa: self.manifest.pin_numa,
+                gpus: self
+                    .manifest
+                    .gpus
+                    .iter()
+                    .map(|gpu| pb::GpuSpec {
+                        product_id: gpu.product_id.clone(),
+                        slot: gpu.slot.clone(),
+                    })
+                    .collect(),
             }),
             app_url: self.instance_id.as_ref().map(|id| {
                 format!(
@@ -170,7 +181,12 @@ impl VmState {
 }
 
 impl VmConfig {
-    pub fn config_qemu(&self, workdir: impl AsRef<Path>, cfg: &CvmConfig) -> Result<ProcessConfig> {
+    pub fn config_qemu(
+        &self,
+        workdir: impl AsRef<Path>,
+        cfg: &CvmConfig,
+        devices: &[String],
+    ) -> Result<ProcessConfig> {
         let workdir = VmWorkDir::new(workdir);
         let serial_file = workdir.serial_file();
         let serial_pty = workdir.serial_pty();
@@ -184,10 +200,11 @@ impl VmConfig {
             fs::create_dir_all(&shared_dir)?;
         }
         let qemu = &cfg.qemu_path;
+        let smp = self.manifest.vcpu.max(1);
         let mut command = Command::new(qemu);
         command.arg("-accel").arg("kvm");
         command.arg("-cpu").arg("host");
-        command.arg("-smp").arg(self.manifest.vcpu.to_string());
+        command.arg("-smp").arg(smp.to_string());
         command.arg("-m").arg(format!("{}M", self.manifest.memory));
         command.arg("-nographic");
         command.arg("-nodefaults");
@@ -257,8 +274,50 @@ impl VmConfig {
             "local,path={},mount_tag=host-shared,readonly={ro},security_model=mapped,id=virtfs0",
             shared_dir.display(),
         ));
+
+        let hugepages = self.manifest.hugepages;
+        let pin_numa = self.manifest.pin_numa;
+        // Add GPU support if there are any GPU devices
+        if !devices.is_empty() {
+            command
+                .arg("-device")
+                .arg("pcie-root-port,id=pci.1,bus=pcie.0");
+            command
+                .arg("-fw_cfg")
+                .arg("name=opt/ovmf/X-PciMmio64,string=262144");
+
+            // Add iommufd objects and vfio-pci devices for each GPU
+            for (i, device) in devices.iter().enumerate() {
+                command.arg("-object").arg(format!("iommufd,id=iommufd{i}"));
+                command.arg("-device").arg(format!(
+                    "vfio-pci,host={device},bus=pci.1,iommufd=iommufd{i}"
+                ));
+            }
+        }
+
+        // Add kernel command line
         if let Some(cmdline) = &self.image.info.cmdline {
             command.arg("-append").arg(cmdline);
+        }
+
+        // NUMA and hugepages configuration
+        let mut numa_cpus = None;
+        let memory = self.manifest.memory;
+
+        // NUMA pinning if requested and we have exactly one GPU
+        if pin_numa {
+            // Get the NUMA node for the GPU
+            let (numa_node, cpus) = find_numa(devices.first().cloned())?;
+            // Apply hugepages configuration if enabled
+            if hugepages {
+                command
+                    .arg("-numa")
+                    .arg(format!("node,nodeid=0,cpus=0-{},memdev=mem0", smp - 1));
+                command.arg("-object").arg(format!(
+                "memory-backend-file,id=mem0,size={memory}M,mem-path=/dev/hugepages,share=on,prealloc=yes,host-nodes={numa_node},policy=bind",
+                ));
+            }
+            numa_cpus = Some(cpus);
         }
 
         let args = command
@@ -271,21 +330,69 @@ impl VmConfig {
         let stderr_path = workdir.stderr_file();
 
         let workdir = workdir.path();
+
+        let mut cmd_args = vec![];
+        cmd_args.push(qemu.to_string_lossy().to_string());
+        cmd_args.extend(args);
+
+        // If we have NUMA pinning, we'll need to wrap the command with taskset
+        if let Some(cpus) = numa_cpus {
+            cmd_args.splice(0..0, ["taskset", "-c", &cpus].into_iter().map(|s| s.into()));
+        }
+
+        if cfg.sudo {
+            cmd_args.insert(0, "sudo".into());
+        }
+
+        let command = cmd_args.remove(0);
+        let note = ProcessNote {
+            devices: devices.to_vec(),
+        };
+        let note = serde_json::to_string(&note)?;
         let process_config = ProcessConfig {
             id: self.manifest.id.clone(),
-            args,
+            args: cmd_args,
             name: self.manifest.name.clone(),
-            command: qemu.to_string_lossy().to_string(),
+            command,
             env: Default::default(),
             cwd: workdir.to_string_lossy().to_string(),
             stdout: stdout_path.to_string_lossy().to_string(),
             stderr: stderr_path.to_string_lossy().to_string(),
             pidfile: pidfile_path.to_string_lossy().to_string(),
             cid: Some(self.cid),
-            note: "".into(),
+            note,
         };
+
         Ok(process_config)
     }
+}
+
+fn find_numa(device: Option<String>) -> Result<(String, String)> {
+    let numa_node = match device {
+        Some(device) => {
+            // Ensure the device string only contains valid hexadecimal characters and colons
+            if !device
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() || c == ':' || c == '.')
+            {
+                bail!("Invalid device string");
+            }
+            // Get the NUMA node for the device
+            let numa_node_path = format!("/sys/bus/pci/devices/0000:{}/numa_node", device);
+            fs::read_to_string(&numa_node_path)
+                .with_context(|| format!("Failed to read NUMA node from {}", numa_node_path))?
+                .trim()
+                .to_string()
+        }
+        None => "0".into(),
+    };
+    // Get the CPU list for this NUMA node
+    let cpus_path = format!("/sys/devices/system/node/node{numa_node}/cpulist");
+    let cpus = fs::read_to_string(&cpus_path)
+        .with_context(|| format!("Failed to read CPU list from {}", cpus_path))?
+        .trim()
+        .to_string();
+    Ok((numa_node, cpus))
 }
 
 pub struct VmWorkDir {

@@ -115,11 +115,6 @@
         }
     </style>
     <style>
-        .create-vm-form {
-            max-width: 600px;
-            margin: 20px 0;
-        }
-
         .form-group {
             margin-bottom: 15px;
         }
@@ -176,7 +171,7 @@
     <style>
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 15px;
             margin-bottom: 15px;
         }
@@ -252,7 +247,7 @@
             background: white;
             padding: 20px;
             border-radius: 8px;
-            width: 500px;
+            width: 800px;
             max-width: 90%;
             margin: 20px auto;
         }
@@ -490,7 +485,7 @@
                     placeholder="Enter API token for RPC authentication">
             </div>
         </div>
-        <button class="action-btn" @click="showCreateDialog = true; clearEncryptedEnv()">Deploy a new instance</button>
+        <button class="action-btn" @click="showDeployDialog()">Deploy a new instance</button>
 
         <div v-if="showCreateDialog" class="dialog-overlay">
             <div class="dialog">
@@ -533,6 +528,29 @@
                             <label for="fileInput">Upload Compose File</label>
                             <input id="fileInput" type="file" @change="loadComposeFile" accept=".yml,.yaml,.txt">
                         </div>
+                    </div>
+
+                    <div class="form-group" v-if="availableGpus.length > 0">
+                        <label for="gpuSelection">GPU</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                            <label style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                                <input type="checkbox" id="pinGpu" v-model="vmForm.pin_gpu" style="margin-right: 5px;">
+                                Pin to specific GPU
+                            </label>
+                        </div>
+                        <select id="gpuSelection" v-model="vmForm.selected_gpu_slot" v-if="vmForm.pin_gpu">
+                            <option value="">No GPU</option>
+                            <option v-for="gpu in availableGpus" :key="gpu.slot" :value="gpu.slot">
+                                {{ gpu.slot }}: {{ gpu.description }} {{ gpu.is_free ? '' : '(in use)' }}
+                            </option>
+                        </select>
+                        <select id="gpuSelection" v-model="vmForm.selected_gpu_product" v-if="!vmForm.pin_gpu">
+                            <option value="">No GPU</option>
+                            <option v-for="product in availableGpuProducts" :key="product.product_id"
+                                :value="product.product_id">
+                                {{ product.description }}
+                            </option>
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -578,7 +596,7 @@
 
                     <div class="form-group full-width">
                         <label>Features</label>
-                        <div style="display: flex; gap: 20px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
                             <label style="display: flex; align-items: center; gap: 5px;">
                                 <input type="checkbox" v-model="vmForm.kms_enabled">
                                 KMS
@@ -598,6 +616,14 @@
                             <label style="display: flex; align-items: center; gap: 5px;">
                                 <input type="checkbox" v-model="vmForm.public_sysinfo">
                                 Public Sysinfo
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" v-model="vmForm.pin_numa">
+                                Pin NUMA
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" v-model="vmForm.hugepages">
+                                Hugepages
                             </label>
                         </div>
                     </div>
@@ -782,6 +808,15 @@
                                         <div class="detail-item">
                                             <span class="detail-label">Disk Size:</span>
                                             <span class="detail-value">{{ vm.configuration?.disk_size }} GB</span>
+                                        </div>
+                                        <div class="detail-item"
+                                            v-if="vm.configuration?.gpus && vm.configuration.gpus.length > 0">
+                                            <span class="detail-label">GPUs:</span>
+                                            <div>
+                                                <div v-for="gpu in vm.configuration.gpus" class="detail-value">
+                                                    {{ gpu.slot || gpu.product_id }}
+                                                </div>
+                                            </div>
                                         </div>
                                         <div class="detail-item">
                                             <span class="detail-label">VM ID:</span>
@@ -1005,6 +1040,9 @@
                     vcpu: 1,
                     memory: 1024,
                     disk_size: 20,
+                    selected_gpu_slot: '',
+                    selected_gpu_product: '',
+                    pin_gpu: true,
                     ports: [],
                     encrypted_envs: [],
                     docker_config: {
@@ -1018,9 +1056,13 @@
                     tproxy_enabled: true,
                     public_logs: true,
                     public_sysinfo: true,
+                    pin_numa: false,
+                    hugepages: false,
                     user_config: ''
                 });
                 const availableImages = ref([]);
+                const availableGpus = ref([]);
+                const availableGpuProducts = ref([]);
                 const upgradeDialog = ref({
                     show: false,
                     vm: null,
@@ -1197,6 +1239,27 @@
                     vmForm.value.app_id = null;
                 };
 
+                const configGpu = () => {
+                    if (vmForm.value.pin_gpu) {
+                        if (!vmForm.value.selected_gpu_slot) return [];
+                        return [{
+                            slot: vmForm.value.selected_gpu_slot,
+                        }];
+                    } else {
+                        if (!vmForm.value.selected_gpu_product) return [];
+                        return [{
+                            // Do not use slot, so that teepod can find a free slot for the GPU with the same product_id
+                            product_id: vmForm.value.selected_gpu_product,
+                        }];
+                    }
+                };
+
+                const showDeployDialog = () => {
+                    showCreateDialog.value = true;
+                    clearEncryptedEnv();
+                    loadGpus();
+                };
+
                 const createVm = async () => {
                     try {
                         const form = {
@@ -1208,7 +1271,8 @@
                                 vmForm.value.kms_enabled,
                                 vmForm.value.app_id
                             ),
-                            user_config: vmForm.value.user_config
+                            user_config: vmForm.value.user_config,
+                            gpus: configGpu(),
                         };
                         const _response = await rpcCall('CreateVm', form);
                         loadVMList();
@@ -1335,6 +1399,24 @@
                         availableImages.value = data.images;
                     } catch (error) {
                         console.error('error loading images:', error);
+                    }
+                };
+
+                const loadGpus = async () => {
+                    try {
+                        const response = await rpcCall('ListGpus');
+                        const data = await response.json();
+                        const gpus = data.gpus || [];
+                        availableGpus.value = gpus;
+                        availableGpuProducts.value = [];
+                        for (const gpu of gpus) {
+                            if (!availableGpuProducts.value.find(product => product.product_id == gpu.product_id)) {
+                                console.log('appending gpu', gpu);
+                                availableGpuProducts.value.push(gpu);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('error loading GPUs:', error);
                     }
                 };
 
@@ -1510,6 +1592,7 @@
                         }
                     })();
                     loadImages();
+                    loadGpus();
                     loadVersion();
                 });
 
@@ -1599,6 +1682,8 @@
                     vms,
                     vmForm,
                     availableImages,
+                    availableGpus,
+                    availableGpuProducts,
                     createVm,
                     stopVm,
                     startVm,
@@ -1635,6 +1720,7 @@
                     tproxyEnabled,
                     getFlags,
                     version,
+                    showDeployDialog,
                 };
             }
         }).mount('#app');

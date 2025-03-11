@@ -6,6 +6,9 @@ use path_absolutize::Absolutize;
 use rocket::figment::Figment;
 use serde::{Deserialize, Serialize};
 
+use lspci::{lspci_filtered, Device};
+use tracing::info;
+
 pub const DEFAULT_CONFIG: &str = include_str!("../teepod.toml");
 pub fn load_config_figment(config_file: Option<&str>) -> Figment {
     load_config("teepod", DEFAULT_CONFIG, config_file, false)
@@ -94,6 +97,36 @@ pub struct CvmConfig {
     pub max_allocable_memory_in_mb: u32,
     /// Enable qmp socket
     pub qmp_socket: bool,
+    /// GPU configuration
+    pub gpu: GpuConfig,
+    /// Use sudo to run the VM
+    pub sudo: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GpuConfig {
+    /// Whether to enable GPU passthrough
+    pub enabled: bool,
+    /// The product IDs of the GPUs to discover
+    pub listing: Vec<String>,
+    /// The PCI addresses to exclude from passthrough
+    pub exclude: Vec<String>,
+}
+
+impl GpuConfig {
+    pub(crate) fn list_devices(&self) -> Result<Vec<Device>> {
+        let devices = lspci_filtered(|dev| {
+            self.listing.contains(&dev.full_product_id()) && !self.exclude.contains(&dev.slot)
+        })
+        .context("Failed to list GPU devices")?;
+
+        info!(
+            "Found {} GPUs, {} in use",
+            devices.len(),
+            devices.iter().filter(|d| d.in_use()).count()
+        );
+        Ok(devices)
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -149,6 +182,12 @@ pub struct Config {
 
     /// Key provider configuration
     pub key_provider: KeyProviderConfig,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+pub struct ProcessNote {
+    #[serde(default)]
+    pub devices: Vec<String>,
 }
 
 impl Config {
