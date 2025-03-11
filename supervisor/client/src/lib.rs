@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use http_client::http_request;
-use log::info;
+use log::{error, info};
 use supervisor::{ProcessConfig, ProcessInfo, Response};
 
 pub use supervisor;
@@ -24,6 +24,8 @@ impl SupervisorClient {
         uds: impl AsRef<Path>,
         pid_file: impl AsRef<Path>,
         log_file: impl AsRef<Path>,
+        detached: bool,
+        auto_start: bool,
     ) -> Result<Self> {
         let uri = format!("unix:{}", uds.as_ref().display());
         let client = Self::new(&uri);
@@ -31,29 +33,44 @@ impl SupervisorClient {
             info!("Connected to supervisor at {uri}");
             return Ok(client);
         }
+        if !auto_start {
+            anyhow::bail!("Failed to connect to supervisor at {uri}");
+        }
         info!("Failed to connect to supervisor at {uri}, trying to start supervisor");
         // if the uds exists, remove it
         if std::path::Path::new(uds.as_ref()).exists() {
             fs_err::remove_file(uds.as_ref())?;
         }
-        // start supervisor
-        let output = std::process::Command::new(supervisor_path.as_ref())
-            .arg("--uds")
-            .arg(uds.as_ref())
-            .arg("--pid-file")
-            .arg(pid_file.as_ref())
-            .arg("--log-file")
-            .arg(log_file.as_ref())
-            .arg("--detach")
-            .env("RUST_LOG", "info,rocket=warn")
-            .output()
-            .context("Failed to start supervisor")?;
-        if !output.status.success() {
-            anyhow::bail!(
-                "Failed to start supervisor: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
+        let supervisor_path = supervisor_path.as_ref().to_path_buf();
+        let uds = uds.as_ref().to_path_buf();
+        let pid_file = pid_file.as_ref().to_path_buf();
+        let log_file = log_file.as_ref().to_path_buf();
+        std::thread::spawn(move || {
+            // start supervisor
+            let result = std::process::Command::new(supervisor_path)
+                .arg("--uds")
+                .arg(uds)
+                .arg("--pid-file")
+                .arg(pid_file)
+                .arg("--log-file")
+                .arg(log_file)
+                .args(if detached { &["--detach"][..] } else { &[] })
+                .env("RUST_LOG", "info,rocket=warn")
+                .output();
+            let output = match result {
+                Ok(output) => output,
+                Err(err) => {
+                    error!("Failed to start supervisor: {err}");
+                    return;
+                }
+            };
+            if !output.status.success() {
+                error!(
+                    "Supervisor exited with error: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+        });
         // wait while ping returns pong
         for i in 1..=10 {
             if client.probe(Duration::from_millis(100)).await.is_ok() {

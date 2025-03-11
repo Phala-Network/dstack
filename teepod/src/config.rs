@@ -110,6 +110,8 @@ pub struct SupervisorConfig {
     pub sock: String,
     pub pid_file: String,
     pub log_file: String,
+    pub detached: bool,
+    pub auto_start: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

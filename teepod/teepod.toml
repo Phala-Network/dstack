@@ -49,6 +49,8 @@ exe = "./supervisor"
 sock = "./run/supervisor.sock"
 pid_file = "./run/supervisor.pid"
 log_file = "./run/supervisor.log"
+detached = false
+auto_start = true
 
 [host_api]
 ident = "Teepod"
