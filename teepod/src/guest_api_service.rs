@@ -31,27 +31,19 @@ impl RpcCall<AppState> for GuestApiHandler {
 
 impl ProxiedGuestApiRpc for GuestApiHandler {
     async fn info(self, request: Id) -> Result<GuestInfo> {
-        self.tappd_client(&request.id)?
-            .info()
-            .await
+        self.tappd_client(&request.id)?.info().await
     }
 
     async fn sys_info(self, request: Id) -> Result<SystemInfo> {
-        self.tappd_client(&request.id)?
-            .sys_info()
-            .await
+        self.tappd_client(&request.id)?.sys_info().await
     }
 
     async fn network_info(self, request: Id) -> Result<NetworkInformation> {
-        self.tappd_client(&request.id)?
-            .network_info()
-            .await
+        self.tappd_client(&request.id)?.network_info().await
     }
 
     async fn list_containers(self, request: Id) -> Result<ListContainersResponse> {
-        self.tappd_client(&request.id)?
-            .list_containers()
-            .await
+        self.tappd_client(&request.id)?.list_containers().await
     }
 
     async fn shutdown(self, request: Id) -> Result<()> {
