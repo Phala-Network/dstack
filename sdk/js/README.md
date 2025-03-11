@@ -116,7 +116,7 @@ https://github.com/Leechael/tappd-simulator/releases
 
 Derives a key for the given path and subject.
 
-**NOTE: Only the path affects the derived result. `subject` & `alt_names` are for the generated certificate and do not affect the derived result.**
+**NOTE: Only the `path` affects the derived result. `subject` & `alt_names` are for the generated certificate and do not affect the derived result.**
 
 - `path`: Optional path for key derivation
 - `subject`: Optional subject name (defaults to path)
@@ -154,11 +154,29 @@ interface TdxQuoteResponse {
   replayRtmrs: () => string[];
 }
 
+interface EventLog {
+  imr: number;
+  event_type: number;
+  digest: string;
+  event: string;
+  event_payload: string;
+}
+
+interface TcbInfo {
+  mrtd: string;
+  rootfs_hash: string;
+  rtmr0: string;
+  rtmr1: string;
+  rtmr2: string;
+  rtmr3: string;
+  event_log: EventLog[];
+}
+
 interface TappdInfoResponse {
   app_id: string;
   instance_id: string;
   app_cert: string;
-  tcb_info: string;
+  tcb_info: TcbInfo;
   app_name: string;
   public_logs: boolean;
   public_sysinfo: boolean;
