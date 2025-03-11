@@ -17,21 +17,39 @@ export type TdxQuoteHashAlgorithms =
   'sha256' | 'sha384' | 'sha512' | 'sha3-256' | 'sha3-384' | 'sha3-512' |
   'keccak256' | 'keccak384' | 'keccak512' | 'raw'
 
-export interface TdxQuoteResponse {
-  quote: Hex
-  event_log: string
+export interface EventLog {
+  imr: number
+  event_type: number
+  digest: string
+  event: string
+  event_payload: string
+}
 
-  replayRtmrs: () => string[]
+export interface TcbInfo {
+  mrtd: string
+  rootfs_hash: string
+  rtmr0: string
+  rtmr1: string
+  rtmr2: string
+  rtmr3: string
+  event_log: EventLog[]
 }
 
 export interface TappdInfoResponse {
   app_id: string
   instance_id: string
   app_cert: string
-  tcb_info: string
+  tcb_info: TcbInfo
   app_name: string
   public_logs: boolean
   public_sysinfo: boolean
+}
+
+export interface TdxQuoteResponse {
+  quote: Hex
+  event_log: string
+
+  replayRtmrs: () => string[]
 }
 
 export function to_hex(data: string | Buffer | Uint8Array): string {
@@ -78,11 +96,6 @@ function replay_rtmr(history: string[]): string {
           .digest()
   }
   return mr.toString('hex')
-}
-
-interface EventLog {
-  imr: number
-  digest: string
 }
 
 function reply_rtmrs(event_log: EventLog[]): Record<number, string> {
@@ -260,7 +273,10 @@ export class TappdClient {
   }
 
   async info(): Promise<TappdInfoResponse> {
-    const result = await send_rpc_request<TappdInfoResponse>(this.endpoint, '/prpc/Tappd.Info', '{}')
-    return result
+    const result = await send_rpc_request<Omit<TappdInfoResponse, 'tcb_info'> & { tcb_info: string }>(this.endpoint, '/prpc/Tappd.Info', '{}')
+    return Object.freeze({
+      ...result,
+      tcb_info: JSON.parse(result.tcb_info) as TcbInfo,
+    })
   }
 }

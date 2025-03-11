@@ -84,6 +84,41 @@ class TdxQuoteResponse(BaseModel):
         return rtmrs
 
 
+class EventLog(BaseModel):
+    imr: int
+    event_type: int
+    digest: str
+    event: str
+    event_payload: str
+
+
+class TcbInfo(BaseModel):
+    mrtd: str
+    rootfs_hash: str
+    rtmr0: str
+    rtmr1: str
+    rtmr2: str
+    rtmr3: str
+    event_log: List[EventLog]
+
+
+class TappdInfoResponse(BaseModel):
+    app_id: str
+    instance_id: str
+    app_cert: str
+    tcb_info: TcbInfo
+    app_name: str
+    public_logs: bool
+    public_sysinfo: bool
+
+    @classmethod
+    def model_validate(cls, obj: Any) -> 'TappdInfoResponse':
+        if isinstance(obj, dict) and 'tcb_info' in obj and isinstance(obj['tcb_info'], str):
+            obj = dict(obj)
+            obj['tcb_info'] = TcbInfo(**json.loads(obj['tcb_info']))
+        return super().model_validate(obj)
+
+
 class BaseClient:
     pass
 
@@ -140,6 +175,10 @@ class TappdClient(BaseClient):
         result = self._send_rpc_request("/prpc/Tappd.TdxQuote", {"report_data": hex, "hash_algorithm": hash_algorithm})
         return TdxQuoteResponse(**result)
 
+    def info(self) -> TappdInfoResponse:
+        result = self._send_rpc_request("/prpc/Tappd.Info", {})
+        return TappdInfoResponse(**result)
+
 
 class AsyncTappdClient(BaseClient):
     def __init__(self, endpoint=None):
@@ -192,3 +231,7 @@ class AsyncTappdClient(BaseClient):
                 raise ValueError(f'Report data is too large, it should at most {hint} when hash_algorithm is raw.')
         result = await self._send_rpc_request("/prpc/Tappd.TdxQuote", {"report_data": hex, "hash_algorithm": hash_algorithm})
         return TdxQuoteResponse(**result)
+
+    async def info(self) -> TappdInfoResponse:
+        result = await self._send_rpc_request("/prpc/Tappd.Info", {})
+        return TappdInfoResponse(**result)
