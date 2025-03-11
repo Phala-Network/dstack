@@ -16,6 +16,10 @@ license = {text = "Apache-2.0"}
 
 [project.optional-dependencies]
 solana = ["solders"]
+ethereum = ["web3"]
+sol = ["solders"]
+eth = ["web3"]
+all = ["solders", "web3"]
 
 [build-system]
 requires = ["pdm-backend"]
@@ -35,4 +39,7 @@ test = [
 ]
 solana = [
     "solders",
+]
+ethereum = [
+    "web3",
 ]
