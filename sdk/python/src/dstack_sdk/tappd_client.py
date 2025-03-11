@@ -177,7 +177,7 @@ class TappdClient(BaseClient):
 
     def info(self) -> TappdInfoResponse:
         result = self._send_rpc_request("/prpc/Tappd.Info", {})
-        return TappdInfoResponse(**result)
+        return TappdInfoResponse.model_validate(result)
 
 
 class AsyncTappdClient(BaseClient):
@@ -234,4 +234,4 @@ class AsyncTappdClient(BaseClient):
 
     async def info(self) -> TappdInfoResponse:
         result = await self._send_rpc_request("/prpc/Tappd.Info", {})
-        return TappdInfoResponse(**result)
+        return TappdInfoResponse.model_validate(result)
