@@ -88,7 +88,9 @@ impl AppCompose {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SysConfig {
+    #[serde(default)]
     pub kms_urls: Vec<String>,
+    #[serde(default)]
     pub tproxy_urls: Vec<String>,
     pub pccs_url: Option<String>,
     pub docker_registry: Option<String>,
