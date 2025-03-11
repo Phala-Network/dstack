@@ -103,9 +103,16 @@ async fn main() -> Result<()> {
     let supervisor = {
         let cfg = &config.supervisor;
         let abs_exe = Path::new(&cfg.exe).absolutize()?;
-        SupervisorClient::start_and_connect_uds(&abs_exe, &cfg.sock, &cfg.pid_file, &cfg.log_file)
-            .await
-            .context("Failed to start supervisor")?
+        SupervisorClient::start_and_connect_uds(
+            &abs_exe,
+            &cfg.sock,
+            &cfg.pid_file,
+            &cfg.log_file,
+            cfg.detached,
+            cfg.auto_start,
+        )
+        .await
+        .context("Failed to connect to supervisor")?
     };
     let state = app::App::new(config, supervisor);
     state.reload_vms().await.context("Failed to reload VMs")?;
