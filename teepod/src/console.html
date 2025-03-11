@@ -813,9 +813,8 @@
                                             v-if="vm.configuration?.gpus && vm.configuration.gpus.length > 0">
                                             <span class="detail-label">GPUs:</span>
                                             <div>
-                                                <div v-for="(gpu, index) in vm.configuration.gpus" :key="index"
-                                                    class="detail-value">
-                                                    {{ gpu.description }} ({{ gpu.product_id }})
+                                                <div v-for="gpu in vm.configuration.gpus" class="detail-value">
+                                                    {{ gpu.slot || gpu.product_id }}
                                                 </div>
                                             </div>
                                         </div>
