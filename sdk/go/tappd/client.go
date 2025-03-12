@@ -67,6 +67,37 @@ type TdxQuoteResponse struct {
 	EventLog string `json:"event_log"`
 }
 
+// Represents an event log entry in the TCB info
+type EventLog struct {
+	IMR          int    `json:"imr"`
+	EventType    int    `json:"event_type"`
+	Digest       string `json:"digest"`
+	Event        string `json:"event"`
+	EventPayload string `json:"event_payload"`
+}
+
+// Represents the TCB information
+type TcbInfo struct {
+	Mrtd       string     `json:"mrtd"`
+	RootfsHash string     `json:"rootfs_hash"`
+	Rtmr0      string     `json:"rtmr0"`
+	Rtmr1      string     `json:"rtmr1"`
+	Rtmr2      string     `json:"rtmr2"`
+	Rtmr3      string     `json:"rtmr3"`
+	EventLog   []EventLog `json:"event_log"`
+}
+
+// Represents the response from an info request
+type TappdInfoResponse struct {
+	AppID         string  `json:"app_id"`
+	InstanceID    string  `json:"instance_id"`
+	AppCert       string  `json:"app_cert"`
+	TcbInfo       TcbInfo `json:"tcb_info"`
+	AppName       string  `json:"app_name"`
+	PublicLogs    bool    `json:"public_logs"`
+	PublicSysinfo bool    `json:"public_sysinfo"`
+}
+
 const INIT_MR = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 
 // Replays the RTMR history to calculate final RTMR values
@@ -299,4 +330,40 @@ func (c *TappdClient) TdxQuoteWithHashAlgorithm(ctx context.Context, reportData 
 		return nil, err
 	}
 	return &response, nil
+}
+
+// Sends a request to get information about the Tappd instance
+func (c *TappdClient) Info(ctx context.Context) (*TappdInfoResponse, error) {
+	data, err := c.sendRPCRequest(ctx, "/prpc/Tappd.Info", map[string]interface{}{})
+	if err != nil {
+		return nil, err
+	}
+
+	var response struct {
+		TcbInfo       string `json:"tcb_info"`
+		AppID         string `json:"app_id"`
+		InstanceID    string `json:"instance_id"`
+		AppCert       string `json:"app_cert"`
+		AppName       string `json:"app_name"`
+		PublicLogs    bool   `json:"public_logs"`
+		PublicSysinfo bool   `json:"public_sysinfo"`
+	}
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, err
+	}
+
+	var tcbInfo TcbInfo
+	if err := json.Unmarshal([]byte(response.TcbInfo), &tcbInfo); err != nil {
+		return nil, err
+	}
+
+	return &TappdInfoResponse{
+		AppID:         response.AppID,
+		InstanceID:    response.InstanceID,
+		AppCert:       response.AppCert,
+		TcbInfo:       tcbInfo,
+		AppName:       response.AppName,
+		PublicLogs:    response.PublicLogs,
+		PublicSysinfo: response.PublicSysinfo,
+	}, nil
 }
