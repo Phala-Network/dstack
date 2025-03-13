@@ -174,11 +174,10 @@ impl<T> Attestation<T> {
         ]);
         let mr_image = sha256(&[&td_report.mr_td, &rtmrs[1], &rtmrs[2]]);
         Ok(AppInfo {
-            app_id: self.find_event_payload("app-id")?,
+            app_id: self.find_event_payload("app-id").unwrap_or_default(),
             compose_hash: self.find_event_payload("compose-hash")?,
-            instance_id: self.find_event_payload("instance-id")?,
+            instance_id: self.find_event_payload("instance-id").unwrap_or_default(),
             device_id,
-            rootfs_hash: self.find_event_payload("rootfs-hash")?,
             mrtd: td_report.mr_td,
             rtmr0: rtmrs[0],
             rtmr1: rtmrs[1],
@@ -328,9 +327,6 @@ pub struct AppInfo {
     /// ID of the device
     #[serde(with = "hex_bytes")]
     pub device_id: Vec<u8>,
-    /// Rootfs hash
-    #[serde(with = "hex_bytes")]
-    pub rootfs_hash: Vec<u8>,
     /// TCB info
     #[serde(with = "hex_bytes")]
     pub mrtd: [u8; 48],

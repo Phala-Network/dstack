@@ -554,7 +554,9 @@ impl SetupFdeArgs {
                 rand_id
             };
         }
-        let instance_id = {
+        let instance_id = if host_shared.app_compose.no_instance_id {
+            vec![]
+        } else {
             let mut id_path = instance_info.instance_id_seed.clone();
             id_path.extend_from_slice(&instance_info.app_id);
             sha256(&id_path)[..20].to_vec()
@@ -567,7 +569,6 @@ impl SetupFdeArgs {
         host.notify_q("boot.progress", "extending RTMRs").await;
 
         extend_rtmr3("system-preparing", &[])?;
-        extend_rtmr3("rootfs-hash", &self.rootfs_hash)?;
         extend_rtmr3("app-id", &instance_info.app_id)?;
         extend_rtmr3("compose-hash", &compose_hash)?;
         extend_rtmr3("instance-id", &instance_id)?;
