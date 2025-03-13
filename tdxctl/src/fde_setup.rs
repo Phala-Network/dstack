@@ -550,7 +550,7 @@ impl SetupFdeArgs {
         if (!disk_reusable) || instance_info.instance_id_seed.is_empty() {
             instance_info.instance_id_seed = {
                 let mut rand_id = vec![0u8; 20];
-                getrandom::getrandom(&mut rand_id)?;
+                getrandom::fill(&mut rand_id)?;
                 rand_id
             };
         }
