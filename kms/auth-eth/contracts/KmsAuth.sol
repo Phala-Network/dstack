@@ -35,17 +35,17 @@ contract KmsAuth is
     // Mapping of registered apps
     mapping(address => AppConfig) public apps;
 
-    // Mapping of allowed aggregated MR measurements
-    mapping(bytes32 => bool) public allowedAggregatedMrs;
-
-    // Mapping of allowed image measurements
-    mapping(bytes32 => bool) public allowedImages;
-
-    // Mapping of allowed KMS compose hashes
-    mapping(bytes32 => bool) public allowedKmsComposeHashes;
+    // Mapping of allowed aggregated MR measurements for running KMS
+    mapping(bytes32 => bool) public kmsAllowedAggregatedMrs;
 
     // Mapping of allowed KMS device IDs
-    mapping(bytes32 => bool) public allowedKmsDeviceIds;
+    mapping(bytes32 => bool) public kmsAllowedDeviceIds;
+
+    // Mapping of allowed image measurements
+    mapping(bytes32 => bool) public appAllowedImages;
+
+    // Mapping of allowed KMS compose hashes
+    mapping(bytes32 => bool) public appAllowedSystemMrs;
 
     // Sequence number for app IDs - per user
     mapping(address => uint256) public nextAppSequence;
@@ -53,14 +53,14 @@ contract KmsAuth is
     // Events
     event AppRegistered(address appId);
     event KmsInfoSet(bytes k256Pubkey);
-    event AggregatedMrRegistered(bytes32 mrAggregated);
-    event AggregatedMrDeregistered(bytes32 mrAggregated);
-    event ImageRegistered(bytes32 mrImage);
-    event ImageDeregistered(bytes32 mrImage);
-    event KmsComposeHashRegistered(bytes32 composeHash);
-    event KmsComposeHashDeregistered(bytes32 composeHash);
-    event KmsDeviceIdRegistered(bytes32 deviceId);
-    event KmsDeviceIdDeregistered(bytes32 deviceId);
+    event KmsAggregatedMrAdded(bytes32 mrAggregated);
+    event KmsAggregatedMrRemoved(bytes32 mrAggregated);
+    event KmsDeviceAdded(bytes32 deviceId);
+    event KmsDeviceRemoved(bytes32 deviceId);
+    event AppImageMrAdded(bytes32 mrImage);
+    event AppImageMrRemoved(bytes32 mrImage);
+    event AppSystemMrAdded(bytes32 mrSystem);
+    event AppSystemMrRemoved(bytes32 mrSystem);
     event TproxyAppIdSet(string tproxyAppId);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -104,7 +104,11 @@ contract KmsAuth is
     // View next app id
     function nextAppId() public view returns (address appId) {
         bytes32 fullHash = keccak256(
-            abi.encodePacked(address(this), msg.sender, nextAppSequence[msg.sender])
+            abi.encodePacked(
+                address(this),
+                msg.sender,
+                nextAppSequence[msg.sender]
+            )
         );
         return address(uint160(uint256(fullHash)));
     }
@@ -121,51 +125,53 @@ contract KmsAuth is
     }
 
     // Function to register an aggregated MR measurement
-    function registerAggregatedMr(bytes32 mrAggregated) external onlyOwner {
-        allowedAggregatedMrs[mrAggregated] = true;
-        emit AggregatedMrRegistered(mrAggregated);
+    function addKmsAggregatedMr(bytes32 mrAggregated) external onlyOwner {
+        kmsAllowedAggregatedMrs[mrAggregated] = true;
+        emit KmsAggregatedMrAdded(mrAggregated);
     }
 
     // Function to deregister an aggregated MR measurement
-    function deregisterAggregatedMr(bytes32 mrAggregated) external onlyOwner {
-        allowedAggregatedMrs[mrAggregated] = false;
-        emit AggregatedMrDeregistered(mrAggregated);
-    }
-
-    // Function to register an image measurement
-    function registerImage(bytes32 mrImage) external onlyOwner {
-        allowedImages[mrImage] = true;
-        emit ImageRegistered(mrImage);
-    }
-
-    // Function to deregister an image measurement
-    function deregisterImage(bytes32 mrImage) external onlyOwner {
-        allowedImages[mrImage] = false;
-        emit ImageDeregistered(mrImage);
-    }
-
-    // Function to register a KMS compose hash
-    function registerKmsComposeHash(bytes32 composeHash) external onlyOwner {
-        allowedKmsComposeHashes[composeHash] = true;
-        emit KmsComposeHashRegistered(composeHash);
-    }
-
-    // Function to deregister a KMS compose hash
-    function deregisterKmsComposeHash(bytes32 composeHash) external onlyOwner {
-        allowedKmsComposeHashes[composeHash] = false;
-        emit KmsComposeHashDeregistered(composeHash);
+    function removeKmsAggregatedMr(
+        bytes32 mrAggregated
+    ) external onlyOwner {
+        kmsAllowedAggregatedMrs[mrAggregated] = false;
+        emit KmsAggregatedMrRemoved(mrAggregated);
     }
 
     // Function to register a KMS device ID
-    function registerKmsDeviceId(bytes32 deviceId) external onlyOwner {
-        allowedKmsDeviceIds[deviceId] = true;
-        emit KmsDeviceIdRegistered(deviceId);
+    function addKmsDevice(bytes32 deviceId) external onlyOwner {
+        kmsAllowedDeviceIds[deviceId] = true;
+        emit KmsDeviceAdded(deviceId);
     }
 
     // Function to deregister a KMS device ID
-    function deregisterKmsDeviceId(bytes32 deviceId) external onlyOwner {
-        allowedKmsDeviceIds[deviceId] = false;
-        emit KmsDeviceIdDeregistered(deviceId);
+    function removeKmsDevice(bytes32 deviceId) external onlyOwner {
+        kmsAllowedDeviceIds[deviceId] = false;
+        emit KmsDeviceRemoved(deviceId);
+    }
+
+    // Function to register an image measurement
+    function addAppImageMr(bytes32 mrImage) external onlyOwner {
+        appAllowedImages[mrImage] = true;
+        emit AppImageMrAdded(mrImage);
+    }
+
+    // Function to deregister an image measurement
+    function removeAppImageMr(bytes32 mrImage) external onlyOwner {
+        appAllowedImages[mrImage] = false;
+        emit AppImageMrRemoved(mrImage);
+    }
+
+    // Function to register a system MR measurement
+    function addAppSystemMr(bytes32 mrSystem) external onlyOwner {
+        appAllowedSystemMrs[mrSystem] = true;
+        emit AppSystemMrAdded(mrSystem);
+    }
+
+    // Function to deregister a system MR measurement
+    function removeAppSystemMr(bytes32 mrSystem) external onlyOwner {
+        appAllowedSystemMrs[mrSystem] = false;
+        emit AppSystemMrRemoved(mrSystem);
     }
 
     // Function to check if KMS is allowed to boot
@@ -173,17 +179,12 @@ contract KmsAuth is
         AppBootInfo calldata bootInfo
     ) external view returns (bool isAllowed, string memory reason) {
         // Check if the aggregated MR is allowed
-        if (!allowedAggregatedMrs[bootInfo.mrAggregated]) {
+        if (!kmsAllowedAggregatedMrs[bootInfo.mrAggregated]) {
             return (false, "Aggregated MR not allowed");
         }
 
-        // Check if the KMS compose hash is allowed
-        if (!allowedKmsComposeHashes[bootInfo.composeHash]) {
-            return (false, "KMS compose hash not allowed");
-        }
-
         // Check if the KMS device ID is allowed
-        if (!allowedKmsDeviceIds[bootInfo.deviceId]) {
+        if (!kmsAllowedDeviceIds[bootInfo.deviceId]) {
             return (false, "KMS is not allowed to boot on this device");
         }
 
@@ -201,10 +202,10 @@ contract KmsAuth is
 
         // Check aggregated MR and image measurements
         if (
-            !allowedAggregatedMrs[bootInfo.mrAggregated] &&
-            !allowedImages[bootInfo.mrImage]
+            !appAllowedSystemMrs[bootInfo.mrSystem] &&
+            !appAllowedImages[bootInfo.mrImage]
         ) {
-            return (false, "Neither aggregated MR nor image is allowed");
+            return (false, "Neither system MR nor image is allowed");
         }
 
         // Ask the app controller if the app is allowed to boot

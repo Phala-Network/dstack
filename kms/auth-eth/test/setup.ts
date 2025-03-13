@@ -4,6 +4,7 @@ import { ethers } from "hardhat";
 import { KmsAuth } from "../typechain-types/contracts/KmsAuth";
 import { AppAuth } from "../typechain-types/contracts/AppAuth";
 import { deployContract } from "../scripts/deploy";
+import { BootInfo } from "src/types";
 
 declare global {
   var testContracts: {
@@ -37,10 +38,20 @@ beforeAll(async () => {
     eventlog: ethers.encodeBytes32String("test-eventlog")
   });
 
+  const mockBootInfo: BootInfo = {
+    appId,
+    instanceId: ethers.encodeBytes32String("test-instance-id"),
+    composeHash: ethers.encodeBytes32String("test-compose-hash"),
+    deviceId: ethers.encodeBytes32String("test-device-id"),
+    mrSystem: ethers.encodeBytes32String("test-mr-system"),
+    mrAggregated: ethers.encodeBytes32String("test-mr-aggregated"),
+    mrImage: ethers.encodeBytes32String("test-mr-image")
+  };
   // Register some test enclaves and images
-  await kmsAuth.registerAggregatedMr(ethers.encodeBytes32String("11"));
-  await kmsAuth.registerImage(ethers.encodeBytes32String("22"));
+  await kmsAuth.addKmsAggregatedMr(ethers.encodeBytes32String("11"));
+  await kmsAuth.addAppImageMr(ethers.encodeBytes32String("22"));
   await appAuth.addComposeHash(ethers.encodeBytes32String("33"));
+  await kmsAuth.addAppSystemMr(ethers.encodeBytes32String("44"));
 
   // Set up global test contracts
   global.testContracts = {

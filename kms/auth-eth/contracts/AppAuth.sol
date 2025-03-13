@@ -80,13 +80,13 @@ contract AppAuth is
     }
 
     // Add a device ID to allowed list
-    function addDeviceId(bytes32 deviceId) external onlyOwner {
+    function addDevice(bytes32 deviceId) external onlyOwner {
         allowedDeviceIds[deviceId] = true;
         emit DeviceAdded(deviceId);
     }
 
     // Remove a device ID from allowed list
-    function removeDeviceId(bytes32 deviceId) external onlyOwner {
+    function removeDevice(bytes32 deviceId) external onlyOwner {
         allowedDeviceIds[deviceId] = false;
         emit DeviceRemoved(deviceId);
     }

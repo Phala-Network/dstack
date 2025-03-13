@@ -30,6 +30,7 @@ export declare namespace IAppAuth {
     instanceId: AddressLike;
     deviceId: BytesLike;
     mrAggregated: BytesLike;
+    mrSystem: BytesLike;
     mrImage: BytesLike;
   };
 
@@ -39,6 +40,7 @@ export declare namespace IAppAuth {
     instanceId: string,
     deviceId: string,
     mrAggregated: string,
+    mrSystem: string,
     mrImage: string
   ] & {
     appId: string;
@@ -46,6 +48,7 @@ export declare namespace IAppAuth {
     instanceId: string;
     deviceId: string;
     mrAggregated: string;
+    mrSystem: string;
     mrImage: string;
   };
 }
@@ -55,7 +58,7 @@ export interface AppAuthInterface extends Interface {
     nameOrSignature:
       | "UPGRADE_INTERFACE_VERSION"
       | "addComposeHash"
-      | "addDeviceId"
+      | "addDevice"
       | "allowAnyDevice"
       | "allowedComposeHashes"
       | "allowedDeviceIds"
@@ -66,7 +69,7 @@ export interface AppAuthInterface extends Interface {
       | "owner"
       | "proxiableUUID"
       | "removeComposeHash"
-      | "removeDeviceId"
+      | "removeDevice"
       | "renounceOwnership"
       | "setAllowAnyDevice"
       | "transferOwnership"
@@ -95,7 +98,7 @@ export interface AppAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "addDeviceId",
+    functionFragment: "addDevice",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
@@ -133,7 +136,7 @@ export interface AppAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "removeDeviceId",
+    functionFragment: "removeDevice",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
@@ -161,10 +164,7 @@ export interface AppAuthInterface extends Interface {
     functionFragment: "addComposeHash",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(
-    functionFragment: "addDeviceId",
-    data: BytesLike
-  ): Result;
+  decodeFunctionResult(functionFragment: "addDevice", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "allowAnyDevice",
     data: BytesLike
@@ -197,7 +197,7 @@ export interface AppAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "removeDeviceId",
+    functionFragment: "removeDevice",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -376,7 +376,7 @@ export interface AppAuth extends BaseContract {
     "nonpayable"
   >;
 
-  addDeviceId: TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
+  addDevice: TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
 
   allowAnyDevice: TypedContractMethod<[], [boolean], "view">;
 
@@ -419,7 +419,7 @@ export interface AppAuth extends BaseContract {
     "nonpayable"
   >;
 
-  removeDeviceId: TypedContractMethod<
+  removeDevice: TypedContractMethod<
     [deviceId: BytesLike],
     [void],
     "nonpayable"
@@ -456,7 +456,7 @@ export interface AppAuth extends BaseContract {
     nameOrSignature: "addComposeHash"
   ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "addDeviceId"
+    nameOrSignature: "addDevice"
   ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "allowAnyDevice"
@@ -502,7 +502,7 @@ export interface AppAuth extends BaseContract {
     nameOrSignature: "removeComposeHash"
   ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "removeDeviceId"
+    nameOrSignature: "removeDevice"
   ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "renounceOwnership"

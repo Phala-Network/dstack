@@ -30,6 +30,7 @@ export declare namespace IAppAuth {
     instanceId: AddressLike;
     deviceId: BytesLike;
     mrAggregated: BytesLike;
+    mrSystem: BytesLike;
     mrImage: BytesLike;
   };
 
@@ -39,6 +40,7 @@ export declare namespace IAppAuth {
     instanceId: string,
     deviceId: string,
     mrAggregated: string,
+    mrSystem: string,
     mrImage: string
   ] & {
     appId: string;
@@ -46,6 +48,7 @@ export declare namespace IAppAuth {
     instanceId: string;
     deviceId: string;
     mrAggregated: string;
+    mrSystem: string;
     mrImage: string;
   };
 }
@@ -70,28 +73,28 @@ export interface KmsAuthInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "UPGRADE_INTERFACE_VERSION"
-      | "allowedAggregatedMrs"
-      | "allowedImages"
-      | "allowedKmsComposeHashes"
-      | "allowedKmsDeviceIds"
+      | "addAppImageMr"
+      | "addAppSystemMr"
+      | "addKmsAggregatedMr"
+      | "addKmsDevice"
+      | "appAllowedImages"
+      | "appAllowedSystemMrs"
       | "apps"
-      | "deregisterAggregatedMr"
-      | "deregisterImage"
-      | "deregisterKmsComposeHash"
-      | "deregisterKmsDeviceId"
       | "initialize"
       | "isAppAllowed"
       | "isKmsAllowed"
+      | "kmsAllowedAggregatedMrs"
+      | "kmsAllowedDeviceIds"
       | "kmsInfo"
       | "nextAppId"
       | "nextAppSequence"
       | "owner"
       | "proxiableUUID"
-      | "registerAggregatedMr"
       | "registerApp"
-      | "registerImage"
-      | "registerKmsComposeHash"
-      | "registerKmsDeviceId"
+      | "removeAppImageMr"
+      | "removeAppSystemMr"
+      | "removeKmsAggregatedMr"
+      | "removeKmsDevice"
       | "renounceOwnership"
       | "setKmsEventlog"
       | "setKmsInfo"
@@ -104,16 +107,16 @@ export interface KmsAuthInterface extends Interface {
 
   getEvent(
     nameOrSignatureOrTopic:
-      | "AggregatedMrDeregistered"
-      | "AggregatedMrRegistered"
+      | "AppImageMrAdded"
+      | "AppImageMrRemoved"
       | "AppRegistered"
-      | "ImageDeregistered"
-      | "ImageRegistered"
+      | "AppSystemMrAdded"
+      | "AppSystemMrRemoved"
       | "Initialized"
-      | "KmsComposeHashDeregistered"
-      | "KmsComposeHashRegistered"
-      | "KmsDeviceIdDeregistered"
-      | "KmsDeviceIdRegistered"
+      | "KmsAggregatedMrAdded"
+      | "KmsAggregatedMrRemoved"
+      | "KmsDeviceAdded"
+      | "KmsDeviceRemoved"
       | "KmsInfoSet"
       | "OwnershipTransferred"
       | "TproxyAppIdSet"
@@ -125,38 +128,30 @@ export interface KmsAuthInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "allowedAggregatedMrs",
+    functionFragment: "addAppImageMr",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "allowedImages",
+    functionFragment: "addAppSystemMr",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "allowedKmsComposeHashes",
+    functionFragment: "addKmsAggregatedMr",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "allowedKmsDeviceIds",
+    functionFragment: "addKmsDevice",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "appAllowedImages",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "appAllowedSystemMrs",
     values: [BytesLike]
   ): string;
   encodeFunctionData(functionFragment: "apps", values: [AddressLike]): string;
-  encodeFunctionData(
-    functionFragment: "deregisterAggregatedMr",
-    values: [BytesLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "deregisterImage",
-    values: [BytesLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "deregisterKmsComposeHash",
-    values: [BytesLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "deregisterKmsDeviceId",
-    values: [BytesLike]
-  ): string;
   encodeFunctionData(
     functionFragment: "initialize",
     values: [AddressLike]
@@ -168,6 +163,14 @@ export interface KmsAuthInterface extends Interface {
   encodeFunctionData(
     functionFragment: "isKmsAllowed",
     values: [IAppAuth.AppBootInfoStruct]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "kmsAllowedAggregatedMrs",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "kmsAllowedDeviceIds",
+    values: [BytesLike]
   ): string;
   encodeFunctionData(functionFragment: "kmsInfo", values?: undefined): string;
   encodeFunctionData(functionFragment: "nextAppId", values?: undefined): string;
@@ -181,23 +184,23 @@ export interface KmsAuthInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "registerAggregatedMr",
-    values: [BytesLike]
-  ): string;
-  encodeFunctionData(
     functionFragment: "registerApp",
     values: [AddressLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "registerImage",
+    functionFragment: "removeAppImageMr",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "registerKmsComposeHash",
+    functionFragment: "removeAppSystemMr",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "registerKmsDeviceId",
+    functionFragment: "removeKmsAggregatedMr",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "removeKmsDevice",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
@@ -238,38 +241,30 @@ export interface KmsAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "allowedAggregatedMrs",
+    functionFragment: "addAppImageMr",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "allowedImages",
+    functionFragment: "addAppSystemMr",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "allowedKmsComposeHashes",
+    functionFragment: "addKmsAggregatedMr",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "allowedKmsDeviceIds",
+    functionFragment: "addKmsDevice",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "appAllowedImages",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "appAllowedSystemMrs",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "apps", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "deregisterAggregatedMr",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "deregisterImage",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "deregisterKmsComposeHash",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "deregisterKmsDeviceId",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(functionFragment: "initialize", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "isAppAllowed",
@@ -277,6 +272,14 @@ export interface KmsAuthInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "isKmsAllowed",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "kmsAllowedAggregatedMrs",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "kmsAllowedDeviceIds",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "kmsInfo", data: BytesLike): Result;
@@ -291,23 +294,23 @@ export interface KmsAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "registerAggregatedMr",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "registerApp",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "registerImage",
+    functionFragment: "removeAppImageMr",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "registerKmsComposeHash",
+    functionFragment: "removeAppSystemMr",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "registerKmsDeviceId",
+    functionFragment: "removeKmsAggregatedMr",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "removeKmsDevice",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -341,11 +344,11 @@ export interface KmsAuthInterface extends Interface {
   ): Result;
 }
 
-export namespace AggregatedMrDeregisteredEvent {
-  export type InputTuple = [mrAggregated: BytesLike];
-  export type OutputTuple = [mrAggregated: string];
+export namespace AppImageMrAddedEvent {
+  export type InputTuple = [mrImage: BytesLike];
+  export type OutputTuple = [mrImage: string];
   export interface OutputObject {
-    mrAggregated: string;
+    mrImage: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -353,11 +356,11 @@ export namespace AggregatedMrDeregisteredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace AggregatedMrRegisteredEvent {
-  export type InputTuple = [mrAggregated: BytesLike];
-  export type OutputTuple = [mrAggregated: string];
+export namespace AppImageMrRemovedEvent {
+  export type InputTuple = [mrImage: BytesLike];
+  export type OutputTuple = [mrImage: string];
   export interface OutputObject {
-    mrAggregated: string;
+    mrImage: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -377,11 +380,11 @@ export namespace AppRegisteredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace ImageDeregisteredEvent {
-  export type InputTuple = [mrImage: BytesLike];
-  export type OutputTuple = [mrImage: string];
+export namespace AppSystemMrAddedEvent {
+  export type InputTuple = [mrSystem: BytesLike];
+  export type OutputTuple = [mrSystem: string];
   export interface OutputObject {
-    mrImage: string;
+    mrSystem: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -389,11 +392,11 @@ export namespace ImageDeregisteredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace ImageRegisteredEvent {
-  export type InputTuple = [mrImage: BytesLike];
-  export type OutputTuple = [mrImage: string];
+export namespace AppSystemMrRemovedEvent {
+  export type InputTuple = [mrSystem: BytesLike];
+  export type OutputTuple = [mrSystem: string];
   export interface OutputObject {
-    mrImage: string;
+    mrSystem: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -413,11 +416,11 @@ export namespace InitializedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace KmsComposeHashDeregisteredEvent {
-  export type InputTuple = [composeHash: BytesLike];
-  export type OutputTuple = [composeHash: string];
+export namespace KmsAggregatedMrAddedEvent {
+  export type InputTuple = [mrAggregated: BytesLike];
+  export type OutputTuple = [mrAggregated: string];
   export interface OutputObject {
-    composeHash: string;
+    mrAggregated: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -425,11 +428,11 @@ export namespace KmsComposeHashDeregisteredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace KmsComposeHashRegisteredEvent {
-  export type InputTuple = [composeHash: BytesLike];
-  export type OutputTuple = [composeHash: string];
+export namespace KmsAggregatedMrRemovedEvent {
+  export type InputTuple = [mrAggregated: BytesLike];
+  export type OutputTuple = [mrAggregated: string];
   export interface OutputObject {
-    composeHash: string;
+    mrAggregated: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -437,7 +440,7 @@ export namespace KmsComposeHashRegisteredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace KmsDeviceIdDeregisteredEvent {
+export namespace KmsDeviceAddedEvent {
   export type InputTuple = [deviceId: BytesLike];
   export type OutputTuple = [deviceId: string];
   export interface OutputObject {
@@ -449,7 +452,7 @@ export namespace KmsDeviceIdDeregisteredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace KmsDeviceIdRegisteredEvent {
+export namespace KmsDeviceRemovedEvent {
   export type InputTuple = [deviceId: BytesLike];
   export type OutputTuple = [deviceId: string];
   export interface OutputObject {
@@ -555,21 +558,33 @@ export interface KmsAuth extends BaseContract {
 
   UPGRADE_INTERFACE_VERSION: TypedContractMethod<[], [string], "view">;
 
-  allowedAggregatedMrs: TypedContractMethod<
-    [arg0: BytesLike],
-    [boolean],
-    "view"
+  addAppImageMr: TypedContractMethod<
+    [mrImage: BytesLike],
+    [void],
+    "nonpayable"
   >;
 
-  allowedImages: TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
-
-  allowedKmsComposeHashes: TypedContractMethod<
-    [arg0: BytesLike],
-    [boolean],
-    "view"
+  addAppSystemMr: TypedContractMethod<
+    [mrSystem: BytesLike],
+    [void],
+    "nonpayable"
   >;
 
-  allowedKmsDeviceIds: TypedContractMethod<
+  addKmsAggregatedMr: TypedContractMethod<
+    [mrAggregated: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
+  addKmsDevice: TypedContractMethod<
+    [deviceId: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
+  appAllowedImages: TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
+
+  appAllowedSystemMrs: TypedContractMethod<
     [arg0: BytesLike],
     [boolean],
     "view"
@@ -579,30 +594,6 @@ export interface KmsAuth extends BaseContract {
     [arg0: AddressLike],
     [[boolean, string] & { isRegistered: boolean; controller: string }],
     "view"
-  >;
-
-  deregisterAggregatedMr: TypedContractMethod<
-    [mrAggregated: BytesLike],
-    [void],
-    "nonpayable"
-  >;
-
-  deregisterImage: TypedContractMethod<
-    [mrImage: BytesLike],
-    [void],
-    "nonpayable"
-  >;
-
-  deregisterKmsComposeHash: TypedContractMethod<
-    [composeHash: BytesLike],
-    [void],
-    "nonpayable"
-  >;
-
-  deregisterKmsDeviceId: TypedContractMethod<
-    [deviceId: BytesLike],
-    [void],
-    "nonpayable"
   >;
 
   initialize: TypedContractMethod<
@@ -620,6 +611,18 @@ export interface KmsAuth extends BaseContract {
   isKmsAllowed: TypedContractMethod<
     [bootInfo: IAppAuth.AppBootInfoStruct],
     [[boolean, string] & { isAllowed: boolean; reason: string }],
+    "view"
+  >;
+
+  kmsAllowedAggregatedMrs: TypedContractMethod<
+    [arg0: BytesLike],
+    [boolean],
+    "view"
+  >;
+
+  kmsAllowedDeviceIds: TypedContractMethod<
+    [arg0: BytesLike],
+    [boolean],
     "view"
   >;
 
@@ -644,31 +647,31 @@ export interface KmsAuth extends BaseContract {
 
   proxiableUUID: TypedContractMethod<[], [string], "view">;
 
-  registerAggregatedMr: TypedContractMethod<
-    [mrAggregated: BytesLike],
-    [void],
-    "nonpayable"
-  >;
-
   registerApp: TypedContractMethod<
     [controller: AddressLike],
     [void],
     "nonpayable"
   >;
 
-  registerImage: TypedContractMethod<
+  removeAppImageMr: TypedContractMethod<
     [mrImage: BytesLike],
     [void],
     "nonpayable"
   >;
 
-  registerKmsComposeHash: TypedContractMethod<
-    [composeHash: BytesLike],
+  removeAppSystemMr: TypedContractMethod<
+    [mrSystem: BytesLike],
     [void],
     "nonpayable"
   >;
 
-  registerKmsDeviceId: TypedContractMethod<
+  removeKmsAggregatedMr: TypedContractMethod<
+    [mrAggregated: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
+  removeKmsDevice: TypedContractMethod<
     [deviceId: BytesLike],
     [void],
     "nonpayable"
@@ -714,16 +717,22 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "UPGRADE_INTERFACE_VERSION"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "allowedAggregatedMrs"
+    nameOrSignature: "addAppImageMr"
+  ): TypedContractMethod<[mrImage: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "addAppSystemMr"
+  ): TypedContractMethod<[mrSystem: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "addKmsAggregatedMr"
+  ): TypedContractMethod<[mrAggregated: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "addKmsDevice"
+  ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "appAllowedImages"
   ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
   getFunction(
-    nameOrSignature: "allowedImages"
-  ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
-  getFunction(
-    nameOrSignature: "allowedKmsComposeHashes"
-  ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
-  getFunction(
-    nameOrSignature: "allowedKmsDeviceIds"
+    nameOrSignature: "appAllowedSystemMrs"
   ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "apps"
@@ -732,18 +741,6 @@ export interface KmsAuth extends BaseContract {
     [[boolean, string] & { isRegistered: boolean; controller: string }],
     "view"
   >;
-  getFunction(
-    nameOrSignature: "deregisterAggregatedMr"
-  ): TypedContractMethod<[mrAggregated: BytesLike], [void], "nonpayable">;
-  getFunction(
-    nameOrSignature: "deregisterImage"
-  ): TypedContractMethod<[mrImage: BytesLike], [void], "nonpayable">;
-  getFunction(
-    nameOrSignature: "deregisterKmsComposeHash"
-  ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
-  getFunction(
-    nameOrSignature: "deregisterKmsDeviceId"
-  ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "initialize"
   ): TypedContractMethod<[initialOwner: AddressLike], [void], "nonpayable">;
@@ -761,6 +758,12 @@ export interface KmsAuth extends BaseContract {
     [[boolean, string] & { isAllowed: boolean; reason: string }],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "kmsAllowedAggregatedMrs"
+  ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "kmsAllowedDeviceIds"
+  ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "kmsInfo"
   ): TypedContractMethod<
@@ -788,19 +791,19 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "proxiableUUID"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "registerAggregatedMr"
-  ): TypedContractMethod<[mrAggregated: BytesLike], [void], "nonpayable">;
-  getFunction(
     nameOrSignature: "registerApp"
   ): TypedContractMethod<[controller: AddressLike], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "registerImage"
+    nameOrSignature: "removeAppImageMr"
   ): TypedContractMethod<[mrImage: BytesLike], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "registerKmsComposeHash"
-  ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
+    nameOrSignature: "removeAppSystemMr"
+  ): TypedContractMethod<[mrSystem: BytesLike], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "registerKmsDeviceId"
+    nameOrSignature: "removeKmsAggregatedMr"
+  ): TypedContractMethod<[mrAggregated: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "removeKmsDevice"
   ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "renounceOwnership"
@@ -832,18 +835,18 @@ export interface KmsAuth extends BaseContract {
   >;
 
   getEvent(
-    key: "AggregatedMrDeregistered"
+    key: "AppImageMrAdded"
   ): TypedContractEvent<
-    AggregatedMrDeregisteredEvent.InputTuple,
-    AggregatedMrDeregisteredEvent.OutputTuple,
-    AggregatedMrDeregisteredEvent.OutputObject
+    AppImageMrAddedEvent.InputTuple,
+    AppImageMrAddedEvent.OutputTuple,
+    AppImageMrAddedEvent.OutputObject
   >;
   getEvent(
-    key: "AggregatedMrRegistered"
+    key: "AppImageMrRemoved"
   ): TypedContractEvent<
-    AggregatedMrRegisteredEvent.InputTuple,
-    AggregatedMrRegisteredEvent.OutputTuple,
-    AggregatedMrRegisteredEvent.OutputObject
+    AppImageMrRemovedEvent.InputTuple,
+    AppImageMrRemovedEvent.OutputTuple,
+    AppImageMrRemovedEvent.OutputObject
   >;
   getEvent(
     key: "AppRegistered"
@@ -853,18 +856,18 @@ export interface KmsAuth extends BaseContract {
     AppRegisteredEvent.OutputObject
   >;
   getEvent(
-    key: "ImageDeregistered"
+    key: "AppSystemMrAdded"
   ): TypedContractEvent<
-    ImageDeregisteredEvent.InputTuple,
-    ImageDeregisteredEvent.OutputTuple,
-    ImageDeregisteredEvent.OutputObject
+    AppSystemMrAddedEvent.InputTuple,
+    AppSystemMrAddedEvent.OutputTuple,
+    AppSystemMrAddedEvent.OutputObject
   >;
   getEvent(
-    key: "ImageRegistered"
+    key: "AppSystemMrRemoved"
   ): TypedContractEvent<
-    ImageRegisteredEvent.InputTuple,
-    ImageRegisteredEvent.OutputTuple,
-    ImageRegisteredEvent.OutputObject
+    AppSystemMrRemovedEvent.InputTuple,
+    AppSystemMrRemovedEvent.OutputTuple,
+    AppSystemMrRemovedEvent.OutputObject
   >;
   getEvent(
     key: "Initialized"
@@ -874,32 +877,32 @@ export interface KmsAuth extends BaseContract {
     InitializedEvent.OutputObject
   >;
   getEvent(
-    key: "KmsComposeHashDeregistered"
+    key: "KmsAggregatedMrAdded"
   ): TypedContractEvent<
-    KmsComposeHashDeregisteredEvent.InputTuple,
-    KmsComposeHashDeregisteredEvent.OutputTuple,
-    KmsComposeHashDeregisteredEvent.OutputObject
+    KmsAggregatedMrAddedEvent.InputTuple,
+    KmsAggregatedMrAddedEvent.OutputTuple,
+    KmsAggregatedMrAddedEvent.OutputObject
   >;
   getEvent(
-    key: "KmsComposeHashRegistered"
+    key: "KmsAggregatedMrRemoved"
   ): TypedContractEvent<
-    KmsComposeHashRegisteredEvent.InputTuple,
-    KmsComposeHashRegisteredEvent.OutputTuple,
-    KmsComposeHashRegisteredEvent.OutputObject
+    KmsAggregatedMrRemovedEvent.InputTuple,
+    KmsAggregatedMrRemovedEvent.OutputTuple,
+    KmsAggregatedMrRemovedEvent.OutputObject
   >;
   getEvent(
-    key: "KmsDeviceIdDeregistered"
+    key: "KmsDeviceAdded"
   ): TypedContractEvent<
-    KmsDeviceIdDeregisteredEvent.InputTuple,
-    KmsDeviceIdDeregisteredEvent.OutputTuple,
-    KmsDeviceIdDeregisteredEvent.OutputObject
+    KmsDeviceAddedEvent.InputTuple,
+    KmsDeviceAddedEvent.OutputTuple,
+    KmsDeviceAddedEvent.OutputObject
   >;
   getEvent(
-    key: "KmsDeviceIdRegistered"
+    key: "KmsDeviceRemoved"
   ): TypedContractEvent<
-    KmsDeviceIdRegisteredEvent.InputTuple,
-    KmsDeviceIdRegisteredEvent.OutputTuple,
-    KmsDeviceIdRegisteredEvent.OutputObject
+    KmsDeviceRemovedEvent.InputTuple,
+    KmsDeviceRemovedEvent.OutputTuple,
+    KmsDeviceRemovedEvent.OutputObject
   >;
   getEvent(
     key: "KmsInfoSet"
@@ -931,26 +934,26 @@ export interface KmsAuth extends BaseContract {
   >;
 
   filters: {
-    "AggregatedMrDeregistered(bytes32)": TypedContractEvent<
-      AggregatedMrDeregisteredEvent.InputTuple,
-      AggregatedMrDeregisteredEvent.OutputTuple,
-      AggregatedMrDeregisteredEvent.OutputObject
+    "AppImageMrAdded(bytes32)": TypedContractEvent<
+      AppImageMrAddedEvent.InputTuple,
+      AppImageMrAddedEvent.OutputTuple,
+      AppImageMrAddedEvent.OutputObject
     >;
-    AggregatedMrDeregistered: TypedContractEvent<
-      AggregatedMrDeregisteredEvent.InputTuple,
-      AggregatedMrDeregisteredEvent.OutputTuple,
-      AggregatedMrDeregisteredEvent.OutputObject
+    AppImageMrAdded: TypedContractEvent<
+      AppImageMrAddedEvent.InputTuple,
+      AppImageMrAddedEvent.OutputTuple,
+      AppImageMrAddedEvent.OutputObject
     >;
 
-    "AggregatedMrRegistered(bytes32)": TypedContractEvent<
-      AggregatedMrRegisteredEvent.InputTuple,
-      AggregatedMrRegisteredEvent.OutputTuple,
-      AggregatedMrRegisteredEvent.OutputObject
+    "AppImageMrRemoved(bytes32)": TypedContractEvent<
+      AppImageMrRemovedEvent.InputTuple,
+      AppImageMrRemovedEvent.OutputTuple,
+      AppImageMrRemovedEvent.OutputObject
     >;
-    AggregatedMrRegistered: TypedContractEvent<
-      AggregatedMrRegisteredEvent.InputTuple,
-      AggregatedMrRegisteredEvent.OutputTuple,
-      AggregatedMrRegisteredEvent.OutputObject
+    AppImageMrRemoved: TypedContractEvent<
+      AppImageMrRemovedEvent.InputTuple,
+      AppImageMrRemovedEvent.OutputTuple,
+      AppImageMrRemovedEvent.OutputObject
     >;
 
     "AppRegistered(address)": TypedContractEvent<
@@ -964,26 +967,26 @@ export interface KmsAuth extends BaseContract {
       AppRegisteredEvent.OutputObject
     >;
 
-    "ImageDeregistered(bytes32)": TypedContractEvent<
-      ImageDeregisteredEvent.InputTuple,
-      ImageDeregisteredEvent.OutputTuple,
-      ImageDeregisteredEvent.OutputObject
+    "AppSystemMrAdded(bytes32)": TypedContractEvent<
+      AppSystemMrAddedEvent.InputTuple,
+      AppSystemMrAddedEvent.OutputTuple,
+      AppSystemMrAddedEvent.OutputObject
     >;
-    ImageDeregistered: TypedContractEvent<
-      ImageDeregisteredEvent.InputTuple,
-      ImageDeregisteredEvent.OutputTuple,
-      ImageDeregisteredEvent.OutputObject
+    AppSystemMrAdded: TypedContractEvent<
+      AppSystemMrAddedEvent.InputTuple,
+      AppSystemMrAddedEvent.OutputTuple,
+      AppSystemMrAddedEvent.OutputObject
     >;
 
-    "ImageRegistered(bytes32)": TypedContractEvent<
-      ImageRegisteredEvent.InputTuple,
-      ImageRegisteredEvent.OutputTuple,
-      ImageRegisteredEvent.OutputObject
+    "AppSystemMrRemoved(bytes32)": TypedContractEvent<
+      AppSystemMrRemovedEvent.InputTuple,
+      AppSystemMrRemovedEvent.OutputTuple,
+      AppSystemMrRemovedEvent.OutputObject
     >;
-    ImageRegistered: TypedContractEvent<
-      ImageRegisteredEvent.InputTuple,
-      ImageRegisteredEvent.OutputTuple,
-      ImageRegisteredEvent.OutputObject
+    AppSystemMrRemoved: TypedContractEvent<
+      AppSystemMrRemovedEvent.InputTuple,
+      AppSystemMrRemovedEvent.OutputTuple,
+      AppSystemMrRemovedEvent.OutputObject
     >;
 
     "Initialized(uint64)": TypedContractEvent<
@@ -997,48 +1000,48 @@ export interface KmsAuth extends BaseContract {
       InitializedEvent.OutputObject
     >;
 
-    "KmsComposeHashDeregistered(bytes32)": TypedContractEvent<
-      KmsComposeHashDeregisteredEvent.InputTuple,
-      KmsComposeHashDeregisteredEvent.OutputTuple,
-      KmsComposeHashDeregisteredEvent.OutputObject
+    "KmsAggregatedMrAdded(bytes32)": TypedContractEvent<
+      KmsAggregatedMrAddedEvent.InputTuple,
+      KmsAggregatedMrAddedEvent.OutputTuple,
+      KmsAggregatedMrAddedEvent.OutputObject
     >;
-    KmsComposeHashDeregistered: TypedContractEvent<
-      KmsComposeHashDeregisteredEvent.InputTuple,
-      KmsComposeHashDeregisteredEvent.OutputTuple,
-      KmsComposeHashDeregisteredEvent.OutputObject
-    >;
-
-    "KmsComposeHashRegistered(bytes32)": TypedContractEvent<
-      KmsComposeHashRegisteredEvent.InputTuple,
-      KmsComposeHashRegisteredEvent.OutputTuple,
-      KmsComposeHashRegisteredEvent.OutputObject
-    >;
-    KmsComposeHashRegistered: TypedContractEvent<
-      KmsComposeHashRegisteredEvent.InputTuple,
-      KmsComposeHashRegisteredEvent.OutputTuple,
-      KmsComposeHashRegisteredEvent.OutputObject
+    KmsAggregatedMrAdded: TypedContractEvent<
+      KmsAggregatedMrAddedEvent.InputTuple,
+      KmsAggregatedMrAddedEvent.OutputTuple,
+      KmsAggregatedMrAddedEvent.OutputObject
     >;
 
-    "KmsDeviceIdDeregistered(bytes32)": TypedContractEvent<
-      KmsDeviceIdDeregisteredEvent.InputTuple,
-      KmsDeviceIdDeregisteredEvent.OutputTuple,
-      KmsDeviceIdDeregisteredEvent.OutputObject
+    "KmsAggregatedMrRemoved(bytes32)": TypedContractEvent<
+      KmsAggregatedMrRemovedEvent.InputTuple,
+      KmsAggregatedMrRemovedEvent.OutputTuple,
+      KmsAggregatedMrRemovedEvent.OutputObject
     >;
-    KmsDeviceIdDeregistered: TypedContractEvent<
-      KmsDeviceIdDeregisteredEvent.InputTuple,
-      KmsDeviceIdDeregisteredEvent.OutputTuple,
-      KmsDeviceIdDeregisteredEvent.OutputObject
+    KmsAggregatedMrRemoved: TypedContractEvent<
+      KmsAggregatedMrRemovedEvent.InputTuple,
+      KmsAggregatedMrRemovedEvent.OutputTuple,
+      KmsAggregatedMrRemovedEvent.OutputObject
     >;
 
-    "KmsDeviceIdRegistered(bytes32)": TypedContractEvent<
-      KmsDeviceIdRegisteredEvent.InputTuple,
-      KmsDeviceIdRegisteredEvent.OutputTuple,
-      KmsDeviceIdRegisteredEvent.OutputObject
+    "KmsDeviceAdded(bytes32)": TypedContractEvent<
+      KmsDeviceAddedEvent.InputTuple,
+      KmsDeviceAddedEvent.OutputTuple,
+      KmsDeviceAddedEvent.OutputObject
     >;
-    KmsDeviceIdRegistered: TypedContractEvent<
-      KmsDeviceIdRegisteredEvent.InputTuple,
-      KmsDeviceIdRegisteredEvent.OutputTuple,
-      KmsDeviceIdRegisteredEvent.OutputObject
+    KmsDeviceAdded: TypedContractEvent<
+      KmsDeviceAddedEvent.InputTuple,
+      KmsDeviceAddedEvent.OutputTuple,
+      KmsDeviceAddedEvent.OutputObject
+    >;
+
+    "KmsDeviceRemoved(bytes32)": TypedContractEvent<
+      KmsDeviceRemovedEvent.InputTuple,
+      KmsDeviceRemovedEvent.OutputTuple,
+      KmsDeviceRemovedEvent.OutputObject
+    >;
+    KmsDeviceRemoved: TypedContractEvent<
+      KmsDeviceRemovedEvent.InputTuple,
+      KmsDeviceRemovedEvent.OutputTuple,
+      KmsDeviceRemovedEvent.OutputObject
     >;
 
     "KmsInfoSet(bytes)": TypedContractEvent<
