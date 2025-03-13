@@ -165,13 +165,14 @@ impl<T> Attestation<T> {
         } else {
             sha256(&[&key_provider_info])
         };
-        let mr_aggregated = sha256(&[
+        let mr_system = sha256(&[
             &td_report.mr_td,
             &rtmrs[0],
             &rtmrs[1],
             &rtmrs[2],
             &mr_key_provider,
         ]);
+        let mr_aggregated = sha256(&[&td_report.mr_td, &rtmrs[0], &rtmrs[1], &rtmrs[2], &rtmrs[3]]);
         let mr_image = sha256(&[&td_report.mr_td, &rtmrs[1], &rtmrs[2]]);
         Ok(AppInfo {
             app_id: self.find_event_payload("app-id").unwrap_or_default(),
@@ -183,8 +184,9 @@ impl<T> Attestation<T> {
             rtmr1: rtmrs[1],
             rtmr2: rtmrs[2],
             rtmr3: rtmrs[3],
-            mr_aggregated,
             mr_image,
+            mr_system,
+            mr_aggregated,
             mr_key_provider,
             key_provider_info,
         })
@@ -342,6 +344,9 @@ pub struct AppInfo {
     /// Runtime MR3
     #[serde(with = "hex_bytes")]
     pub rtmr3: [u8; 48],
+    /// Measurement of everything except the app info
+    #[serde(with = "hex_bytes")]
+    pub mr_system: [u8; 32],
     /// Measurement of the entire vm execution environment
     #[serde(with = "hex_bytes")]
     pub mr_aggregated: [u8; 32],
