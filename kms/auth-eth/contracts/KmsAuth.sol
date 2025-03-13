@@ -216,5 +216,5 @@ contract KmsAuth is
     }
 
     // Add storage gap for upgradeable contracts
-    uint256[49] private __gap;
+    uint256[50] private __gap;
 }

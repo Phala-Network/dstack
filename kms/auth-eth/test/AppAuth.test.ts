@@ -14,7 +14,7 @@ describe("AppAuth", function () {
   beforeEach(async function () {
     [owner, user] = await ethers.getSigners();
     appId = ethers.Wallet.createRandom().address;
-    appAuth = await deployContract(hre, "AppAuth", [owner.address, appId, false], true) as AppAuth;
+    appAuth = await deployContract(hre, "AppAuth", [owner.address, appId, false, true], true) as AppAuth;
   });
 
   describe("Basic functionality", function () {

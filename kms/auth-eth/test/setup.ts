@@ -25,7 +25,7 @@ beforeAll(async () => {
   // Initialize the contract with an app and KMS info
   const appId = await kmsAuth.nextAppId();
 
-  const appAuth = await deployContract(hre, "AppAuth", [owner.address, appId, false], true) as AppAuth;
+  const appAuth = await deployContract(hre, "AppAuth", [owner.address, appId, false, true], true) as AppAuth;
 
   await kmsAuth.registerApp(await appAuth.getAddress());
 

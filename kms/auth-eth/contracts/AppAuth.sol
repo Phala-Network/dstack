@@ -21,10 +21,19 @@ contract AppAuth is
     // State variable to track if upgrades are disabled
     bool private _upgradesDisabled;
 
+    // Whether allow any device to boot this app or only allow devices
+    bool public allowAnyDevice;
+
+    // Mapping of allowed device IDs for this app
+    mapping(bytes32 => bool) public allowedDeviceIds;
+
     // Events
     event ComposeHashAdded(bytes32 composeHash);
     event ComposeHashRemoved(bytes32 composeHash);
     event UpgradesDisabled();
+    event DeviceAdded(bytes32 deviceId);
+    event DeviceRemoved(bytes32 deviceId);
+    event AllowAnyDeviceSet(bool allowAny);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -35,12 +44,14 @@ contract AppAuth is
     function initialize(
         address initialOwner,
         address _appId,
-        bool _disableUpgrades
+        bool _disableUpgrades,
+        bool _allowAnyDevice
     ) public initializer {
         require(initialOwner != address(0), "Invalid owner address");
         require(_appId != address(0), "Invalid app ID");
         appId = _appId;
         _upgradesDisabled = _disableUpgrades;
+        allowAnyDevice = _allowAnyDevice;
         __Ownable_init(initialOwner);
         __UUPSUpgradeable_init();
     }
@@ -62,6 +73,24 @@ contract AppAuth is
         emit ComposeHashRemoved(composeHash);
     }
 
+    // Set whether any device is allowed to boot this app
+    function setAllowAnyDevice(bool _allowAnyDevice) external onlyOwner {
+        allowAnyDevice = _allowAnyDevice;
+        emit AllowAnyDeviceSet(_allowAnyDevice);
+    }
+
+    // Add a device ID to allowed list
+    function addDeviceId(bytes32 deviceId) external onlyOwner {
+        allowedDeviceIds[deviceId] = true;
+        emit DeviceAdded(deviceId);
+    }
+
+    // Remove a device ID from allowed list
+    function removeDeviceId(bytes32 deviceId) external onlyOwner {
+        allowedDeviceIds[deviceId] = false;
+        emit DeviceRemoved(deviceId);
+    }
+
     // Check if an app is allowed to boot
     function isAppAllowed(
         IAppAuth.AppBootInfo calldata bootInfo
@@ -74,6 +103,11 @@ contract AppAuth is
         // Check if compose hash is allowed
         if (!allowedComposeHashes[bootInfo.composeHash]) {
             return (false, "Compose hash not allowed");
+        }
+
+        // Check if device is allowed (when device restriction is enabled)
+        if (!allowAnyDevice && !allowedDeviceIds[bootInfo.deviceId]) {
+            return (false, "Device not allowed");
         }
 
         return (true, "");

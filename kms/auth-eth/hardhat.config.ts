@@ -324,7 +324,8 @@ task("info:tproxy", "Get current TProxy App ID")
   });
 
 task("app:deploy", "Deploy AppAuth with a UUPS proxy")
-  .setAction(async (_, hre) => {
+  .addFlag("allowAnyDevice", "Allow any device to boot this app")
+  .setAction(async (taskArgs, hre) => {
     const { ethers } = hre;
     const [deployer] = await ethers.getSigners();
     const deployerAddress = await deployer.getAddress();
@@ -334,7 +335,7 @@ task("app:deploy", "Deploy AppAuth with a UUPS proxy")
     const kmsContract = await getKmsAuth(ethers);
     const appId = await kmsContract.nextAppId();
     console.log("App ID:", appId);
-    const appAuth = await deployContract(hre, "AppAuth", [deployerAddress, appId, false]);
+    const appAuth = await deployContract(hre, "AppAuth", [deployerAddress, appId, false, taskArgs.allowAnyDevice]);
     if (!appAuth) {
       return;
     }
