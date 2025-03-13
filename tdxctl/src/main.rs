@@ -6,7 +6,7 @@ use cmd_lib::run_cmd as cmd;
 use dstack_types::KeyProvider;
 use fde_setup::{cmd_setup_fde, SetupFdeArgs};
 use fs_err as fs;
-use getrandom::getrandom;
+use getrandom::fill as getrandom;
 use host_api::HostApi;
 use k256::schnorr::SigningKey;
 use ra_tls::{
