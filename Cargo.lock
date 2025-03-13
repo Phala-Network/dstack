@@ -548,7 +548,7 @@ dependencies = [
 
 [[package]]
 name = "cc-eventlog"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "fs-err",
@@ -563,7 +563,7 @@ dependencies = [
 
 [[package]]
 name = "cert-client"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "dstack-types",
@@ -576,7 +576,7 @@ dependencies = [
 
 [[package]]
 name = "certbot"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "bon",
@@ -599,7 +599,7 @@ dependencies = [
 
 [[package]]
 name = "certbot-cli"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "certbot",
@@ -615,7 +615,7 @@ dependencies = [
 
 [[package]]
 name = "certgen"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -894,7 +894,7 @@ dependencies = [
 
 [[package]]
 name = "ct_monitor"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1267,7 +1267,7 @@ dependencies = [
 
 [[package]]
 name = "dstack-types"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "serde",
  "serde-human-bytes",
@@ -1731,7 +1731,7 @@ dependencies = [
 
 [[package]]
 name = "guest-api"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "http-client",
@@ -1925,7 +1925,7 @@ dependencies = [
 
 [[package]]
 name = "host-api"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "http-client",
@@ -1983,7 +1983,7 @@ dependencies = [
 
 [[package]]
 name = "http-client"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "http-body-util",
@@ -2278,7 +2278,7 @@ dependencies = [
 
 [[package]]
 name = "iohash"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "blake2",
@@ -2395,7 +2395,7 @@ dependencies = [
 
 [[package]]
 name = "key-provider-client"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "serde",
@@ -2406,7 +2406,7 @@ dependencies = [
 
 [[package]]
 name = "kms"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2442,7 +2442,7 @@ dependencies = [
 
 [[package]]
 name = "kms-rpc"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "fs-err",
@@ -2551,7 +2551,7 @@ checksum = "6db9c683daf087dc577b7506e9695b3d556a9f3849903fa28186283afd6809e9"
 
 [[package]]
 name = "load_config"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "figment",
  "rocket",
@@ -2601,7 +2601,7 @@ dependencies = [
 
 [[package]]
 name = "lspci"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "insta",
@@ -3597,7 +3597,7 @@ dependencies = [
 
 [[package]]
 name = "ra-rpc"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "bon",
@@ -3614,7 +3614,7 @@ dependencies = [
 
 [[package]]
 name = "ra-tls"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "bon",
@@ -4022,7 +4022,7 @@ dependencies = [
 
 [[package]]
 name = "rocket-vsock-listener"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "derive_more 2.0.1",
@@ -4823,7 +4823,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "supervisor"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "bon",
@@ -4844,7 +4844,7 @@ dependencies = [
 
 [[package]]
 name = "supervisor-client"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -4959,7 +4959,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tappd"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "base64",
@@ -5002,7 +5002,7 @@ dependencies = [
 
 [[package]]
 name = "tappd-rpc"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "parity-scale-codec",
@@ -5015,7 +5015,7 @@ dependencies = [
 
 [[package]]
 name = "tdx-attest"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "cc-eventlog",
@@ -5034,7 +5034,7 @@ dependencies = [
 
 [[package]]
 name = "tdx-attest-sys"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "bindgen 0.71.1",
  "cc",
@@ -5042,7 +5042,7 @@ dependencies = [
 
 [[package]]
 name = "tdxctl"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -5085,7 +5085,7 @@ dependencies = [
 
 [[package]]
 name = "teepod"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "bon",
@@ -5127,7 +5127,7 @@ dependencies = [
 
 [[package]]
 name = "teepod-rpc"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "parity-scale-codec",
@@ -5418,7 +5418,7 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "tproxy"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -5460,7 +5460,7 @@ dependencies = [
 
 [[package]]
 name = "tproxy-rpc"
-version = "0.3.4"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "parity-scale-codec",
