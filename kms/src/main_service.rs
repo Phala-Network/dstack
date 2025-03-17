@@ -118,6 +118,7 @@ impl RpcHandler {
             rtmr3: report.rt_mr3.to_vec(),
             mr_aggregated: app_info.mr_aggregated.to_vec(),
             mr_image: app_info.mr_image.to_vec(),
+            mr_system: app_info.mr_system.to_vec(),
             mr_key_provider: app_info.mr_key_provider.to_vec(),
             app_id: app_info.app_id,
             compose_hash: app_info.compose_hash,

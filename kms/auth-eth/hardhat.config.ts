@@ -156,6 +156,24 @@ task("kms:remove-image", "Remove an image measurement")
     console.log("Image removed successfully");
   });
 
+task("kms:add-system", "Add a system measurement")
+  .addPositionalParam("mrSystem", "System measurement")
+  .setAction(async ({ mrSystem }, { ethers }) => {
+    const kmsAuth = await getKmsAuth(ethers);
+    const tx = await kmsAuth.addAppSystemMr(mrSystem);
+    await waitTx(tx);
+    console.log("System measurement added successfully");
+  });
+
+task("kms:remove-system", "Remove a system measurement")
+  .addPositionalParam("mrSystem", "System measurement")
+  .setAction(async ({ mrSystem }, { ethers }) => {
+    const kmsAuth = await getKmsAuth(ethers);
+    const tx = await kmsAuth.removeAppSystemMr(mrSystem);
+    await waitTx(tx);
+    console.log("System measurement removed successfully");
+  });
+
 task("kms:add-device", "Add a device ID of an KMS instance")
   .addPositionalParam("deviceId", "Device ID")
   .setAction(async ({ deviceId }, { ethers }) => {

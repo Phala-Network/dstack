@@ -149,15 +149,15 @@ Tproxy can be deployed as a Tapp in the same host as the KMS or in a different h
 ### Add base image MRs to the KMS whitelist
 In order to run user workloads that use the KMS, the OS image MRs must be added to the KMS whitelist.
 
-The `mrAggregated` is calculated from the MRTD, RTMR0, RTMR1, and key provider. It varies with the same image given different CPU/MEM configurations.
+The `mrSystem` is calculated from the MRTD, RTMR0, RTMR1, and key provider. It varies with the same image given different CPU/MEM configurations.
 
-You can calculate the `mrAggregated` by running `dstack-mr` or simply try deploying an App with the OS image and see it in the serial logs.
+You can calculate the `mrSystem` by running `dstack-mr` or simply try deploying an App with the OS image and see it in the serial logs.
 
-After you get the `mrAggregated`, you can register it to the KMS whitelist by running the following command:
+After you get the `mrSystem`, you can register it to the KMS whitelist by running the following command:
 
 ```bash
 cd dstack/kms/auth-eth
-npx hardhat kms:register-aggregated-mr --network phala --mr <mr-value>
+npx hardhat kms:add-system --network phala --mr <mr-value>
 ```
 
 ### Register Tproxy in KMS
