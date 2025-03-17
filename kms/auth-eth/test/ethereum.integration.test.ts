@@ -37,6 +37,7 @@ describe('Integration Tests', () => {
         mrAggregated: ethers.encodeBytes32String('11'),
         mrImage: ethers.encodeBytes32String('22'),
         composeHash: ethers.encodeBytes32String('33'),
+        mrSystem: ethers.encodeBytes32String('44'),
       };
     });
 
@@ -69,14 +70,14 @@ describe('Integration Tests', () => {
     });
 
     it('should return false when enclave and image are not registered', async () => {
-      const badMrAggregated = ethers.encodeBytes32String('9999');
+      const badMrSystem = ethers.encodeBytes32String('9999');
       const badMrImage = ethers.encodeBytes32String('9999');
       const [isAllowed, reason] = await kmsAuth.isAppAllowed({
         ...mockBootInfo,
-        mrAggregated: badMrAggregated,
+        mrSystem: badMrSystem,
         mrImage: badMrImage
       });
-      expect(reason).to.equal('Neither aggregated MR nor image is allowed');
+      expect(reason).to.equal('Neither system MR nor image is allowed');
       expect(isAllowed).to.equal(false);
     });
   });
@@ -92,6 +93,7 @@ describe('Integration Tests', () => {
         composeHash: ethers.encodeBytes32String("33"),
         instanceId: ethers.Wallet.createRandom().address,
         deviceId: ethers.encodeBytes32String("123"),
+        mrSystem: ethers.encodeBytes32String("44"),
         mrAggregated: ethers.encodeBytes32String("11"),
         mrImage: ethers.encodeBytes32String("22")
       };
@@ -127,11 +129,11 @@ describe('Integration Tests', () => {
       it('should return false when enclave and image are not registered', async () => {
         const badBootInfo = {
           ...mockBootInfo,
-          mrAggregated: ethers.encodeBytes32String('9999'),
+          mrSystem: ethers.encodeBytes32String('9999'),
           mrImage: ethers.encodeBytes32String('9999')
         };
         const result = await backend.checkBoot(badBootInfo, false);
-        expect(result.reason).to.equal('Neither aggregated MR nor image is allowed');
+        expect(result.reason).to.equal('Neither system MR nor image is allowed');
         expect(result.isAllowed).to.equal(false);
       });
 

@@ -1,6 +1,7 @@
 export interface BootInfo {
   mrAggregated: string;
   mrImage: string;
+  mrSystem: string;
   appId: string;
   composeHash: string;
   instanceId: string;

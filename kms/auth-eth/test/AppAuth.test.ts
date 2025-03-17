@@ -14,7 +14,7 @@ describe("AppAuth", function () {
   beforeEach(async function () {
     [owner, user] = await ethers.getSigners();
     appId = ethers.Wallet.createRandom().address;
-    appAuth = await deployContract(hre, "AppAuth", [owner.address, appId, false], true) as AppAuth;
+    appAuth = await deployContract(hre, "AppAuth", [owner.address, appId, false, true], true) as AppAuth;
   });
 
   describe("Basic functionality", function () {
@@ -60,6 +60,7 @@ describe("AppAuth", function () {
     const deviceId = ethers.randomBytes(32);
     const mrAggregated = ethers.randomBytes(32);
     const mrImage = ethers.randomBytes(32);
+    const mrSystem = ethers.randomBytes(32);
     const instanceId = ethers.Wallet.createRandom().address;
 
     beforeEach(async function () {
@@ -73,7 +74,8 @@ describe("AppAuth", function () {
         instanceId,
         deviceId,
         mrAggregated,
-        mrImage
+        mrImage,
+        mrSystem
       };
 
       const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);
@@ -88,7 +90,8 @@ describe("AppAuth", function () {
         instanceId,
         deviceId,
         mrAggregated,
-        mrImage
+        mrImage,
+        mrSystem
       };
 
       const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);
@@ -103,7 +106,8 @@ describe("AppAuth", function () {
         instanceId,
         deviceId,
         mrAggregated,
-        mrImage
+        mrImage,
+        mrSystem,
       };
 
       const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);

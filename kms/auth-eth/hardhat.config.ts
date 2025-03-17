@@ -7,7 +7,7 @@ import { deployContract } from "./scripts/deploy";
 import { upgradeContract } from "./scripts/upgrade";
 import { accountBalance } from "./lib/deployment-helpers";
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
+const PRIVATE_KEY = process.env.PRIVATE_KEY || "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e";
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -32,6 +32,10 @@ const config: HardhatUserConfig = {
       url: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
       accounts: [PRIVATE_KEY],
     },
+    test: {
+      url: 'http://127.0.0.1:8545/',
+      accounts: [PRIVATE_KEY],
+    }
   },
   paths: {
     sources: "./contracts",
@@ -96,19 +100,7 @@ task("kms:upgrade", "Upgrade the KmsAuth contract")
     await upgradeContract(hre, "KmsAuth", taskArgs.address, taskArgs.dryRun);
   });
 
-task("kms:set-info", "Set KMS information")
-  .addParam("k256Pubkey", "K256 public key")
-  .addParam("caPubkey", "CA public key")
-  .addParam("quote", "Quote")
-  .addParam("eventlog", "Event log")
-  .setAction(async ({ k256Pubkey, caPubkey, quote, eventlog }, { ethers }) => {
-    const contract = await getKmsAuth(ethers);
-    const tx = await contract.setKmsInfo({ k256Pubkey, caPubkey, quote, eventlog });
-    await waitTx(tx);
-    console.log("KMS info set successfully");
-  });
-
-task("kms:set-info-file", "Set KMS information from file")
+task("kms:set-info", "Set KMS information from file")
   .addPositionalParam("file", "File path")
   .setAction(async ({ file }, { ethers }) => {
     const contract = await getKmsAuth(ethers);
@@ -127,182 +119,59 @@ task("kms:set-tproxy", "Set the allowed TProxy App ID")
     console.log("TProxy App ID set successfully");
   });
 
-task("app:add-hash", "Add a compose hash to the AppAuth contract")
-  .addParam("appId", "App ID")
-  .addPositionalParam("hash", "Compose hash to add")
-  .setAction(async ({ appId, hash }, { ethers }) => {
-    const appAuth = await getAppAuth(ethers, appId);
-    const tx = await appAuth.addComposeHash(hash);
-    await waitTx(tx);
-    console.log("Compose hash added successfully");
-  });
-
-task("app:remove-hash", "Remove a compose hash from the AppAuth contract")
-  .addParam("appId", "App ID")
-  .addPositionalParam("hash", "Compose hash to remove")
-  .setAction(async ({ appId, hash }, { ethers }) => {
-    const appAuth = await getAppAuth(ethers, appId);
-    const tx = await appAuth.removeComposeHash(hash);
-    await waitTx(tx);
-    console.log("Compose hash removed successfully");
-  });
-
-// Mr Management Tasks
-task("kms:register-aggregated-mr", "Register an aggregated MR measurement")
-  .addPositionalParam("mrAggregated", "Aggregated MR measurement")
-  .setAction(async ({ mrAggregated }, { ethers }) => {
+task("kms:add", "Add a Aggregated MR of an KMS instance")
+  .addPositionalParam("mr", "Aggregated MR to add")
+  .setAction(async ({ mr }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.registerAggregatedMr(mrAggregated);
+    const tx = await kmsAuth.addKmsAggregatedMr(mr);
     await waitTx(tx);
-    console.log("Aggregated MR registered successfully");
+    console.log("KMS aggregated MR added successfully");
   });
 
-task("kms:deregister-aggregated-mr", "Deregister an aggregated MR measurement")
-  .addPositionalParam("mrAggregated", "Aggregated MR measurement")
-  .setAction(async ({ mrAggregated }, { ethers }) => {
+task("kms:remove", "Remove a Aggregated MR of an KMS instance")
+  .addPositionalParam("mr", "Aggregated MR to remove")
+  .setAction(async ({ mr }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.deregisterAggregatedMr(mrAggregated);
+    const tx = await kmsAuth.removeKmsAggregatedMr(mr);
     await waitTx(tx);
-    console.log("Aggregated MR deregistered successfully");
+    console.log("KMS aggregated MR removed successfully");
   });
 
 // Image Management Tasks
-task("kms:register-image", "Register an image measurement")
+task("kms:add-image", "Add an image measurement")
   .addPositionalParam("mrImage", "Image measurement")
   .setAction(async ({ mrImage }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.registerImage(mrImage);
+    const tx = await kmsAuth.addAppImageMr(mrImage);
     await waitTx(tx);
-    console.log("Image registered successfully");
+    console.log("Image added successfully");
   });
 
-task("kms:deregister-image", "Deregister an image measurement")
+task("kms:remove-image", "Remove an image measurement")
   .addPositionalParam("mrImage", "Image measurement")
   .setAction(async ({ mrImage }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.deregisterImage(mrImage);
+    const tx = await kmsAuth.removeAppImageMr(mrImage);
     await waitTx(tx);
-    console.log("Image deregistered successfully");
-  });
-
-// Device Management Tasks
-task("kms:register-device", "Register a device ID")
-  .addPositionalParam("deviceId", "Device ID to register")
-  .setAction(async ({ deviceId }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const hashedId = ethers.keccak256(ethers.toUtf8Bytes(deviceId));
-    const tx = await kmsAuth.registerKmsDeviceId(hashedId);
-    await waitTx(tx);
-    console.log("Device ID registered successfully");
-  });
-
-task("kms:deregister-device", "Deregister a device ID")
-  .addPositionalParam("deviceId", "Device ID to deregister")
-  .setAction(async ({ deviceId }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const hashedId = ethers.keccak256(ethers.toUtf8Bytes(deviceId));
-    const tx = await kmsAuth.deregisterKmsDeviceId(hashedId);
-    await waitTx(tx);
-    console.log("Device ID deregistered successfully");
-  });
-
-task("kms:add-hash", "Add a compose hash of an KMS instance")
-  .addPositionalParam("hash", "Compose hash to add")
-  .setAction(async ({ hash }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.registerKmsComposeHash(hash);
-    await waitTx(tx);
-    console.log("KMS compose hash added successfully");
+    console.log("Image removed successfully");
   });
 
 task("kms:add-device", "Add a device ID of an KMS instance")
   .addPositionalParam("deviceId", "Device ID")
   .setAction(async ({ deviceId }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.registerKmsDeviceId(deviceId);
+    const tx = await kmsAuth.addKmsDevice(deviceId);
     await waitTx(tx);
     console.log("Device compose hash added successfully");
   });
 
-// Status Check Tasks
-task("check:app", "Check if an app is allowed to boot")
-  .addParam("appId", "App ID to check")
-  .addParam("mrAggregated", "Aggregated MR measurement")
-  .addParam("mrImage", "Image measurement")
-  .addParam("composeHash", "Compose hash")
-  .setAction(async ({ appId, mrAggregated, mrImage, composeHash }, { ethers }) => {
+task("kms:remove-device", "Remove a device ID")
+  .addPositionalParam("deviceId", "Device ID to remove")
+  .setAction(async ({ deviceId }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const [isAllowed, reason] = await kmsAuth.isAppAllowed({
-      appId,
-      mrAggregated,
-      mrImage,
-      composeHash,
-      deviceId: ethers.ZeroHash,
-      instanceId: ethers.ZeroAddress
-    });
-    console.log("Is allowed:", isAllowed);
-    console.log("Reason:", reason);
-  });
-
-task("check:kms", "Check if KMS is allowed to boot")
-  .addParam("mrAggregated", "Aggregated MR measurement")
-  .addParam("composeHash", "Compose hash")
-  .addParam("deviceId", "Device ID")
-  .setAction(async ({ mrAggregated, composeHash, deviceId }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const hashedId = ethers.keccak256(ethers.toUtf8Bytes(deviceId));
-    const [isAllowed, reason] = await kmsAuth.isKmsAllowed({
-      mrAggregated,
-      composeHash,
-      deviceId: hashedId,
-      mrImage: ethers.ZeroHash,
-      appId: ethers.ZeroAddress,
-      instanceId: ethers.ZeroAddress
-    });
-    console.log("Is allowed:", isAllowed);
-    console.log("Reason:", reason);
-  });
-
-// Additional Status Check Tasks
-task("check:app-id")
-  .addPositionalParam("appId", "App ID to check")
-  .setAction(async ({ appId }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const isRegistered = (await kmsAuth.apps(appId)).isRegistered;
-    console.log("App ID is registered:", isRegistered);
-  });
-
-task("check:mr-aggregated")
-  .addPositionalParam("mrAggregated", "MR Aggregated measurement to check")
-  .setAction(async ({ mrAggregated }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const isRegistered = await kmsAuth.allowedEnclaves(mrAggregated);
-    console.log("MR Aggregated measurement is registered:", isRegistered);
-  });
-
-task("check:image")
-  .addPositionalParam("mrImage", "Image measurement to check")
-  .setAction(async ({ mrImage }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const isRegistered = await kmsAuth.allowedImages(mrImage);
-    console.log("Image measurement is registered:", isRegistered);
-  });
-
-task("check:app-hash")
-  .addParam("appId", "App ID")
-  .addPositionalParam("hash", "Compose hash to check")
-  .setAction(async ({ appId, hash }, { ethers }) => {
-    const appAuth = await getAppAuth(ethers, appId);
-    const isAllowed = await appAuth.allowedComposeHashes(hash);
-    console.log("Compose hash is allowed:", isAllowed);
-  });
-
-// Info Query Tasks
-task("info:owner", "Get current contract owner")
-  .setAction(async (_, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const owner = await kmsAuth.owner();
-    console.log("Contract owner:", owner);
+    const tx = await kmsAuth.removeKmsDevice(deviceId);
+    await waitTx(tx);
+    console.log("Device ID removed successfully");
   });
 
 task("info:kms", "Get current KMS information")
@@ -323,8 +192,17 @@ task("info:tproxy", "Get current TProxy App ID")
     console.log("TProxy App ID:", appId);
   });
 
+task("app:show-controller", "Show the controller of an AppAuth contract")
+  .addPositionalParam("appId", "App ID")
+  .setAction(async ({ appId }, { ethers }) => {
+    const kmsAuth = await getKmsAuth(ethers);
+    const controller = await kmsAuth.apps(appId).then((app: any) => app.controller);
+    console.log("AppAuth controller:", controller);
+  });
+
 task("app:deploy", "Deploy AppAuth with a UUPS proxy")
-  .setAction(async (_, hre) => {
+  .addFlag("allowAnyDevice", "Allow any device to boot this app")
+  .setAction(async (taskArgs, hre) => {
     const { ethers } = hre;
     const [deployer] = await ethers.getSigners();
     const deployerAddress = await deployer.getAddress();
@@ -334,7 +212,7 @@ task("app:deploy", "Deploy AppAuth with a UUPS proxy")
     const kmsContract = await getKmsAuth(ethers);
     const appId = await kmsContract.nextAppId();
     console.log("App ID:", appId);
-    const appAuth = await deployContract(hre, "AppAuth", [deployerAddress, appId, false]);
+    const appAuth = await deployContract(hre, "AppAuth", [deployerAddress, appId, false, taskArgs.allowAnyDevice]);
     if (!appAuth) {
       return;
     }
@@ -362,4 +240,54 @@ task("app:upgrade", "Upgrade the AppAuth contract")
   .addFlag("dryRun", "Simulate the upgrade without executing it")
   .setAction(async (taskArgs, hre) => {
     await upgradeContract(hre, "AppAuth", taskArgs.address, taskArgs.dryRun);
+  });
+
+task("app:add-hash", "Add a compose hash to the AppAuth contract")
+  .addParam("appId", "App ID")
+  .addPositionalParam("hash", "Compose hash to add")
+  .setAction(async ({ appId, hash }, { ethers }) => {
+    const appAuth = await getAppAuth(ethers, appId);
+    const tx = await appAuth.addComposeHash(hash);
+    await waitTx(tx);
+    console.log("Compose hash added successfully");
+  });
+
+task("app:remove-hash", "Remove a compose hash from the AppAuth contract")
+  .addParam("appId", "App ID")
+  .addPositionalParam("hash", "Compose hash to remove")
+  .setAction(async ({ appId, hash }, { ethers }) => {
+    const appAuth = await getAppAuth(ethers, appId);
+    const tx = await appAuth.removeComposeHash(hash);
+    await waitTx(tx);
+    console.log("Compose hash removed successfully");
+  });
+
+task("app:add-device", "Add a device ID to the AppAuth contract")
+  .addParam("appId", "App ID")
+  .addPositionalParam("deviceId", "Device ID to add")
+  .setAction(async ({ appId, deviceId }, { ethers }) => {
+    const appAuth = await getAppAuth(ethers, appId);
+    const tx = await appAuth.addDevice(deviceId);
+    await waitTx(tx);
+    console.log("Device ID added successfully");
+  });
+
+task("app:remove-device", "Remove a device ID from the AppAuth contract")
+  .addParam("appId", "App ID")
+  .addPositionalParam("deviceId", "Device ID to remove")
+  .setAction(async ({ appId, deviceId }, { ethers }) => {
+    const appAuth = await getAppAuth(ethers, appId);
+    const tx = await appAuth.removeDevice(deviceId);
+    await waitTx(tx);
+    console.log("Device ID removed successfully");
+  });
+
+task("app:set-allow-any-device", "Set whether any device is allowed to boot this app")
+  .addParam("appId", "App ID")
+  .addFlag("allowAnyDevice", "Allow any device to boot this app")
+  .setAction(async ({ appId, allowAnyDevice }, { ethers }) => {
+    const appAuth = await getAppAuth(ethers, appId);
+    const tx = await appAuth.setAllowAnyDevice(allowAnyDevice);
+    await waitTx(tx);
+    console.log("Allow any device set successfully");
   });

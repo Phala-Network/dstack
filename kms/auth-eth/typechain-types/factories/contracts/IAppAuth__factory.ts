@@ -37,6 +37,11 @@ const _abi = [
           },
           {
             internalType: "bytes32",
+            name: "mrSystem",
+            type: "bytes32",
+          },
+          {
+            internalType: "bytes32",
             name: "mrImage",
             type: "bytes32",
           },

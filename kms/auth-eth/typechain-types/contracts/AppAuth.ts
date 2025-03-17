@@ -30,6 +30,7 @@ export declare namespace IAppAuth {
     instanceId: AddressLike;
     deviceId: BytesLike;
     mrAggregated: BytesLike;
+    mrSystem: BytesLike;
     mrImage: BytesLike;
   };
 
@@ -39,6 +40,7 @@ export declare namespace IAppAuth {
     instanceId: string,
     deviceId: string,
     mrAggregated: string,
+    mrSystem: string,
     mrImage: string
   ] & {
     appId: string;
@@ -46,6 +48,7 @@ export declare namespace IAppAuth {
     instanceId: string;
     deviceId: string;
     mrAggregated: string;
+    mrSystem: string;
     mrImage: string;
   };
 }
@@ -55,7 +58,10 @@ export interface AppAuthInterface extends Interface {
     nameOrSignature:
       | "UPGRADE_INTERFACE_VERSION"
       | "addComposeHash"
+      | "addDevice"
+      | "allowAnyDevice"
       | "allowedComposeHashes"
+      | "allowedDeviceIds"
       | "appId"
       | "disableUpgrades"
       | "initialize"
@@ -63,15 +69,20 @@ export interface AppAuthInterface extends Interface {
       | "owner"
       | "proxiableUUID"
       | "removeComposeHash"
+      | "removeDevice"
       | "renounceOwnership"
+      | "setAllowAnyDevice"
       | "transferOwnership"
       | "upgradeToAndCall"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "AllowAnyDeviceSet"
       | "ComposeHashAdded"
       | "ComposeHashRemoved"
+      | "DeviceAdded"
+      | "DeviceRemoved"
       | "Initialized"
       | "OwnershipTransferred"
       | "Upgraded"
@@ -87,7 +98,19 @@ export interface AppAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "addDevice",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "allowAnyDevice",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "allowedComposeHashes",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "allowedDeviceIds",
     values: [BytesLike]
   ): string;
   encodeFunctionData(functionFragment: "appId", values?: undefined): string;
@@ -97,7 +120,7 @@ export interface AppAuthInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "initialize",
-    values: [AddressLike, AddressLike, boolean]
+    values: [AddressLike, AddressLike, boolean, boolean]
   ): string;
   encodeFunctionData(
     functionFragment: "isAppAllowed",
@@ -113,8 +136,16 @@ export interface AppAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "removeDevice",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "renounceOwnership",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setAllowAnyDevice",
+    values: [boolean]
   ): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
@@ -133,8 +164,17 @@ export interface AppAuthInterface extends Interface {
     functionFragment: "addComposeHash",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "addDevice", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "allowAnyDevice",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "allowedComposeHashes",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "allowedDeviceIds",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "appId", data: BytesLike): Result;
@@ -157,7 +197,15 @@ export interface AppAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "removeDevice",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setAllowAnyDevice",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -168,6 +216,18 @@ export interface AppAuthInterface extends Interface {
     functionFragment: "upgradeToAndCall",
     data: BytesLike
   ): Result;
+}
+
+export namespace AllowAnyDeviceSetEvent {
+  export type InputTuple = [allowAny: boolean];
+  export type OutputTuple = [allowAny: boolean];
+  export interface OutputObject {
+    allowAny: boolean;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export namespace ComposeHashAddedEvent {
@@ -187,6 +247,30 @@ export namespace ComposeHashRemovedEvent {
   export type OutputTuple = [composeHash: string];
   export interface OutputObject {
     composeHash: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace DeviceAddedEvent {
+  export type InputTuple = [deviceId: BytesLike];
+  export type OutputTuple = [deviceId: string];
+  export interface OutputObject {
+    deviceId: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace DeviceRemovedEvent {
+  export type InputTuple = [deviceId: BytesLike];
+  export type OutputTuple = [deviceId: string];
+  export interface OutputObject {
+    deviceId: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -292,18 +376,29 @@ export interface AppAuth extends BaseContract {
     "nonpayable"
   >;
 
+  addDevice: TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
+
+  allowAnyDevice: TypedContractMethod<[], [boolean], "view">;
+
   allowedComposeHashes: TypedContractMethod<
     [arg0: BytesLike],
     [boolean],
     "view"
   >;
 
+  allowedDeviceIds: TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
+
   appId: TypedContractMethod<[], [string], "view">;
 
   disableUpgrades: TypedContractMethod<[], [void], "nonpayable">;
 
   initialize: TypedContractMethod<
-    [initialOwner: AddressLike, _appId: AddressLike, _disableUpgrades: boolean],
+    [
+      initialOwner: AddressLike,
+      _appId: AddressLike,
+      _disableUpgrades: boolean,
+      _allowAnyDevice: boolean
+    ],
     [void],
     "nonpayable"
   >;
@@ -324,7 +419,19 @@ export interface AppAuth extends BaseContract {
     "nonpayable"
   >;
 
+  removeDevice: TypedContractMethod<
+    [deviceId: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+
+  setAllowAnyDevice: TypedContractMethod<
+    [_allowAnyDevice: boolean],
+    [void],
+    "nonpayable"
+  >;
 
   transferOwnership: TypedContractMethod<
     [newOwner: AddressLike],
@@ -349,7 +456,16 @@ export interface AppAuth extends BaseContract {
     nameOrSignature: "addComposeHash"
   ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "addDevice"
+  ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "allowAnyDevice"
+  ): TypedContractMethod<[], [boolean], "view">;
+  getFunction(
     nameOrSignature: "allowedComposeHashes"
+  ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "allowedDeviceIds"
   ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "appId"
@@ -360,7 +476,12 @@ export interface AppAuth extends BaseContract {
   getFunction(
     nameOrSignature: "initialize"
   ): TypedContractMethod<
-    [initialOwner: AddressLike, _appId: AddressLike, _disableUpgrades: boolean],
+    [
+      initialOwner: AddressLike,
+      _appId: AddressLike,
+      _disableUpgrades: boolean,
+      _allowAnyDevice: boolean
+    ],
     [void],
     "nonpayable"
   >;
@@ -381,8 +502,14 @@ export interface AppAuth extends BaseContract {
     nameOrSignature: "removeComposeHash"
   ): TypedContractMethod<[composeHash: BytesLike], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "removeDevice"
+  ): TypedContractMethod<[deviceId: BytesLike], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setAllowAnyDevice"
+  ): TypedContractMethod<[_allowAnyDevice: boolean], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
@@ -394,6 +521,13 @@ export interface AppAuth extends BaseContract {
     "payable"
   >;
 
+  getEvent(
+    key: "AllowAnyDeviceSet"
+  ): TypedContractEvent<
+    AllowAnyDeviceSetEvent.InputTuple,
+    AllowAnyDeviceSetEvent.OutputTuple,
+    AllowAnyDeviceSetEvent.OutputObject
+  >;
   getEvent(
     key: "ComposeHashAdded"
   ): TypedContractEvent<
@@ -407,6 +541,20 @@ export interface AppAuth extends BaseContract {
     ComposeHashRemovedEvent.InputTuple,
     ComposeHashRemovedEvent.OutputTuple,
     ComposeHashRemovedEvent.OutputObject
+  >;
+  getEvent(
+    key: "DeviceAdded"
+  ): TypedContractEvent<
+    DeviceAddedEvent.InputTuple,
+    DeviceAddedEvent.OutputTuple,
+    DeviceAddedEvent.OutputObject
+  >;
+  getEvent(
+    key: "DeviceRemoved"
+  ): TypedContractEvent<
+    DeviceRemovedEvent.InputTuple,
+    DeviceRemovedEvent.OutputTuple,
+    DeviceRemovedEvent.OutputObject
   >;
   getEvent(
     key: "Initialized"
@@ -438,6 +586,17 @@ export interface AppAuth extends BaseContract {
   >;
 
   filters: {
+    "AllowAnyDeviceSet(bool)": TypedContractEvent<
+      AllowAnyDeviceSetEvent.InputTuple,
+      AllowAnyDeviceSetEvent.OutputTuple,
+      AllowAnyDeviceSetEvent.OutputObject
+    >;
+    AllowAnyDeviceSet: TypedContractEvent<
+      AllowAnyDeviceSetEvent.InputTuple,
+      AllowAnyDeviceSetEvent.OutputTuple,
+      AllowAnyDeviceSetEvent.OutputObject
+    >;
+
     "ComposeHashAdded(bytes32)": TypedContractEvent<
       ComposeHashAddedEvent.InputTuple,
       ComposeHashAddedEvent.OutputTuple,
@@ -458,6 +617,28 @@ export interface AppAuth extends BaseContract {
       ComposeHashRemovedEvent.InputTuple,
       ComposeHashRemovedEvent.OutputTuple,
       ComposeHashRemovedEvent.OutputObject
+    >;
+
+    "DeviceAdded(bytes32)": TypedContractEvent<
+      DeviceAddedEvent.InputTuple,
+      DeviceAddedEvent.OutputTuple,
+      DeviceAddedEvent.OutputObject
+    >;
+    DeviceAdded: TypedContractEvent<
+      DeviceAddedEvent.InputTuple,
+      DeviceAddedEvent.OutputTuple,
+      DeviceAddedEvent.OutputObject
+    >;
+
+    "DeviceRemoved(bytes32)": TypedContractEvent<
+      DeviceRemovedEvent.InputTuple,
+      DeviceRemovedEvent.OutputTuple,
+      DeviceRemovedEvent.OutputObject
+    >;
+    DeviceRemoved: TypedContractEvent<
+      DeviceRemovedEvent.InputTuple,
+      DeviceRemovedEvent.OutputTuple,
+      DeviceRemovedEvent.OutputObject
     >;
 
     "Initialized(uint64)": TypedContractEvent<

@@ -27,6 +27,7 @@ export declare namespace IAppAuth {
     instanceId: AddressLike;
     deviceId: BytesLike;
     mrAggregated: BytesLike;
+    mrSystem: BytesLike;
     mrImage: BytesLike;
   };
 
@@ -36,6 +37,7 @@ export declare namespace IAppAuth {
     instanceId: string,
     deviceId: string,
     mrAggregated: string,
+    mrSystem: string,
     mrImage: string
   ] & {
     appId: string;
@@ -43,6 +45,7 @@ export declare namespace IAppAuth {
     instanceId: string;
     deviceId: string;
     mrAggregated: string;
+    mrSystem: string;
     mrImage: string;
   };
 }

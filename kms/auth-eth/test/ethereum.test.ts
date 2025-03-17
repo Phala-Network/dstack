@@ -28,9 +28,10 @@ describe('EthereumBackend', () => {
       appId,
       composeHash: ethers.encodeBytes32String('0x1234567890abcdef'),
       instanceId: ethers.Wallet.createRandom().address,
-      deviceId: ethers.encodeBytes32String('0x123'),
-      mrAggregated: ethers.encodeBytes32String('0x1234'),
-      mrImage: ethers.encodeBytes32String('0x5678')
+      deviceId: ethers.encodeBytes32String('0x1234'),
+      mrAggregated: ethers.encodeBytes32String('22'),
+      mrImage: ethers.encodeBytes32String('33'),
+      mrSystem: ethers.encodeBytes32String('44')
     };
 
     // Set up KMS info
@@ -42,8 +43,8 @@ describe('EthereumBackend', () => {
     });
 
     // Register enclave and image
-    await kmsAuth.registerAggregatedMr(mockBootInfo.mrAggregated);
-    await kmsAuth.registerImage(mockBootInfo.mrImage);
+    await kmsAuth.addKmsAggregatedMr(mockBootInfo.mrAggregated);
+    await kmsAuth.addAppImageMr(mockBootInfo.mrImage);
     await appAuth.addComposeHash(mockBootInfo.composeHash);
   });
 
@@ -75,15 +76,15 @@ describe('EthereumBackend', () => {
     });
 
     it('should return false when enclave and image are not registered', async () => {
-      const badMrAggregated = ethers.encodeBytes32String('9999');
+      const badMrSystem = ethers.encodeBytes32String('9999');
       const badMrImage = ethers.encodeBytes32String('9999');
       const badBootInfo = {
         ...mockBootInfo,
-        mrAggregated: badMrAggregated,
+        mrSystem: badMrSystem,
         mrImage: badMrImage
       };
       const result = await backend.checkBoot(badBootInfo, false);
-      expect(result.reason).toBe('Neither aggregated MR nor image is allowed');
+      expect(result.reason).toBe('Neither system MR nor image is allowed');
       expect(result.isAllowed).toBe(false);
     });
 
