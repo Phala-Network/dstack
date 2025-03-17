@@ -322,8 +322,8 @@ class TeepodCLI:
                 raise Exception("Aborted due to invalid signature")
             return response['public_key']
 
-        public_key = bytes(response['public_key'])
-        signature = bytes(response['signature'])
+        public_key = bytes.fromhex(response['public_key'])
+        signature = bytes.fromhex(response['signature'])
 
         signer_pubkey = verify_signature(public_key, signature, app_id)
         if signer_pubkey:
