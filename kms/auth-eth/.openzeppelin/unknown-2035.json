@@ -1,0 +1,247 @@
+{
+  "manifestVersion": "3.2",
+  "proxies": [
+    {
+      "address": "0xAe43C1d4814F665aA4E08EC3589309DFf939A049",
+      "txHash": "0x3b9cd0bffb523b091062ac817270eb92c5c3ad21b48f805229acc1fa32dd1cd1",
+      "kind": "uups"
+    }
+  ],
+  "impls": {
+    "06254893ab0147e7386e876a3db3cb5979f08364ff8d15a618ffe81e55e0d2d7": {
+      "address": "0xCF80F10a2582fc70084A3C8906A0d81C8064313e",
+      "txHash": "0x6d0bda764312307e77ef140ee97f3dbf1fa70d2515630147caa0cd58100bb060",
+      "layout": {
+        "solcVersion": "0.8.22",
+        "storage": [
+          {
+            "label": "kmsInfo",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_struct(KmsInfo)1468_storage",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:24"
+          },
+          {
+            "label": "tproxyAppId",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_string_storage",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:27"
+          },
+          {
+            "label": "apps",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_mapping(t_address,t_struct(AppConfig)1478_storage)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:36"
+          },
+          {
+            "label": "kmsAllowedAggregatedMrs",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:39"
+          },
+          {
+            "label": "kmsAllowedDeviceIds",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:42"
+          },
+          {
+            "label": "appAllowedImages",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:45"
+          },
+          {
+            "label": "appAllowedSystemMrs",
+            "offset": 0,
+            "slot": "9",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:48"
+          },
+          {
+            "label": "nextAppSequence",
+            "offset": 0,
+            "slot": "10",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:51"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "11",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:220"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)73_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_bytes_storage": {
+            "label": "bytes",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(AppConfig)1478_storage)": {
+            "label": "mapping(address => struct KmsAuth.AppConfig)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_bool)": {
+            "label": "mapping(bytes32 => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AppConfig)1478_storage": {
+            "label": "struct KmsAuth.AppConfig",
+            "members": [
+              {
+                "label": "isRegistered",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "controller",
+                "type": "t_address",
+                "offset": 1,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(KmsInfo)1468_storage": {
+            "label": "struct KmsAuth.KmsInfo",
+            "members": [
+              {
+                "label": "k256Pubkey",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "caPubkey",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "quote",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "eventlog",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
