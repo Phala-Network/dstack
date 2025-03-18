@@ -487,7 +487,8 @@ impl App {
         let pci_devices = self.config.cvm.gpu.list_devices()?;
         let used_slots = pci_devices
             .iter()
-            .map(|d| d.slot.clone())
+            .filter(|dev| dev.in_use())
+            .map(|dev| dev.slot.clone())
             .collect::<HashSet<_>>();
         let mut state = self.lock();
         state.gpu_pool.iter_mut().for_each(|gpu| {
