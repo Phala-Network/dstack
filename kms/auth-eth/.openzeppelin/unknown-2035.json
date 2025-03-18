@@ -404,6 +404,388 @@
           ]
         }
       }
+    },
+    "89c97afa69756426df77fc97d82e5c11eac0418fe007d4e33f25e5fda8da0d53": {
+      "address": "0xbc5f51A0326CD7407c1b6024624868F0Fa6Ebc53",
+      "txHash": "0x7d7af9e5fc0eba092f9e8a2893b83bb2f802b278637870df088b7ea1cd9ee3c8",
+      "layout": {
+        "solcVersion": "0.8.22",
+        "storage": [
+          {
+            "label": "kmsInfo",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_struct(KmsInfo)1756_storage",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:24"
+          },
+          {
+            "label": "tproxyAppId",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_string_storage",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:27"
+          },
+          {
+            "label": "apps",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_mapping(t_address,t_struct(AppConfig)1766_storage)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:36"
+          },
+          {
+            "label": "kmsAllowedAggregatedMrs",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:39"
+          },
+          {
+            "label": "kmsAllowedDeviceIds",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:42"
+          },
+          {
+            "label": "appAllowedImages",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:45"
+          },
+          {
+            "label": "appAllowedSystemMrs",
+            "offset": 0,
+            "slot": "9",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:48"
+          },
+          {
+            "label": "nextAppSequence",
+            "offset": 0,
+            "slot": "10",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:51"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "11",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "KmsAuth",
+            "src": "contracts/KmsAuth.sol:220"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)73_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_bytes_storage": {
+            "label": "bytes",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(AppConfig)1766_storage)": {
+            "label": "mapping(address => struct KmsAuth.AppConfig)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_bool)": {
+            "label": "mapping(bytes32 => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AppConfig)1766_storage": {
+            "label": "struct KmsAuth.AppConfig",
+            "members": [
+              {
+                "label": "isRegistered",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "controller",
+                "type": "t_address",
+                "offset": 1,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(KmsInfo)1756_storage": {
+            "label": "struct KmsAuth.KmsInfo",
+            "members": [
+              {
+                "label": "k256Pubkey",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "caPubkey",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "quote",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "eventlog",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "607131dd39eca51db37bc60c7c38665d235ec07ebb77f33e42d12049c840fdd8": {
+      "address": "0xF048047F2f488A8aA7ea807cdF6E24504715439A",
+      "txHash": "0x82dfa21e41deb360d47de74f43a760702f75024842504fa2587ff0995c300bbf",
+      "layout": {
+        "solcVersion": "0.8.22",
+        "storage": [
+          {
+            "label": "appId",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address",
+            "contract": "AppAuth",
+            "src": "contracts/AppAuth.sol:16"
+          },
+          {
+            "label": "allowedComposeHashes",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "AppAuth",
+            "src": "contracts/AppAuth.sol:19"
+          },
+          {
+            "label": "_upgradesDisabled",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_bool",
+            "contract": "AppAuth",
+            "src": "contracts/AppAuth.sol:22"
+          },
+          {
+            "label": "allowAnyDevice",
+            "offset": 1,
+            "slot": "2",
+            "type": "t_bool",
+            "contract": "AppAuth",
+            "src": "contracts/AppAuth.sol:25"
+          },
+          {
+            "label": "allowedDeviceIds",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_mapping(t_bytes32,t_bool)",
+            "contract": "AppAuth",
+            "src": "contracts/AppAuth.sol:28"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "AppAuth",
+            "src": "contracts/AppAuth.sol:123"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)73_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_bool)": {
+            "label": "mapping(bytes32 => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
     }
   }
 }
