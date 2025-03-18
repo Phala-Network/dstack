@@ -485,6 +485,10 @@ impl App {
         }
 
         let pci_devices = self.config.cvm.gpu.list_devices()?;
+        let used_slots = pci_devices
+            .iter()
+            .map(|d| d.slot.clone())
+            .collect::<HashSet<_>>();
         let mut state = self.lock();
         state.gpu_pool.iter_mut().for_each(|gpu| {
             gpu.pci_in_use = false;
@@ -505,7 +509,13 @@ impl App {
             if vm.config.manifest.gpus.is_empty() {
                 continue;
             }
-            allocated_devices.extend(vm.state.devices.iter().cloned());
+            allocated_devices.extend(
+                vm.state
+                    .devices
+                    .iter()
+                    .filter(|slot| used_slots.contains(*slot))
+                    .cloned(),
+            );
         }
         for gpu in state.gpu_pool.iter_mut() {
             if allocated_devices.contains(&gpu.slot) {
