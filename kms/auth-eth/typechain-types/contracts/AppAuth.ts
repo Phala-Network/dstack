@@ -32,6 +32,8 @@ export declare namespace IAppAuth {
     mrAggregated: BytesLike;
     mrSystem: BytesLike;
     mrImage: BytesLike;
+    tcbStatus: string;
+    advisoryIds: string[];
   };
 
   export type AppBootInfoStructOutput = [
@@ -41,7 +43,9 @@ export declare namespace IAppAuth {
     deviceId: string,
     mrAggregated: string,
     mrSystem: string,
-    mrImage: string
+    mrImage: string,
+    tcbStatus: string,
+    advisoryIds: string[]
   ] & {
     appId: string;
     composeHash: string;
@@ -50,6 +54,8 @@ export declare namespace IAppAuth {
     mrAggregated: string;
     mrSystem: string;
     mrImage: string;
+    tcbStatus: string;
+    advisoryIds: string[];
   };
 }
 

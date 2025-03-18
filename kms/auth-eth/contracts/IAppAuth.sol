@@ -10,6 +10,8 @@ interface IAppAuth {
         bytes32 mrAggregated;
         bytes32 mrSystem;
         bytes32 mrImage;
+        string tcbStatus;
+        string[] advisoryIds;
     }
 
     function isAppAllowed(

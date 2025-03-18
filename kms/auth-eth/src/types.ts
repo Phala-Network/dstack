@@ -1,4 +1,6 @@
 export interface BootInfo {
+  tcbStatus: string;
+  advisoryIds: string[];
   mrAggregated: string;
   mrImage: string;
   mrSystem: string;

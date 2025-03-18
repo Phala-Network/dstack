@@ -25,6 +25,8 @@ describe('EthereumBackend', () => {
 
     // Create mock boot info with valid addresses
     mockBootInfo = {
+      tcbStatus: "UpToDate",
+      advisoryIds: [],
       appId,
       composeHash: ethers.encodeBytes32String('0x1234567890abcdef'),
       instanceId: ethers.Wallet.createRandom().address,
