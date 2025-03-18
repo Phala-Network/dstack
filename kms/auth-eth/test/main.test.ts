@@ -14,6 +14,8 @@ jest.mock('../src/ethereum', () => {
 describe('Server', () => {
   let app: FastifyInstance;
   const mockBootInfo: BootInfo = {
+    tcbStatus: "UpToDate",
+    advisoryIds: [],
     mrAggregated: '0x1234',
     mrImage: '0x5678',
     mrSystem: '0x9012',

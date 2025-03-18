@@ -45,6 +45,16 @@ const _abi = [
             name: "mrImage",
             type: "bytes32",
           },
+          {
+            internalType: "string",
+            name: "tcbStatus",
+            type: "string",
+          },
+          {
+            internalType: "string[]",
+            name: "advisoryIds",
+            type: "string[]",
+          },
         ],
         internalType: "struct IAppAuth.AppBootInfo",
         name: "bootInfo",

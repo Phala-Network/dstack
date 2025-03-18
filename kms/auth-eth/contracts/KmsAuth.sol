@@ -131,9 +131,7 @@ contract KmsAuth is
     }
 
     // Function to deregister an aggregated MR measurement
-    function removeKmsAggregatedMr(
-        bytes32 mrAggregated
-    ) external onlyOwner {
+    function removeKmsAggregatedMr(bytes32 mrAggregated) external onlyOwner {
         kmsAllowedAggregatedMrs[mrAggregated] = false;
         emit KmsAggregatedMrRemoved(mrAggregated);
     }
@@ -178,6 +176,14 @@ contract KmsAuth is
     function isKmsAllowed(
         AppBootInfo calldata bootInfo
     ) external view returns (bool isAllowed, string memory reason) {
+        // Check if the TCB status is up to date
+        if (
+            keccak256(abi.encodePacked(bootInfo.tcbStatus)) !=
+            keccak256(abi.encodePacked("UpToDate"))
+        ) {
+            return (false, "TCB status is not up to date");
+        }
+
         // Check if the aggregated MR is allowed
         if (!kmsAllowedAggregatedMrs[bootInfo.mrAggregated]) {
             return (false, "Aggregated MR not allowed");

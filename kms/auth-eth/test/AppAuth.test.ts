@@ -75,7 +75,9 @@ describe("AppAuth", function () {
         deviceId,
         mrAggregated,
         mrImage,
-        mrSystem
+        mrSystem,
+        tcbStatus: "UpToDate",
+        advisoryIds: []
       };
 
       const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);
@@ -85,6 +87,8 @@ describe("AppAuth", function () {
 
     it("Should reject invalid app ID", async function () {
       const bootInfo = {
+        tcbStatus: "UpToDate",
+        advisoryIds: [],
         appId: ethers.Wallet.createRandom().address,
         composeHash,
         instanceId,
@@ -101,6 +105,8 @@ describe("AppAuth", function () {
 
     it("Should reject unallowed compose hash", async function () {
       const bootInfo = {
+        tcbStatus: "UpToDate",
+        advisoryIds: [],
         appId: appId,
         composeHash: ethers.randomBytes(32),
         instanceId,

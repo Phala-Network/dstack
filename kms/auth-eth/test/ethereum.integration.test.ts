@@ -38,6 +38,8 @@ describe('Integration Tests', () => {
         mrImage: ethers.encodeBytes32String('22'),
         composeHash: ethers.encodeBytes32String('33'),
         mrSystem: ethers.encodeBytes32String('44'),
+        tcbStatus: "UpToDate",
+        advisoryIds: []
       };
     });
 
@@ -89,6 +91,8 @@ describe('Integration Tests', () => {
     beforeEach(async () => {
       appId = global.testContracts.appId;
       mockBootInfo = {
+        tcbStatus: "UpToDate",
+        advisoryIds: [],
         appId,
         composeHash: ethers.encodeBytes32String("33"),
         instanceId: ethers.Wallet.createRandom().address,

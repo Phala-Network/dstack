@@ -127,6 +127,8 @@ impl RpcHandler {
             key_provider_info: app_info.key_provider_info,
             event_log: String::from_utf8(att.raw_event_log.clone())
                 .context("Failed to serialize event log")?,
+            tcb_status: att.report.status.clone(),
+            advisory_ids: att.report.advisory_ids.clone(),
         };
         let response = self
             .state
