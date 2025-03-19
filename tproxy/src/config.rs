@@ -14,7 +14,7 @@ pub struct WgConfig {
     pub private_key: String,
     pub listen_port: u16,
     pub ip: Ipv4Net,
-    pub reserved_net: Ipv4Net,
+    pub reserved_net: Vec<Ipv4Net>,
     pub client_ip_range: Ipv4Net,
     pub interface: String,
     pub config_path: String,
@@ -23,18 +23,20 @@ pub struct WgConfig {
 
 impl WgConfig {
     fn validate(&self) -> Result<()> {
-        validate(self.ip, self.reserved_net, self.client_ip_range)
+        validate(self.ip, &self.reserved_net, self.client_ip_range)
     }
 }
 
-fn validate(ip: Ipv4Net, reserved_net: Ipv4Net, client_ip_range: Ipv4Net) -> Result<()> {
+fn validate(ip: Ipv4Net, reserved_net: &[Ipv4Net], client_ip_range: Ipv4Net) -> Result<()> {
     // The reserved net must be in the network
-    if !ip.contains(&reserved_net) {
-        bail!("Reserved net is not in the network");
+    for net in reserved_net {
+        if !ip.contains(net) {
+            bail!("Reserved net is not in the network");
+        }
     }
 
-    // The ip must be in the reserved net
-    if !reserved_net.contains(&ip.addr()) {
+    // The ip must be in one of the reserved net
+    if !reserved_net.iter().any(|net| net.contains(&ip.addr())) {
         bail!("Wg peer IP is not in the reserved net");
     }
 
@@ -294,7 +296,7 @@ mod tests {
         let reserved_net = Ipv4Net::from_str("10.1.2.0/30").unwrap();
         let result = validate(
             ip,
-            reserved_net,
+            &[reserved_net],
             Ipv4Net::from_str("10.1.2.128/25").unwrap(),
         );
         assert!(result.is_ok());
@@ -304,7 +306,7 @@ mod tests {
         let reserved_net = Ipv4Net::from_str("10.1.0.0/16").unwrap();
         let result = validate(
             ip,
-            reserved_net,
+            &[reserved_net],
             Ipv4Net::from_str("10.2.0.128/25").unwrap(),
         );
         assert!(result.is_err());
@@ -318,7 +320,7 @@ mod tests {
         let reserved_net = Ipv4Net::from_str("10.1.2.0/30").unwrap();
         let result = validate(
             ip,
-            reserved_net,
+            &[reserved_net],
             Ipv4Net::from_str("10.1.2.128/25").unwrap(),
         );
         assert!(result.is_err());
@@ -332,7 +334,7 @@ mod tests {
         let reserved_net = Ipv4Net::from_str("10.1.2.0/30").unwrap();
         let result = validate(
             ip,
-            reserved_net,
+            &[reserved_net],
             Ipv4Net::from_str("10.1.3.128/25").unwrap(),
         );
         assert!(result.is_err());
