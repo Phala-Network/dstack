@@ -669,6 +669,9 @@
                             </div>
                         </div>
                     </div>
+                    <div class="app-id-preview">
+                        Compose Hash: 0x{{ composeHashPreview }}
+                    </div>
 
                     <div class="vm-actions">
                         <button type="submit" class="action-btn primary">Deploy</button>
@@ -930,6 +933,9 @@
                         <textarea id="userConfig" v-model="upgradeDialog.user_config"
                             placeholder="Optional: User config to be put at /tapp/.user-config in the CVM"></textarea>
                     </div>
+                    <div class="app-id-preview">
+                        Compose Hash: 0x{{ upgradeComposeHashPreview }}
+                    </div>
                 </div>
                 <div style="display: flex; align-items: center; margin-top: 16px;">
                     <input type="checkbox" v-model="upgradeDialog.resetSecrets" style="width: 16px; height: 16px;">
@@ -1020,7 +1026,8 @@
             createApp,
             ref,
             onMounted,
-            watch
+            watch,
+            computed
         } = Vue;
 
         createApp({
@@ -1183,10 +1190,14 @@
                     return JSON.stringify(app_compose);
                 };
 
-                const calcAppId = async () => {
-                    const app_compose = makeAppComposeFile();
+                const calcComposeHash = async (app_compose) => {
                     const sha256Hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(app_compose));
-                    return Array.from(new Uint8Array(sha256Hash)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
+                    return Array.from(new Uint8Array(sha256Hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+                }
+
+                const calcAppId = async () => {
+                    const composeHash = await calcComposeHash(makeAppComposeFile());
+                    return composeHash.slice(0, 40);
                 };
 
                 const encryptEnv = async (envs, hexPublicKey) => {
@@ -1449,6 +1460,16 @@
                     }
                 };
 
+                const updatedCompose = () => {
+                    const currentAppCompose = upgradeDialog.value.vm.appCompose;
+                    const app_compose = {
+                        ...currentAppCompose,
+                        docker_compose_file: upgradeDialog.value.dockerComposeFile || currentAppCompose.docker_compose_file
+                    };
+                    app_compose.pre_launch_script = upgradeDialog.value.preLaunchScript?.trim();
+                    return JSON.stringify(app_compose);
+                }
+
                 const upgradeVM = async () => {
                     try {
                         const vm = upgradeDialog.value.vm;
@@ -1470,13 +1491,7 @@
                             id: upgradeDialog.value.vm.id,
                         };
                         if (upgradeDialog.value.updateCompose) {
-                            const currentAppCompose = upgradeDialog.value.vm.appCompose;
-                            const app_compose = {
-                                ...currentAppCompose,
-                                docker_compose_file: upgradeDialog.value.dockerComposeFile || currentAppCompose.docker_compose_file
-                            };
-                            app_compose.pre_launch_script = upgradeDialog.value.preLaunchScript?.trim();
-                            body.compose_file = JSON.stringify(app_compose);
+                            body.compose_file = updatedCompose();
                         }
 
                         if (upgradeDialog.value.resetSecrets) {
@@ -1679,6 +1694,45 @@
                     return "running";
                 };
 
+                const composeHashPreview = ref('');
+                const upgradeComposeHashPreview = ref('');
+
+                // Watch for changes to relevant form fields and update the hash preview
+                watch([
+                    () => vmForm.value.name,
+                    () => vmForm.value.dockerComposeFile,
+                    () => vmForm.value.preLaunchScript,
+                    () => vmForm.value.kms_enabled,
+                    () => vmForm.value.tproxy_enabled,
+                    () => vmForm.value.public_logs,
+                    () => vmForm.value.public_sysinfo,
+                    () => vmForm.value.local_key_provider_enabled,
+                    () => vmForm.value.docker_config.enabled,
+                    () => vmForm.value.docker_config.username,
+                    () => vmForm.value.docker_config.token_key
+                ], async () => {
+                    try {
+                        composeHashPreview.value = await calcComposeHash(makeAppComposeFile());
+                    } catch (error) {
+                        composeHashPreview.value = 'Error calculating hash';
+                    }
+                }, { deep: true });
+
+                // Watch for changes to upgrade dialog compose fields
+                watch([
+                    () => upgradeDialog.value.dockerComposeFile,
+                    () => upgradeDialog.value.preLaunchScript
+                ], async () => {
+                    if (!upgradeDialog.value.show || !upgradeDialog.value.updateCompose) return;
+
+                    try {
+                        // Calculate hash with upgrade values
+                        upgradeComposeHashPreview.value = await calcComposeHash(updatedCompose());
+                    } catch (error) {
+                        upgradeComposeHashPreview.value = 'Error calculating hash';
+                    }
+                }, { deep: true });
+
                 return {
                     vms,
                     vmForm,
@@ -1722,6 +1776,8 @@
                     getFlags,
                     version,
                     showDeployDialog,
+                    composeHashPreview,
+                    upgradeComposeHashPreview,
                 };
             }
         }).mount('#app');
