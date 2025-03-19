@@ -21,7 +21,7 @@ tproxy_urls = ["http://127.0.0.1:8082"]
 # PCCS URL used by guest to verify the quote from local key provider
 pccs_url = ""
 docker_registry = ""
-max_disk_size = 100
+max_disk_size = 500
 cid_start = 1000
 cid_pool_size = 1000
 max_allocable_vcpu = 20
