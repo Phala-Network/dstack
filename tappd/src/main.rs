@@ -140,7 +140,7 @@ async fn run_watchdog(port: u16) {
                 error!("Health check failed with status: {}", response.status());
             }
             Err(err) => {
-                error!("Health check request failed: {}", err);
+                error!("Health check request failed: {err:?}");
             }
         }
     }
