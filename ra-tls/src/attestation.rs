@@ -1,8 +1,11 @@
 //! Attestation functions
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use dcap_qvl::quote::Quote;
-use qvl::{quote::Report, verify::VerifiedReport};
+use qvl::{
+    quote::{EnclaveReport, Report, TDReport10, TDReport15},
+    verify::VerifiedReport,
+};
 use serde::Serialize;
 use sha2::{Digest as _, Sha384};
 use x509_parser::parse_x509_certificate;
@@ -77,7 +80,7 @@ impl QuoteContentType<'_> {
             "keccak384" => do_hash!(sha3::Keccak384),
             "keccak512" => do_hash!(sha3::Keccak512),
             "raw" => content.try_into().ok().context("invalid content length")?,
-            _ => anyhow::bail!("invalid hash algorithm"),
+            _ => bail!("invalid hash algorithm"),
         };
         Ok(output)
     }
@@ -289,7 +292,7 @@ impl Attestation {
     ) -> Result<VerifiedAttestation> {
         let quote = &self.quote;
         if &self.decode_report_data()? != report_data {
-            anyhow::bail!("report data mismatch");
+            bail!("report data mismatch");
         }
         let report = qvl::collateral::get_collateral_and_verify(quote, pccs_url)
             .await
@@ -300,9 +303,10 @@ impl Attestation {
                 .replay_event_logs(None)
                 .context("Failed to replay event logs")?;
             if rtmrs != [report.rt_mr0, report.rt_mr1, report.rt_mr2, report.rt_mr3] {
-                anyhow::bail!("RTMR mismatch");
+                bail!("RTMR mismatch");
             }
         }
+        validate_tcb(&report)?;
         Ok(VerifiedAttestation {
             quote: self.quote,
             raw_event_log: self.raw_event_log,
@@ -313,6 +317,47 @@ impl Attestation {
 }
 
 impl Attestation<VerifiedReport> {}
+
+/// Validate the TCB attributes
+pub fn validate_tcb(report: &VerifiedReport) -> Result<()> {
+    fn validate_td10(report: &TDReport10) -> Result<()> {
+        let is_debug = report.td_attributes[0] & 0x01 != 0;
+        if is_debug {
+            bail!("Debug mode is not allowed");
+        }
+        if report.mr_signer_seam != [0u8; 48] {
+            bail!("Invalid mr signer seam");
+        }
+        if report.mr_config_id != [0u8; 48] {
+            bail!("Invalid mr config id");
+        }
+        if report.mr_owner != [0u8; 48] {
+            bail!("Invalid mr owner");
+        }
+        if report.mr_owner_config != [0u8; 48] {
+            bail!("Invalid mr owner config");
+        }
+        Ok(())
+    }
+    fn validate_td15(report: &TDReport15) -> Result<()> {
+        if report.mr_service_td != [0u8; 48] {
+            bail!("Invalid mr service td");
+        }
+        validate_td10(&report.base)
+    }
+    fn validate_sgx(report: &EnclaveReport) -> Result<()> {
+        let is_debug = report.attributes[0] & 0x02 != 0;
+        if is_debug {
+            bail!("Debug mode is not allowed");
+        }
+        Ok(())
+    }
+    match &report.report {
+        Report::TD15(report) => validate_td15(report),
+        Report::TD10(report) => validate_td10(report),
+        Report::SgxEnclave(report) => validate_sgx(report),
+    }
+}
 
 /// Information about the app extracted from event log
 #[derive(Debug, Clone, Serialize)]

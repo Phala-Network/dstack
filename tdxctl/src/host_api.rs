@@ -8,6 +8,7 @@ use host_api::{
     Notification,
 };
 use key_provider_client::guest::{generate_keypair, open_sealed_box, PUBLICKEYBYTES};
+use ra_tls::attestation::validate_tcb;
 use tracing::warn;
 
 pub(crate) struct KeyProvision {
@@ -103,6 +104,7 @@ impl HostApi {
             dcap_qvl::verify::verify(&provision.provider_quote, &quote_collateral, now)
                 .ok()
                 .context("Failed to verify key provider quote")?;
+        validate_tcb(&verified_report)?;
         let sgx_report = verified_report
             .report
             .as_sgx()
