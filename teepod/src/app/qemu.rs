@@ -3,7 +3,9 @@ use crate::{
     app::Manifest,
     config::{CvmConfig, GatewayConfig, Networking, ProcessNote},
 };
+use std::os::unix::fs::PermissionsExt;
 use std::{
+    fs::Permissions,
     ops::Deref,
     path::{Path, PathBuf},
     process::Command,
@@ -196,6 +198,10 @@ impl VmConfig {
         if !hda_path.exists() {
             create_hd(&hda_path, self.image.hda.as_ref(), &disk_size)?;
         }
+        if !cfg.user.is_empty() {
+            fs_err::set_permissions(&hda_path, Permissions::from_mode(0o660))?;
+        }
+
         if !shared_dir.exists() {
             fs::create_dir_all(&shared_dir)?;
         }
@@ -340,8 +346,11 @@ impl VmConfig {
             cmd_args.splice(0..0, ["taskset", "-c", &cpus].into_iter().map(|s| s.into()));
         }
 
-        if cfg.sudo {
-            cmd_args.insert(0, "sudo".into());
+        if !cfg.user.is_empty() {
+            cmd_args.splice(
+                0..0,
+                ["sudo", "-u", &cfg.user].into_iter().map(|s| s.into()),
+            );
         }
 
         let command = cmd_args.remove(0);

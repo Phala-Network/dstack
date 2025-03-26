@@ -28,8 +28,8 @@ max_allocable_vcpu = 20
 max_allocable_memory_in_mb = 100_000 # MB
 # Enable QMP socket
 qmp_socket = true
-# Use sudo to run the VM
-sudo = false
+# The user to run the VM as. If empty, the VM will be run as the current user.
+user = ""
 
 [cvm.port_mapping]
 enabled = false
