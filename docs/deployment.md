@@ -47,10 +47,10 @@ port = 9300
 EOF
 
 # Download Guest OS images
-wget "https://github.com/Dstack-TEE/meta-dstack/releases/download/v0.4.0/dstack-0.4.0.tar.gz"
-mkdir -p images/dstack-0.4.0/
-tar -xvf dstack-0.4.0.tar.gz -C images/dstack-0.4.0/
-rm -f dstack-0.4.0.tar.gz
+wget "https://github.com/Dstack-TEE/meta-dstack/releases/download/v0.4.1/dstack-0.4.1.tar.gz"
+mkdir -p images/
+tar -xvf dstack-0.4.1.tar.gz -C images/
+rm -f dstack-0.4.1.tar.gz
 
 # run teepod
 ./teepod
