@@ -100,7 +100,7 @@ pub struct CvmConfig {
     /// GPU configuration
     pub gpu: GpuConfig,
     /// Use sudo to run the VM
-    pub sudo: bool,
+    pub user: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
