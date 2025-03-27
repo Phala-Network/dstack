@@ -332,23 +332,27 @@ impl App {
                         || vm.config.manifest.image.contains(&request.keyword)
                 }
             })
+            .cloned()
+            .collect::<Vec<_>>();
+        infos.sort_by(|a, b| {
+            a.config
+                .manifest
+                .created_at_ms
+                .cmp(&b.config.manifest.created_at_ms)
+        });
+
+        let total = infos.len() as u32;
+        let vms = paginate(infos, request.page, request.page_size)
             .map(|vm| {
                 vm.merged_info(
                     vms.get(&vm.config.manifest.id),
                     &self.work_dir(&vm.config.manifest.id),
                 )
             })
+            .map(|info| info.to_pb(&self.config.gateway))
             .collect::<Vec<_>>();
-
-        infos.sort_by(|a, b| a.manifest.created_at_ms.cmp(&b.manifest.created_at_ms));
-
-        let total = infos.len() as u32;
-
-        infos = paginate(infos, request.page, request.page_size);
-
-        let gw = &self.config.gateway;
         Ok(StatusResponse {
-            vms: infos.into_iter().map(|info| info.to_pb(gw)).collect(),
+            vms,
             port_mapping_enabled: self.config.cvm.port_mapping.enabled,
             total,
         })
@@ -603,18 +607,19 @@ impl App {
     }
 }
 
-fn paginate<T>(items: Vec<T>, page: u32, page_size: u32) -> Vec<T> {
+fn paginate<T>(items: Vec<T>, page: u32, page_size: u32) -> impl Iterator<Item = T> {
+    let skip;
+    let take;
     if page == 0 || page_size == 0 {
-        return items;
+        skip = 0;
+        take = items.len();
+    } else {
+        let page = page - 1;
+        let start = page * page_size;
+        skip = start as usize;
+        take = page_size as usize;
     }
-    let page = page - 1;
-    let start = page * page_size;
-    let end = start + page_size;
-    items
-        .into_iter()
-        .skip(start as usize)
-        .take(end as usize)
-        .collect()
+    items.into_iter().skip(skip).take(take)
 }
 
 #[derive(Clone)]
