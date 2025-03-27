@@ -2108,12 +2108,10 @@
 
                     // Add a click event listener to the document to close the dropdown when clicking outside
                     const closeDropdowns = (e) => {
-                        if (!e.target.matches('.dropdown-toggle') && !e.target.closest('.dropdown-content')) {
-                            document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-                                dropdown.classList.remove('show');
-                            });
-                            document.removeEventListener('click', closeDropdowns);
-                        }
+                        document.querySelectorAll('.dropdown-content').forEach(dropdown => {
+                            dropdown.classList.remove('show');
+                        });
+                        document.removeEventListener('click', closeDropdowns);
                     };
 
                     document.addEventListener('click', closeDropdowns);
