@@ -1314,7 +1314,7 @@
                 const searchQuery = ref('');
                 const currentPage = ref(1);
                 const pageInput = ref(1);
-                const pageSize = ref(50);
+                const pageSize = ref(parseInt(localStorage.getItem('pageSize')) || 50);
                 const totalVMs = ref(0);
                 const hasMorePages = ref(false);
                 const loadingVMDetails = ref(false);
@@ -2239,6 +2239,16 @@
                         upgradeComposeHashPreview.value = 'Error calculating hash';
                     }
                 }, { deep: true });
+
+                // Watch for changes to searchQuery and reset page to 1
+                watch(searchQuery, () => {
+                    currentPage.value = 1;
+                    pageInput.value = 1;
+                });
+
+                watch(pageSize, (newValue) => {
+                    localStorage.setItem('pageSize', newValue);
+                });
 
                 return {
                     vms,
