@@ -16,7 +16,7 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use supervisor_client::SupervisorClient;
-use teepod_rpc::{self as pb, GpuInfo, VmConfiguration};
+use teepod_rpc::{self as pb, GpuInfo, StatusRequest, StatusResponse, VmConfiguration};
 use tracing::{error, info};
 
 pub use image::{Image, ImageInfo};
@@ -306,7 +306,7 @@ impl App {
         Ok(())
     }
 
-    pub async fn list_vms(&self) -> Result<Vec<pb::VmInfo>> {
+    pub async fn list_vms(&self, request: StatusRequest) -> Result<StatusResponse> {
         let vms = self
             .supervisor
             .list()
@@ -319,6 +319,19 @@ impl App {
         let mut infos = self
             .lock()
             .iter_vms()
+            .filter(|vm| {
+                if !request.ids.is_empty() && !request.ids.contains(&vm.config.manifest.id) {
+                    return false;
+                }
+                if request.keyword.is_empty() {
+                    true
+                } else {
+                    vm.config.manifest.name.contains(&request.keyword)
+                        || vm.config.manifest.id.contains(&request.keyword)
+                        || vm.config.manifest.app_id.contains(&request.keyword)
+                        || vm.config.manifest.image.contains(&request.keyword)
+                }
+            })
             .map(|vm| {
                 vm.merged_info(
                     vms.get(&vm.config.manifest.id),
@@ -328,10 +341,17 @@ impl App {
             .collect::<Vec<_>>();
 
         infos.sort_by(|a, b| a.manifest.created_at_ms.cmp(&b.manifest.created_at_ms));
-        let gw = &self.config.gateway;
 
-        let lst = infos.into_iter().map(|info| info.to_pb(gw)).collect();
-        Ok(lst)
+        let total = infos.len() as u32;
+
+        infos = paginate(infos, request.page, request.page_size);
+
+        let gw = &self.config.gateway;
+        Ok(StatusResponse {
+            vms: infos.into_iter().map(|info| info.to_pb(gw)).collect(),
+            port_mapping_enabled: self.config.cvm.port_mapping.enabled,
+            total,
+        })
     }
 
     pub fn list_images(&self) -> Result<Vec<(String, ImageInfo)>> {
@@ -581,6 +601,20 @@ impl App {
             })
             .collect())
     }
+}
+
+fn paginate<T>(items: Vec<T>, page: u32, page_size: u32) -> Vec<T> {
+    if page == 0 || page_size == 0 {
+        return items;
+    }
+    let page = page - 1;
+    let start = page * page_size;
+    let end = start + page_size;
+    items
+        .into_iter()
+        .skip(start as usize)
+        .take(end as usize)
+        .collect()
 }
 
 #[derive(Clone)]

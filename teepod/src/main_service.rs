@@ -9,7 +9,8 @@ use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
     AppId, GetInfoResponse, GetMetaResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse,
     KmsSettings, ListGpusResponse, PublicKeyResponse, ResizeVmRequest, ResourcesSettings,
-    StatusResponse, TProxySettings, UpgradeAppRequest, VersionResponse, VmConfiguration,
+    StatusRequest, StatusResponse, TProxySettings, UpgradeAppRequest, VersionResponse,
+    VmConfiguration,
 };
 use tracing::{info, warn};
 
@@ -172,11 +173,8 @@ impl TeepodRpc for RpcHandler {
         Ok(())
     }
 
-    async fn status(self) -> Result<StatusResponse> {
-        Ok(StatusResponse {
-            vms: self.app.list_vms().await?,
-            port_mapping_enabled: self.app.config.cvm.port_mapping.enabled,
-        })
+    async fn status(self, request: StatusRequest) -> Result<StatusResponse> {
+        self.app.list_vms(request).await
     }
 
     async fn list_images(self) -> Result<ImageListResponse> {
