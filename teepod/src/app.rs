@@ -16,7 +16,7 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use supervisor_client::SupervisorClient;
-use teepod_rpc::{self as pb, GpuInfo, VmConfiguration};
+use teepod_rpc::{self as pb, GpuInfo, StatusRequest, StatusResponse, VmConfiguration};
 use tracing::{error, info};
 
 pub use image::{Image, ImageInfo};
@@ -122,6 +122,7 @@ impl App {
         &self,
         work_dir: impl AsRef<Path>,
         cids_assigned: &HashMap<String, u32>,
+        auto_start: bool,
     ) -> Result<()> {
         let vm_work_dir = VmWorkDir::new(work_dir.as_ref());
         let manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
@@ -160,6 +161,9 @@ impl App {
             }
             teapot.add(VmState::new(vm_config));
         };
+        if auto_start && vm_work_dir.started().unwrap_or_default() {
+            self.start_vm(&vm_id).await?;
+        }
         Ok(())
     }
 
@@ -285,7 +289,7 @@ impl App {
                 let entry = entry.context("Failed to read directory entry")?;
                 let vm_path = entry.path();
                 if vm_path.is_dir() {
-                    if let Err(err) = self.load_vm(vm_path, &occupied_cids).await {
+                    if let Err(err) = self.load_vm(vm_path, &occupied_cids, true).await {
                         error!("Failed to load VM: {err:?}");
                     }
                 }
@@ -302,7 +306,7 @@ impl App {
         Ok(())
     }
 
-    pub async fn list_vms(&self) -> Result<Vec<pb::VmInfo>> {
+    pub async fn list_vms(&self, request: StatusRequest) -> Result<StatusResponse> {
         let vms = self
             .supervisor
             .list()
@@ -315,19 +319,43 @@ impl App {
         let mut infos = self
             .lock()
             .iter_vms()
+            .filter(|vm| {
+                if !request.ids.is_empty() && !request.ids.contains(&vm.config.manifest.id) {
+                    return false;
+                }
+                if request.keyword.is_empty() {
+                    true
+                } else {
+                    vm.config.manifest.name.contains(&request.keyword)
+                        || vm.config.manifest.id.contains(&request.keyword)
+                        || vm.config.manifest.app_id.contains(&request.keyword)
+                        || vm.config.manifest.image.contains(&request.keyword)
+                }
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        infos.sort_by(|a, b| {
+            a.config
+                .manifest
+                .created_at_ms
+                .cmp(&b.config.manifest.created_at_ms)
+        });
+
+        let total = infos.len() as u32;
+        let vms = paginate(infos, request.page, request.page_size)
             .map(|vm| {
                 vm.merged_info(
                     vms.get(&vm.config.manifest.id),
                     &self.work_dir(&vm.config.manifest.id),
                 )
             })
+            .map(|info| info.to_pb(&self.config.gateway))
             .collect::<Vec<_>>();
-
-        infos.sort_by(|a, b| a.manifest.created_at_ms.cmp(&b.manifest.created_at_ms));
-        let gw = &self.config.gateway;
-
-        let lst = infos.into_iter().map(|info| info.to_pb(gw)).collect();
-        Ok(lst)
+        Ok(StatusResponse {
+            vms,
+            port_mapping_enabled: self.config.cvm.port_mapping.enabled,
+            total,
+        })
     }
 
     pub fn list_images(&self) -> Result<Vec<(String, ImageInfo)>> {
@@ -577,6 +605,21 @@ impl App {
             })
             .collect())
     }
+}
+
+fn paginate<T>(items: Vec<T>, page: u32, page_size: u32) -> impl Iterator<Item = T> {
+    let skip;
+    let take;
+    if page == 0 || page_size == 0 {
+        skip = 0;
+        take = items.len();
+    } else {
+        let page = page - 1;
+        let start = page * page_size;
+        skip = start as usize;
+        take = page_size as usize;
+    }
+    items.into_iter().skip(skip).take(take)
 }
 
 #[derive(Clone)]
