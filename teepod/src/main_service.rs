@@ -131,7 +131,7 @@ impl TeepodRpc for RpcHandler {
 
         let result = self
             .app
-            .load_vm(&work_dir, &Default::default())
+            .load_vm(&work_dir, &Default::default(), false)
             .await
             .context("Failed to load VM");
         let result = match result {
@@ -196,6 +196,7 @@ impl TeepodRpc for RpcHandler {
     }
 
     async fn upgrade_app(self, request: UpgradeAppRequest) -> Result<Id> {
+        let mut need_reload = false;
         let new_id = if !request.compose_file.is_empty() {
             // check the compose file is valid
             let _app_compose: AppCompose =
@@ -220,6 +221,33 @@ impl TeepodRpc for RpcHandler {
             let user_config_path = self.user_config_path(&request.id);
             fs::write(user_config_path, &request.user_config)
                 .context("Failed to write user config")?;
+        }
+        let vm_work_dir = self.app.work_dir(&request.id);
+        if request.update_ports {
+            let mut manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
+            manifest.port_map = request
+                .ports
+                .iter()
+                .map(|p| {
+                    Ok(PortMapping {
+                        address: p.host_address.parse().context("Invalid host address")?,
+                        protocol: p.protocol.parse().context("Invalid protocol")?,
+                        from: p.host_port.try_into().context("Invalid host port")?,
+                        to: p.vm_port.try_into().context("Invalid vm port")?,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            vm_work_dir
+                .put_manifest(&manifest)
+                .context("Failed to put manifest")?;
+            need_reload = true;
+        }
+
+        if need_reload {
+            self.app
+                .load_vm(&vm_work_dir, &Default::default(), false)
+                .await
+                .context("Failed to load VM")?;
         }
         Ok(Id { id: new_id })
     }
@@ -306,7 +334,7 @@ impl TeepodRpc for RpcHandler {
             .put_manifest(&manifest)
             .context("failed to update manifest")?;
         self.app
-            .load_vm(work_dir, &Default::default())
+            .load_vm(work_dir, &Default::default(), false)
             .await
             .context("Failed to load VM")?;
         Ok(())

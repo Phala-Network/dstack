@@ -98,6 +98,10 @@ message UpgradeAppRequest {
   bytes encrypted_env = 3;
   // Optional update user config. Leave empty to not update.
   string user_config = 4;
+  // Optional update port mapping.
+  bool update_ports = 5;
+  // Port mapping
+  repeated PortMapping ports = 7;
 }
 
 // Message for VM list response

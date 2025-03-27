@@ -122,6 +122,7 @@ impl App {
         &self,
         work_dir: impl AsRef<Path>,
         cids_assigned: &HashMap<String, u32>,
+        auto_start: bool,
     ) -> Result<()> {
         let vm_work_dir = VmWorkDir::new(work_dir.as_ref());
         let manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
@@ -160,6 +161,9 @@ impl App {
             }
             teapot.add(VmState::new(vm_config));
         };
+        if auto_start && vm_work_dir.started().unwrap_or_default() {
+            self.start_vm(&vm_id).await?;
+        }
         Ok(())
     }
 
@@ -285,7 +289,7 @@ impl App {
                 let entry = entry.context("Failed to read directory entry")?;
                 let vm_path = entry.path();
                 if vm_path.is_dir() {
-                    if let Err(err) = self.load_vm(vm_path, &occupied_cids).await {
+                    if let Err(err) = self.load_vm(vm_path, &occupied_cids, true).await {
                         error!("Failed to load VM: {err:?}");
                     }
                 }

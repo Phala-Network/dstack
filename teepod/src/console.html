@@ -23,13 +23,6 @@
             margin-bottom: 20px;
         }
 
-        input,
-        button,
-        textarea {
-            margin: 5px 0;
-            padding: 5px;
-        }
-
         #vmList {
             border: 1px solid #ddd;
             padding: 10px;
@@ -129,7 +122,6 @@
         .form-group input,
         .form-group textarea {
             width: 100%;
-            padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
@@ -513,9 +505,15 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="memory">Memory (MB)</label>
-                            <input id="memory" v-model.number="vmForm.memory" type="number" placeholder="Memory in MB"
-                                required>
+                            <label for="memory">Memory</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input id="memory" v-model.number="vmForm.memoryValue" type="number" placeholder="Memory" 
+                                    style="flex: 1;" required>
+                                <select v-model="vmForm.memoryUnit" style="width: 80px;">
+                                    <option value="MB">MB</option>
+                                    <option value="GB">GB</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -524,9 +522,16 @@
                                 placeholder="Disk size in GB" required>
                         </div>
 
-                        <div class="form-group">
-                            <label for="fileInput">Upload Compose File</label>
-                            <input id="fileInput" type="file" @change="loadComposeFile" accept=".yml,.yaml,.txt">
+                        <div class="form-group full-width">
+                            <label for="dockerComposeFile">Docker Compose File</label>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <button type="button" class="action-btn" style="padding: 6px 12px; background-color: #f0f0f0; color: #333; border: 1px solid #ddd;" onclick="document.getElementById('fileInput').click()">Upload File</button>
+                                    <span style="color: #666; font-size: 0.9em;">or paste below</span>
+                                    <input id="fileInput" type="file" @change="loadComposeFile" accept=".yml,.yaml,.txt" style="display: none;">
+                                </div>
+                                <textarea id="dockerComposeFile" v-model="vmForm.dockerComposeFile" placeholder="Paste your docker-compose.yml here" rows="8"></textarea>
+                            </div>
                         </div>
                     </div>
 
@@ -560,12 +565,6 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="composeFile">Docker Compose File</label>
-                        <textarea id="composeFile" v-model="vmForm.dockerComposeFile"
-                            placeholder="Paste your docker-compose.yml here" required></textarea>
-                    </div>
-
-                    <div class="form-group">
                         <label for="preLaunchScript">Pre-launch Script</label>
                         <textarea id="preLaunchScript" v-model="vmForm.preLaunchScript"
                             placeholder="Optional: Bash script to run before starting containers"></textarea>
@@ -578,20 +577,7 @@
                     </div>
 
                     <div class="form-group full-width" v-if="config.portMappingEnabled">
-                        <label>Port Mappings</label>
-                        <div v-for="(port, index) in vmForm.ports" :key="index"
-                            style="display: flex; gap: 10px; margin-bottom: 10px;">
-                            <select v-model="port.protocol" style="width: 100px;">
-                                <option value="tcp">TCP</option>
-                                <option value="udp">UDP</option>
-                            </select>
-                            <input type="number" v-model.number="port.host_port" placeholder="Host Port"
-                                style="width: 120px;" required>
-                            <input type="number" v-model.number="port.vm_port" placeholder="VM Port"
-                                style="width: 120px;" required>
-                            <button type="button" class="action-btn danger" @click="removePort(index)">Remove</button>
-                        </div>
-                        <button type="button" class="action-btn" @click="addPort">Add Port Mapping</button>
+                        <port-mapping-editor :ports="vmForm.ports"></port-mapping-editor>
                     </div>
 
                     <div class="form-group full-width">
@@ -629,24 +615,7 @@
                     </div>
 
                     <div class="form-group full-width" v-if="vmForm.kms_enabled">
-                        <label>Encrypted Environment Variables</label>
-                        <div v-for="(env, index) in vmForm.encrypted_envs" :key="index"
-                            style="display: flex; gap: 10px; margin-bottom: 10px;">
-                            <input type="text" v-model="env.key" placeholder="Variable name" style="width: 200px;"
-                                required>
-                            <input type="password" v-model="env.value" placeholder="Value" style="flex-grow: 1;"
-                                required>
-                            <button type="button" class="action-btn danger" @click="removeEncryptedEnv(index)">
-                                Remove
-                            </button>
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
-                            <input type="file" ref="envFile" @change="loadEnvFile" style="display: none"
-                                accept=".env,.txt">
-                            <button type="button" class="action-btn" @click="$refs.envFile.click()">Load from
-                                file</button>
-                        </div>
+                        <encrypted-env-editor :env-vars="vmForm.encrypted_envs"></encrypted-env-editor>
                     </div>
 
                     <div class="form-group full-width">
@@ -806,7 +775,7 @@
                                         </div>
                                         <div class="detail-item">
                                             <span class="detail-label">Memory:</span>
-                                            <span class="detail-value">{{ vm.configuration?.memory }} MB</span>
+                                            <span class="detail-value">{{ formatMemory(vm.configuration?.memory) }}</span>
                                         </div>
                                         <div class="detail-item">
                                             <span class="detail-label">Disk Size:</span>
@@ -832,6 +801,10 @@
                                         <div class="port-mappings">
                                             <div v-for="(port, index) in vm.configuration.ports" :key="index"
                                                 class="port-item">
+                                                <span :style="{ color: port.host_address === '127.0.0.1' ? '#4CAF50' : '#FF9800' }"
+                                                    style="font-weight: bold; margin-right: 5px;">
+                                                    {{ !port.host_address || port.host_address === '127.0.0.1' ? 'Local' : 'Public' }}
+                                                </span>
                                                 {{ port.protocol.toUpperCase() }}: {{ port.host_port }} → {{
                                                 port.vm_port }}
                                             </div>
@@ -887,9 +860,15 @@
                     <input id="vcpu" v-model.number="upgradeDialog.vcpu" type="number" placeholder="vCPUs" required>
                 </div>
                 <div class="form-group">
-                    <label for="memory">Memory (MB)</label>
-                    <input id="memory" v-model.number="upgradeDialog.memory" type="number" placeholder="Memory in MB"
-                        required>
+                    <label for="memory">Memory</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input id="memory" v-model.number="upgradeDialog.memoryValue" type="number" placeholder="Memory"
+                            style="flex: 1;" required>
+                        <select v-model="upgradeDialog.memoryUnit" style="width: 80px;">
+                            <option value="MB">MB</option>
+                            <option value="GB">GB</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -914,13 +893,16 @@
                 </div>
                 <div v-if="upgradeDialog.updateCompose">
                     <div class="form-group">
-                        <label for="upgradeFile">Upload New Compose File</label>
-                        <input id="upgradeFile" type="file" @change="loadUpgradeFile" accept=".yml,.yaml,.txt">
-                    </div>
-                    <div class="form-group">
                         <label for="upgradeCompose">Docker Compose File</label>
-                        <textarea id="upgradeCompose" v-model="upgradeDialog.dockerComposeFile"
-                            placeholder="Paste your new docker-compose.yml here" required></textarea>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <button type="button" class="action-btn" style="padding: 6px 12px; background-color: #f0f0f0; color: #333; border: 1px solid #ddd;" onclick="document.getElementById('upgradeFile').click()">Upload File</button>
+                                <span style="color: #666; font-size: 0.9em;">or paste below</span>
+                                <input id="upgradeFile" type="file" @change="loadUpgradeFile" accept=".yml,.yaml,.txt" style="display: none;">
+                            </div>
+                            <textarea id="upgradeCompose" v-model="upgradeDialog.dockerComposeFile"
+                                placeholder="Paste your new docker-compose.yml here" rows="8" required></textarea>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="upgradePrelauncher">Pre-launch Script</label>
@@ -942,21 +924,11 @@
                     <span style="margin-left: 8px;">Reset secrets</span>
                 </div>
                 <div v-if="kmsEnabled(upgradeDialog.vm) && upgradeDialog.resetSecrets" style="margin-top: 16px;">
-                    <label>Encrypted Environment Variables</label>
-                    <div v-for="(env, index) in vmForm.encrypted_envs" :key="index"
-                        style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <input type="text" v-model="env.key" placeholder="Variable name" style="width: 200px;" required>
-                        <input type="password" v-model="env.value" placeholder="Value" style="flex-grow: 1;" required>
-                        <button type="button" class="action-btn danger" @click="removeEncryptedEnv(index)">
-                            Remove
-                        </button>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button type="button" class="action-btn" @click="addEncryptedEnv">Add</button>
-                        <input type="file" ref="envFile" @change="loadEnvFile" style="display: none" accept=".env,.txt">
-                        <button type="button" class="action-btn" @click="$refs.envFile.click()">Load from
-                            file</button>
-                    </div>
+                    <encrypted-env-editor :env-vars="vmForm.encrypted_envs"></encrypted-env-editor>
+                </div>
+
+                <div class="form-group full-width" v-if="config.portMappingEnabled">
+                    <port-mapping-editor :ports="upgradeDialog.ports"></port-mapping-editor>
                 </div>
 
                 <div class="vm-actions">
@@ -1020,6 +992,53 @@
         </div>
     </div>
 
+    <!-- Reusable template for encrypted environment variables editor -->
+    <template id="encrypted-env-editor">
+        <div class="encrypted-env-editor">
+            <label>Encrypted Environment Variables</label>
+            <div v-for="(env, index) in envVars" :key="index"
+                style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <input type="text" v-model="env.key" placeholder="Variable name" style="width: 200px;"
+                    required>
+                <input type="password" v-model="env.value" placeholder="Value" style="flex-grow: 1;"
+                    required>
+                <button type="button" class="action-btn danger" @click="removeEnv(index)">
+                    Remove
+                </button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" class="action-btn" @click="addEnv">Add</button>
+                <input type="file" ref="envFileInput" @change="loadEnvFromFile" style="display: none"
+                    accept=".env,.txt">
+                <button type="button" class="action-btn" @click="$refs.envFileInput.click()">Load from
+                    file</button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Reusable template for port mapping editor -->
+    <template id="port-mapping-editor">
+        <div class="port-mapping-editor">
+            <label>Port Mappings</label>
+            <div v-for="(port, index) in ports" :key="index"
+                style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                <select v-model="port.protocol" style="width: 80px;">
+                    <option value="tcp">TCP</option>
+                    <option value="udp">UDP</option>
+                </select>
+                <select v-model="port.host_address" style="width: 100px;">
+                    <option value="127.0.0.1">Local</option>
+                    <option value="0.0.0.0">Public</option>
+                </select>
+                <input type="number" v-model.number="port.host_port" placeholder="Host Port"
+                    style="width: 120px;" required>
+                <input type="number" v-model.number="port.vm_port" placeholder="VM Port"
+                    style="width: 120px;" required>
+                <button type="button" class="action-btn danger" @click="removePort(index)">Remove</button>
+            </div>
+            <button type="button" class="action-btn" @click="addPort">Add Port Mapping</button>
+        </div>
+    </template>
 
     <script>
         const {
@@ -1029,8 +1048,88 @@
             watch,
             computed
         } = Vue;
+        
+        // Define the encrypted environment variables editor component
+        const EncryptedEnvEditor = {
+            template: '#encrypted-env-editor',
+            props: {
+                envVars: {
+                    type: Array,
+                    required: true
+                }
+            },
+            methods: {
+                addEnv() {
+                    this.envVars.push({
+                        key: '',
+                        value: ''
+                    });
+                },
+                removeEnv(index) {
+                    this.envVars.splice(index, 1);
+                },
+                loadEnvFromFile(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const content = e.target.result;
+                            const lines = content.split('\n');
+                            
+                            // Clear existing env vars
+                            this.envVars.splice(0, this.envVars.length);
+                            
+                            lines.forEach(line => {
+                                // Skip empty lines and comments
+                                if (!line.trim() || line.startsWith('#')) return;
+                                
+                                // Split on first = only
+                                const [key, ...valueParts] = line.split('=');
+                                const value = valueParts.join('=');
+                                
+                                if (key && value) {
+                                    this.envVars.push({
+                                        key: key.trim(),
+                                        value: value.trim()
+                                    });
+                                }
+                            });
+                        };
+                        reader.readAsText(file);
+                    }
+                }
+            }
+        };
+        
+        // Define the port mapping editor component
+        const PortMappingEditor = {
+            template: '#port-mapping-editor',
+            props: {
+                ports: {
+                    type: Array,
+                    required: true
+                }
+            },
+            methods: {
+                addPort() {
+                    this.ports.push({
+                        protocol: 'tcp',
+                        host_address: '127.0.0.1', // Default to local address
+                        host_port: null,
+                        vm_port: null
+                    });
+                },
+                removePort(index) {
+                    this.ports.splice(index, 1);
+                }
+            }
+        };
 
         createApp({
+            components: {
+                'encrypted-env-editor': EncryptedEnvEditor,
+                'port-mapping-editor': PortMappingEditor
+            },
             setup() {
                 const version = ref({
                     version: '-',
@@ -1045,7 +1144,9 @@
                     dockerComposeFile: '',
                     preLaunchScript: '',
                     vcpu: 1,
-                    memory: 2048,
+                    memory: 2048, // This will be computed from memoryValue and memoryUnit
+                    memoryValue: 2,
+                    memoryUnit: 'GB',
                     disk_size: 20,
                     selected_gpu_slot: '',
                     selected_gpu_product: '',
@@ -1079,9 +1180,12 @@
                     encrypted_envs: [],
                     resetSecrets: false,
                     vcpu: 0,
-                    memory: 0,
+                    memory: 0, // This will be computed from memoryValue and memoryUnit
+                    memoryValue: 0,
+                    memoryUnit: 'MB',
                     disk_size: 0,
-                    image: ''
+                    image: '',
+                    ports: []
                 });
                 const upgradeMessage = ref('');
                 const errorMessage = ref('');
@@ -1272,8 +1376,39 @@
                     loadGpus();
                 };
 
+                // Memory conversion functions
+                const convertMemoryToMB = (value, unit) => {
+                    if (unit === 'GB') {
+                        return value * 1024;
+                    }
+                    return value;
+                };
+
+                const formatMemory = (memoryMB) => {
+                    if (!memoryMB) return '0 MB';
+                    
+                    if (memoryMB >= 1024) {
+                        const gbValue = (memoryMB / 1024).toFixed(1);
+                        // Remove trailing zeros after decimal point
+                        return `${parseFloat(gbValue)} GB`;
+                    }
+                    return `${memoryMB} MB`;
+                };
+
+                // Watch for memory unit changes and update the memory value
+                watch([() => vmForm.value.memoryValue, () => vmForm.value.memoryUnit], () => {
+                    vmForm.value.memory = convertMemoryToMB(vmForm.value.memoryValue, vmForm.value.memoryUnit);
+                });
+
+                watch([() => upgradeDialog.value.memoryValue, () => upgradeDialog.value.memoryUnit], () => {
+                    upgradeDialog.value.memory = convertMemoryToMB(upgradeDialog.value.memoryValue, upgradeDialog.value.memoryUnit);
+                });
+
                 const createVm = async () => {
                     try {
+                        // Convert memory based on selected unit
+                        vmForm.value.memory = convertMemoryToMB(vmForm.value.memoryValue, vmForm.value.memoryUnit);
+                        
                         const form = {
                             ...vmForm.value,
                             compose_file: makeAppComposeFile(),
@@ -1432,6 +1567,19 @@
                     }
                 };
 
+                function autoMemoryDisply(mb) {
+                    if (mb >= 1024) {
+                        return {
+                            memoryValue: (mb / 1024).toFixed(1),
+                            memoryUnit: 'GB'
+                        };
+                    }
+                    return {
+                        memoryValue: mb,
+                        memoryUnit: 'MB'
+                    };
+                }
+
                 const showUpgradeDialog = (vm) => {
                     upgradeDialog.value = {
                         show: true,
@@ -1445,6 +1593,8 @@
                         memory: vm.configuration?.memory,
                         disk_size: vm.configuration?.disk_size,
                         image: vm.configuration?.image,
+                        ports: vm.configuration?.ports ? [...vm.configuration.ports] : [],
+                        ...autoMemoryDisply(vm.configuration?.memory)
                     };
                     clearEncryptedEnv();
                 };
@@ -1502,6 +1652,14 @@
                             );
                         }
 
+                        body.update_ports = true;
+                        body.ports = upgradeDialog.value.ports.map(port => ({
+                            host_address: port.host_address,
+                            protocol: port.protocol,
+                            host_port: port.host_port,
+                            vm_port: port.vm_port
+                        }));
+
                         const response = await rpcCall('UpgradeApp', body);
                         const data = await response.json();
                         clearEncryptedEnv();
@@ -1519,6 +1677,7 @@
                 const addPort = () => {
                     vmForm.value.ports.push({
                         protocol: 'tcp',
+                        host_address: '127.0.0.1', // Default to local address
                         host_port: null,
                         vm_port: null
                     });
@@ -1778,6 +1937,7 @@
                     showDeployDialog,
                     composeHashPreview,
                     upgradeComposeHashPreview,
+                    formatMemory,
                 };
             }
         }).mount('#app');
