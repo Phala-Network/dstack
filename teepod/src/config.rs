@@ -111,12 +111,23 @@ pub struct GpuConfig {
     pub listing: Vec<String>,
     /// The PCI addresses to exclude from passthrough
     pub exclude: Vec<String>,
+    /// The PCI addresses to include in passthrough
+    pub include: Vec<String>,
 }
 
 impl GpuConfig {
     pub(crate) fn list_devices(&self) -> Result<Vec<Device>> {
         let devices = lspci_filtered(|dev| {
-            self.listing.contains(&dev.full_product_id()) && !self.exclude.contains(&dev.slot)
+            if !self.listing.contains(&dev.full_product_id()) {
+                return false;
+            }
+            if self.exclude.contains(&dev.slot) {
+                return false;
+            }
+            if !self.include.is_empty() && !self.include.contains(&dev.slot) {
+                return false;
+            }
+            true
         })
         .context("Failed to list GPU devices")?;
 
