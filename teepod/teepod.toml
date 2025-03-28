@@ -45,6 +45,8 @@ enabled = false
 listing = ["10de:2335"]
 # The PCI addresses of the cards to exclude
 exclude = []
+# The PCI addresses of the cards to include
+include = []
 
 [gateway]
 base_domain = "localhost"
