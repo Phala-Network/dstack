@@ -253,6 +253,13 @@ impl SetupFdeArgs {
                 if usage != "kms:rpc" {
                     bail!("Invalid server cert usage: {usage}");
                 }
+                if let Some(att) = &cert.attestation {
+                    let kms_info = att
+                        .decode_app_info(false)
+                        .context("Failed to decode app_info")?;
+                    extend_rtmr3("mr-kms", &kms_info.mr_aggregated)
+                        .context("Failed to extend mr-kms to RTMR3")?;
+                }
                 Ok(())
             }))
             .build()
