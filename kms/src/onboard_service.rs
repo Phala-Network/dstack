@@ -44,13 +44,16 @@ impl RpcCall<OnboardState> for OnboardHandler {
 
 impl OnboardRpc for OnboardHandler {
     async fn bootstrap(self, request: BootstrapRequest) -> Result<BootstrapResponse> {
-        let keys = Keys::generate(&request.domain).context("Failed to generate keys")?;
+        let quote_enabled = self.state.config.onboard.quote_enabled;
+        let keys = Keys::generate(&request.domain, quote_enabled)
+            .await
+            .context("Failed to generate keys")?;
 
         let k256_pubkey = keys.k256_key.verifying_key().to_sec1_bytes().to_vec();
         let ca_pubkey = keys.ca_key.public_key_der();
         let quote;
         let eventlog;
-        if self.state.config.onboard.quote_enabled {
+        if quote_enabled {
             (quote, eventlog) = quote_keys(&ca_pubkey, &k256_pubkey).await?;
         } else {
             quote = vec![];
@@ -99,20 +102,21 @@ struct Keys {
 }
 
 impl Keys {
-    fn generate(domain: &str) -> Result<Self> {
+    async fn generate(domain: &str, quote_enabled: bool) -> Result<Self> {
         let tmp_ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
         let ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
         let rpc_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
         let k256_key = SigningKey::random(&mut rand::rngs::OsRng);
-        Self::from_keys(tmp_ca_key, ca_key, rpc_key, k256_key, domain)
+        Self::from_keys(tmp_ca_key, ca_key, rpc_key, k256_key, domain, quote_enabled).await
     }
 
-    fn from_keys(
+    async fn from_keys(
         tmp_ca_key: KeyPair,
         ca_key: KeyPair,
         rpc_key: KeyPair,
         k256_key: SigningKey,
         domain: &str,
+        quote_enabled: bool,
     ) -> Result<Self> {
         let tmp_ca_cert = CertRequest::builder()
             .org_name("Dstack")
@@ -131,11 +135,26 @@ impl Keys {
             .build()
             .self_signed()?;
 
+        let mut quote = None;
+        let mut event_log = None;
+
+        if quote_enabled {
+            let pubkey = rpc_key.public_key_der();
+            let report_data = QuoteContentType::RaTlsCert.to_report_data(&pubkey);
+            let resposne = tapp_quote(report_data.to_vec())
+                .await
+                .context("Failed to get quote")?;
+            quote = Some(resposne.quote);
+            event_log = Some(resposne.event_log.into_bytes());
+        };
+
         // Sign WWW server cert with KMS cert
         let rpc_cert = CertRequest::builder()
             .subject(domain)
             .alt_names(&[domain.to_string()])
             .special_usage("kms:rpc")
+            .maybe_quote(quote.as_deref())
+            .maybe_event_log(event_log.as_deref())
             .key(&rpc_key)
             .build()
             .signed_by(&ca_cert, &ca_key)?;
@@ -177,7 +196,15 @@ impl Keys {
             KeyPair::from_pem(&tmp_ca_key_pem).context("Failed to parse tmp CA key")?;
         let ecdsa_key =
             SigningKey::from_slice(&root_k256_key).context("Failed to parse ECDSA key")?;
-        Self::from_keys(tmp_ca_key, ca_key, rpc_key, ecdsa_key, domain)
+        Self::from_keys(
+            tmp_ca_key,
+            ca_key,
+            rpc_key,
+            ecdsa_key,
+            domain,
+            quote_enabled,
+        )
+        .await
     }
 
     fn store(&self, cfg: &KmsConfig) -> Result<()> {
@@ -200,9 +227,13 @@ impl Keys {
     }
 }
 
-pub(crate) fn bootstrap_keys(cfg: &KmsConfig) -> Result<()> {
-    let keys =
-        Keys::generate(&cfg.onboard.auto_bootstrap_domain).context("Failed to generate keys")?;
+pub(crate) async fn bootstrap_keys(cfg: &KmsConfig) -> Result<()> {
+    let keys = Keys::generate(
+        &cfg.onboard.auto_bootstrap_domain,
+        cfg.onboard.quote_enabled,
+    )
+    .await
+    .context("Failed to generate keys")?;
     keys.store(cfg)?;
     Ok(())
 }
