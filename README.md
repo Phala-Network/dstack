@@ -2,6 +2,12 @@
 
 Dstack is a **developer friendly** and **security first** SDK to simplify the deployment of arbitrary Docker-based apps into TEE.
 
+> **NOTE**
+>
+> This tutorial assumes you have access to a compatible Intel TDX Server ready to be configured with Dstack. Check the [Hardware Requirements](https://docs.phala.network/dstack/hardware-requirements) for more information on buying a bare metal server or renting a server from OVH. To start learning about Dstack check out the [docs](https://docs.phala.network/dstack/overview).
+>
+> If you are looking to deploy a CVM in minutes, go to the docs to learn how to [sign-up for a Phala Cloud Account](https://docs.phala.network/phala-cloud/getting-started/sign-up-for-cloud-account) and [deploy your first CVM on Dstack]((https://docs.phala.network/phala-cloud/getting-started/start-from-cloud-ui)).
+
 Main features:
 
 - 🔒 Deploy Docker apps securely in TEE in minutes
