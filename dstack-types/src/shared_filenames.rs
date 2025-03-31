@@ -7,3 +7,8 @@ pub const DECRYPTED_ENV: &str = ".decrypted-env";
 pub const DECRYPTED_ENV_JSON: &str = ".decrypted-env.json";
 pub const INSTANCE_INFO: &str = ".instance_info";
 pub const HOST_SHARED_DIR: &str = "/tapp/.host-shared";
+
+pub mod compat_v3 {
+    pub const SYS_CONFIG: &str = "config.json";
+    pub const ENCRYPTED_ENV: &str = "encrypted-env";
+}

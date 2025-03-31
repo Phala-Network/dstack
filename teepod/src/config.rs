@@ -101,6 +101,16 @@ pub struct CvmConfig {
     pub gpu: GpuConfig,
     /// Use sudo to run the VM
     pub user: String,
+
+    /// The CA certificate
+    #[serde(default)]
+    pub ca_cert: String,
+    /// The tmp CA certificate
+    #[serde(default)]
+    pub tmp_ca_cert: String,
+    /// The tmp CA key
+    #[serde(default)]
+    pub tmp_ca_key: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

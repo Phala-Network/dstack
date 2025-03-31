@@ -23,6 +23,22 @@ pub struct ImageInfo {
 }
 
 impl ImageInfo {
+    pub fn version_tuple(&self) -> Option<(u16, u16, u16)> {
+        let version = self
+            .version
+            .split('.')
+            .take(3)
+            .map(|v| v.parse::<u16>())
+            .collect::<Result<Vec<_>, _>>()
+            .ok()?;
+        if version.len() < 3 {
+            return None;
+        }
+        Some((version[0], version[1], version[2]))
+    }
+}
+
+impl ImageInfo {
     pub fn load(filename: impl AsRef<Path>) -> Result<Self> {
         let file = fs::File::open(filename.as_ref()).context("failed to open image info")?;
         let info: ImageInfo =
