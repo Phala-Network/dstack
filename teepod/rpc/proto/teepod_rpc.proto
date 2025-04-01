@@ -174,7 +174,7 @@ message TProxySettings {
   string url = 1;
   string base_domain = 2;
   uint32 port = 3;
-  uint32 tappd_port = 4;
+  uint32 agent_port = 4;
   repeated string urls = 5;
 }
 

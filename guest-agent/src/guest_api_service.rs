@@ -3,6 +3,7 @@ use std::{fmt::Debug, path::Path};
 use anyhow::{Context, Result};
 use bollard::{container::ListContainersOptions, Docker};
 use cmd_lib::{run_cmd as cmd, run_fun};
+use dstack_guest_agent_rpc::worker_server::WorkerRpc as _;
 use dstack_types::shared_filenames::{HOST_SHARED_DIR, SYS_CONFIG};
 use dstack_types::SysConfig;
 use fs_err as fs;
@@ -13,7 +14,6 @@ use guest_api::{
 };
 use host_api::Notification;
 use ra_rpc::{CallContext, RpcCall};
-use tappd_rpc::worker_server::WorkerRpc as _;
 use tracing::error;
 
 use crate::{rpc_service::ExternalRpcHandler, AppState};

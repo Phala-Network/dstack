@@ -24,7 +24,7 @@ else
 # KMS_RPC_ADDR=0.0.0.0:9201
 
 # The address of the Tappd service listening on Host machine
-# TAPPD_ADDR=127.0.0.1:9205
+# GUEST_AGENT_ADDR=127.0.0.1:9205
 
 # The URL of the Ethereum RPC service
 ETH_RPC_URL=https://rpc.phala.network
@@ -42,7 +42,7 @@ fi
 required_env_vars=(
   "TEEPOD_RPC"
   "KMS_RPC_ADDR"
-  "TAPPD_ADDR"
+  "GUEST_AGENT_ADDR"
   "KMS_CONTRACT_ADDR"
   "ETH_RPC_URL"
 )
@@ -104,7 +104,7 @@ $CLI deploy \
   --compose .app-compose.json \
   --image $OS_IMAGE \
   --port tcp:$KMS_RPC_ADDR:8000 \
-  --port tcp:$TAPPD_ADDR:8090 \
+  --port tcp:$GUEST_AGENT_ADDR:8090 \
   --vcpu 8 \
   --memory 8G \
   --disk 50G

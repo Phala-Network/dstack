@@ -1,5 +1,5 @@
 [package]
-name = "tappd-rpc"
+name = "dstack-guest-agent-rpc"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

@@ -1,6 +1,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use config::{Config, TlsConfig};
+use dstack_guest_agent_rpc::dstack_guest_client::DstackGuestClient;
 use http_client::prpc::PrpcClient;
 use ra_rpc::{client::RaClient, rocket_helper::QuoteVerifier};
 use rocket::{
@@ -47,13 +48,13 @@ fn set_max_ulimit() -> Result<()> {
     Ok(())
 }
 
-fn tappd_client() -> Result<tappd_rpc::tappd_client::TappdClient<PrpcClient>> {
-    let uds_path = "/var/run/tappd.sock";
+fn dstack_agent() -> Result<DstackGuestClient<PrpcClient>> {
+    let uds_path = "/var/run/dstack.sock";
     if !std::fs::exists(uds_path).unwrap_or_default() {
-        bail!("tappd socket({uds_path}) not found");
+        bail!("dstack socket({uds_path}) not found");
     }
     let http_client = PrpcClient::new_unix(uds_path.to_string(), "/prpc".to_string());
-    Ok(tappd_rpc::tappd_client::TappdClient::new(http_client))
+    Ok(DstackGuestClient::new(http_client))
 }
 
 async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> {
@@ -63,10 +64,10 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
     }
 
     if config.run_as_tapp {
-        info!("Using tappd for certificate generation");
-        let tappd_client = tappd_client().context("Failed to create tappd client")?;
-        let response = tappd_client
-            .derive_key(tappd_rpc::DeriveKeyArgs {
+        info!("Using dstack guest agent for certificate generation");
+        let agent_client = dstack_agent().context("Failed to create dstack client")?;
+        let response = agent_client
+            .get_tls_key(dstack_guest_agent_rpc::GetTlsKeyArgs {
                 path: "".to_string(),
                 subject: "tproxy".to_string(),
                 alt_names: vec![config.rpc_domain.clone()],
@@ -148,8 +149,8 @@ async fn main() -> Result<()> {
     }
 
     let my_app_id = if config.run_as_tapp {
-        let tappd_client = tappd_client().context("Failed to create tappd client")?;
-        let info = tappd_client
+        let dstack_client = dstack_agent().context("Failed to create dstack client")?;
+        let info = dstack_client
             .info()
             .await
             .context("Failed to get app info")?;

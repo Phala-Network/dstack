@@ -1,7 +1,7 @@
 [default]
 workers = 8
 max_blocking = 64
-ident = "Tappd Server"
+ident = "Dstack guest agent"
 temp_dir = "/tmp"
 keep_alive = 10
 log_level = "debug"
@@ -13,8 +13,12 @@ compose_file = "/tapp/.host-shared/app-compose.json"
 public_logs = true
 public_sysinfo = true
 
-[internal]
+[internal-v0]
 address = "unix:/var/run/tappd.sock"
+reuse = true
+
+[internal]
+address = "unix:/var/run/dstack.sock"
 reuse = true
 
 [external]

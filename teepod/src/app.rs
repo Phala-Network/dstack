@@ -545,7 +545,7 @@ impl App {
         Ok(KmsClient::new(prpc_client))
     }
 
-    pub(crate) fn tappd_client(&self, id: &str) -> Result<GuestClient> {
+    pub(crate) fn guest_agent_client(&self, id: &str) -> Result<GuestClient> {
         let cid = self.lock().get(id).context("vm not found")?.config.cid;
         Ok(guest_api::client::new_client(format!(
             "vsock://{cid}:8000/api"

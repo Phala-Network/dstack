@@ -172,7 +172,7 @@ pub struct SupervisorConfig {
 pub struct GatewayConfig {
     pub base_domain: String,
     pub port: u16,
-    pub tappd_port: u16,
+    pub agent_port: u16,
 }
 
 #[derive(Debug, Clone, Deserialize)]

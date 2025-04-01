@@ -157,6 +157,7 @@ async fn main() -> Result<()> {
     let state = AppState::new(figment.focus("core").extract()?)
         .await
         .context("Failed to create app state")?;
+    let internal_v0_figment = figment.clone().select("internal-v0");
     let internal_figment = figment.clone().select("internal");
     let external_figment = figment.clone().select("external");
     let bind_addr: BindAddr = external_figment
@@ -164,6 +165,7 @@ async fn main() -> Result<()> {
         .context("Failed to extract bind address")?;
     let guest_api_figment = figment.select("guest-api");
     tokio::select!(
+        res = run_internal(state.clone(), internal_v0_figment) => res?,
         res = run_internal(state.clone(), internal_figment) => res?,
         res = run_external(state.clone(), external_figment) => res?,
         res = run_guest_api(state.clone(), guest_api_figment) => res?,

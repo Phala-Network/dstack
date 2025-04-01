@@ -92,7 +92,7 @@ impl<'a> Setup<'a> {
 
     async fn setup(&self, nc: &HostApi) -> Result<()> {
         self.prepare_fs()?;
-        self.setup_tappd_config()?;
+        self.setup_guest_agent_config()?;
         nc.notify_q("boot.progress", "setting up tproxy net").await;
         self.setup_tproxy_net().await?;
         nc.notify_q("boot.progress", "setting up docker").await;
@@ -151,7 +151,7 @@ impl<'a> Setup<'a> {
 
         let config = CertConfig {
             org_name: None,
-            subject: "tappd".to_string(),
+            subject: "dstack-guest-agent".to_string(),
             subject_alt_names: vec![],
             usage_server_auth: false,
             usage_client_auth: true,
@@ -196,7 +196,6 @@ impl<'a> Setup<'a> {
             bail!("Failed to register CVM, all tproxy urls are down");
         };
         let wg_info = response.wg.context("Missing wg info")?;
-        let _tappd_info = response.tappd.context("Missing tappd info")?;
 
         let client_ip = &wg_info.client_ip;
 
@@ -263,8 +262,8 @@ impl<'a> Setup<'a> {
         Ok(())
     }
 
-    fn setup_tappd_config(&self) -> Result<()> {
-        info!("Setting up tappd config");
+    fn setup_guest_agent_config(&self) -> Result<()> {
+        info!("Setting up guest agent config");
         let config = serde_json::json!({
             "default": {
                 "core": {
@@ -275,8 +274,8 @@ impl<'a> Setup<'a> {
                 }
             }
         });
-        let tappd_config = self.resolve("/tapp/tappd.json");
-        fs::write(tappd_config, serde_json::to_string_pretty(&config)?)?;
+        let agent_config = self.resolve("/tapp/agent.json");
+        fs::write(agent_config, serde_json::to_string_pretty(&config)?)?;
         Ok(())
     }
 

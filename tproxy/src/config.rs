@@ -54,7 +54,7 @@ pub struct ProxyConfig {
     pub base_domain: String,
     pub listen_addr: Ipv4Addr,
     pub listen_port: u16,
-    pub tappd_port: u16,
+    pub agent_port: u16,
     pub timeouts: Timeouts,
     pub buffer_size: usize,
     pub connect_top_n: usize,

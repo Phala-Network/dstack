@@ -1266,6 +1266,62 @@ dependencies = [
 ]
 
 [[package]]
+name = "dstack-guest-agent"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "base64",
+ "bollard",
+ "cert-client",
+ "chrono",
+ "clap",
+ "cmd_lib",
+ "default-net",
+ "dstack-guest-agent-rpc",
+ "dstack-types",
+ "figment",
+ "fs-err",
+ "git-version",
+ "guest-api",
+ "hex",
+ "host-api",
+ "k256",
+ "load_config",
+ "ra-rpc",
+ "ra-tls",
+ "rcgen",
+ "reqwest",
+ "ring",
+ "rinja",
+ "rocket",
+ "rocket-vsock-listener",
+ "sd-notify",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sha3",
+ "strip-ansi-escapes",
+ "sysinfo",
+ "tdx-attest",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "dstack-guest-agent-rpc"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "parity-scale-codec",
+ "prost 0.13.5",
+ "prpc",
+ "prpc-build",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "dstack-types"
 version = "0.4.1"
 dependencies = [
@@ -2411,6 +2467,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "dstack-guest-agent-rpc",
  "fs-err",
  "git-version",
  "hex",
@@ -2432,7 +2489,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "sha3",
- "tappd-rpc",
  "tracing",
  "tracing-subscriber",
  "x25519-dalek",
@@ -4958,62 +5014,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
-name = "tappd"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "base64",
- "bollard",
- "cert-client",
- "chrono",
- "clap",
- "cmd_lib",
- "default-net",
- "dstack-types",
- "figment",
- "fs-err",
- "git-version",
- "guest-api",
- "hex",
- "host-api",
- "k256",
- "load_config",
- "ra-rpc",
- "ra-tls",
- "rcgen",
- "reqwest",
- "ring",
- "rinja",
- "rocket",
- "rocket-vsock-listener",
- "sd-notify",
- "serde",
- "serde_json",
- "sha2",
- "sha3",
- "strip-ansi-escapes",
- "sysinfo",
- "tappd-rpc",
- "tdx-attest",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "tappd-rpc"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "parity-scale-codec",
- "prost 0.13.5",
- "prpc",
- "prpc-build",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "tdx-attest"
 version = "0.4.1"
 dependencies = [
@@ -5425,6 +5425,7 @@ dependencies = [
  "certbot",
  "clap",
  "cmd_lib",
+ "dstack-guest-agent-rpc",
  "fs-err",
  "futures",
  "git-version",
@@ -5450,7 +5451,6 @@ dependencies = [
  "sha2",
  "shared_child",
  "smallvec",
- "tappd-rpc",
  "tokio",
  "tokio-rustls",
  "tproxy-rpc",

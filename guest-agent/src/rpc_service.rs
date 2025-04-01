@@ -2,6 +2,13 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use cert_client::CertRequestClient;
+use dstack_guest_agent_rpc::{
+    dstack_guest_server::{DstackGuestRpc, DstackGuestServer},
+    tappd_server::{TappdRpc, TappdServer},
+    worker_server::{WorkerRpc, WorkerServer},
+    DeriveK256KeyResponse, GetEthKeyArgs, GetEthKeyResponse, GetQuoteResponse, GetTlsKeyArgs,
+    GetTlsKeyResponse, RawQuoteArgs, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo, WorkerVersion,
+};
 use dstack_types::AppKeys;
 use fs_err as fs;
 use k256::ecdsa::SigningKey;
@@ -15,12 +22,6 @@ use rcgen::KeyPair;
 use ring::rand::{SecureRandom, SystemRandom};
 use serde_json::json;
 use sha3::{Digest, Keccak256};
-use tappd_rpc::{
-    tappd_server::{TappdRpc, TappdServer},
-    worker_server::{WorkerRpc, WorkerServer},
-    DeriveK256KeyArgs, DeriveK256KeyResponse, DeriveKeyArgs, DeriveKeyResponse, RawQuoteArgs,
-    TdxQuoteArgs, TdxQuoteResponse, WorkerInfo, WorkerVersion,
-};
 use tdx_attest::eventlog::read_event_logs;
 
 use crate::config::Config;
@@ -79,10 +80,8 @@ pub struct InternalRpcHandler {
     state: AppState,
 }
 
-impl InternalRpcHandler {}
-
-impl TappdRpc for InternalRpcHandler {
-    async fn derive_key(self, request: DeriveKeyArgs) -> anyhow::Result<DeriveKeyResponse> {
+impl DstackGuestRpc for InternalRpcHandler {
+    async fn get_tls_key(self, request: GetTlsKeyArgs) -> anyhow::Result<GetTlsKeyResponse> {
         let mut mbuf = [0u8; 32];
         let seed = if request.random_seed {
             SystemRandom::new()
@@ -109,13 +108,13 @@ impl TappdRpc for InternalRpcHandler {
             .request_cert(&derived_key, config)
             .await
             .context("Failed to sign the CSR")?;
-        Ok(DeriveKeyResponse {
+        Ok(GetTlsKeyResponse {
             key: derived_key.serialize_pem(),
             certificate_chain,
         })
     }
 
-    async fn derive_k256_key(self, request: DeriveK256KeyArgs) -> Result<DeriveK256KeyResponse> {
+    async fn get_eth_key(self, request: GetEthKeyArgs) -> Result<GetEthKeyResponse> {
         let k256_app_key = &self.state.inner.keys.k256_key;
         let derived_k256_key = derive_ecdsa_key(k256_app_key, &[request.path.as_bytes()], 32)
             .context("Failed to derive k256 key")?;
@@ -132,9 +131,63 @@ impl TappdRpc for InternalRpcHandler {
         let mut signature = signature.to_vec();
         signature.push(recid.to_byte());
 
+        Ok(GetEthKeyResponse {
+            key: derived_k256_key.to_bytes().to_vec(),
+            signature_chain: vec![signature, self.state.inner.keys.k256_signature.clone()],
+        })
+    }
+
+    async fn get_quote(self, request: RawQuoteArgs) -> Result<GetQuoteResponse> {
+        fn pad64(data: &[u8]) -> Option<[u8; 64]> {
+            if data.len() > 64 {
+                return None;
+            }
+            let mut padded = [0u8; 64];
+            padded[..data.len()].copy_from_slice(data);
+            Some(padded)
+        }
+        let report_data = pad64(&request.report_data).context("Report data is too long")?;
+        let (_, quote) =
+            tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
+        let event_log = read_event_logs().context("Failed to decode event log")?;
+        let event_log =
+            serde_json::to_string(&event_log).context("Failed to serialize event log")?;
+        Ok(GetQuoteResponse { quote, event_log })
+    }
+
+    async fn info(self) -> Result<WorkerInfo> {
+        ExternalRpcHandler { state: self.state }.info().await
+    }
+}
+
+impl RpcCall<AppState> for InternalRpcHandler {
+    type PrpcService = DstackGuestServer<Self>;
+
+    fn construct(context: CallContext<'_, AppState>) -> Result<Self> {
+        Ok(InternalRpcHandler {
+            state: context.state.clone(),
+        })
+    }
+}
+
+pub struct InternalRpcHandlerV0 {
+    state: AppState,
+}
+
+impl TappdRpc for InternalRpcHandlerV0 {
+    async fn derive_key(self, request: GetTlsKeyArgs) -> anyhow::Result<GetTlsKeyResponse> {
+        InternalRpcHandler { state: self.state }
+            .get_tls_key(request)
+            .await
+    }
+
+    async fn derive_k256_key(self, request: GetEthKeyArgs) -> Result<DeriveK256KeyResponse> {
+        let res = InternalRpcHandler { state: self.state }
+            .get_eth_key(request)
+            .await?;
         Ok(DeriveK256KeyResponse {
-            k256_key: derived_k256_key.to_bytes().to_vec(),
-            k256_signature_chain: vec![signature, self.state.inner.keys.k256_signature.clone()],
+            k256_key: res.key,
+            k256_signature_chain: res.signature_chain,
         })
     }
 
@@ -183,11 +236,11 @@ impl TappdRpc for InternalRpcHandler {
     }
 }
 
-impl RpcCall<AppState> for InternalRpcHandler {
+impl RpcCall<AppState> for InternalRpcHandlerV0 {
     type PrpcService = TappdServer<Self>;
 
     fn construct(context: CallContext<'_, AppState>) -> Result<Self> {
-        Ok(InternalRpcHandler {
+        Ok(InternalRpcHandlerV0 {
             state: context.state.clone(),
         })
     }
@@ -208,7 +261,7 @@ impl WorkerRpc for ExternalRpcHandler {
         let response = InternalRpcHandler {
             state: self.state.clone(),
         }
-        .raw_quote(RawQuoteArgs {
+        .get_quote(RawQuoteArgs {
             report_data: [0; 64].to_vec(),
         })
         .await;

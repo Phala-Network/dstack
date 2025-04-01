@@ -14,8 +14,8 @@ members = [
     "tdx-attest",
     "tdxctl",
     "iohash",
-    "tappd",
-    "tappd/rpc",
+    "guest-agent",
+    "guest-agent/rpc",
     "teepod",
     "teepod/rpc",
     "tproxy",
@@ -45,7 +45,7 @@ ra-rpc = { path = "ra-rpc", default-features = false }
 ra-tls = { path = "ra-tls" }
 tproxy-rpc = { path = "tproxy/rpc" }
 kms-rpc = { path = "kms/rpc" }
-tappd-rpc = { path = "tappd/rpc" }
+dstack-guest-agent-rpc = { path = "guest-agent/rpc" }
 teepod-rpc = { path = "teepod/rpc" }
 cc-eventlog = { path = "cc-eventlog" }
 supervisor = { path = "supervisor" }

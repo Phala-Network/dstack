@@ -37,7 +37,7 @@ cmd_lib.workspace = true
 load_config.workspace = true
 kms-rpc.workspace = true
 ra-tls.workspace = true
-tappd-rpc.workspace = true
+dstack-guest-agent-rpc.workspace = true
 http-client = { workspace = true, features = ["prpc"] }
 sha2.workspace = true
 

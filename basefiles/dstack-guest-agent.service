@@ -1,11 +1,10 @@
 [Unit]
-Description=Tappd Service
+Description=Dstack Guest Agent Service
 After=network.target tboot.service
 
 [Service]
 OOMScoreAdjust=-1000
-ExecStartPre=-/bin/rm -rf /var/run/tappd.sock
-ExecStart=/bin/tappd --watchdog -c /tapp/tappd.json
+ExecStart=/bin/dstack-guest-agent --watchdog -c /tapp/agent.json
 Restart=always
 User=root
 Group=root

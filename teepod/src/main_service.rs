@@ -339,7 +339,7 @@ impl TeepodRpc for RpcHandler {
     }
 
     async fn shutdown_vm(self, request: Id) -> Result<()> {
-        self.tappd_client(&request.id)?.shutdown().await?;
+        self.guest_agent_client(&request.id)?.shutdown().await?;
         self.app.release_devices(&request.id)?;
         Ok(())
     }
@@ -376,7 +376,7 @@ impl TeepodRpc for RpcHandler {
                 urls: self.app.config.cvm.tproxy_urls.clone(),
                 base_domain: self.app.config.gateway.base_domain.clone(),
                 port: self.app.config.gateway.port.into(),
-                tappd_port: self.app.config.gateway.tappd_port.into(),
+                agent_port: self.app.config.gateway.agent_port.into(),
             }),
             resources: Some(ResourcesSettings {
                 max_cvm_number: self.app.config.cvm.cid_pool_size,

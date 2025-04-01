@@ -4,13 +4,13 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use dstack_guest_agent_rpc::GetTlsKeyArgs;
 use ra_rpc::client::{RaClient, RaClientConfig};
-use tappd_rpc::DeriveKeyArgs;
 use tokio::sync::mpsc::Receiver;
 use tproxy_rpc::{tproxy_client::TproxyClient, TproxyState};
 use tracing::{error, info};
 
-use crate::{config::Config, tappd_client};
+use crate::{config::Config, dstack_agent};
 
 use super::ProxyState;
 
@@ -89,9 +89,9 @@ pub(crate) async fn sync_task(
     mut event_rx: Receiver<SyncEvent>,
 ) -> Result<()> {
     let sync_client = if config.run_as_tapp {
-        let tappd_client = tappd_client().context("Failed to create tappd_client")?;
-        let keys = tappd_client
-            .derive_key(DeriveKeyArgs {
+        let agent = dstack_agent().context("Failed to create dstack agent client")?;
+        let keys = agent
+            .get_tls_key(GetTlsKeyArgs {
                 path: "/sync-state-client".into(),
                 subject: "".into(),
                 alt_names: vec![],
@@ -102,10 +102,10 @@ pub(crate) async fn sync_task(
             })
             .await
             .context("Failed to get sync-client keys")?;
-        let my_app_id = tappd_client
+        let my_app_id = agent
             .info()
             .await
-            .context("Failed to get tappd info")?
+            .context("Failed to get guest info")?
             .app_id;
         SyncClient {
             in_tapp: true,

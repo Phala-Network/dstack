@@ -26,7 +26,7 @@ Components in Dstack:
 - `teepod`: A service running in bare TDX host to manage CVMs
 - `tproxy`: A reverse proxy to forward TLS connections to CVMs
 - `kms`: A KMS server to generate keys for CVMs
-- `tappd`: A service running in CVM to serve containers' key derivation and attestation requests
+- `dstack-guest-agent`: A service running in CVM to serve containers' key derivation and attestation requests
 - `meta-dstack`: A Yocto meta layer to build CVM guest images
 
 The overall architecture is shown below:
@@ -37,7 +37,7 @@ The overall architecture is shown below:
 ```text
 dstack/
     kms/                         A prototype KMS server
-    tappd/                       A service running in CVM to serve containers' key derivation and attestation requests.
+    guest-agent/                 A service running in CVM to serve containers' key derivation and attestation requests.
     tdxctl/                      A CLI tool getting TDX quote, extending RTMR, generating cert for RA-TLS, etc.
     teepod/                      A service running in bare TDX host to manage CVMs
     tproxy/                      A reverse proxy to forward TLS connections to CVMs
@@ -151,7 +151,7 @@ After the container deployed, it should need some time to start the CVM and the 
 
 - Once the container is running, you can click the [Dashboard] button to see some information of the container. And the logs of the containers can be seen in the [Dashboard] page.
 
-    ![tappd](./docs/assets/tappd.png)
+    ![dstack-guest-agent](./docs/assets/guest-agent.png)
 
 - You can open tproxy's dashboard at [https://localhost:9070](https://localhost:9070) to see the CVM's wireguard ip address, as shown below:
 
@@ -187,7 +187,7 @@ ssh root@10.0.3.2
 
 To get a TDX quote within app containers:
 
-1. Mount `/var/run/tappd.sock` to the target container in `docker-compose.yaml`
+1. Mount `/var/run/dstack.sock` to the target container in `docker-compose.yaml`
 
     ```yaml
     version: '3'
@@ -195,7 +195,7 @@ To get a TDX quote within app containers:
     nginx:
         image: nginx:latest
         volumes:
-        - /var/run/tappd.sock:/var/run/tappd.sock
+        - /var/run/dstack.sock:/var/run/dstack.sock
         ports:
         - "8080:80"
         restart: always
@@ -206,7 +206,7 @@ To get a TDX quote within app containers:
     ```bash
     # The argument report_data accepts binary data encoding in hex string.
     # The actual report_data passing the to the underlying TDX driver is sha2_256(report_data).
-    curl -X POST --unix-socket /var/run/tappd.sock -d '{"report_data": "0x1234deadbeef"}' http://localhost/prpc/Tappd.TdxQuote?json | jq .  
+    curl --unix-socket /var/run/dstack.sock http://localhost/GetQuote?report_data=0x1234deadbeef | jq .  
     ```
 
 ## Container logs

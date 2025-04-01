@@ -1,5 +1,5 @@
 [package]
-name = "tappd"
+name = "dstack-guest-agent"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -24,7 +24,7 @@ base64.workspace = true
 rinja.workspace = true
 git-version.workspace = true
 ra-rpc = { workspace = true, features = ["client", "rocket"] }
-tappd-rpc.workspace = true
+dstack-guest-agent-rpc.workspace = true
 ra-tls.workspace = true
 tdx-attest.workspace = true
 guest-api = { workspace = true, features = ["client"] }

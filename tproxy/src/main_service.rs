@@ -19,8 +19,8 @@ use sync_client::SyncEvent;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tproxy_rpc::{
     tproxy_server::{TproxyRpc, TproxyServer},
-    AcmeInfoResponse, GetInfoRequest, GetInfoResponse, GetMetaResponse, HostInfo as PbHostInfo,
-    RegisterCvmRequest, RegisterCvmResponse, StatusResponse, TappdConfig, TproxyState,
+    AcmeInfoResponse, GetInfoRequest, GetInfoResponse, GetMetaResponse, GuestAgentConfig,
+    HostInfo as PbHostInfo, RegisterCvmRequest, RegisterCvmResponse, StatusResponse, TproxyState,
     WireGuardConfig, WireGuardPeer,
 };
 use tracing::{debug, error, info, warn};
@@ -631,9 +631,9 @@ impl TproxyRpc for RpcHandler {
                 client_ip: client_info.ip.to_string(),
                 servers,
             }),
-            tappd: Some(TappdConfig {
+            agent: Some(GuestAgentConfig {
                 external_port: state.config.proxy.listen_port as u32,
-                internal_port: state.config.proxy.tappd_port as u32,
+                internal_port: state.config.proxy.agent_port as u32,
                 domain: state.config.proxy.base_domain.clone(),
             }),
         };

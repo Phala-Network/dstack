@@ -54,7 +54,7 @@ GIT_REV=HEAD
 TPROXY_RPC_ADDR=0.0.0.0:9202
 TPROXY_ADMIN_RPC_ADDR=127.0.0.1:9203
 TPROXY_SERVING_ADDR=0.0.0.0:9204
-TAPPD_ADDR=127.0.0.1:9206
+GUEST_AGENT_ADDR=127.0.0.1:9206
 WG_ADDR=0.0.0.0:9202
 
 EOF
@@ -139,7 +139,7 @@ echo "WG_ADDR: $WG_ADDR"
 echo "TPROXY_RPC_ADDR: $TPROXY_RPC_ADDR"
 echo "TPROXY_ADMIN_RPC_ADDR: $TPROXY_ADMIN_RPC_ADDR"
 echo "TPROXY_SERVING_ADDR: $TPROXY_SERVING_ADDR"
-echo "TAPPD_ADDR: $TAPPD_ADDR"
+echo "GUEST_AGENT_ADDR: $GUEST_AGENT_ADDR"
 
 if [ -t 0 ]; then
   # Only ask for confirmation if running in an interactive terminal
@@ -163,7 +163,7 @@ $CLI deploy \
   --port tcp:$TPROXY_RPC_ADDR:8000 \
   --port tcp:$TPROXY_ADMIN_RPC_ADDR:8001 \
   --port tcp:$TPROXY_SERVING_ADDR:443 \
-  --port tcp:$TAPPD_ADDR:8090 \
+  --port tcp:$GUEST_AGENT_ADDR:8090 \
   --port udp:$WG_ADDR:51820 \
   --vcpu 8 \
   --memory 8G \

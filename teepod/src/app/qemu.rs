@@ -128,7 +128,7 @@ impl VmInfo {
             app_url: self.instance_id.as_ref().map(|id| {
                 format!(
                     "https://{id}-{}.{}:{}",
-                    gw.tappd_port, gw.base_domain, gw.port
+                    gw.agent_port, gw.base_domain, gw.port
                 )
             }),
             app_id: self.manifest.app_id.clone(),

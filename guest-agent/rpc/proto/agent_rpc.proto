@@ -2,15 +2,16 @@ syntax = "proto3";
 
 import "google/protobuf/empty.proto";
 
-package tappd;
+package dstack_guest;
 
+// For backwards compatibility with tappd
 service Tappd {
   // Derives a cryptographic key from the specified key path.
   // Returns the derived key along with its certificate chain.
-  rpc DeriveKey(DeriveKeyArgs) returns (DeriveKeyResponse) {}
+  rpc DeriveKey(GetTlsKeyArgs) returns (GetTlsKeyResponse) {}
 
   // Derives a new ECDSA key with k256 EC curve.
-  rpc DeriveK256Key(DeriveK256KeyArgs) returns (DeriveK256KeyResponse) {}
+  rpc DeriveK256Key(GetEthKeyArgs) returns (DeriveK256KeyResponse) {}
 
   // Generates a TDX quote
   rpc TdxQuote(TdxQuoteArgs) returns (TdxQuoteResponse) {}
@@ -26,8 +27,25 @@ service Tappd {
   rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
 }
 
+// The service for the dstack guest agent
+service DstackGuest {
+  // Derives a cryptographic key from the specified key path.
+  // Returns the derived key along with its TLS certificate chain.
+  rpc GetTlsKey(GetTlsKeyArgs) returns (GetTlsKeyResponse) {}
+
+  // Derives a new ECDSA key with k256 EC curve.
+  rpc GetEthKey(GetEthKeyArgs) returns (GetEthKeyResponse) {}
+
+  // Generates a TDX quote with given report data.
+  rpc GetQuote(RawQuoteArgs) returns (GetQuoteResponse) {}
+
+  // Get worker info
+  rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
+}
+
+
 // The request to derive a key
-message DeriveKeyArgs {
+message GetTlsKeyArgs {
   // Path used to derive the private key
   string path = 1;
   // Bellow fields are used to generate the certificate
@@ -46,7 +64,7 @@ message DeriveKeyArgs {
 }
 
 // The response to a DeriveKey request
-message DeriveKeyResponse {
+message GetTlsKeyResponse {
   // Derived key
   string key = 1;
   // Certificate chain
@@ -54,7 +72,7 @@ message DeriveKeyResponse {
 }
 
 // The request to derive a new ECDSA key with k256 EC curve
-message DeriveK256KeyArgs {
+message GetEthKeyArgs {
   // Path to the key to derive
   string path = 1;
   // Purpose of the key
@@ -67,6 +85,14 @@ message DeriveK256KeyResponse {
   bytes k256_key = 1;
   // Derived k256 signature chain
   repeated bytes k256_signature_chain = 2;
+}
+
+// The response to a GetEthKey request
+message GetEthKeyResponse {
+  // Derived k256 key
+  bytes key = 1;
+  // Derived k256 signature chain
+  repeated bytes signature_chain = 2;
 }
 
 // The request to get a TDX quote
@@ -113,6 +139,13 @@ message TdxQuoteResponse {
   string prefix = 4;
 }
 
+message GetQuoteResponse {
+  // TDX quote
+  bytes quote = 1;
+  // Event log
+  string event_log = 2;
+}
+
 // The request to derive a key
 message WorkerInfo {
   // App ID
@@ -154,6 +187,6 @@ message WorkerVersion {
 service Worker {
   // Get worker info
   rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
-  // Get tappd version
+  // Get the guest agent version
   rpc Version(google.protobuf.Empty) returns (WorkerVersion) {}
 }

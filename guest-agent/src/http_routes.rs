@@ -5,13 +5,13 @@ use crate::guest_api_service::{list_containers, GuestApiHandler};
 use crate::rpc_service::{AppState, ExternalRpcHandler};
 use anyhow::Result;
 use docker_logs::parse_duration;
+use dstack_guest_agent_rpc::{worker_server::WorkerRpc, WorkerInfo};
 use guest_api::guest_api_server::GuestApiRpc;
 use ra_rpc::{CallContext, RpcCall};
 use rinja::Template;
 use rocket::futures::StreamExt;
 use rocket::response::stream::TextStream;
 use rocket::{get, response::content::RawHtml, routes, Route, State};
-use tappd_rpc::{worker_server::WorkerRpc, WorkerInfo};
 
 pub fn external_routes(config: &Config) -> Vec<Route> {
     let mut routes = routes![index];

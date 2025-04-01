@@ -14,8 +14,8 @@ message RegisterCvmRequest {
 message RegisterCvmResponse {
   // WireGuard configuration
   WireGuardConfig wg = 1;
-  // Tappd configuration
-  TappdConfig tappd = 2;
+  // Agent configuration
+  GuestAgentConfig agent = 2;
 }
 
 message WireGuardPeer {
@@ -35,8 +35,8 @@ message WireGuardConfig {
   repeated WireGuardPeer servers = 2;
 }
 
-// TappdConfig is the configuration of the Tappd.
-message TappdConfig {
+// GuestAgentConfig is the configuration of the Tappd.
+message GuestAgentConfig {
   // The external port of the Tappd.
   uint32 external_port = 1;
   // The in CVM port of the Tappd.
