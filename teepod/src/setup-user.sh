@@ -84,6 +84,7 @@ if [[ -z "$USERNAME" ]]; then
 fi
 
 CHAIN_NAME="DSTACK_SANDBOX_${USERNAME}"
+RULES_FILE="/etc/iptables/dstack-rules-${USERNAME}.v4"
 
 # Create the user if it doesn't exist
 if ! id -u $USERNAME >/dev/null 2>&1; then
@@ -106,6 +107,8 @@ if iptables -L $CHAIN_NAME >/dev/null 2>&1; then
     iptables -X $CHAIN_NAME 2>/dev/null || true
     echo "Removed iptables chain $CHAIN_NAME"
 fi
+
+rm -f $RULES_FILE
 
 if [ "$NO_FW" = true ]; then
     echo "Skipping firewall rules setup"
@@ -141,6 +144,47 @@ iptables -A $CHAIN_NAME -o lo -d 127.0.0.1 -j DROP
 # Ensure our chain is referenced from the OUTPUT chain
 if ! iptables -C OUTPUT -o lo -m owner --uid-owner $USERNAME -j $CHAIN_NAME 2>/dev/null; then
     iptables -I OUTPUT -o lo -m owner --uid-owner $USERNAME -j $CHAIN_NAME
+fi
+
+# Make iptables rules persistent
+if command -v iptables-save >/dev/null 2>&1; then
+    echo "Saving iptables rules to make them persistent"
+
+    if [ -d "/etc/iptables" ]; then
+        # Debian/Ubuntu style
+        iptables-save >$RULES_FILE
+        echo "Rules saved to $RULES_FILE"
+    else
+        # Fallback method
+        mkdir -p /etc/iptables
+        iptables-save >$RULES_FILE
+
+        # Create a systemd service to load rules at boot if it doesn't exist
+        if [ ! -f "/etc/systemd/system/iptables-restore.service" ]; then
+            cat >/etc/systemd/system/iptables-restore.service <<EOF
+[Unit]
+Description=Restore iptables firewall rules
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'for f in /etc/iptables/*.v4; do /sbin/iptables-restore "$f"; done'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+            systemctl daemon-reload
+            systemctl enable iptables-restore.service
+            echo "Created and enabled iptables-restore.service"
+        fi
+
+        echo "Rules saved to $RULES_FILE"
+    fi
+else
+    echo "Warning: iptables-save not found. Rules will not persist after reboot."
+    echo "Please install iptables-persistent package or equivalent for your distribution."
 fi
 
 echo "Setup completed for user $USERNAME"
