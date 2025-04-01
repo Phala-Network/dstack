@@ -3,7 +3,7 @@ use crate::config::{Config, ProcessNote, Protocol};
 use anyhow::{bail, Context, Result};
 use bon::Builder;
 use dstack_types::shared_filenames::{
-    APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, SYS_CONFIG, USER_CONFIG,
+    compat_v3, APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, SYS_CONFIG, USER_CONFIG,
 };
 use fs_err as fs;
 use guest_api::client::DefaultClient as GuestClient;
@@ -475,19 +475,64 @@ impl App {
             .context("Failed to load image info")?;
         let rootfs_hash = image_info
             .rootfs_hash
+            .as_ref()
             .context("Rootfs hash not found in image info")?;
-        let sys_config = serde_json::json!({
-            "rootfs_hash": rootfs_hash,
-            "kms_urls": cfg.cvm.kms_urls,
-            "tproxy_urls": cfg.cvm.tproxy_urls,
-            "pccs_url": cfg.cvm.pccs_url,
-            "docker_registry": cfg.cvm.docker_registry,
-            "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
-        });
+        let img_ver = image_info.version_tuple().unwrap_or((0, 0, 0));
+        let sys_config = if img_ver >= (0, 4, 0) {
+            serde_json::json!({
+                "rootfs_hash": rootfs_hash,
+                "kms_urls": cfg.cvm.kms_urls,
+                "tproxy_urls": cfg.cvm.tproxy_urls,
+                "pccs_url": cfg.cvm.pccs_url,
+                "docker_registry": cfg.cvm.docker_registry,
+                "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
+            })
+        } else {
+            serde_json::json!({
+                "rootfs_hash": rootfs_hash,
+                "kms_url": cfg.cvm.kms_urls.first(),
+                "tproxy_url": cfg.cvm.tproxy_urls.first(),
+                "pccs_url": cfg.cvm.pccs_url,
+                "docker_registry": cfg.cvm.docker_registry,
+                "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
+            })
+        };
         let sys_config_str =
             serde_json::to_string(&sys_config).context("Failed to serialize vm config")?;
-        fs::write(shared_dir.join(SYS_CONFIG), sys_config_str)
+        let config_file = if img_ver >= (0, 4, 0) {
+            SYS_CONFIG
+        } else {
+            compat_v3::SYS_CONFIG
+        };
+        fs::write(shared_dir.join(config_file), sys_config_str)
             .context("Failed to write vm config")?;
+        if img_ver < (0, 4, 0) {
+            // Sync .encrypted-env to encrypted-env
+            let compat_encrypted_env_path = shared_dir.join(compat_v3::ENCRYPTED_ENV);
+            let encrypted_env_path = shared_dir.join(ENCRYPTED_ENV);
+            if compat_encrypted_env_path.exists() {
+                fs::remove_file(&compat_encrypted_env_path)?;
+            }
+            if encrypted_env_path.exists() {
+                fs::copy(&encrypted_env_path, &compat_encrypted_env_path)?;
+            }
+
+            // Sync certs
+            let certs_dir = shared_dir.join("certs");
+            fs::create_dir_all(&certs_dir).context("Failed to create certs directory")?;
+            if cfg.cvm.ca_cert.is_empty()
+                || cfg.cvm.tmp_ca_cert.is_empty()
+                || cfg.cvm.tmp_ca_key.is_empty()
+            {
+                bail!("Certificates are required for older images");
+            }
+            fs::copy(&cfg.cvm.ca_cert, certs_dir.join("ca.cert"))
+                .context("Failed to copy ca cert")?;
+            fs::copy(&cfg.cvm.tmp_ca_cert, certs_dir.join("tmp-ca.cert"))
+                .context("Failed to copy tmp ca cert")?;
+            fs::copy(&cfg.cvm.tmp_ca_key, certs_dir.join("tmp-ca.key"))
+                .context("Failed to copy tmp ca key")?;
+        }
         Ok(())
     }
 
