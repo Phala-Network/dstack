@@ -10,7 +10,7 @@ use rocket::{
     listener::{Bind, DefaultListener},
 };
 use rocket_vsock_listener::VsockListener;
-use rpc_service::{AppState, ExternalRpcHandler, InternalRpcHandler};
+use rpc_service::{AppState, ExternalRpcHandler, InternalRpcHandler, InternalRpcHandlerV0};
 use sd_notify::{notify as sd_notify, NotifyState};
 use std::time::Duration;
 use tracing::{error, info};
@@ -44,9 +44,36 @@ struct Args {
     watchdog: bool,
 }
 
+async fn run_internal_v0(state: AppState, figment: Figment) -> Result<()> {
+    let rocket = rocket::custom(figment)
+        .mount(
+            "/prpc/",
+            ra_rpc::prpc_routes!(AppState, InternalRpcHandlerV0),
+        )
+        .manage(state);
+    let ignite = rocket
+        .ignite()
+        .await
+        .map_err(|err| anyhow!("Failed to ignite rocket: {err}"))?;
+    let endpoint = DefaultListener::bind_endpoint(&ignite)
+        .map_err(|err| anyhow!("Failed to get endpoint: {err}"))?;
+    let listener = DefaultListener::bind(&ignite)
+        .await
+        .map_err(|err| anyhow!("Failed to bind on {endpoint}: {err}"))?;
+    if let Some(path) = endpoint.unix() {
+        // Allow any user to connect to the socket
+        fs_err::set_permissions(path, Permissions::from_mode(0o777))?;
+    }
+    ignite
+        .launch_on(listener)
+        .await
+        .map_err(|err| anyhow!(err.to_string()))?;
+    Ok(())
+}
+
 async fn run_internal(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
-        .mount("/prpc/", ra_rpc::prpc_routes!(AppState, InternalRpcHandler))
+        .mount("/", ra_rpc::prpc_routes!(AppState, InternalRpcHandler))
         .manage(state);
     let ignite = rocket
         .ignite()
@@ -165,7 +192,7 @@ async fn main() -> Result<()> {
         .context("Failed to extract bind address")?;
     let guest_api_figment = figment.select("guest-api");
     tokio::select!(
-        res = run_internal(state.clone(), internal_v0_figment) => res?,
+        res = run_internal_v0(state.clone(), internal_v0_figment) => res?,
         res = run_internal(state.clone(), internal_figment) => res?,
         res = run_external(state.clone(), external_figment) => res?,
         res = run_guest_api(state.clone(), guest_api_figment) => res?,
