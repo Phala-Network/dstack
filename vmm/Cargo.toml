@@ -1,5 +1,5 @@
 [package]
-name = "teepod"
+name = "dstack-vmm"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -31,7 +31,7 @@ rocket-apitoken.workspace = true
 
 supervisor-client.workspace = true
 ra-rpc = { workspace = true, features = ["client", "rocket"] }
-teepod-rpc.workspace = true
+dstack-vmm-rpc.workspace = true
 kms-rpc.workspace = true
 path-absolutize.workspace = true
 host-api.workspace = true

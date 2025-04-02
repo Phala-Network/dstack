@@ -31,7 +31,7 @@ impl RpcCall<App> for HostApiHandler {
 impl HostApiRpc for HostApiHandler {
     async fn info(self) -> Result<HostInfo> {
         let host_info = HostInfo {
-            name: "Teepod".to_string(),
+            name: "Dstack VMM".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
         };
         Ok(host_info)

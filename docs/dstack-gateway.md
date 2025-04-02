@@ -41,9 +41,9 @@ Focus on these five fields in the `core.proxy` section:
 
 For example, if your base domain is `gateway.example.com`, app ID is `<app_id>`, listening on `80`, and dstack-gateway is on port 7777, the URL would be `https://<app_id>-80.gateway.example.com:7777`
 
-## Step 5: Adjust Configuration in `teepod.toml`
+## Step 5: Adjust Configuration in `vmm.toml`
 
-Open `teepod.toml` and adjust dstack-gateway configuration in the `gateway` section:
+Open `vmm.toml` and adjust dstack-gateway configuration in the `gateway` section:
 
 - `base_domain`: Same as `base_domain` from `gateway.toml`'s `core.proxy` section
 - `port`: Same as `listen_port` from `gateway.toml`'s `core.proxy` section

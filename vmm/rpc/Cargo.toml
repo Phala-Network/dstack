@@ -1,5 +1,5 @@
 [package]
-name = "teepod-rpc"
+name = "dstack-vmm-rpc"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

@@ -19,7 +19,7 @@ use dstack_types::shared_filenames::{APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, 
 use fs_err as fs;
 use serde::{Deserialize, Serialize};
 use supervisor_client::supervisor::{ProcessConfig, ProcessInfo};
-use teepod_rpc as pb;
+use dstack_vmm_rpc as pb;
 
 #[derive(Debug, Deserialize)]
 pub struct InstanceInfo {

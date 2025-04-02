@@ -23,7 +23,7 @@ Dstack is community driven. Open sourced and built by [Kevin Wang](https://githu
 
 Components in Dstack:
 
-- `teepod`: A service running in bare TDX host to manage CVMs
+- `dstack-vmm`: A service running in bare TDX host to manage CVMs
 - `dstack-gateway`: A reverse proxy to forward TLS connections to CVMs
 - `dstack-kms`: A KMS server to generate keys for CVMs
 - `dstack-guest-agent`: A service running in CVM to serve containers' key derivation and attestation requests
@@ -39,7 +39,7 @@ dstack/
     kms/                         A prototype KMS server
     guest-agent/                 A service running in CVM to serve containers' key derivation and attestation requests.
     tdxctl/                      A CLI tool getting TDX quote, extending RTMR, generating cert for RA-TLS, etc.
-    teepod/                      A service running in bare TDX host to manage CVMs
+    vmm/                         A service running in bare TDX host to manage CVMs
     gateway/                     A reverse proxy to forward TLS connections to CVMs
     certbot/                     A tool to automatically obtain and renew TLS certificates for dstack-gateway
     ra-rpc/                      RA-TLS support for pRPC
@@ -84,10 +84,10 @@ vim ./build-config.sh
 Now edit the config file. The following configurations values must be changed properly according to your environment:
 
 ```bash
-# The internal port for teepod to listen to requests from you
-TEEPOD_RPC_LISTEN_PORT=9080
-# The start CID for teepod to allocate to CVMs
-TEEPOD_CID_POOL_START=20000
+# The internal port for dstack-vmm to listen to requests from you
+VMM_RPC_LISTEN_PORT=9080
+# The start CID for dstack-vmm to allocate to CVMs
+VMM_CID_POOL_START=20000
 
 # The internal port for kms to listen to requests from CVMs
 KMS_RPC_LISTEN_PORT=9043
@@ -121,19 +121,19 @@ Run build.sh again to build the artifacts.
 
 # If everything is okay, you should see the built artifacts in the `build` directory.
 $ ls
-certs  images  kms  kms.toml  run  teepod  teepod.toml  dstack-gateway  gateway.toml
+certs  images  kms  kms.toml  run  dstack-vmm  vmm.toml  dstack-gateway  gateway.toml
 ```
 
 Now you can open 3 terminals to start the components:
 
 1. Run `./kms`
 2. Run `sudo ./dstack-gateway -c gateway.toml`
-3. Run `./teepod`
+3. Run `./dstack-vmm -c vmm.toml`
 
 ## Deploy an App
-Open the teepod webpage [http://localhost:9080](http://localhost:9080)(change the port according to your configuration) on your local machine to deploy a `docker-compose.yaml` file:
+Open the dstack-vmm webpage [http://localhost:9080](http://localhost:9080)(change the port according to your configuration) on your local machine to deploy a `docker-compose.yaml` file:
 
-![teepod](./docs/assets/teepod.png)
+![vmm](./docs/assets/vmm.png)
 
 After the container deployed, it should need some time to start the CVM and the containers. Time would be vary depending on your workload.
 
@@ -259,7 +259,7 @@ Given the config `GATEWAY_LISTEN_PORT_PASSTHROUGH=9008`, now we can go to [`http
 
 ## Upgrade an App
 
-Got to the teepod webpage, click the [Upgrade] button, select or paste the compose file you want to upgrade to, and click the [Upgrade] button again.
+Got to the dstack-vmm webpage, click the [Upgrade] button, select or paste the compose file you want to upgrade to, and click the [Upgrade] button again.
 Upon successful initiation of the upgrade, you'll see a message prompting you to run the following command in your terminal to authorize the upgrade through KMS:
 
 ```shell
@@ -370,15 +370,15 @@ $ ./ct_monitor -t https://localhost:9010/prpc -d app.kvin.wang
 
 # Troubleshooting
 
-### Error from teepod: qemu-system-x86_64: -device vhost-vsock-pci,guest-cid=<id>: vhost-vsock: unable to set guest cid: Address already in use
+### Error from dstack-vmm: qemu-system-x86_64: -device vhost-vsock-pci,guest-cid=<id>: vhost-vsock: unable to set guest cid: Address already in use
 
-`teepod` may throw this error when creating a new VM if the [Unix Socket CID](https://man7.org/linux/man-pages/man7/vsock.7.html) is occupied. To solve the problem, first, you should list the occupied CID:
+`dstack-vmm` may throw this error when creating a new VM if the [Unix Socket CID](https://man7.org/linux/man-pages/man7/vsock.7.html) is occupied. To solve the problem, first, you should list the occupied CID:
 
 ```bash
 ps aux | grep 'guest-cid='
 ```
 
-Then choose a new range of the CID not conflicting with the CID in use. You can change `build/teepod.toml` file and restart `teepod`. This error should disappear. For example, you may find 33000-34000 free to use:
+Then choose a new range of the CID not conflicting with the CID in use. You can change `build/vmm.toml` file and restart `dstack-vmm`. This error should disappear. For example, you may find 33000-34000 free to use:
 
 ```toml
 [cvm]
@@ -386,7 +386,7 @@ cid_start = 33000
 cid_pool_size = 1000
 ```
 
-When building the dstack from scratch, you should change the CID configs in `build-config.sh` instead, because `teepod.toml` file is generated by `build.sh`. Its content is derived from `build-config.sh`.
+When building the dstack from scratch, you should change the CID configs in `build-config.sh` instead, because `vmm.toml` file is generated by `build.sh`. Its content is derived from `build-config.sh`.
 
 You may encounter this problem when upgrading from an older version of dstack, because CID was introduced in `build-config.sh` in later versions. In such case, please follow the docs to add the missing entries in `build-config.sh` and rebuild dstack.
 

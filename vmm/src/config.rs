@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use lspci::{lspci_filtered, Device};
 use tracing::info;
 
-pub const DEFAULT_CONFIG: &str = include_str!("../teepod.toml");
+pub const DEFAULT_CONFIG: &str = include_str!("../vmm.toml");
 pub fn load_config_figment(config_file: Option<&str>) -> Figment {
-    load_config("teepod", DEFAULT_CONFIG, config_file, false)
+    load_config("vmm", DEFAULT_CONFIG, config_file, false)
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -258,7 +258,7 @@ impl Config {
         let mut me: Self = figment.extract()?;
         {
             let home = dirs::home_dir().context("Failed to get home directory")?;
-            let app_home = home.join(".teepod");
+            let app_home = home.join(".dstack-vmm");
             if me.image_path == PathBuf::default() {
                 me.image_path = app_home.join("image");
             }

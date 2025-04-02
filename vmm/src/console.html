@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teepod VM Management Console</title>
+    <title>Dstack VM Management Console</title>
     <script src="https://unpkg.com/vue@3.0.0/dist/vue.global.js"></script>
     <script src="/res/x25519.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
@@ -590,13 +590,6 @@
 
 <body>
     <div id="app">
-        <div class="api-config-section" v-show="false">
-            <div class="api-token-field">
-                <label class="api-token-label">API Token</label>
-                <input class="api-token-input" type="password" v-model="teepodApiToken"
-                    placeholder="Enter API token for RPC authentication">
-            </div>
-        </div>
         <button class="action-btn" @click="showDeployDialog()">Deploy a new instance</button>
 
         <div v-if="showCreateDialog" class="dialog-overlay">
@@ -1386,10 +1379,8 @@
                     portMappingEnabled: false
                 });
 
-                const teepodApiToken = ref(localStorage.getItem('teepodApiToken') || '');
-
                 const rpcCall = async (method, params) => {
-                    return await baseRpcCall(`/prpc/Teepod.${method}`, params)
+                    return await baseRpcCall(`/prpc/${method}`, params)
                 }
 
                 const guestRpcCall = async (method, params) => {
@@ -1400,10 +1391,6 @@
                     const headers = {
                         'Content-Type': 'application/json',
                     };
-
-                    if (teepodApiToken.value) {
-                        headers['Authorization'] = `Bearer ${teepodApiToken.value}`;
-                    }
 
                     const response = await fetch(`${path}?json`, {
                         method: 'POST',
@@ -1603,7 +1590,7 @@
                     } else {
                         if (!vmForm.value.selected_gpu_product) return [];
                         return [{
-                            // Do not use slot, so that teepod can find a free slot for the GPU with the same product_id
+                            // Do not use slot, so that dstack-vmm can find a free slot for the GPU with the same product_id
                             product_id: vmForm.value.selected_gpu_product,
                         }];
                     }
@@ -2037,10 +2024,6 @@
                     }
                 };
 
-                watch(teepodApiToken, (newValue) => {
-                    localStorage.setItem('teepodApiToken', newValue);
-                });
-
                 onMounted(() => {
                     (async () => {
                         while (true) {
@@ -2194,7 +2177,7 @@
                         return "shutting down";
                     }
                     // If boot_progress is 'running', it means the vm is already running before
-                    // teepod was started, so it's state is unknown to teepod.
+                    // dstack-vmm was started, so it's state is unknown to dstack-vmm.
                     // TODO: read the status from the guest
                     if (vm.boot_progress == 'running') {
                         return "running";
@@ -2284,7 +2267,6 @@
                     addEncryptedEnv,
                     removeEncryptedEnv,
                     clearEncryptedEnv,
-                    teepodApiToken,
                     showForkVm,
                     forkDialog,
                     forkVm,

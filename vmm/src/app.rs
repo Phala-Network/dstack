@@ -16,7 +16,7 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use supervisor_client::SupervisorClient;
-use teepod_rpc::{self as pb, GpuInfo, StatusRequest, StatusResponse, VmConfiguration};
+use dstack_vmm_rpc::{self as pb, GpuInfo, StatusRequest, StatusResponse, VmConfiguration};
 use tracing::{error, info};
 
 pub use image::{Image, ImageInfo};
@@ -726,7 +726,7 @@ pub(crate) struct DeviceState {
     slot: String,
     /// In use detected by lspci
     pci_in_use: bool,
-    /// Allocated to a VM by teepod
+    /// Allocated to a VM by dstack-vmm
     allocated: bool,
 }
 

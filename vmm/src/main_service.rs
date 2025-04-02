@@ -3,15 +3,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, bail, Context, Result};
 use dstack_types::AppCompose;
-use fs_err as fs;
-use ra_rpc::{CallContext, RpcCall};
-use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
-use teepod_rpc::{
+use dstack_vmm_rpc::vmm_server::{VmmRpc, VmmServer};
+use dstack_vmm_rpc::{
     AppId, GatewaySettings, GetInfoResponse, GetMetaResponse, Id, ImageInfo as RpcImageInfo,
     ImageListResponse, KmsSettings, ListGpusResponse, PublicKeyResponse, ResizeVmRequest,
     ResourcesSettings, StatusRequest, StatusResponse, UpgradeAppRequest, VersionResponse,
     VmConfiguration,
 };
+use fs_err as fs;
+use ra_rpc::{CallContext, RpcCall};
 use tracing::{info, warn};
 
 use crate::app::{App, GpuSpec, Manifest, PortMapping, VmWorkDir};
@@ -57,7 +57,7 @@ fn validate_label(label: &str) -> Result<()> {
     Ok(())
 }
 
-impl TeepodRpc for RpcHandler {
+impl VmmRpc for RpcHandler {
     async fn create_vm(self, request: VmConfiguration) -> Result<Id> {
         validate_label(&request.name)?;
 
@@ -394,7 +394,7 @@ impl TeepodRpc for RpcHandler {
 }
 
 impl RpcCall<App> for RpcHandler {
-    type PrpcService = TeepodServer<Self>;
+    type PrpcService = VmmServer<Self>;
 
     fn construct(context: CallContext<'_, App>) -> Result<Self> {
         Ok(RpcHandler {

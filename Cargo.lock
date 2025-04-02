@@ -1375,6 +1375,61 @@ dependencies = [
 ]
 
 [[package]]
+name = "dstack-vmm"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "bon",
+ "clap",
+ "dirs",
+ "dstack-types",
+ "dstack-vmm-rpc",
+ "fs-err",
+ "git-version",
+ "guest-api",
+ "hex",
+ "hex_fmt",
+ "host-api",
+ "humantime",
+ "insta",
+ "key-provider-client",
+ "kms-rpc",
+ "load_config",
+ "lspci",
+ "path-absolutize",
+ "ra-rpc",
+ "rocket",
+ "rocket-apitoken",
+ "rocket-vsock-listener",
+ "safe-write",
+ "serde",
+ "serde_json",
+ "sha2",
+ "shared_child",
+ "strip-ansi-escapes",
+ "supervisor-client",
+ "tailf",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "which 7.0.2",
+]
+
+[[package]]
+name = "dstack-vmm-rpc"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "parity-scale-codec",
+ "prost 0.13.5",
+ "prpc",
+ "prpc-build",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "dunce"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5126,61 +5181,6 @@ dependencies = [
  "tracing-subscriber",
  "x25519-dalek",
  "x509-parser",
-]
-
-[[package]]
-name = "teepod"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "bon",
- "clap",
- "dirs",
- "dstack-types",
- "fs-err",
- "git-version",
- "guest-api",
- "hex",
- "hex_fmt",
- "host-api",
- "humantime",
- "insta",
- "key-provider-client",
- "kms-rpc",
- "load_config",
- "lspci",
- "path-absolutize",
- "ra-rpc",
- "rocket",
- "rocket-apitoken",
- "rocket-vsock-listener",
- "safe-write",
- "serde",
- "serde_json",
- "sha2",
- "shared_child",
- "strip-ansi-escapes",
- "supervisor-client",
- "tailf",
- "teepod-rpc",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "which 7.0.2",
-]
-
-[[package]]
-name = "teepod-rpc"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "parity-scale-codec",
- "prost 0.13.5",
- "prpc",
- "prpc-build",
- "serde",
- "serde_json",
 ]
 
 [[package]]

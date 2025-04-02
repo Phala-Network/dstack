@@ -116,7 +116,7 @@ fn vm_logs(
             let next = match timeout(Duration::from_secs(60), tailer.next()).await {
                 Ok(next) => next,
                 Err(_) => {
-                    yield format!("[teepod heartbeat]\n");
+                    yield format!("[vmm heartbeat]\n");
                     let created = STREAM_CREATED_COUNTER.load(Ordering::Relaxed);
                     let dropped = STREAM_DROPPED_COUNTER.load(Ordering::Relaxed);
                     let diff = created.saturating_sub(dropped);

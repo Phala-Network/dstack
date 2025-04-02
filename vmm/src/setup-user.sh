@@ -17,7 +17,7 @@
 #    ```
 #    sudo ./setup-user.sh dstack-prd1 -g $(id -gn) --allow-tcp 8080 --allow-udp 3000
 #    ```
-# 2. Edit the user in the `[cvm]` section of the teepod.yaml file:
+# 2. Edit the user in the `[cvm]` section of the vmm.yaml file:
 #    ```
 #    [cvm]
 #    user = "dstack-prd1"

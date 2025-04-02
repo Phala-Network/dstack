@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "google/protobuf/empty.proto";
 
-package teepod;
+package vmm;
 // Information about a Virtual Machine (VM)
 message VmInfo {
   // Unique identifier for the VM
@@ -207,8 +207,8 @@ message GpuInfo {
   bool is_free = 4;
 }
 
-// Service definition for Teepod
-service Teepod {
+// Service definition for dstack-vmm
+service Vmm {
   // RPC to create a VM
   rpc CreateVm(VmConfiguration) returns (Id);
   // RPC to start a VM
@@ -235,10 +235,10 @@ service Teepod {
   // Get VM info by ID
   rpc GetInfo(Id) returns (GetInfoResponse);
 
-  // Get version info of the Teepod
+  // Get version info of the dstack-vmm
   rpc Version(google.protobuf.Empty) returns (VersionResponse);
 
-  // Get version info of the Teepod
+  // Get version info of the dstack-vmm
   rpc GetMeta(google.protobuf.Empty) returns (GetMetaResponse);
 
   // List GPUs

@@ -14,8 +14,8 @@ else
 # Required environment variables for dstack-gateway deployment
 # Please uncomment and set values for the following variables:
 
-# The URL of the TEEPOD RPC service
-# TEEPOD_RPC=unix:../../../build/teepod.sock
+# The URL of the dstack-vmm RPC service
+# VMM_=unix:../../../build/vmm.sock
 
 # Cloudflare API token for DNS challenge
 # CF_API_TOKEN=your_cloudflare_api_token
@@ -64,7 +64,7 @@ fi
 
 # Define required environment variables
 required_env_vars=(
-  "TEEPOD_RPC"
+  "VMM_RPC"
   "CF_API_TOKEN"
   "CF_ZONE_ID"
   "SRV_DOMAIN"
@@ -84,7 +84,7 @@ for var in "${required_env_vars[@]}"; do
   fi
 done
 
-CLI="../../teepod/src/teepod-cli.py --url $TEEPOD_RPC"
+CLI="../../vmm/src/vmm-cli.py --url $VMM_RPC"
 
 WG_PORT=$(echo $WG_ADDR | cut -d':' -f2)
 COMPOSE_TMP=$(mktemp)
@@ -128,7 +128,7 @@ $CLI compose \
 rm "$COMPOSE_TMP"
 
 echo "Configuration:"
-echo "TEEPOD_RPC: $TEEPOD_RPC"
+echo "VMM_RPC: $VMM_RPC"
 echo "SRV_DOMAIN: $SRV_DOMAIN"
 echo "PUBLIC_IP: $PUBLIC_IP"
 echo "GATEWAY_APP_ID: $GATEWAY_APP_ID"
@@ -152,7 +152,7 @@ if [ -t 0 ]; then
   fi
 fi
 
-echo "Deploying dstack-gateway to Teepod..."
+echo "Deploying dstack-gateway to dstack-vmm..."
 
 $CLI deploy \
   --name dstack-gateway \

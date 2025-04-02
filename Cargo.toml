@@ -16,8 +16,8 @@ members = [
     "iohash",
     "guest-agent",
     "guest-agent/rpc",
-    "teepod",
-    "teepod/rpc",
+    "vmm",
+    "vmm/rpc",
     "gateway",
     "gateway/rpc",
     "certbot",
@@ -45,7 +45,7 @@ ra-tls = { path = "ra-tls" }
 dstack-gateway-rpc = { path = "gateway/rpc" }
 kms-rpc = { path = "kms/rpc" }
 dstack-guest-agent-rpc = { path = "guest-agent/rpc" }
-teepod-rpc = { path = "teepod/rpc" }
+dstack-vmm-rpc = { path = "vmm/rpc" }
 cc-eventlog = { path = "cc-eventlog" }
 supervisor = { path = "supervisor" }
 supervisor-client = { path = "supervisor/client" }

@@ -19,7 +19,7 @@ from eth_utils import keccak
 from typing import Optional, Dict, List, Tuple, Union, BinaryIO, Any
 
 # Default whitelist file location
-DEFAULT_KMS_WHITELIST_PATH = os.path.expanduser("~/.teepod/kms-whitelist.json")
+DEFAULT_KMS_WHITELIST_PATH = os.path.expanduser("~/.dstack-vmm/kms-whitelist.json")
 
 
 def encrypt_env(envs, hex_public_key: str) -> str:
@@ -117,7 +117,7 @@ class UnixSocketHTTPConnection(http.client.HTTPConnection):
         self.sock = sock
 
 
-class TeepodClient:
+class VmmClient:
     """A unified HTTP client that supports both regular HTTP and Unix Domain Sockets."""
 
     def __init__(self, base_url: str):
@@ -196,17 +196,17 @@ class TeepodClient:
         # Note: when stream=True, the caller must close the connection when done
 
 
-class TeepodCLI:
+class VmmCLI:
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip('/')
         self.headers = {
             'Content-Type': 'application/json'
         }
-        self.client = TeepodClient(base_url)
+        self.client = VmmClient(base_url)
 
     def rpc_call(self, method: str, params: Optional[Dict] = None) -> Dict:
-        """Make an RPC call to the Teepod API"""
-        path = f"/prpc/Teepod.{method}?json"
+        """Make an RPC call to the dstack-vmm API"""
+        path = f"/prpc/{method}?json"
         status, response = self.client.request(
             'POST', path, headers=self.headers, body=params or {})
 
@@ -725,9 +725,9 @@ def save_whitelist(whitelist: List[str]) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Teepod CLI - Manage VMs')
+    parser = argparse.ArgumentParser(description='dstack-vmm CLI - Manage VMs')
     parser.add_argument(
-        '--url', default='http://localhost:8080', help='Teepod API URL')
+        '--url', default='http://localhost:8080', help='dstack-vmm API URL')
 
     subparsers = parser.add_subparsers(dest='command', help='Commands')
 
@@ -843,7 +843,7 @@ def main():
 
     args = parser.parse_args()
 
-    cli = TeepodCLI(args.url)
+    cli = VmmCLI(args.url)
 
     if args.command == 'lsvm':
         cli.list_vms(args.verbose)

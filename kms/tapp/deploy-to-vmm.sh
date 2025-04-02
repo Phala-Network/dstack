@@ -14,8 +14,8 @@ else
 # Required environment variables for KMS deployment
 # Please uncomment and set values for the following variables:
 
-# The URL of the TEEPOD RPC service used to deploy the KMS Tapp
-# TEEPOD_RPC=unix:../../../build/teepod.sock
+# The URL of the dstack-vmm RPC service used to deploy the KMS Tapp
+# VMM_RPC=unix:../../../build/vmm.sock
 
 # The address of the KMS contract
 # KMS_CONTRACT_ADDR=0x59E4a36B01a87fD9D1A4C12377253FE9a7b018Ba
@@ -40,7 +40,7 @@ EOF
 fi
 
 required_env_vars=(
-  "TEEPOD_RPC"
+  "VMM_RPC"
   "KMS_RPC_ADDR"
   "GUEST_AGENT_ADDR"
   "KMS_CONTRACT_ADDR"
@@ -55,7 +55,7 @@ for var in "${required_env_vars[@]}"; do
   fi
 done
 
-CLI="../../teepod/src/teepod-cli.py --url $TEEPOD_RPC"
+CLI="../../vmm/src/vmm-cli.py --url $VMM_RPC"
 
 COMPOSE_TMP=$(mktemp)
 
@@ -97,7 +97,7 @@ $CLI compose \
 # Remove the temporary file as it is no longer needed
 rm "$COMPOSE_TMP"
 
-echo "Deploying KMS to Teepod..."
+echo "Deploying KMS to dstack-vmm..."
 
 $CLI deploy \
   --name kms \
