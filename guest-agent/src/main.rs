@@ -48,7 +48,7 @@ async fn run_internal_v0(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
         .mount(
             "/prpc/",
-            ra_rpc::prpc_routes!(AppState, InternalRpcHandlerV0),
+            ra_rpc::prpc_routes!(AppState, InternalRpcHandlerV0, trim: "Tappd."),
         )
         .manage(state);
     let ignite = rocket
@@ -98,7 +98,10 @@ async fn run_internal(state: AppState, figment: Figment) -> Result<()> {
 async fn run_external(state: AppState, figment: Figment) -> Result<()> {
     let rocket = rocket::custom(figment)
         .mount("/", http_routes::external_routes(state.config()))
-        .mount("/prpc", ra_rpc::prpc_routes!(AppState, ExternalRpcHandler))
+        .mount(
+            "/prpc",
+            ra_rpc::prpc_routes!(AppState, ExternalRpcHandler, trim: "Worker."),
+        )
         .attach(AdHoc::on_response("Add app version header", |_req, res| {
             Box::pin(async move {
                 res.set_raw_header("X-App-Version", app_version());

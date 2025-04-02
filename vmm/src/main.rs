@@ -47,7 +47,10 @@ async fn run_external_api(app: App, figment: Figment, api_auth: ApiToken) -> Res
         .mount("/", main_routes::routes())
         .mount("/guest", ra_rpc::prpc_routes!(App, GuestApiHandler))
         .mount("/api", ra_rpc::prpc_routes!(App, HostApiHandler))
-        .mount("/prpc", ra_rpc::prpc_routes!(App, RpcHandler, trim: "Teepod."))
+        .mount(
+            "/prpc",
+            ra_rpc::prpc_routes!(App, RpcHandler, trim: "Teepod."),
+        )
         .manage(app)
         .manage(api_auth)
         .attach(AdHoc::on_response("Add app rev header", |_req, res| {
