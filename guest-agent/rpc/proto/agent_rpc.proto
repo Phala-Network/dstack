@@ -144,6 +144,8 @@ message GetQuoteResponse {
   bytes quote = 1;
   // Event log
   string event_log = 2;
+  // Report data
+  bytes report_data = 3;
 }
 
 // The request to derive a key

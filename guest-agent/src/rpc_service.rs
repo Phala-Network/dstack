@@ -152,7 +152,11 @@ impl DstackGuestRpc for InternalRpcHandler {
         let event_log = read_event_logs().context("Failed to decode event log")?;
         let event_log =
             serde_json::to_string(&event_log).context("Failed to serialize event log")?;
-        Ok(GetQuoteResponse { quote, event_log })
+        Ok(GetQuoteResponse {
+            quote,
+            event_log,
+            report_data: report_data.to_vec(),
+        })
     }
 
     async fn info(self) -> Result<WorkerInfo> {
