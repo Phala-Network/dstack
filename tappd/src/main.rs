@@ -121,13 +121,12 @@ async fn run_watchdog(port: u16) {
     info!("Watchdog enabled, interval={watchdog_usec}us, heartbeat={heatbeat_interval:?}",);
     let mut interval = tokio::time::interval(heatbeat_interval);
 
-    // Create HTTP client for health checks
-    let client = reqwest::Client::new();
-
     let probe_url = format!("http://localhost:{port}/prpc/Worker.Version");
     loop {
         interval.tick().await;
 
+        // Create HTTP client for health checks
+        let client = reqwest::Client::new();
         // Perform health check
         match client.get(&probe_url).send().await {
             Ok(response) if response.status().is_success() => {
