@@ -67,17 +67,20 @@ fn query_field_get_bool(req: &Request<'_>, field_name: &str) -> bool {
 #[macro_export]
 macro_rules! prpc_routes {
     ($state:ty, $handler:ty) => {{
-        ra_rpc::declare_prpc_routes!(prpc_post, prpc_get, $state, $handler);
+        $crate::prpc_routes!($state, $handler, trim: "")
+    }};
+    ($state:ty, $handler:ty, trim: $trim_prefix:literal) => {{
+        $crate::declare_prpc_routes!(prpc_post, prpc_get, $state, $handler, trim: $trim_prefix);
         rocket::routes![prpc_post, prpc_get]
     }};
 }
 
 #[macro_export]
 macro_rules! declare_prpc_routes {
-    ($post:ident, $get:ident, $state:ty, $handler:ty) => {
-        $crate::declare_prpc_routes!(path: "/<method>", $post, $get, $state, $handler);
+    ($post:ident, $get:ident, $state:ty, $handler:ty, trim: $trim_prefix:literal) => {
+        $crate::declare_prpc_routes!(path: "/<method>", $post, $get, $state, $handler, trim: $trim_prefix);
     };
-    (path: $path: literal, $post:ident, $get:ident, $state:ty, $handler:ty) => {
+    (path: $path: literal, $post:ident, $get:ident, $state:ty, $handler:ty, trim: $trim_prefix:literal) => {
         #[rocket::post($path, data = "<data>")]
         async fn $post<'a: 'd, 'd>(
             state: &'a $crate::rocket_helper::deps::State<$state>,
@@ -90,6 +93,7 @@ macro_rules! declare_prpc_routes {
                 .request(rpc_request)
                 .method(method)
                 .data(data)
+                .method_trim_prefix($trim_prefix)
                 .build()
                 .handle::<$handler>()
                 .await
@@ -105,6 +109,7 @@ macro_rules! declare_prpc_routes {
                 .state(&**state)
                 .request(rpc_request)
                 .method(method)
+                .method_trim_prefix($trim_prefix)
                 .build()
                 .handle::<$handler>()
                 .await
@@ -184,6 +189,7 @@ pub struct PrpcHandler<'s, 'r, S> {
     state: &'s S,
     request: RpcRequest<'r>,
     method: &'r str,
+    method_trim_prefix: Option<&'r str>,
     data: Option<Data<'r>>,
 }
 
@@ -263,8 +269,10 @@ pub async fn handle_prpc_impl<S, Call: RpcCall<S>>(
         state,
         request,
         method,
+        method_trim_prefix,
         data,
     } = args;
+    let method = method.trim_start_matches(method_trim_prefix.unwrap_or_default());
     let remote_app_id = request
         .certificate
         .as_ref()

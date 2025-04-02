@@ -175,7 +175,10 @@ async fn main() -> Result<()> {
             ));
 
     let mut rocket = rocket::custom(figment)
-        .mount("/prpc", ra_rpc::prpc_routes!(Proxy, RpcHandler))
+        .mount(
+            "/prpc",
+            ra_rpc::prpc_routes!(Proxy, RpcHandler, trim: "Tproxy."),
+        )
         .attach(AdHoc::on_response("Add app version header", |_req, res| {
             Box::pin(async move {
                 res.set_raw_header("X-App-Version", app_version());
