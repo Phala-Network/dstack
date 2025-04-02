@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use fs_err as fs;
-use k256::ecdsa::SigningKey;
-use kms_rpc::{
+use dstack_kms_rpc::{
     kms_server::{KmsRpc, KmsServer},
     AppId, AppKeyResponse, GetAppKeyRequest, GetMetaResponse, GetTempCaCertResponse,
     KmsKeyResponse, KmsKeys, PublicKeyResponse, SignCertRequest, SignCertResponse,
 };
+use fs_err as fs;
+use k256::ecdsa::SigningKey;
 use ra_rpc::{Attestation, CallContext, RpcCall};
 use ra_tls::{
     attestation::VerifiedAttestation,

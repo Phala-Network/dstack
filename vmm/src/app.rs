@@ -2,13 +2,14 @@ use crate::config::{Config, ProcessNote, Protocol};
 
 use anyhow::{bail, Context, Result};
 use bon::Builder;
+use dstack_kms_rpc::kms_client::KmsClient;
 use dstack_types::shared_filenames::{
     compat_v3, APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, SYS_CONFIG, USER_CONFIG,
 };
+use dstack_vmm_rpc::{self as pb, GpuInfo, StatusRequest, StatusResponse, VmConfiguration};
 use fs_err as fs;
 use guest_api::client::DefaultClient as GuestClient;
 use id_pool::IdPool;
-use kms_rpc::kms_client::KmsClient;
 use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -16,7 +17,6 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use supervisor_client::SupervisorClient;
-use dstack_vmm_rpc::{self as pb, GpuInfo, StatusRequest, StatusResponse, VmConfiguration};
 use tracing::{error, info};
 
 pub use image::{Image, ImageInfo};

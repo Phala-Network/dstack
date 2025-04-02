@@ -43,7 +43,7 @@ resolver = "2"
 ra-rpc = { path = "ra-rpc", default-features = false }
 ra-tls = { path = "ra-tls" }
 dstack-gateway-rpc = { path = "gateway/rpc" }
-kms-rpc = { path = "kms/rpc" }
+dstack-kms-rpc = { path = "kms/rpc" }
 dstack-guest-agent-rpc = { path = "guest-agent/rpc" }
 dstack-vmm-rpc = { path = "vmm/rpc" }
 cc-eventlog = { path = "cc-eventlog" }

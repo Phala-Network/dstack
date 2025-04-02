@@ -1,5 +1,5 @@
 [package]
-name = "kms"
+name = "dstack-kms"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -20,7 +20,7 @@ tracing-subscriber.workspace = true
 x25519-dalek.workspace = true
 yasna.workspace = true
 
-kms-rpc.workspace = true
+dstack-kms-rpc.workspace = true
 ra-rpc = { workspace = true, features = ["client", "rocket"] }
 ra-tls.workspace = true
 load_config.workspace = true

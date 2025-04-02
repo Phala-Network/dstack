@@ -121,12 +121,12 @@ Run build.sh again to build the artifacts.
 
 # If everything is okay, you should see the built artifacts in the `build` directory.
 $ ls
-certs  images  kms  kms.toml  run  dstack-vmm  vmm.toml  dstack-gateway  gateway.toml
+certs  images  dstack-kms  kms.toml  run  dstack-vmm  vmm.toml  dstack-gateway  gateway.toml
 ```
 
 Now you can open 3 terminals to start the components:
 
-1. Run `./kms`
+1. Run `./dstack-kms -c kms.toml`
 2. Run `sudo ./dstack-gateway -c gateway.toml`
 3. Run `./dstack-vmm -c vmm.toml`
 
@@ -260,12 +260,6 @@ Given the config `GATEWAY_LISTEN_PORT_PASSTHROUGH=9008`, now we can go to [`http
 ## Upgrade an App
 
 Got to the dstack-vmm webpage, click the [Upgrade] button, select or paste the compose file you want to upgrade to, and click the [Upgrade] button again.
-Upon successful initiation of the upgrade, you'll see a message prompting you to run the following command in your terminal to authorize the upgrade through KMS:
-
-```shell
-./kms-allow-upgrade.sh <app_id> <upgraded_app_id>
-```
-
 The app id does not change after the upgrade. Stop and start the app to apply the upgrade.
 
 ## HTTPS Certificate Transparency

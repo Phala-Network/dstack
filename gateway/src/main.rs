@@ -98,7 +98,7 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
     let kms_url = format!("{kms_url}/prpc");
     info!("Getting CA cert from {kms_url}");
     let client = RaClient::new(kms_url, true).context("Failed to create kms client")?;
-    let client = kms_rpc::kms_client::KmsClient::new(client);
+    let client = dstack_kms_rpc::kms_client::KmsClient::new(client);
     let ca_cert = client.get_meta().await?.ca_cert;
     let key = ra_tls::rcgen::KeyPair::generate().context("Failed to generate key")?;
     let cert = ra_tls::cert::CertRequest::builder()

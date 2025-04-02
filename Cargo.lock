@@ -566,8 +566,8 @@ name = "cert-client"
 version = "0.4.1"
 dependencies = [
  "anyhow",
+ "dstack-kms-rpc",
  "dstack-types",
- "kms-rpc",
  "ra-rpc",
  "ra-tls",
  "serde_json",
@@ -1266,6 +1266,7 @@ dependencies = [
  "cmd_lib",
  "dstack-gateway-rpc",
  "dstack-guest-agent-rpc",
+ "dstack-kms-rpc",
  "fs-err",
  "futures",
  "git-version",
@@ -1274,7 +1275,6 @@ dependencies = [
  "http-client",
  "insta",
  "ipnet",
- "kms-rpc",
  "load_config",
  "nix",
  "parcelona",
@@ -1367,6 +1367,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "dstack-kms"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "dstack-guest-agent-rpc",
+ "dstack-kms-rpc",
+ "fs-err",
+ "git-version",
+ "hex",
+ "hex_fmt",
+ "http-client",
+ "k256",
+ "load_config",
+ "parity-scale-codec",
+ "ra-rpc",
+ "ra-tls",
+ "rand 0.8.5",
+ "reqwest",
+ "ring",
+ "rocket",
+ "safe-write",
+ "serde",
+ "serde-human-bytes",
+ "serde_json",
+ "sha2",
+ "sha3",
+ "tracing",
+ "tracing-subscriber",
+ "x25519-dalek",
+ "x509-parser",
+ "yasna",
+]
+
+[[package]]
+name = "dstack-kms-rpc"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "fs-err",
+ "parity-scale-codec",
+ "prost 0.13.5",
+ "prpc",
+ "prpc-build",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "dstack-types"
 version = "0.4.1"
 dependencies = [
@@ -1382,6 +1432,7 @@ dependencies = [
  "bon",
  "clap",
  "dirs",
+ "dstack-kms-rpc",
  "dstack-types",
  "dstack-vmm-rpc",
  "fs-err",
@@ -1393,7 +1444,6 @@ dependencies = [
  "humantime",
  "insta",
  "key-provider-client",
- "kms-rpc",
  "load_config",
  "lspci",
  "path-absolutize",
@@ -2558,56 +2608,6 @@ dependencies = [
  "serde_json",
  "sodiumoxide",
  "tokio",
-]
-
-[[package]]
-name = "kms"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "dstack-guest-agent-rpc",
- "fs-err",
- "git-version",
- "hex",
- "hex_fmt",
- "http-client",
- "k256",
- "kms-rpc",
- "load_config",
- "parity-scale-codec",
- "ra-rpc",
- "ra-tls",
- "rand 0.8.5",
- "reqwest",
- "ring",
- "rocket",
- "safe-write",
- "serde",
- "serde-human-bytes",
- "serde_json",
- "sha2",
- "sha3",
- "tracing",
- "tracing-subscriber",
- "x25519-dalek",
- "x509-parser",
- "yasna",
-]
-
-[[package]]
-name = "kms-rpc"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "fs-err",
- "parity-scale-codec",
- "prost 0.13.5",
- "prpc",
- "prpc-build",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -5153,6 +5153,7 @@ dependencies = [
  "curve25519-dalek",
  "dcap-qvl",
  "dstack-gateway-rpc",
+ "dstack-kms-rpc",
  "dstack-types",
  "fs-err",
  "getrandom 0.3.1",
@@ -5161,7 +5162,6 @@ dependencies = [
  "host-api",
  "k256",
  "key-provider-client",
- "kms-rpc",
  "parity-scale-codec",
  "ra-rpc",
  "ra-tls",

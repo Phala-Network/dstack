@@ -253,7 +253,7 @@ impl VmmRpc for RpcHandler {
     async fn get_app_env_encrypt_pub_key(self, request: AppId) -> Result<PublicKeyResponse> {
         let kms = self.kms_client()?;
         let response = kms
-            .get_app_env_encrypt_pub_key(kms_rpc::AppId {
+            .get_app_env_encrypt_pub_key(dstack_kms_rpc::AppId {
                 app_id: request.app_id,
             })
             .await?;

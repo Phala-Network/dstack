@@ -35,7 +35,7 @@ smallvec.workspace = true
 futures.workspace = true
 cmd_lib.workspace = true
 load_config.workspace = true
-kms-rpc.workspace = true
+dstack-kms-rpc.workspace = true
 ra-tls.workspace = true
 dstack-guest-agent-rpc.workspace = true
 http-client = { workspace = true, features = ["prpc"] }

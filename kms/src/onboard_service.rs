@@ -2,13 +2,13 @@ use anyhow::{Context, Result};
 use dstack_guest_agent_rpc::{
     dstack_guest_client::DstackGuestClient, GetQuoteResponse, RawQuoteArgs,
 };
-use http_client::prpc::PrpcClient;
-use k256::ecdsa::SigningKey;
-use kms_rpc::{
+use dstack_kms_rpc::{
     kms_client::KmsClient,
     onboard_server::{OnboardRpc, OnboardServer},
     BootstrapRequest, BootstrapResponse, OnboardRequest, OnboardResponse,
 };
+use http_client::prpc::PrpcClient;
+use k256::ecdsa::SigningKey;
 use ra_rpc::{client::RaClient, CallContext, RpcCall};
 use ra_tls::{
     attestation::QuoteContentType,

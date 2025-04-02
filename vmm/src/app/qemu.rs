@@ -16,10 +16,10 @@ use super::{image::Image, VmState};
 use anyhow::{bail, Context, Result};
 use bon::Builder;
 use dstack_types::shared_filenames::{APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, USER_CONFIG};
+use dstack_vmm_rpc as pb;
 use fs_err as fs;
 use serde::{Deserialize, Serialize};
 use supervisor_client::supervisor::{ProcessConfig, ProcessInfo};
-use dstack_vmm_rpc as pb;
 
 #[derive(Debug, Deserialize)]
 pub struct InstanceInfo {

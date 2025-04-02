@@ -32,7 +32,7 @@ rocket-apitoken.workspace = true
 supervisor-client.workspace = true
 ra-rpc = { workspace = true, features = ["client", "rocket"] }
 dstack-vmm-rpc.workspace = true
-kms-rpc.workspace = true
+dstack-kms-rpc.workspace = true
 path-absolutize.workspace = true
 host-api.workspace = true
 safe-write.workspace = true
