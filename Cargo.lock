@@ -3557,9 +3557,9 @@ dependencies = [
 
 [[package]]
 name = "prpc-build"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcf8a68f9ec5419c398b5a185153a7faad95b1f425fad161da6e8212ef87aa4e"
+checksum = "0db191928d08a5e73122ee34e0003b23c5427e40aa0057394d1009f67c3aa5eb"
 dependencies = [
  "either",
  "fs-err",

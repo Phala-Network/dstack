@@ -142,7 +142,7 @@ x509-parser = "0.16.0"
 
 # RPC/Protocol
 prpc = "0.6.0"
-prpc-build = "0.6.0"
+prpc-build = "0.6.1"
 
 # Development/Testing
 bindgen = "0.71.1"
