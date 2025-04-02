@@ -478,11 +478,19 @@ impl App {
             .as_ref()
             .context("Rootfs hash not found in image info")?;
         let img_ver = image_info.version_tuple().unwrap_or((0, 0, 0));
-        let sys_config = if img_ver >= (0, 4, 0) {
+        let sys_config = if img_ver >= (0, 4, 2) {
+            serde_json::json!({
+                "kms_urls": cfg.cvm.kms_urls,
+                "gateway_urls": cfg.cvm.gateway_urls,
+                "pccs_url": cfg.cvm.pccs_url,
+                "docker_registry": cfg.cvm.docker_registry,
+                "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
+            })
+        } else if img_ver >= (0, 4, 0) {
             serde_json::json!({
                 "rootfs_hash": rootfs_hash,
                 "kms_urls": cfg.cvm.kms_urls,
-                "tproxy_urls": cfg.cvm.tproxy_urls,
+                "tproxy_urls": cfg.cvm.gateway_urls,
                 "pccs_url": cfg.cvm.pccs_url,
                 "docker_registry": cfg.cvm.docker_registry,
                 "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
@@ -491,7 +499,7 @@ impl App {
             serde_json::json!({
                 "rootfs_hash": rootfs_hash,
                 "kms_url": cfg.cvm.kms_urls.first(),
-                "tproxy_url": cfg.cvm.tproxy_urls.first(),
+                "tproxy_url": cfg.cvm.gateway_urls.first(),
                 "pccs_url": cfg.cvm.pccs_url,
                 "docker_registry": cfg.cvm.docker_registry,
                 "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),

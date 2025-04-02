@@ -614,16 +614,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "certgen"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "clap",
- "fs-err",
- "ra-tls",
-]
-
-[[package]]
 name = "cexpr"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -898,6 +888,7 @@ version = "0.4.1"
 dependencies = [
  "anyhow",
  "clap",
+ "dstack-gateway-rpc",
  "hex_fmt",
  "ra-rpc",
  "regex",
@@ -905,7 +896,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "tproxy-rpc",
  "tracing",
  "tracing-subscriber",
  "x509-parser",
@@ -1263,6 +1253,61 @@ dependencies = [
  "quote",
  "strum",
  "syn 2.0.100",
+]
+
+[[package]]
+name = "dstack-gateway"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "certbot",
+ "clap",
+ "cmd_lib",
+ "dstack-gateway-rpc",
+ "dstack-guest-agent-rpc",
+ "fs-err",
+ "futures",
+ "git-version",
+ "hex",
+ "hickory-resolver",
+ "http-client",
+ "insta",
+ "ipnet",
+ "kms-rpc",
+ "load_config",
+ "nix",
+ "parcelona",
+ "pin-project",
+ "ra-rpc",
+ "ra-tls",
+ "rand 0.8.5",
+ "rinja",
+ "rocket",
+ "rustls",
+ "safe-write",
+ "serde",
+ "serde_json",
+ "sha2",
+ "shared_child",
+ "smallvec",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "dstack-gateway-rpc"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "parity-scale-codec",
+ "prost 0.13.5",
+ "prpc",
+ "prpc-build",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -5052,6 +5097,7 @@ dependencies = [
  "cmd_lib",
  "curve25519-dalek",
  "dcap-qvl",
+ "dstack-gateway-rpc",
  "dstack-types",
  "fs-err",
  "getrandom 0.3.1",
@@ -5076,7 +5122,6 @@ dependencies = [
  "tdx-attest",
  "tokio",
  "toml",
- "tproxy-rpc",
  "tracing",
  "tracing-subscriber",
  "x25519-dalek",
@@ -5415,61 +5460,6 @@ name = "tower-service"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
-
-[[package]]
-name = "tproxy"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "bytes",
- "certbot",
- "clap",
- "cmd_lib",
- "dstack-guest-agent-rpc",
- "fs-err",
- "futures",
- "git-version",
- "hex",
- "hickory-resolver",
- "http-client",
- "insta",
- "ipnet",
- "kms-rpc",
- "load_config",
- "nix",
- "parcelona",
- "pin-project",
- "ra-rpc",
- "ra-tls",
- "rand 0.8.5",
- "rinja",
- "rocket",
- "rustls",
- "safe-write",
- "serde",
- "serde_json",
- "sha2",
- "shared_child",
- "smallvec",
- "tokio",
- "tokio-rustls",
- "tproxy-rpc",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "tproxy-rpc"
-version = "0.4.1"
-dependencies = [
- "anyhow",
- "parity-scale-codec",
- "prost 0.13.5",
- "prpc",
- "prpc-build",
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "tracing"

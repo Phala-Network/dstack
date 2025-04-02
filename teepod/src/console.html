@@ -716,8 +716,8 @@
                                 Local Key Provider
                             </label>
                             <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" v-model="vmForm.tproxy_enabled">
-                                TProxy
+                                <input type="checkbox" v-model="vmForm.gateway_enabled">
+                                Dstack Gateway
                             </label>
                             <label style="display: flex; align-items: center; gap: 5px;">
                                 <input type="checkbox" v-model="vmForm.public_logs">
@@ -1344,7 +1344,7 @@
                     app_id: '',
                     kms_enabled: true,
                     local_key_provider_enabled: false,
-                    tproxy_enabled: true,
+                    gateway_enabled: true,
                     public_logs: true,
                     public_sysinfo: true,
                     pin_numa: false,
@@ -1505,12 +1505,12 @@
                             "token_key": vmForm.value.docker_config.token_key,
                         } : {},
                         "kms_enabled": vmForm.value.kms_enabled,
-                        "tproxy_enabled": vmForm.value.tproxy_enabled,
+                        "gateway_enabled": vmForm.value.gateway_enabled,
                         "public_logs": vmForm.value.public_logs,
                         "public_sysinfo": vmForm.value.public_sysinfo,
                         "local_key_provider_enabled": vmForm.value.local_key_provider_enabled,
                         "allowed_envs": vmForm.value.encrypted_envs.map(env => env.key),
-                        "no_instance_id": !vmForm.value.tproxy_enabled,
+                        "no_instance_id": !vmForm.value.gateway_enabled,
                     };
 
                     if (vmForm.value.preLaunchScript?.trim()) {
@@ -1522,10 +1522,13 @@
                         // Compatibility with old images
                         const features = [];
                         if (vmForm.value.kms_enabled) features.push("kms");
-                        if (vmForm.value.tproxy_enabled) features.push("tproxy-net");
+                        if (vmForm.value.gateway_enabled) features.push("tproxy-net");
                         app_compose.features = features;
                         app_compose.manifest_version = 1;
                         app_compose.version = "1.0.0";
+                    }
+                    if (imgFeatures.compose_version < 3) {
+                        app_compose.tproxy_enabled = app_compose.gateway_enabled;
                     }
                     return JSON.stringify(app_compose);
                 };
@@ -1741,8 +1744,8 @@
                     return vm.appCompose?.kms_enabled || vm.appCompose?.features?.includes('kms');
                 };
 
-                const tproxyEnabled = (vm) => {
-                    return vm.appCompose?.tproxy_enabled || vm.appCompose?.features?.includes('tproxy-net');
+                const gatewayEnabled = (vm) => {
+                    return vm.appCompose?.gateway_enabled || vm.appCompose?.tproxy_enabled || vm.appCompose?.features?.includes('tproxy-net');
                 };
 
                 const defaultTrue = (v) => {
@@ -1753,14 +1756,14 @@
                 const getFlags = (vm) => {
                     const features = [];
                     if (kmsEnabled(vm)) features.push("kms");
-                    if (tproxyEnabled(vm)) features.push("tproxy");
+                    if (gatewayEnabled(vm)) features.push("gateway");
                     if (defaultTrue(vm.appCompose?.public_logs)) features.push("logs");
                     if (defaultTrue(vm.appCompose?.public_sysinfo)) features.push("sysinfo");
                     return features.join(', ');
                 };
 
                 const dashboardAvailable = (vm) => {
-                    if (!tproxyEnabled(vm)) return false;
+                    if (!gatewayEnabled(vm)) return false;
                     return vm.app_url
                 };
 
@@ -2173,6 +2176,9 @@
                         features.network_info = true;
                         features.compose_version = 2;
                     }
+                    if (verGE(versionStr, '0.4.2')) {
+                        features.compose_version = 3;
+                    }
                     return features;
                 };
 
@@ -2208,7 +2214,7 @@
                     () => vmForm.value.dockerComposeFile,
                     () => vmForm.value.preLaunchScript,
                     () => vmForm.value.kms_enabled,
-                    () => vmForm.value.tproxy_enabled,
+                    () => vmForm.value.gateway_enabled,
                     () => vmForm.value.public_logs,
                     () => vmForm.value.public_sysinfo,
                     () => vmForm.value.local_key_provider_enabled,
@@ -2287,7 +2293,7 @@
                     imageFeatures,
                     shutdownVm,
                     kmsEnabled,
-                    tproxyEnabled,
+                    gatewayEnabled,
                     getFlags,
                     version,
                     showDeployDialog,

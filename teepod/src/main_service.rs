@@ -7,9 +7,9 @@ use fs_err as fs;
 use ra_rpc::{CallContext, RpcCall};
 use teepod_rpc::teepod_server::{TeepodRpc, TeepodServer};
 use teepod_rpc::{
-    AppId, GetInfoResponse, GetMetaResponse, Id, ImageInfo as RpcImageInfo, ImageListResponse,
-    KmsSettings, ListGpusResponse, PublicKeyResponse, ResizeVmRequest, ResourcesSettings,
-    StatusRequest, StatusResponse, TProxySettings, UpgradeAppRequest, VersionResponse,
+    AppId, GatewaySettings, GetInfoResponse, GetMetaResponse, Id, ImageInfo as RpcImageInfo,
+    ImageListResponse, KmsSettings, ListGpusResponse, PublicKeyResponse, ResizeVmRequest,
+    ResourcesSettings, StatusRequest, StatusResponse, UpgradeAppRequest, VersionResponse,
     VmConfiguration,
 };
 use tracing::{info, warn};
@@ -364,16 +364,16 @@ impl TeepodRpc for RpcHandler {
                     .unwrap_or_default(),
                 urls: self.app.config.cvm.kms_urls.clone(),
             }),
-            tproxy: Some(TProxySettings {
+            gateway: Some(GatewaySettings {
                 url: self
                     .app
                     .config
                     .cvm
-                    .tproxy_urls
+                    .gateway_urls
                     .first()
                     .cloned()
                     .unwrap_or_default(),
-                urls: self.app.config.cvm.tproxy_urls.clone(),
+                urls: self.app.config.cvm.gateway_urls.clone(),
                 base_domain: self.app.config.gateway.base_domain.clone(),
                 port: self.app.config.gateway.port.into(),
                 agent_port: self.app.config.gateway.agent_port.into(),

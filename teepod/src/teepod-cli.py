@@ -401,7 +401,7 @@ class TeepodCLI:
                            prelaunch_script: str,
                            docker_compose: str,
                            kms_enabled: bool,
-                           tproxy_enabled: bool,
+                           gateway_enabled: bool,
                            local_key_provider_enabled: bool,
                            public_logs: bool,
                            public_sysinfo: bool,
@@ -416,7 +416,7 @@ class TeepodCLI:
             "runner": "docker-compose",
             "docker_compose_file": open(docker_compose, 'rb').read().decode('utf-8'),
             "kms_enabled": kms_enabled,
-            "tproxy_enabled": tproxy_enabled,
+            "gateway_enabled": gateway_enabled,
             "local_key_provider_enabled": local_key_provider_enabled,
             "public_logs": public_logs,
             "public_sysinfo": public_sysinfo,
@@ -769,7 +769,7 @@ def main():
     compose_parser.add_argument(
         '--kms', action='store_true', help='Enable KMS')
     compose_parser.add_argument(
-        '--tproxy', action='store_true', help='Enable TProxy')
+        '--gateway', action='store_true', help='Enable dstack-gateway')
     compose_parser.add_argument(
         '--local-key-provider', action='store_true', help='Enable local key provider')
     compose_parser.add_argument(
@@ -861,7 +861,7 @@ def main():
             prelaunch_script=args.prelaunch_script,
             docker_compose=args.docker_compose,
             kms_enabled=args.kms,
-            tproxy_enabled=args.tproxy,
+            gateway_enabled=args.gateway,
             local_key_provider_enabled=args.local_key_provider,
             public_logs=args.public_logs,
             public_sysinfo=args.public_sysinfo,

@@ -24,8 +24,8 @@ Dstack is community driven. Open sourced and built by [Kevin Wang](https://githu
 Components in Dstack:
 
 - `teepod`: A service running in bare TDX host to manage CVMs
-- `tproxy`: A reverse proxy to forward TLS connections to CVMs
-- `kms`: A KMS server to generate keys for CVMs
+- `dstack-gateway`: A reverse proxy to forward TLS connections to CVMs
+- `dstack-kms`: A KMS server to generate keys for CVMs
 - `dstack-guest-agent`: A service running in CVM to serve containers' key derivation and attestation requests
 - `meta-dstack`: A Yocto meta layer to build CVM guest images
 
@@ -40,8 +40,8 @@ dstack/
     guest-agent/                 A service running in CVM to serve containers' key derivation and attestation requests.
     tdxctl/                      A CLI tool getting TDX quote, extending RTMR, generating cert for RA-TLS, etc.
     teepod/                      A service running in bare TDX host to manage CVMs
-    tproxy/                      A reverse proxy to forward TLS connections to CVMs
-    certbot/                     A tool to automatically obtain and renew TLS certificates for tproxy
+    gateway/                     A reverse proxy to forward TLS connections to CVMs
+    certbot/                     A tool to automatically obtain and renew TLS certificates for dstack-gateway
     ra-rpc/                      RA-TLS support for pRPC
     ra-tls/                      RA-TLS support library
     tdx-attest/                  Guest library for getting TDX quote and extending RTMR
@@ -91,27 +91,27 @@ TEEPOD_CID_POOL_START=20000
 
 # The internal port for kms to listen to requests from CVMs
 KMS_RPC_LISTEN_PORT=9043
-# The internal port for tproxy to listen to requests from CVMs
-TPROXY_RPC_LISTEN_PORT=9070
+# The internal port for dstack-gateway to listen to requests from CVMs
+GATEWAY_RPC_LISTEN_PORT=9070
 
-# WireGuard interface name for tproxy
-TPROXY_WG_INTERFACE=tproxy-kvin
-# WireGuard listening port for tproxy
-TPROXY_WG_LISTEN_PORT=9182
-# WireGuard server IP for tproxy
-TPROXY_WG_IP=10.0.3.1
+# WireGuard interface name for dstack-gateway
+GATEWAY_WG_INTERFACE=dgw-kvin
+# WireGuard listening port for dstack-gateway
+GATEWAY_WG_LISTEN_PORT=9182
+# WireGuard server IP for dstack-gateway
+GATEWAY_WG_IP=10.0.3.1
 # WireGuard client IP range
-TPROXY_WG_CLIENT_IP_RANGE=10.0.3.0/24
-# The public port for tproxy to listen to requests that would be forwarded to app in CVMs
-TPROXY_SERVE_PORT=9443
+GATEWAY_WG_CLIENT_IP_RANGE=10.0.3.0/24
+# The public port for dstack-gateway to listen to requests that would be forwarded to app in CVMs
+GATEWAY_SERVE_PORT=9443
 
-# The public domain name for tproxy. Please set a wildacard DNS record (e.g. *.app.kvin.wang in this example)
+# The public domain name for dstack-gateway. Please set a wildacard DNS record (e.g. *.app.kvin.wang in this example)
 # for this domain that points the IP address of your TDX host.
-TPROXY_PUBLIC_DOMAIN=app.kvin.wang
-# The path to the TLS certificate for tproxy's public endpoint
-TPROXY_CERT=/etc/rproxy/certs/cert.pem
-# The path to the TLS key for tproxy's public endpoint
-TPROXY_KEY=/etc/rproxy/certs/key.pem
+GATEWAY_PUBLIC_DOMAIN=app.kvin.wang
+# The path to the TLS certificate for dstack-gateway's public endpoint
+GATEWAY_CERT=/etc/rproxy/certs/cert.pem
+# The path to the TLS key for dstack-gateway's public endpoint
+GATEWAY_KEY=/etc/rproxy/certs/key.pem
 ```
 
 Run build.sh again to build the artifacts.
@@ -121,23 +121,13 @@ Run build.sh again to build the artifacts.
 
 # If everything is okay, you should see the built artifacts in the `build` directory.
 $ ls
-certs  images  kms  kms.toml  run  teepod  teepod.toml  tproxy  tproxy.toml
-
-# The wireguard interface should be set up:
-$ ifconfig tproxy-kvin
-tproxy-kvin: flags=209<UP,POINTOPOINT,RUNNING,NOARP>  mtu 1420
-        inet 10.0.3.1  netmask 255.255.255.0  destination 10.0.3.1
-        unspec 00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00  txqueuelen 1000  (UNSPEC)
-        RX packets 4839  bytes 839320 (839.3 KB)
-        RX errors 0  dropped 0  overruns 0  frame 0
-        TX packets 3836  bytes 507540 (507.5 KB)
-        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+certs  images  kms  kms.toml  run  teepod  teepod.toml  dstack-gateway  gateway.toml
 ```
 
 Now you can open 3 terminals to start the components:
 
 1. Run `./kms`
-2. Run `sudo ./tproxy`
+2. Run `sudo ./dstack-gateway -c gateway.toml`
 3. Run `./teepod`
 
 ## Deploy an App
@@ -153,9 +143,9 @@ After the container deployed, it should need some time to start the CVM and the 
 
     ![dstack-guest-agent](./docs/assets/guest-agent.png)
 
-- You can open tproxy's dashboard at [https://localhost:9070](https://localhost:9070) to see the CVM's wireguard ip address, as shown below:
+- You can open dstack-gateway's dashboard at [https://localhost:9070](https://localhost:9070) to see the CVM's wireguard ip address, as shown below:
 
-![tproxy](./docs/assets/tproxy.png)
+![dstack-gateway](./docs/assets/gateway.png)
 
 ## Pass Secrets to Apps
 When deploying a new App, you can pass private data via Encrypted Environment Variables. These variables can be referenced in the docker-compose.yaml file as shown below:
@@ -166,7 +156,7 @@ The environment variables will be encrypted in the client-side and decrypted in 
 
 ## Access the App
 
-Once the app is deployed and listening on an HTTP port, you can access the HTTP service via tproxy's public domain. The ingress mapping rules are:
+Once the app is deployed and listening on an HTTP port, you can access the HTTP service via dstack-gateway's public domain. The ingress mapping rules are:
 
 - `<id>[s].<base_domain>` maps to port `80` or `443` if with `s` in the CVM.
 - `<id>-<port>[s].<base_domain>` maps to port `<port>` in the CVM.
@@ -174,12 +164,12 @@ Once the app is deployed and listening on an HTTP port, you can access the HTTP 
 For example, `3327603e03f5bd1f830812ca4a789277fc31f577-8080.app.kvin.wang` maps to port `8080` in the CVM.
 
 Where the `<id>` can be either the app id or the instance id. If the app id is used, one of the instances will be selected by the load balancer.
-If the `id-port` part ends with `s`, it means the TLS connection will be passthrough to the app rather than terminating at tproxy.
+If the `id-port` part ends with `s`, it means the TLS connection will be passthrough to the app rather than terminating at dstack-gateway.
 
 You can also ssh into the CVM to inspect more information, if your deployment uses the image `dstack-x.x.x-dev`:
 
 ```bash
-# The IP address of the CVM can be found in the tproxy dashboard.
+# The IP address of the CVM can be found in the dstack-gateway dashboard.
 ssh root@10.0.3.2
 ```
 
@@ -240,10 +230,10 @@ $ curl 'http://0.0.0.0:9190/logs/zk-provider-server?text&timestamps'
 The build configuration for TLS Passthrough is:
 
 ```bash
-TPROXY_LISTEN_PORT_PASSTHROUGH=9008
+GATEWAY_LISTEN_PORT_PASSTHROUGH=9008
 ```
 
-With this configuration, tproxy listens port `9008` for incoming TLS connections and forwards them to the appropriate Tapp based on `SNI`, where SNI represents your custom domain and the forwarding destination is determined by your DNS records.
+With this configuration, dstack-gateway listens port `9008` for incoming TLS connections and forwards them to the appropriate Tapp based on `SNI`, where SNI represents your custom domain and the forwarding destination is determined by your DNS records.
 
 For example, assuming I've deployed an app at `3327603e03f5bd1f830812ca4a789277fc31f577`, as shown below:
 
@@ -255,7 +245,7 @@ Now, I want to use my custom domain `tapp-nginx.kvin.wang` to access the Tapp. I
 
     ![tapp-dns-a](./docs/assets/tapp-dns-a.png)
 
-2. `TXT` record to instruct the Tproxy to direct the request to the specified Tapp:
+2. `TXT` record to instruct the dstack-gateway to direct the request to the specified Tapp:
 
     ![tapp-dns-txt](./docs/assets/tapp-dns-txt.png)
 
@@ -265,7 +255,7 @@ Where
 
 The TXT record value `3327603e03f5bd1f830812ca4a789277fc31f577:8043` means that requests sent to `tapp-nginx.kvin.wang` will be processed by Tapp `3327603e03f5bd1f830812ca4a789277fc31f577` on port `8043`
 
-Given the config `TPROXY_LISTEN_PORT_PASSTHROUGH=9008`, now we can go to [`https://tapp-nginx.kvin.wang:9008`](https://tapp-nginx.kvin.wang:9008) and the request will be handled by the service listening on `8043` in Tapp `3327603e03f5bd1f830812ca4a789277fc31f577`.
+Given the config `GATEWAY_LISTEN_PORT_PASSTHROUGH=9008`, now we can go to [`https://tapp-nginx.kvin.wang:9008`](https://tapp-nginx.kvin.wang:9008) and the request will be handled by the service listening on `8043` in Tapp `3327603e03f5bd1f830812ca4a789277fc31f577`.
 
 ## Upgrade an App
 
@@ -280,12 +270,12 @@ The app id does not change after the upgrade. Stop and start the app to apply th
 
 ## HTTPS Certificate Transparency
 
-In the tutorial above, we used a TLS certificate with a private key external to the TEE (Tproxy-CVM here). To establish trust, we need to generate and maintain the certificate's private key within the TEE and provide evidence that all TLS certificates for the domain were originate solely from Tproxy-CVM.
+In the tutorial above, we used a TLS certificate with a private key external to the TEE. To establish trust, we need to generate and maintain the certificate's private key within the TEE and provide evidence that all TLS certificates for the domain were originate solely from dstack-gateway CVM.
 
 By combining Certificate Transparency Logs and CAA DNS records, we can make best effort to minimize security risks. Here's our approach:
 
-- Set CAA records to allow only the account created in Tproxy-CVM to request Certificates.
-- Launch a program to monitor Certificate Transparency Log and give alarm once any certificate issued to a pubkey that isn’t generated by Tproxy.
+- Set CAA records to allow only the account created in dstack-gateway CVM to request Certificates.
+- Launch a program to monitor Certificate Transparency Log and give alarm once any certificate issued to a pubkey that isn’t generated by dstack-gateway CVM.
 
 ### Configurations
 
@@ -293,8 +283,8 @@ To launch Certbot, you need to own a domain hosted on Cloudflare. Obtain an API 
 
 ```bash
 # The directory to store the auto obtained TLS certificate and key
-TPROXY_CERT=${CERBOT_WORKDIR}/live/cert.pem
-TPROXY_KEY=${CERBOT_WORKDIR}/live/key.pem
+GATEWAY_CERT=${CERBOT_WORKDIR}/live/cert.pem
+GATEWAY_KEY=${CERBOT_WORKDIR}/live/key.pem
 
 # for certbot
 CF_ZONE_ID=cc0a40...
@@ -355,17 +345,17 @@ Where the command did are:
 
 - Auto requested a new certificate from Let's Encrypt. Automatically renews the certificate to maintain its validity
 
-### Launch Tproxy
+### Launch dstack-gateway
 
-Execute tproxy with `sudo ./tproxy`, then access the web portal to check the Tproxy-CVM managed Let's Encrypt account. The account's private key remains securely sealed within the TEE.
+Execute dstack-gateway with `sudo ./dstack-gateway -c gateway.toml`, then access the web portal to check the dstack-gateway CVM managed Let's Encrypt account. The account's private key remains securely sealed within the TEE.
 
-![tproxy-accountid](./docs/assets/tproxy-accountid.png)
+![gateway-accountid](./docs/assets/gateway-accountid.png)
 
 ## Certificate transparency log monitor
 
-To enhance security, we've limited TLS certificate issuance to Tproxy via CAA records. However, since these records can be modified through Cloudflare's domain management, we need to implement global CA certificate monitoring to maintain security oversight.
+To enhance security, we've limited TLS certificate issuance to dstack-gateway via CAA records. However, since these records can be modified through Cloudflare's domain management, we need to implement global CA certificate monitoring to maintain security oversight.
 
-`ct_monitor` tracks Certificate Transparency logs via [https://crt.sh](https://crt.sh/?q=app.kvin.wang), comparing their public key with the ones got from Tproxy RPC. It immediately alerts when detecting unauthorized certificates not issued through Tproxy:
+`ct_monitor` tracks Certificate Transparency logs via [https://crt.sh](https://crt.sh/?q=app.kvin.wang), comparing their public key with the ones got from dstack-gateway RPC. It immediately alerts when detecting unauthorized certificates not issued through dstack-gateway:
 
 ```text
 $ ./ct_monitor -t https://localhost:9010/prpc -d app.kvin.wang

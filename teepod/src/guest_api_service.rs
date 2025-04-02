@@ -43,7 +43,9 @@ impl ProxiedGuestApiRpc for GuestApiHandler {
     }
 
     async fn list_containers(self, request: Id) -> Result<ListContainersResponse> {
-        self.guest_agent_client(&request.id)?.list_containers().await
+        self.guest_agent_client(&request.id)?
+            .list_containers()
+            .await
     }
 
     async fn shutdown(self, request: Id) -> Result<()> {

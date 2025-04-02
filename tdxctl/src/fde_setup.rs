@@ -276,7 +276,7 @@ impl SetupFdeArgs {
             env_crypt_key: response.env_crypt_key,
             k256_key: response.k256_key,
             k256_signature: response.k256_signature,
-            tproxy_app_id: response.tproxy_app_id,
+            gateway_app_id: response.gateway_app_id,
             key_provider: KeyProvider::Kms { url: kms_url },
         };
         Ok(keys)

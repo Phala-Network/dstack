@@ -18,9 +18,8 @@ members = [
     "guest-agent/rpc",
     "teepod",
     "teepod/rpc",
-    "tproxy",
-    "tproxy/rpc",
-    "certgen",
+    "gateway",
+    "gateway/rpc",
     "certbot",
     "certbot/cli",
     "ct_monitor",
@@ -43,7 +42,7 @@ resolver = "2"
 # Internal dependencies
 ra-rpc = { path = "ra-rpc", default-features = false }
 ra-tls = { path = "ra-tls" }
-tproxy-rpc = { path = "tproxy/rpc" }
+dstack-gateway-rpc = { path = "gateway/rpc" }
 kms-rpc = { path = "kms/rpc" }
 dstack-guest-agent-rpc = { path = "guest-agent/rpc" }
 teepod-rpc = { path = "teepod/rpc" }

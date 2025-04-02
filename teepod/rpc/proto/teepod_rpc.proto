@@ -170,7 +170,7 @@ message KmsSettings {
   repeated string urls = 2;
 }
 
-message TProxySettings {
+message GatewaySettings {
   string url = 1;
   string base_domain = 2;
   uint32 port = 3;
@@ -187,7 +187,7 @@ message ResourcesSettings {
 
 message GetMetaResponse {
   KmsSettings kms = 1;
-  TProxySettings tproxy = 2;
+  GatewaySettings gateway = 2;
   ResourcesSettings resources = 3;
 }
 

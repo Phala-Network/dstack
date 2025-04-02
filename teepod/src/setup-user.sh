@@ -13,7 +13,7 @@
 #    sudo ./setup-user.sh dstack-prd1 -g $(id -gn)
 #    ```
 #
-#    If you want allow the VM to access some ports such as local KMS or Tproxy, you can use the following command:
+#    If you want allow the VM to access some ports such as local KMS or dstack-gateway, you can use the following command:
 #    ```
 #    sudo ./setup-user.sh dstack-prd1 -g $(id -gn) --allow-tcp 8080 --allow-udp 3000
 #    ```

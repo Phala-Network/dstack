@@ -1,7 +1,7 @@
 # Deployment of DStack
 
 This document describes the deployment of DStack components on bare metal TDX hosts.
-It contains steps to deploy KMS and Tproxy into CVMs.
+It contains steps to deploy dstack-kms and dstack-gateway into CVMs.
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ run_path = "./run/vm"
 
 [cvm]
 kms_urls = ["https://kms.test2.dstack.phala.network:9201"]
-tproxy_urls = []
+gateway_urls = []
 cid_start = 30000
 cid_pool_size = 1000
 
@@ -143,8 +143,8 @@ The KMS info should be then set to the kms-auth-contract [here for this example]
 ![alt text](assets/kms-auth-set-info.png)
 The KMS instance is now ready to use.
 
-## Deploy Tproxy in CVM
-Tproxy can be deployed as a Tapp in the same host as the KMS or in a different host.
+## Deploy dstack-gateway in CVM
+dstack-gateway can be deployed as a Tapp in the same host as the KMS or in a different host.
 
 ### Add base image MRs to the KMS whitelist
 In order to run user workloads that use the KMS, the OS image MRs must be added to the KMS whitelist.
@@ -160,7 +160,7 @@ cd dstack/kms/auth-eth
 npx hardhat kms:add-system --network phala --mr <mr-value>
 ```
 
-### Register Tproxy in KMS
+### Register dstack-gateway in KMS
 As a normal Tapp, it requires the app to be registered in the KmsAuth contract first.
 
 ```bash
@@ -182,9 +182,9 @@ App registered in KMS successfully
 Registered AppId: 0x31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
 ```
 
-Now go to the `tproxy/tapp/` directory and run the following command:
+Now go to the `gateway/tapp/` directory and run the following command:
 ```bash
-cd ../../tproxy/tapp/
+cd ../../gateway/tapp/
 ./deploy-to-teepod.sh 
 ```
 
@@ -204,8 +204,8 @@ SRV_DOMAIN=test2.dstack.phala.network
 # Public IP address
 PUBLIC_IP=$(curl -s ifconfig.me)
 
-# Tproxy application ID. Register the app in KmsAuth first to get the app ID.
-TPROXY_APP_ID=0x31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
+# Gateway application ID. Register the app in KmsAuth first to get the app ID.
+GATEWAY_APP_ID=0x31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
 
 # Whether to use ACME staging (yes/no)
 ACME_STAGING=yes
@@ -214,10 +214,10 @@ ACME_STAGING=yes
 SUBNET_INDEX=0
 
 # My URL. The URL will be synced to other nodes in the cluster so that each node can discover other nodes.
-MY_URL=https://tproxy.test2.dstack.phala.network:9202
+MY_URL=https://gateway.test2.dstack.phala.network:9202
 
-# Bootnode URL. If you want to deploy a multi-node Tproxy cluster, set the bootnode URL to the URL of another node already deployed or planed to be deployed later.
-BOOTNODE_URL=https://tproxy.test2.dstack.phala.network:9202
+# Bootnode URL. If you want to deploy a multi-node dstack-gateway cluster, set the bootnode URL to the URL of another node already deployed or planed to be deployed later.
+BOOTNODE_URL=https://gateway.test2.dstack.phala.network:9202
 
 # DStack OS image name
 OS_IMAGE=dstack-0.4.0
@@ -226,9 +226,9 @@ OS_IMAGE=dstack-0.4.0
 GIT_REV=HEAD
 
 # Port configurations
-TPROXY_RPC_ADDR=0.0.0.0:9202
-TPROXY_ADMIN_RPC_ADDR=127.0.0.1:9203
-TPROXY_SERVING_ADDR=0.0.0.0:9204
+GATEWAY_RPC_ADDR=0.0.0.0:9202
+GATEWAY_ADMIN_RPC_ADDR=127.0.0.1:9203
+GATEWAY_SERVING_ADDR=0.0.0.0:9204
 GUEST_AGENT_ADDR=127.0.0.1:9206
 WG_ADDR=0.0.0.0:9202
 ```
@@ -242,14 +242,14 @@ Configuration:
 TEEPOD_RPC: unix:../../build/teepod.sock
 SRV_DOMAIN: test5.dstack.phala.network
 PUBLIC_IP: 66.220.6.113
-TPROXY_APP_ID: 31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
-MY_URL: https://tproxy.test5.dstack.phala.network:9202
-BOOTNODE_URL: https://tproxy.test2.dstack.phala.network:9202
+GATEWAY_APP_ID: 31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
+MY_URL: https://gateway.test5.dstack.phala.network:9202
+BOOTNODE_URL: https://gateway.test2.dstack.phala.network:9202
 SUBNET_INDEX: 0
 WG_ADDR: 0.0.0.0:9202
-TPROXY_RPC_ADDR: 0.0.0.0:9202
-TPROXY_ADMIN_RPC_ADDR: 127.0.0.1:9203
-TPROXY_SERVING_ADDR: 0.0.0.0:9204
+GATEWAY_RPC_ADDR: 0.0.0.0:9202
+GATEWAY_ADMIN_RPC_ADDR: 127.0.0.1:9203
+GATEWAY_SERVING_ADDR: 0.0.0.0:9204
 GUEST_AGENT_ADDR: 127.0.0.1:9206
 Continue? [y/N]
 ```
@@ -262,16 +262,16 @@ npx hardhat app:add-hash --network phala --app-id 0x31884c4b7775affe4c99735f6c2a
 
 After the transaction is confirmed, you can press `y` to continue the deployment.
 
-Similar to the KMS deployment, it will deploy the Tproxy CVM to the teepod and it will start serving later.
+Similar to the KMS deployment, it will deploy the dstack-gateway CVM to the teepod and it will start serving later.
 
 ## Deploy teepods to serve user workloads
-After the KMS and Tproxy are deployed, you can deploy teepods on other TDX hosts to serve user workloads.
+After the KMS and dstack-gateway are deployed, you can deploy teepods on other TDX hosts to serve user workloads.
 
-Edit the teepod.toml file to set the KMS and Tproxy URLs.
+Edit the teepod.toml file to set the KMS and dstack-gateway URLs.
 
 ```
 # teepod.toml
 [cvm]
 kms_urls = ["https://kms.test2.dstack.phala.network:9201"]
-tproxy_urls = ["https://tproxy.test2.dstack.phala.network:9202"]
+gateway_urls = ["https://gateway.test2.dstack.phala.network:9202"]
 ```
