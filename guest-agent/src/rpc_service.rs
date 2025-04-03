@@ -58,6 +58,7 @@ impl AppState {
                     usage_client_auth: true,
                     ext_quote: true,
                 },
+                config.simulator.enabled,
             )
             .await
             .context("Failed to get app cert")?
@@ -101,7 +102,7 @@ impl DstackGuestRpc for InternalRpcHandler {
             .state
             .inner
             .cert_client
-            .request_cert(&derived_key, config)
+            .request_cert(&derived_key, config, self.state.config().simulator.enabled)
             .await
             .context("Failed to sign the CSR")?;
         Ok(GetTlsKeyResponse {
@@ -145,6 +146,9 @@ impl DstackGuestRpc for InternalRpcHandler {
             Some(padded)
         }
         let report_data = pad64(&request.report_data).context("Report data is too long")?;
+        if self.state.config().simulator.enabled {
+            return simulate_quote(self.state.config(), report_data);
+        }
         let (_, quote) =
             tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
         let event_log = read_event_logs().context("Failed to decode event log")?;
@@ -160,6 +164,23 @@ impl DstackGuestRpc for InternalRpcHandler {
     async fn info(self) -> Result<WorkerInfo> {
         ExternalRpcHandler { state: self.state }.info().await
     }
+}
+
+fn simulate_quote(config: &Config, report_data: [u8; 64]) -> Result<GetQuoteResponse> {
+    let quote_file =
+        fs::read_to_string(&config.simulator.quote_file).context("Failed to read quote file")?;
+    let mut quote = hex::decode(quote_file.trim()).context("Failed to decode quote")?;
+    let event_log = fs::read_to_string(&config.simulator.event_log_file)
+        .context("Failed to read event log file")?;
+    if quote.len() < 632 {
+        return Err(anyhow::anyhow!("Quote is too short"));
+    }
+    quote[568..632].copy_from_slice(&report_data);
+    Ok(GetQuoteResponse {
+        quote,
+        event_log,
+        report_data: report_data.to_vec(),
+    })
 }
 
 impl RpcCall<AppState> for InternalRpcHandler {
@@ -201,7 +222,7 @@ impl TappdRpc for InternalRpcHandlerV0 {
             .state
             .inner
             .cert_client
-            .request_cert(&derived_key, config)
+            .request_cert(&derived_key, config, self.state.config().simulator.enabled)
             .await
             .context("Failed to sign the CSR")?;
         Ok(GetTlsKeyResponse {
@@ -221,18 +242,6 @@ impl TappdRpc for InternalRpcHandlerV0 {
     }
 
     async fn tdx_quote(self, request: TdxQuoteArgs) -> Result<TdxQuoteResponse> {
-        let content_type = if request.prefix.is_empty() {
-            QuoteContentType::AppData
-        } else {
-            QuoteContentType::Custom(&request.prefix)
-        };
-        let report_data =
-            content_type.to_report_data_with_hash(&request.report_data, &request.hash_algorithm)?;
-        let event_log = read_event_logs().context("Failed to decode event log")?;
-        let event_log =
-            serde_json::to_string(&event_log).context("Failed to serialize event log")?;
-        let (_, quote) =
-            tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
         let hash_algorithm = if request.hash_algorithm.is_empty() {
             DEFAULT_HASH_ALGORITHM
         } else {
@@ -243,6 +252,27 @@ impl TappdRpc for InternalRpcHandlerV0 {
         } else {
             QuoteContentType::AppData.tag().to_string()
         };
+        let content_type = if request.prefix.is_empty() {
+            QuoteContentType::AppData
+        } else {
+            QuoteContentType::Custom(&request.prefix)
+        };
+        let report_data =
+            content_type.to_report_data_with_hash(&request.report_data, &request.hash_algorithm)?;
+        if self.state.config().simulator.enabled {
+            let response = simulate_quote(self.state.config(), report_data)?;
+            return Ok(TdxQuoteResponse {
+                quote: response.quote,
+                event_log: response.event_log,
+                hash_algorithm: hash_algorithm.to_string(),
+                prefix,
+            });
+        }
+        let event_log = read_event_logs().context("Failed to decode event log")?;
+        let event_log =
+            serde_json::to_string(&event_log).context("Failed to serialize event log")?;
+        let (_, quote) =
+            tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
         Ok(TdxQuoteResponse {
             quote,
             event_log,
