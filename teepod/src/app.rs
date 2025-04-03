@@ -189,7 +189,7 @@ impl App {
         if !is_running {
             let work_dir = self.work_dir(id);
             for path in [work_dir.serial_pty(), work_dir.qmp_socket()] {
-                if path.exists() {
+                if path.symlink_metadata().is_ok() {
                     fs::remove_file(path)?;
                 }
             }
