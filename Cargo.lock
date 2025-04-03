@@ -4362,9 +4362,9 @@ dependencies = [
 
 [[package]]
 name = "safe-write"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2a91448d36438f815f130716530ccdb3ea6ffec2e0c02f8d035ab66dd87209a"
+checksum = "8066891189c8e6c7d189c4c19d841721606b4cac7212160ed3b3fa97d448fbab"
 dependencies = [
  "fs-err",
 ]
