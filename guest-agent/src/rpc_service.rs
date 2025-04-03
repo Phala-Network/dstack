@@ -6,7 +6,7 @@ use dstack_guest_agent_rpc::{
     dstack_guest_server::{DstackGuestRpc, DstackGuestServer},
     tappd_server::{TappdRpc, TappdServer},
     worker_server::{WorkerRpc, WorkerServer},
-    DeriveK256KeyResponse, GetEthKeyArgs, GetEthKeyResponse, GetQuoteResponse, GetTlsKeyArgs,
+    DeriveK256KeyResponse, GetKeyArgs, GetKeyResponse, GetQuoteResponse, GetTlsKeyArgs,
     GetTlsKeyResponse, RawQuoteArgs, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo, WorkerVersion,
 };
 use dstack_types::AppKeys;
@@ -114,7 +114,7 @@ impl DstackGuestRpc for InternalRpcHandler {
         })
     }
 
-    async fn get_eth_key(self, request: GetEthKeyArgs) -> Result<GetEthKeyResponse> {
+    async fn get_key(self, request: GetKeyArgs) -> Result<GetKeyResponse> {
         let k256_app_key = &self.state.inner.keys.k256_key;
         let derived_k256_key = derive_ecdsa_key(k256_app_key, &[request.path.as_bytes()], 32)
             .context("Failed to derive k256 key")?;
@@ -131,7 +131,7 @@ impl DstackGuestRpc for InternalRpcHandler {
         let mut signature = signature.to_vec();
         signature.push(recid.to_byte());
 
-        Ok(GetEthKeyResponse {
+        Ok(GetKeyResponse {
             key: derived_k256_key.to_bytes().to_vec(),
             signature_chain: vec![signature, self.state.inner.keys.k256_signature.clone()],
         })
@@ -185,9 +185,9 @@ impl TappdRpc for InternalRpcHandlerV0 {
             .await
     }
 
-    async fn derive_k256_key(self, request: GetEthKeyArgs) -> Result<DeriveK256KeyResponse> {
+    async fn derive_k256_key(self, request: GetKeyArgs) -> Result<DeriveK256KeyResponse> {
         let res = InternalRpcHandler { state: self.state }
-            .get_eth_key(request)
+            .get_key(request)
             .await?;
         Ok(DeriveK256KeyResponse {
             k256_key: res.key,

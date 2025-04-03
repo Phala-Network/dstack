@@ -11,7 +11,7 @@ service Tappd {
   rpc DeriveKey(GetTlsKeyArgs) returns (GetTlsKeyResponse) {}
 
   // Derives a new ECDSA key with k256 EC curve.
-  rpc DeriveK256Key(GetEthKeyArgs) returns (DeriveK256KeyResponse) {}
+  rpc DeriveK256Key(GetKeyArgs) returns (DeriveK256KeyResponse) {}
 
   // Generates a TDX quote
   rpc TdxQuote(TdxQuoteArgs) returns (TdxQuoteResponse) {}
@@ -34,7 +34,7 @@ service DstackGuest {
   rpc GetTlsKey(GetTlsKeyArgs) returns (GetTlsKeyResponse) {}
 
   // Derives a new ECDSA key with k256 EC curve.
-  rpc GetEthKey(GetEthKeyArgs) returns (GetEthKeyResponse) {}
+  rpc GetKey(GetKeyArgs) returns (GetKeyResponse) {}
 
   // Generates a TDX quote with given report data.
   rpc GetQuote(RawQuoteArgs) returns (GetQuoteResponse) {}
@@ -72,7 +72,7 @@ message GetTlsKeyResponse {
 }
 
 // The request to derive a new ECDSA key with k256 EC curve
-message GetEthKeyArgs {
+message GetKeyArgs {
   // Path to the key to derive
   string path = 1;
   // Purpose of the key
@@ -88,7 +88,7 @@ message DeriveK256KeyResponse {
 }
 
 // The response to a GetEthKey request
-message GetEthKeyResponse {
+message GetKeyResponse {
   // Derived k256 key
   bytes key = 1;
   // Derived k256 signature chain
