@@ -23,7 +23,7 @@ else
 # The address of the KMS service listening on Host machine
 # KMS_RPC_ADDR=0.0.0.0:9201
 
-# The address of the Tappd service listening on Host machine
+# The address of the guest agent service listening on Host machine
 # GUEST_AGENT_ADDR=127.0.0.1:9205
 
 # The URL of the Ethereum RPC service
