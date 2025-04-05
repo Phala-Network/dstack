@@ -1,7 +1,6 @@
-import { type DeriveKeyResponse } from './index'
+import { type GetKeyResponse } from './index'
 import { Keypair } from '@solana/web3.js'
 
-export function toKeypair(deriveKeyResponse: DeriveKeyResponse) {
-  const bytes = deriveKeyResponse.asUint8Array(32)
-  return Keypair.fromSeed(bytes)
+export function toKeypair(keyResponse: GetKeyResponse) {
+  return Keypair.fromSeed(keyResponse.key)
 }
