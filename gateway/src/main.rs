@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use config::{Config, TlsConfig};
-use dstack_guest_agent_rpc::dstack_guest_client::DstackGuestClient;
+use dstack_guest_agent_rpc::{dstack_guest_client::DstackGuestClient, GetTlsKeyArgs};
 use http_client::prpc::PrpcClient;
 use ra_rpc::{client::RaClient, rocket_helper::QuoteVerifier};
 use rocket::{
@@ -67,14 +67,12 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
         info!("Using dstack guest agent for certificate generation");
         let agent_client = dstack_agent().context("Failed to create dstack client")?;
         let response = agent_client
-            .get_tls_key(dstack_guest_agent_rpc::GetTlsKeyArgs {
-                path: "".to_string(),
+            .get_tls_key(GetTlsKeyArgs {
                 subject: "dstack-gateway".to_string(),
                 alt_names: vec![config.rpc_domain.clone()],
                 usage_ra_tls: true,
                 usage_server_auth: true,
                 usage_client_auth: false,
-                random_seed: true,
             })
             .await?;
 

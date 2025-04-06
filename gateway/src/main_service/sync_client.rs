@@ -92,13 +92,11 @@ pub(crate) async fn sync_task(
         let agent = dstack_agent().context("Failed to create dstack agent client")?;
         let keys = agent
             .get_tls_key(GetTlsKeyArgs {
-                path: "/sync-state-client".into(),
-                subject: "".into(),
+                subject: "dstack-gateway-sync-client".into(),
                 alt_names: vec![],
                 usage_ra_tls: false,
                 usage_server_auth: false,
                 usage_client_auth: true,
-                random_seed: true,
             })
             .await
             .context("Failed to get sync-client keys")?;

@@ -6,8 +6,9 @@ use dstack_guest_agent_rpc::{
     dstack_guest_server::{DstackGuestRpc, DstackGuestServer},
     tappd_server::{TappdRpc, TappdServer},
     worker_server::{WorkerRpc, WorkerServer},
-    DeriveK256KeyResponse, GetKeyArgs, GetKeyResponse, GetQuoteResponse, GetTlsKeyArgs,
-    GetTlsKeyResponse, RawQuoteArgs, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo, WorkerVersion,
+    DeriveK256KeyResponse, DeriveKeyArgs, GetKeyArgs, GetKeyResponse, GetQuoteResponse,
+    GetTlsKeyArgs, GetTlsKeyResponse, RawQuoteArgs, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo,
+    WorkerVersion,
 };
 use dstack_types::AppKeys;
 use fs_err as fs;
@@ -82,17 +83,12 @@ pub struct InternalRpcHandler {
 
 impl DstackGuestRpc for InternalRpcHandler {
     async fn get_tls_key(self, request: GetTlsKeyArgs) -> anyhow::Result<GetTlsKeyResponse> {
-        let mut mbuf = [0u8; 32];
-        let seed = if request.random_seed {
-            SystemRandom::new()
-                .fill(&mut mbuf)
-                .context("Failed to generate secure seed")?;
-            &mbuf[..]
-        } else {
-            &self.state.inner.keys.k256_key
-        };
-        let derived_key = derive_ecdsa_key_pair_from_bytes(seed, &[request.path.as_bytes()])
-            .context("Failed to derive key")?;
+        let mut seed = [0u8; 32];
+        SystemRandom::new()
+            .fill(&mut seed)
+            .context("Failed to generate secure seed")?;
+        let derived_key =
+            derive_ecdsa_key_pair_from_bytes(&seed, &[]).context("Failed to derive key")?;
         let config = CertConfig {
             org_name: None,
             subject: request.subject,
@@ -179,10 +175,37 @@ pub struct InternalRpcHandlerV0 {
 }
 
 impl TappdRpc for InternalRpcHandlerV0 {
-    async fn derive_key(self, request: GetTlsKeyArgs) -> anyhow::Result<GetTlsKeyResponse> {
-        InternalRpcHandler { state: self.state }
-            .get_tls_key(request)
+    async fn derive_key(self, request: DeriveKeyArgs) -> anyhow::Result<GetTlsKeyResponse> {
+        let mut mbuf = [0u8; 32];
+        let seed = if request.random_seed {
+            SystemRandom::new()
+                .fill(&mut mbuf)
+                .context("Failed to generate secure seed")?;
+            &mbuf[..]
+        } else {
+            &self.state.inner.keys.k256_key
+        };
+        let derived_key = derive_ecdsa_key_pair_from_bytes(seed, &[request.path.as_bytes()])
+            .context("Failed to derive key")?;
+        let config = CertConfig {
+            org_name: None,
+            subject: request.subject,
+            subject_alt_names: request.alt_names,
+            usage_server_auth: request.usage_server_auth,
+            usage_client_auth: request.usage_client_auth,
+            ext_quote: request.usage_ra_tls,
+        };
+        let certificate_chain = self
+            .state
+            .inner
+            .cert_client
+            .request_cert(&derived_key, config)
             .await
+            .context("Failed to sign the CSR")?;
+        Ok(GetTlsKeyResponse {
+            key: derived_key.serialize_pem(),
+            certificate_chain,
+        })
     }
 
     async fn derive_k256_key(self, request: GetKeyArgs) -> Result<DeriveK256KeyResponse> {

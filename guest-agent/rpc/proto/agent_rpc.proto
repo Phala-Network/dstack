@@ -8,7 +8,7 @@ package dstack_guest;
 service Tappd {
   // Derives a cryptographic key from the specified key path.
   // Returns the derived key along with its certificate chain.
-  rpc DeriveKey(GetTlsKeyArgs) returns (GetTlsKeyResponse) {}
+  rpc DeriveKey(DeriveKeyArgs) returns (GetTlsKeyResponse) {}
 
   // Derives a new ECDSA key with k256 EC curve.
   rpc DeriveK256Key(GetKeyArgs) returns (DeriveK256KeyResponse) {}
@@ -43,9 +43,22 @@ service DstackGuest {
   rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
 }
 
-
 // The request to derive a key
 message GetTlsKeyArgs {
+  // Subject of the certificate to request
+  string subject = 1;
+  // DNS alternative names for the certificate
+  repeated string alt_names = 2;
+  // Includes quote in the certificate
+  bool usage_ra_tls = 3;
+  // Key usage server auth
+  bool usage_server_auth = 4;
+  // Key usage client auth
+  bool usage_client_auth = 5;
+}
+
+// The request to derive a key
+message DeriveKeyArgs {
   // Path used to derive the private key
   string path = 1;
   // Bellow fields are used to generate the certificate
