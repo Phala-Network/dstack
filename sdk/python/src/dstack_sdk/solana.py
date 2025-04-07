@@ -1,6 +1,6 @@
 from solders.keypair import Keypair
 
-from .tappd_client import DeriveKeyResponse
+from .dstack_client import GetKeyResponse
 
-def to_keypair(derive_key_response: DeriveKeyResponse) -> Keypair:
-    return Keypair.from_seed(derive_key_response.toBytes(32))
+def to_keypair(get_key_response: GetKeyResponse) -> Keypair:
+    return Keypair.from_seed(get_key_response.decode_key())

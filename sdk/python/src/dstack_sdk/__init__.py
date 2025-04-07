@@ -1,3 +1,3 @@
-from .tappd_client import TappdClient, AsyncTappdClient, DeriveKeyResponse, TdxQuoteResponse
+from .dstack_client import DstackClient, AsyncDstackClient, GetKeyResponse, GetTlsKeyResponse, GetQuoteResponse
 
-__all__ = ['TappdClient', 'AsyncTappdClient', 'DeriveKeyResponse', 'TdxQuoteResponse']
+__all__ = ['DstackClient', 'AsyncDstackClient', 'GetKeyResponse', 'GetTlsKeyResponse', 'GetQuoteResponse']
