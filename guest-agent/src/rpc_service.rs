@@ -122,8 +122,10 @@ impl DstackGuestRpc for InternalRpcHandler {
             request.purpose,
             hex::encode(derived_k256_pubkey.to_sec1_bytes())
         );
+        let app_signing_key =
+            SigningKey::from_slice(k256_app_key).context("Failed to parse app k256 key")?;
         let digest = Keccak256::new_with_prefix(msg_to_sign);
-        let (signature, recid) = derived_k256_key.sign_digest_recoverable(digest)?;
+        let (signature, recid) = app_signing_key.sign_digest_recoverable(digest)?;
         let mut signature = signature.to_vec();
         signature.push(recid.to_byte());
 
