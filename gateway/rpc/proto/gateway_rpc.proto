@@ -35,13 +35,13 @@ message WireGuardConfig {
   repeated WireGuardPeer servers = 2;
 }
 
-// GuestAgentConfig is the configuration of the Tappd.
+// GuestAgentConfig is the configuration of the guest agent.
 message GuestAgentConfig {
-  // The external port of the Tappd.
+  // The external port of the guest agent.
   uint32 external_port = 1;
-  // The in CVM port of the Tappd.
+  // The in CVM port of the guest agent.
   uint32 internal_port = 2;
-  // The domain of the Tappd.
+  // The domain of the guest agent.
   string domain = 3;
 }
 

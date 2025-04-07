@@ -13,7 +13,7 @@ message VmInfo {
   string status = 3;
   // Uptime in human-readable format
   string uptime = 4;
-  // URL to the Tappd console
+  // URL to the guest agent dashboard
   optional string app_url = 5;
   // App ID
   string app_id = 6;
