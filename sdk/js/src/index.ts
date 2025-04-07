@@ -239,12 +239,10 @@ export interface TlsKeyOptions {
 
 export class DstackClient {
   private endpoint: string
-  private logger: Console
 
   constructor(endpoint: string = '/var/run/dstack.sock') {
-    this.logger = console
     if (process.env.DSTACK_SIMULATOR_ENDPOINT) {
-      this.logger.debug(`Using simulator endpoint: ${process.env.DSTACK_SIMULATOR_ENDPOINT}`)
+      console.warn(`Using simulator endpoint: ${process.env.DSTACK_SIMULATOR_ENDPOINT}`)
       endpoint = process.env.DSTACK_SIMULATOR_ENDPOINT
     }
     this.endpoint = endpoint
