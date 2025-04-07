@@ -4,18 +4,19 @@ import http from 'http'
 import https from 'https'
 import { URL } from 'url'
 
-export interface DeriveKeyResponse {
+export interface GetTlsKeyResponse {
   key: string
   certificate_chain: string[]
 
   asUint8Array: (max_length?: number) => Uint8Array
 }
 
-export type Hex = `0x${string}`
+export interface GetKeyResponse {
+  key: Uint8Array
+  signature_chain: Uint8Array[]
+}
 
-export type TdxQuoteHashAlgorithms =
-  'sha256' | 'sha384' | 'sha512' | 'sha3-256' | 'sha3-384' | 'sha3-512' |
-  'keccak256' | 'keccak384' | 'keccak512' | 'raw'
+export type Hex = `${string}`
 
 export interface EventLog {
   imr: number
@@ -35,7 +36,7 @@ export interface TcbInfo {
   event_log: EventLog[]
 }
 
-export interface TappdInfoResponse {
+export interface InfoResponse {
   app_id: string
   instance_id: string
   app_cert: string
@@ -43,9 +44,15 @@ export interface TappdInfoResponse {
   app_name: string
   public_logs: boolean
   public_sysinfo: boolean
+  device_id: string
+  mr_aggregated: string
+  mr_image: string
+  mr_key_provider: string
+  key_provider_info: string
+  compose_hash: string
 }
 
-export interface TdxQuoteResponse {
+export interface GetQuoteResponse {
   quote: Hex
   event_log: string
 
@@ -80,20 +87,20 @@ function x509key_to_uint8array(pem: string, max_length?: number) {
 function replay_rtmr(history: string[]): string {
   const INIT_MR = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
   if (history.length === 0) {
-      return INIT_MR
+    return INIT_MR
   }
   let mr = Buffer.from(INIT_MR, 'hex')
   for (const content of history) {
-      // Convert hex string to buffer
-      let contentBuffer = Buffer.from(content, 'hex')
-      // Pad content with zeros if shorter than 48 bytes
-      if (contentBuffer.length < 48) {
-          const padding = Buffer.alloc(48 - contentBuffer.length, 0)
-          contentBuffer = Buffer.concat([contentBuffer, padding])
-      }
-      mr = crypto.createHash('sha384')
-          .update(Buffer.concat([mr, contentBuffer]))
-          .digest()
+    // Convert hex string to buffer
+    let contentBuffer = Buffer.from(content, 'hex')
+    // Pad content with zeros if shorter than 48 bytes
+    if (contentBuffer.length < 48) {
+      const padding = Buffer.alloc(48 - contentBuffer.length, 0)
+      contentBuffer = Buffer.concat([contentBuffer, padding])
+    }
+    mr = crypto.createHash('sha384')
+      .update(Buffer.concat([mr, contentBuffer]))
+      .digest()
   }
   return mr.toString('hex')
 }
@@ -101,14 +108,13 @@ function replay_rtmr(history: string[]): string {
 function reply_rtmrs(event_log: EventLog[]): Record<number, string> {
   const rtmrs: Array<string> = []
   for (let idx = 0; idx < 4; idx++) {
-      const history = event_log
-          .filter(event => event.imr === idx)
-          .map(event => event.digest)
-      rtmrs[idx] = replay_rtmr(history)
+    const history = event_log
+      .filter(event => event.imr === idx)
+      .map(event => event.digest)
+    rtmrs[idx] = replay_rtmr(history)
   }
   return rtmrs
 }
-
 
 export function send_rpc_request<T = any>(endpoint: string, path: string, payload: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -222,24 +228,58 @@ export function send_rpc_request<T = any>(endpoint: string, path: string, payloa
   })
 }
 
-export class TappdClient {
+export interface TlsKeyOptions {
+  path?: string;
+  subject?: string;
+  altNames?: string[];
+  usageRaTls?: boolean;
+  usageServerAuth?: boolean;
+  usageClientAuth?: boolean;
+}
+
+export class DstackClient {
   private endpoint: string
 
-  constructor(endpoint: string = '/var/run/tappd.sock') {
+  constructor(endpoint: string = '/var/run/dstack.sock') {
     if (process.env.DSTACK_SIMULATOR_ENDPOINT) {
-      console.debug(`Using simulator endpoint: ${process.env.DSTACK_SIMULATOR_ENDPOINT}`)
+      console.warn(`Using simulator endpoint: ${process.env.DSTACK_SIMULATOR_ENDPOINT}`)
       endpoint = process.env.DSTACK_SIMULATOR_ENDPOINT
     }
     this.endpoint = endpoint
   }
 
-  async deriveKey(path?: string, subject?: string, alt_names?: string[]): Promise<DeriveKeyResponse> {
-    let raw: Record<string, any> = { path: path || '', subject: subject || path || '' }
-    if (alt_names && alt_names.length) {
-      raw['alt_names'] = alt_names
+  async getKey(path: string, purpose: string = ''): Promise<GetKeyResponse> {
+    const payload = JSON.stringify({
+      path: path,
+      purpose: purpose
+    })
+    const result = await send_rpc_request<{ key: string, signature_chain: string[] }>(this.endpoint, '/GetKey', payload)
+    return Object.freeze({
+      key: new Uint8Array(Buffer.from(result.key, 'hex')),
+      signature_chain: result.signature_chain.map(sig => new Uint8Array(Buffer.from(sig, 'hex')))
+    })
+  }
+
+  async getTlsKey(options: TlsKeyOptions = {}): Promise<GetTlsKeyResponse> {
+    const {
+      subject = '',
+      altNames = [],
+      usageRaTls = false,
+      usageServerAuth = true,
+      usageClientAuth = false,
+    } = options;
+
+    let raw: Record<string, any> = {
+      subject,
+      usage_ra_tls: usageRaTls,
+      usage_server_auth: usageServerAuth,
+      usage_client_auth: usageClientAuth,
+    }
+    if (altNames && altNames.length) {
+      raw['alt_names'] = altNames
     }
     const payload = JSON.stringify(raw)
-    const result = await send_rpc_request<DeriveKeyResponse>(this.endpoint, '/prpc/Tappd.DeriveKey', payload)
+    const result = await send_rpc_request<GetTlsKeyResponse>(this.endpoint, '/GetTlsKey', payload)
     Object.defineProperty(result, 'asUint8Array', {
       get: () => (length?: number) => x509key_to_uint8array(result.key, length),
       enumerable: true,
@@ -248,18 +288,13 @@ export class TappdClient {
     return Object.freeze(result)
   }
 
-  async tdxQuote(report_data: string | Buffer | Uint8Array, hash_algorithm?: TdxQuoteHashAlgorithms): Promise<TdxQuoteResponse> {
+  async getQuote(report_data: string | Buffer | Uint8Array): Promise<GetQuoteResponse> {
     let hex = to_hex(report_data)
-    if (hash_algorithm === 'raw') {
-      if (hex.length > 128) {
-        throw new Error(`Report data is too large, it should less then 64 bytes when hash_algorithm is raw.`)
-      }
-      if (hex.length < 128) {
-        hex = hex.padStart(128, '0')
-      }
+    if (hex.length > 128) {
+      throw new Error(`Report data is too large, it should be less than 64 bytes.`)
     }
-    const payload = JSON.stringify({ report_data: hex, hash_algorithm })
-    const result = await send_rpc_request<TdxQuoteResponse>(this.endpoint, '/prpc/Tappd.TdxQuote', payload)
+    const payload = JSON.stringify({ report_data: hex })
+    const result = await send_rpc_request<GetQuoteResponse>(this.endpoint, '/GetQuote', payload)
     if ('error' in result) {
       const err = result['error'] as string
       throw new Error(err)
@@ -272,8 +307,8 @@ export class TappdClient {
     return Object.freeze(result)
   }
 
-  async info(): Promise<TappdInfoResponse> {
-    const result = await send_rpc_request<Omit<TappdInfoResponse, 'tcb_info'> & { tcb_info: string }>(this.endpoint, '/prpc/Tappd.Info', '{}')
+  async info(): Promise<InfoResponse> {
+    const result = await send_rpc_request<Omit<InfoResponse, 'tcb_info'> & { tcb_info: string }>(this.endpoint, '/Info', '{}')
     return Object.freeze({
       ...result,
       tcb_info: JSON.parse(result.tcb_info) as TcbInfo,

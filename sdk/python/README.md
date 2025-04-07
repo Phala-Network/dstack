@@ -1,6 +1,6 @@
 # DStack SDK
 
-This SDK provides a Python client for communicating with the Tappd server, which is available inside DStack.
+This SDK provides a Python client for communicating with the Dstack Guest Agent, which is available inside Dstack CVM.
 
 ## Installation
 
@@ -11,16 +11,16 @@ pip install dstack-sdk
 ## Basic Usage
 
 ```python
-from dstack_sdk import TappdClient, AsyncTappdClient
+from dstack_sdk import DstackClient, AsyncDstackClient
 
 # Synchronous client
-client = TappdClient()
+client = DstackClient()
 
 # Caution: You don't need to do this most of the time.
-http_client = TappdClient('http://localhost:8000')
+http_client = DstackClient('http://localhost:8000')
 
 # Asynchronous client
-async_client = AsyncTappdClient()
+async_client = AsyncDstackClient()
 
 # Get the information of the Base Image.
 info = client.info()  # or await async_client.info()
@@ -29,30 +29,17 @@ print(info.tcb_info.mrtd)  # Access TCB info directly
 print(info.tcb_info.event_log[0].event)  # Access event log entries
 
 # Derive a key with optional path and subject
-key_result = client.derive_key('<unique-id>')  # or await async_client.derive_key('<unique-id>')
+key_result = client.get_key('<unique-id>')  # or await async_client.get_key('<unique-id>')
 print(key_result.key)  # X.509 private key in PEM format
 print(key_result.certificate_chain)  # Certificate chain
 key_bytes = key_result.toBytes()  # Get key as bytes
 
 # Generate TDX quote
-quote_result = client.tdx_quote('some-data', 'sha256')  # or await async_client.tdx_quote('some-data', 'sha256')
+quote_result = client.get_quote(report_data='some-data')  # or await async_client.get_quote(report_data='some-data')
 print(quote_result.quote)  # TDX quote in hex format
 print(quote_result.event_log)  # Event log
 rtmrs = quote_result.replay_rtmrs()  # Replay RTMRs
 ```
-
-For `tdx_quote`, it supports a range of hash algorithms, including:
-
-- `sha256`: SHA-256 hash algorithm
-- `sha384`: SHA-384 hash algorithm 
-- `sha512`: SHA-512 hash algorithm
-- `sha3-256`: SHA3-256 hash algorithm
-- `sha3-384`: SHA3-384 hash algorithm
-- `sha3-512`: SHA3-512 hash algorithm
-- `keccak256`: Keccak-256 hash algorithm
-- `keccak384`: Keccak-384 hash algorithm
-- `keccak512`: Keccak-512 hash algorithm
-- `raw`: No hashing, use raw data (must be <= 64 bytes)
 
 ## Web3 Integration
 
@@ -74,12 +61,12 @@ pip install "dstack-sdk[all]"
 You can use derived keys with the built-in Ethereum integration:
 
 ```python
-from dstack_sdk import TappdClient
+from dstack_sdk import DstackClient
 from dstack_sdk.ethereum import to_account
 
 # Derive a key
-client = TappdClient()
-key_result = client.derive_key('eth-account')
+client = DstackClient()
+key_result = client.get_key('eth-account')
 
 # Convert to Ethereum account
 account = to_account(key_result)
@@ -96,12 +83,12 @@ w3 = Web3(Web3.HTTPProvider('https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY')
 For Solana integration, use the built-in helper:
 
 ```python
-from dstack_sdk import TappdClient
+from dstack_sdk import DstackClient
 from dstack_sdk.solana import to_keypair
 
 # Derive a key
-client = TappdClient()
-key_result = client.derive_key('solana-account')
+client = DstackClient()
+key_result = client.get_key('solana-account')
 
 # Convert to Solana keypair
 keypair = to_keypair(key_result)
@@ -113,99 +100,69 @@ print(f"Solana public key: {keypair.pubkey()}")
 
 ## API Reference
 
-### TappdClient and AsyncTappdClient
+### Running the Simulator
+
+For local development without TDX devices, you can use the simulator under `sdk/simulator`.
+
+Run the simulator with:
+
+```bash
+git clone https://github.com/Dstack-TEE/dstack.git
+cd dstack/sdk/simulator
+./build.sh
+./dstack-simulator
+```
+
+### DstackClient and AsyncDstackClient
 
 #### Constructor
 ```python
-TappdClient(endpoint: str | None = None)
-AsyncTappdClient(endpoint: str | None = None)
+DstackClient(endpoint: str | None = None)
+AsyncDstackClient(endpoint: str | None = None)
 ```
-- `endpoint`: Unix socket path or HTTP(S) URL. Defaults to '/var/run/tappd.sock'.
+- `endpoint`: Unix socket path or HTTP(S) URL. Defaults to '/var/run/dstack.sock'.
 - Uses `DSTACK_SIMULATOR_ENDPOINT` environment variable if set
 
 NOTE: Leave it empty in production. You only need to add `volumes` in your docker-compose file:
 
 ```yaml
     volumes:
-      - /var/run/tappd.sock:/var/run/tappd.sock
+      - /var/run/dstack.sock:/var/run/dstack.sock
 ```
-
-For local development without TDX devices, you can use the simulator available for download here:
-
-https://github.com/Leechael/tappd-simulator/releases
 
 #### Methods
+##### `get_key(path: str | None = None, purpose: str | None = None) -> GetKeyResponse`
 
-##### `derive_key(path: str | None = None, subject: str | None = None, alt_names: List[str] | None = None) -> DeriveKeyResponse`
+Derives a key for the given path and purpose.
 
-Derives a key for the given path and subject.
+- `path`: Path for key derivation (optional)
+- `purpose`: Purpose for key derivation (optional)
+- Returns: `GetKeyResponse` containing key and signature chain
 
-**NOTE: Only the `path` affects the derived result. `subject` & `alt_names` are for the generated certificate and do not affect the derived result.**
+##### `get_quote(report_data: str | bytes) -> GetQuoteResponse`
 
-- `path`: Optional path for key derivation
-- `subject`: Optional subject name (defaults to path)
-- `alt_names`: Optional alternative names for the certificate
-- Returns: `DeriveKeyResponse` containing key and certificate chain
+Generates a TDX quote with given report data.
 
-##### `tdx_quote(report_data: str | bytes, hash_algorithm: QuoteHashAlgorithms = '') -> TdxQuoteResponse`
+- `report_data`: Data to include in the quote (must be less than 64 bytes)
+- Returns: `GetQuoteResponse` containing the quote and event log
 
-Generates a TDX quote. The quote is returned in hex format, and you can paste your quote into https://proof.t16z.com/ to get the attestation report.
+##### `info() -> InfoResponse`
 
-- `report_data`: Data to include in the quote
-- `hash_algorithm`: Hash algorithm to use (sha256, sha384, sha512, etc.)
-- Returns: `TdxQuoteResponse` containing quote and event log
+Retrieves information about the CVM instance.
 
-##### `info() -> TappdInfoResponse`
-Retrieves server information.
-- Returns: Information about the Tappd instance, including TCB info and event logs
+- Returns: `InfoResponse` containing app_id, instance_id, and tcb_info
 
-### Types
+##### `get_tls_key(subject: str | None = None, alt_names: List[str] | None = None, usage_ra_tls: bool = False, usage_server_auth: bool = False, usage_client_auth: bool = False) -> GetTlsKeyResponse`
 
-```python
-class DeriveKeyResponse(BaseModel):
-    key: str
-    certificate_chain: List[str]
-    
-    def toBytes(self, max_length: Optional[int] = None) -> bytes: ...
+Gets a TLS key from the Dstack service with optional parameters.
 
-QuoteHashAlgorithms = Literal[
-    'sha256', 'sha384', 'sha512',
-    'sha3-256', 'sha3-384', 'sha3-512',
-    'keccak256', 'keccak384', 'keccak512',
-    'raw'
-]
+- `subject`: The subject for the TLS key (optional)
+- `alt_names`: Alternative names for the TLS key (optional)
+- `usage_ra_tls`: Whether to enable RA TLS usage (default: False)
+- `usage_server_auth`: Whether to enable server auth usage (default: False)
+- `usage_client_auth`: Whether to enable client auth usage (default: False)
+- Returns: `GetTlsKeyResponse` containing the key and certificate chain
 
-class TdxQuoteResponse(BaseModel):
-    quote: str
-    event_log: str
-    
-    def replay_rtmrs(self) -> Dict[int, str]: ...
-
-class EventLog(BaseModel):
-    imr: int
-    event_type: int
-    digest: str
-    event: str
-    event_payload: str
-
-class TcbInfo(BaseModel):
-    mrtd: str
-    rootfs_hash: str
-    rtmr0: str
-    rtmr1: str
-    rtmr2: str
-    rtmr3: str
-    event_log: List[EventLog]
-
-class TappdInfoResponse(BaseModel):
-    app_id: str
-    instance_id: str
-    app_cert: str
-    tcb_info: TcbInfo
-    app_name: str
-    public_logs: bool
-    public_sysinfo: bool
-```
 
 ## Development
 
@@ -217,10 +174,8 @@ Just run the following command to initiate development:
 pdm install -d
 ```
 
-Running test cases with local simulator via `/tmp/tappd.sock`:
-
 ```bash
-DSTACK_SIMULATOR_ENDPOINT=/tmp/tappd.sock pdm run pytest
+DSTACK_SIMULATOR_ENDPOINT=$(realpath ../simulator/dstack.sock) pdm run pytest
 ```
 
 ## License

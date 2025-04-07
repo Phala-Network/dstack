@@ -1,7 +1,7 @@
 {
   "name": "@phala/dstack-sdk",
-  "version": "0.1.11",
-  "description": "DStack SDK",
+  "version": "0.2.0",
+  "description": "Dstack SDK",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -31,7 +31,7 @@
     "test:ci": "vitest --run",
     "release": "npm run build && npm publish --access public"
   },
-  "keywords": ["tappd", "sdk", "DStack", "Phala"],
+  "keywords": ["sdk", "Dstack", "Phala"],
   "author": "Leechael Yim",
   "license": "Apache-2.0",
   "devDependencies": {
