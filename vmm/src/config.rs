@@ -62,6 +62,12 @@ pub struct PortMappingConfig {
     pub range: Vec<PortRange>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct AutoRestartConfig {
+    pub enabled: bool,
+    pub interval: u64,
+}
+
 impl PortMappingConfig {
     pub fn is_allowed(&self, protocol: &str, port: u16) -> bool {
         if !self.enabled {
@@ -111,6 +117,9 @@ pub struct CvmConfig {
     /// The tmp CA key
     #[serde(default)]
     pub tmp_ca_key: String,
+
+    /// Auto restart configuration
+    pub auto_restart: AutoRestartConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
