@@ -84,6 +84,7 @@ pub struct CvmConfig {
     /// The URL of the KMS server
     pub kms_urls: Vec<String>,
     /// The URL of the dstack-gateway server
+    #[serde(alias = "tproxy_urls")]
     pub gateway_urls: Vec<String>,
     /// The URL of the PCCS server
     #[serde(default)]

@@ -55,7 +55,7 @@ include = []
 [gateway]
 base_domain = "localhost"
 port = 8082
-agent_port = 8083
+agent_port = 8090
 
 [auth]
 enabled = false
