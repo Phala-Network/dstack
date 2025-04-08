@@ -38,6 +38,10 @@ range = [
     { protocol = "tcp", from = 1, to = 20000 },
 ]
 
+[cvm.auto_restart]
+enabled = true
+interval = 20
+
 [cvm.gpu]
 enabled = false
 # The product IDs of the GPUs to discover

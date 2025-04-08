@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, time::Duration};
 
 use anyhow::{anyhow, Context, Result};
 use app::App;
@@ -16,6 +16,7 @@ use rocket::{
 use rocket_apitoken::ApiToken;
 use rocket_vsock_listener::VsockListener;
 use supervisor_client::SupervisorClient;
+use tracing::{error, info};
 
 mod app;
 mod config;
@@ -102,6 +103,22 @@ async fn run_host_api(app: App, figment: Figment) -> Result<()> {
     Ok(())
 }
 
+async fn auto_restart_task(app: App) {
+    if !app.config.cvm.auto_restart.enabled {
+        info!("Auto restart CVMs is disabled");
+        return;
+    }
+    let mut interval =
+        tokio::time::interval(Duration::from_secs(app.config.cvm.auto_restart.interval));
+    loop {
+        info!("Checking for exited VMs");
+        if let Err(err) = app.try_restart_exited_vms().await {
+            error!("Failed to restart exited VMs: {err:?}");
+        }
+        interval.tick().await;
+    }
+}
+
 #[rocket::main]
 async fn main() -> Result<()> {
     {
@@ -130,6 +147,7 @@ async fn main() -> Result<()> {
     };
     let state = app::App::new(config, supervisor);
     state.reload_vms().await.context("Failed to reload VMs")?;
+    tokio::spawn(auto_restart_task(state.clone()));
 
     tokio::select! {
         result = run_external_api(state.clone(), figment.clone(), api_auth) => {

@@ -12,7 +12,7 @@ use guest_api::client::DefaultClient as GuestClient;
 use id_pool::IdPool;
 use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -657,6 +657,33 @@ impl App {
                 is_free: gpu.is_free(),
             })
             .collect())
+    }
+
+    pub(crate) async fn try_restart_exited_vms(&self) -> Result<()> {
+        let running_vms = self
+            .supervisor
+            .list()
+            .await
+            .context("Failed to list VMs")?
+            .iter()
+            .filter(|v| v.state.status.is_running())
+            .map(|v| v.config.id.clone())
+            .collect::<BTreeSet<_>>();
+        let exited_vms = self
+            .lock()
+            .iter_vms()
+            .filter(|vm| {
+                let workdir = self.work_dir(&vm.config.manifest.id);
+                let started = workdir.started().unwrap_or(false);
+                started && !running_vms.contains(&vm.config.manifest.id)
+            })
+            .map(|vm| vm.config.manifest.id.clone())
+            .collect::<Vec<_>>();
+        for id in exited_vms {
+            info!("Restarting VM {id}");
+            self.start_vm(&id).await?;
+        }
+        Ok(())
     }
 }
 
