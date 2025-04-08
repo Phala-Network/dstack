@@ -78,6 +78,9 @@ async function getKmsAuth(ethers: any) {
 async function getAppAuth(ethers: any, appId: string) {
   const kmsAuth = await getKmsAuth(ethers);
   const controller = (await kmsAuth.apps(appId)).controller;
+  if (controller === ethers.ZeroAddress) {
+    throw new Error("AppAuth contract not found");
+  }
   console.log("AppAuth address:", controller);
   return await ethers.getContractAt("AppAuth", controller);
 }
