@@ -20,7 +20,8 @@ use crate::{
     utils::{deserialize_json_file, AppCompose, AppKeys, SysConfig},
 };
 use dstack_types::shared_filenames::{
-    APP_COMPOSE, APP_KEYS, DECRYPTED_ENV_JSON, HOST_SHARED_DIR, HOST_SHARED_DIR_NAME, SYS_CONFIG, USER_CONFIG
+    APP_COMPOSE, APP_KEYS, DECRYPTED_ENV_JSON, HOST_SHARED_DIR, HOST_SHARED_DIR_NAME, SYS_CONFIG,
+    USER_CONFIG,
 };
 
 #[derive(Parser)]
