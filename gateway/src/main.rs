@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use config::{Config, TlsConfig};
 use dstack_guest_agent_rpc::{dstack_guest_client::DstackGuestClient, GetTlsKeyArgs};
@@ -49,11 +49,8 @@ fn set_max_ulimit() -> Result<()> {
 }
 
 fn dstack_agent() -> Result<DstackGuestClient<PrpcClient>> {
-    let uds_path = "/var/run/dstack.sock";
-    if !std::fs::exists(uds_path).unwrap_or_default() {
-        bail!("dstack socket({uds_path}) not found");
-    }
-    let http_client = PrpcClient::new_unix(uds_path.to_string(), "/prpc".to_string());
+    let address = dstack_types::dstack_agent_address();
+    let http_client = PrpcClient::new(address);
     Ok(DstackGuestClient::new(http_client))
 }
 

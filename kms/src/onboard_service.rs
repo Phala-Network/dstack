@@ -241,7 +241,8 @@ pub(crate) async fn bootstrap_keys(cfg: &KmsConfig) -> Result<()> {
 }
 
 fn dstack_client() -> DstackGuestClient<PrpcClient> {
-    let http_client = PrpcClient::new_unix("/var/run/dstack.sock".into(), "/prpc".into());
+    let address = dstack_types::dstack_agent_address();
+    let http_client = PrpcClient::new(address);
     DstackGuestClient::new(http_client)
 }
 
