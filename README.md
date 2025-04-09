@@ -251,7 +251,7 @@ Now, I want to use my custom domain `tapp-nginx.kvin.wang` to access the Tapp. I
 
 Where
 
-`_tapp-address.tapp-nginx.kvin.wang` means configuring the tapp destination address of domain `tapp-nginx.kvin.wang`.
+`_dstack-app-address.tapp-nginx.kvin.wang` means configuring the tapp destination address of domain `tapp-nginx.kvin.wang`.
 
 The TXT record value `3327603e03f5bd1f830812ca4a789277fc31f577:8043` means that requests sent to `tapp-nginx.kvin.wang` will be processed by Tapp `3327603e03f5bd1f830812ca4a789277fc31f577` on port `8043`
 

@@ -29,8 +29,8 @@ impl TappAddress {
 }
 
 /// resolve tapp address by sni
-async fn resolve_tapp_address(sni: &str) -> Result<TappAddress> {
-    let txt_domain = format!("_tapp-address.{sni}");
+async fn resolve_tapp_address(prefix: &str, sni: &str) -> Result<TappAddress> {
+    let txt_domain = format!("{prefix}.{sni}");
     let resolver = hickory_resolver::AsyncResolver::tokio_from_system_conf()
         .context("failed to create dns resolver")?;
     let lookup = resolver
@@ -51,7 +51,7 @@ pub(crate) async fn proxy_with_sni(
     buffer: Vec<u8>,
     sni: &str,
 ) -> Result<()> {
-    let tapp_addr = resolve_tapp_address(sni)
+    let tapp_addr = resolve_tapp_address(&state.config.proxy.app_address_ns_prefix, sni)
         .await
         .context("failed to resolve tapp address")?;
     debug!("target address is {}:{}", tapp_addr.app_id, tapp_addr.port);
@@ -120,10 +120,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_resolve_tapp_address() {
-        let tapp_addr =
-            resolve_tapp_address("3327603e03f5bd1f830812ca4a789277fc31f577.app.kvin.wang")
-                .await
-                .unwrap();
+        let tapp_addr = resolve_tapp_address(
+            "_dstack-app-address",
+            "3327603e03f5bd1f830812ca4a789277fc31f577.app.kvin.wang",
+        )
+        .await
+        .unwrap();
         assert_eq!(tapp_addr.app_id, "3327603e03f5bd1f830812ca4a789277fc31f577");
         assert_eq!(tapp_addr.port, 8090);
     }

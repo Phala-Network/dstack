@@ -59,6 +59,7 @@ pub struct ProxyConfig {
     pub buffer_size: usize,
     pub connect_top_n: usize,
     pub localhost_enabled: bool,
+    pub app_address_ns_prefix: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
