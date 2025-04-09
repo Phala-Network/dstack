@@ -63,7 +63,7 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
         return Ok(());
     }
 
-    if config.run_as_tapp {
+    if config.run_in_dstack {
         info!("Using dstack guest agent for certificate generation");
         let agent_client = dstack_agent().context("Failed to create dstack client")?;
         let response = agent_client
@@ -146,7 +146,7 @@ async fn main() -> Result<()> {
         set_max_ulimit()?;
     }
 
-    let my_app_id = if config.run_as_tapp {
+    let my_app_id = if config.run_in_dstack {
         let dstack_client = dstack_agent().context("Failed to create dstack client")?;
         let info = dstack_client
             .info()

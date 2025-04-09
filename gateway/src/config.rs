@@ -172,7 +172,7 @@ pub struct Config {
     pub rpc_domain: String,
     pub kms_url: String,
     pub admin: AdminConfig,
-    pub run_as_tapp: bool,
+    pub run_in_dstack: bool,
     pub sync: SyncConfig,
 }
 

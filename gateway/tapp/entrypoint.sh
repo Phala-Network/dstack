@@ -83,7 +83,7 @@ mandatory = false
 state_path = "$DATA_DIR/gateway-state.json"
 set_ulimit = true
 rpc_domain = "gateway.$SRV_DOMAIN"
-run_as_tapp = true
+run_in_dstack = true
 
 [core.sync]
 enabled = true

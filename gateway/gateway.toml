@@ -12,7 +12,7 @@ state_path = "./gateway-state.json"
 # auto set soft ulimit to hard ulimit
 set_ulimit = true
 rpc_domain = ""
-run_as_tapp = true
+run_in_dstack = true
 
 [core.admin]
 enabled = false

@@ -88,7 +88,7 @@ pub(crate) async fn sync_task(
     config: Arc<Config>,
     mut event_rx: Receiver<SyncEvent>,
 ) -> Result<()> {
-    let sync_client = if config.run_as_tapp {
+    let sync_client = if config.run_in_dstack {
         let agent = dstack_agent().context("Failed to create dstack agent client")?;
         let keys = agent
             .get_tls_key(GetTlsKeyArgs {
