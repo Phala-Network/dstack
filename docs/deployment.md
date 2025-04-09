@@ -78,10 +78,10 @@ Transaction hash: 0xd413d01a0640b6193048b0e98afb7c173abe58c74d9cf01f368166bc53f4
 ```
 
 ## Deploy KMS into CVM
-The dstack-vmm is running now. Open another terminal and go to the `kms/tapp/` directory and run the following command:
+The dstack-vmm is running now. Open another terminal and go to the `kms/dstack-app/` directory and run the following command:
 
 ```bash
-cd dstack/kms/tapp/
+cd dstack/kms/dstack-app/
 ./deploy-to-vmm.sh 
 ```
 It will create a template `.env` file. Edit the `.env` file and set the required variables.
@@ -118,7 +118,7 @@ tail -f run/vm/f5299298-bf4f-43c0-839c-88c755391f3c/serial.log
 Wait until the KMS CVM is ready:
 ```
 br-1df48b1c448a: port 2(veth36ab5cb) entered forwarding state
-app-compose.sh[882]:  Container tapp-kms-1  Started
+app-compose.sh[882]:  Container dstack-kms-1  Started
 app-compose.sh[688]: Pruning unused images
 app-compose.sh[8347]: Total reclaimed space: 0B
 app-compose.sh[688]: Pruning unused volumes
@@ -144,7 +144,7 @@ The KMS info should be then set to the kms-auth-contract [here for this example]
 The KMS instance is now ready to use.
 
 ## Deploy dstack-gateway in CVM
-dstack-gateway can be deployed as a Tapp in the same host as the KMS or in a different host.
+dstack-gateway can be deployed as a dstack app in the same host as the KMS or in a different host.
 
 ### Add base image MRs to the KMS whitelist
 In order to run user workloads that use the KMS, the OS image MRs must be added to the KMS whitelist.
@@ -161,7 +161,7 @@ npx hardhat kms:add-system --network phala --mr <mr-value>
 ```
 
 ### Register dstack-gateway in KMS
-As a normal Tapp, it requires the app to be registered in the KmsAuth contract first.
+As a normal dstack app, it requires the app to be registered in the KmsAuth contract first.
 
 ```bash
 cd dstack/kms/auth-eth
@@ -182,9 +182,9 @@ App registered in KMS successfully
 Registered AppId: 0x31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
 ```
 
-Now go to the `gateway/tapp/` directory and run the following command:
+Now go to the `gateway/dstack-app/` directory and run the following command:
 ```bash
-cd ../../gateway/tapp/
+cd ../../gateway/dstack-app/
 ./deploy-to-vmm.sh 
 ```
 

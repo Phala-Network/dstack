@@ -11,13 +11,13 @@ services:
         RUN git clone https://github.com/Dstack-TEE/dstack.git && \
             cd dstack && \
             git checkout ${GIT_REV}
-        WORKDIR /src/dstack/gateway/tapp
+        WORKDIR /src/dstack/gateway/dstack-app
         RUN cargo build --release -p dstack-gateway
-        ENTRYPOINT ["/src/dstack/gateway/tapp/entrypoint.sh"]
+        ENTRYPOINT ["/src/dstack/gateway/dstack-app/entrypoint.sh"]
         CMD ["/src/dstack/target/release/dstack-gateway", "-c", "/data/gateway/gateway.toml"]
     volumes:
       - /var/run/dstack.sock:/var/run/dstack.sock
-      - /tapp:/tapp
+      - /dstack-app:/dstack-app
       - data:/data
     network_mode: host
     privileged: true

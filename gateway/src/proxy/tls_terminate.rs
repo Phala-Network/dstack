@@ -124,7 +124,7 @@ impl TlsTerminateProxy {
             .app_state
             .lock()
             .select_top_n_hosts(app_id)
-            .with_context(|| format!("tapp {app_id} not found"))?;
+            .with_context(|| format!("app {app_id} not found"))?;
         debug!("selected top n hosts: {addresses:?}");
         let stream = MergedStream {
             buffer,

@@ -20,11 +20,11 @@ use crate::{
     utils::{deserialize_json_file, AppCompose, AppKeys, SysConfig},
 };
 use dstack_types::shared_filenames::{
-    APP_COMPOSE, APP_KEYS, DECRYPTED_ENV_JSON, HOST_SHARED_DIR, SYS_CONFIG, USER_CONFIG,
+    APP_COMPOSE, APP_KEYS, DECRYPTED_ENV_JSON, HOST_SHARED_DIR, HOST_SHARED_DIR_NAME, SYS_CONFIG, USER_CONFIG
 };
 
 #[derive(Parser)]
-/// Boot the Tapp
+/// Boot the dstack app
 pub(crate) struct TbootArgs {
     /// shutdown if the tboot fails
     #[arg(long)]
@@ -247,13 +247,11 @@ impl<'a> Setup<'a> {
     }
 
     fn prepare_fs(&self) -> Result<()> {
-        let app_compose_file = self.args.host_shared_file(APP_COMPOSE);
-        let user_config_file = self.args.host_shared_file(USER_CONFIG);
         let prefix = &self.args.prefix;
         cmd! {
-            cd ${prefix}/tapp;
-            ln -sf $app_compose_file;
-            ln -sf $user_config_file user_config;
+            cd ${prefix}/dstack;
+            ln -sf ${HOST_SHARED_DIR_NAME}/${APP_COMPOSE};
+            ln -sf ${HOST_SHARED_DIR_NAME}/${USER_CONFIG} user_config;
         }?;
         Ok(())
     }
@@ -270,7 +268,7 @@ impl<'a> Setup<'a> {
                 }
             }
         });
-        let agent_config = self.resolve("/tapp/agent.json");
+        let agent_config = self.resolve("/dstack/agent.json");
         fs::write(agent_config, serde_json::to_string_pretty(&config)?)?;
         Ok(())
     }

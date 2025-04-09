@@ -227,35 +227,29 @@ $ curl 'http://0.0.0.0:9190/logs/zk-provider-server?text&timestamps'
 
 ## Reverse proxy: TLS Passthrough
 
-The build configuration for TLS Passthrough is:
-
-```bash
-GATEWAY_LISTEN_PORT_PASSTHROUGH=9008
-```
-
-With this configuration, dstack-gateway listens port `9008` for incoming TLS connections and forwards them to the appropriate Tapp based on `SNI`, where SNI represents your custom domain and the forwarding destination is determined by your DNS records.
+dstack-gateway listens for incoming TLS connections and forwards them to the appropriate app based on `SNI`. If the SNI is your custom domain, dstack-gateway queries the TXT DNS record `_dstack-app-address.<custom_domain>` to determine the forwarding destination.
 
 For example, assuming I've deployed an app at `3327603e03f5bd1f830812ca4a789277fc31f577`, as shown below:
 
 ![appid](./docs/assets/appid.png)
 
-Now, I want to use my custom domain `tapp-nginx.kvin.wang` to access the Tapp. I need to set up two DNS records with my DNS provider (Cloudflare in my case):
+Now, I want to use my custom domain `myapp.kvin.wang` to access the app. I need to set up two DNS records with my DNS provider (Cloudflare in my case):
 
 1. `A` or `CNAME` record to point the domain to the tdx machine:
 
-    ![tapp-dns-a](./docs/assets/tapp-dns-a.png)
+    ![app-dns-a](./docs/assets/app-dns-a.png)
 
-2. `TXT` record to instruct the dstack-gateway to direct the request to the specified Tapp:
+2. `TXT` record to instruct the dstack-gateway to direct the request to the specified app:
 
-    ![tapp-dns-txt](./docs/assets/tapp-dns-txt.png)
+    ![app-dns-txt](./docs/assets/app-dns-txt.png)
 
 Where
 
-`_dstack-app-address.tapp-nginx.kvin.wang` means configuring the tapp destination address of domain `tapp-nginx.kvin.wang`.
+`_dstack-app-address.myapp.kvin.wang` means configuring the app destination address of domain `myapp.kvin.wang`.
 
-The TXT record value `3327603e03f5bd1f830812ca4a789277fc31f577:8043` means that requests sent to `tapp-nginx.kvin.wang` will be processed by Tapp `3327603e03f5bd1f830812ca4a789277fc31f577` on port `8043`
+The TXT record value `3327603e03f5bd1f830812ca4a789277fc31f577:8043` means that requests sent to `myapp.kvin.wang` will be processed by app `3327603e03f5bd1f830812ca4a789277fc31f577` on port `8043`
 
-Given the config `GATEWAY_LISTEN_PORT_PASSTHROUGH=9008`, now we can go to [`https://tapp-nginx.kvin.wang:9008`](https://tapp-nginx.kvin.wang:9008) and the request will be handled by the service listening on `8043` in Tapp `3327603e03f5bd1f830812ca4a789277fc31f577`.
+Now we can go to [`https://myapp.kvin.wang`](https://myapp.kvin.wang) and the request will be handled by the service listening on `8043` in app `3327603e03f5bd1f830812ca4a789277fc31f577`.
 
 ## Upgrade an App
 

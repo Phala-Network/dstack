@@ -143,7 +143,7 @@ impl Keys {
         if quote_enabled {
             let pubkey = rpc_key.public_key_der();
             let report_data = QuoteContentType::RaTlsCert.to_report_data(&pubkey);
-            let resposne = tapp_quote(report_data.to_vec())
+            let resposne = app_quote(report_data.to_vec())
                 .await
                 .context("Failed to get quote")?;
             quote = Some(resposne.quote);
@@ -246,7 +246,7 @@ fn dstack_client() -> DstackGuestClient<PrpcClient> {
     DstackGuestClient::new(http_client)
 }
 
-async fn tapp_quote(report_data: Vec<u8>) -> Result<GetQuoteResponse> {
+async fn app_quote(report_data: Vec<u8>) -> Result<GetQuoteResponse> {
     let quote = dstack_client()
         .get_quote(RawQuoteArgs { report_data })
         .await?;
@@ -259,7 +259,7 @@ async fn quote_keys(p256_pubkey: &[u8], k256_pubkey: &[u8]) -> Result<(Vec<u8>, 
     let content_to_quote = format!("dstack-kms-genereted-keys-v1:{p256_hex};{k256_hex};");
     let hash = keccak256(content_to_quote.as_bytes());
     let report_data = pad64(hash);
-    let res = tapp_quote(report_data).await?;
+    let res = app_quote(report_data).await?;
     Ok((res.quote, res.event_log.into()))
 }
 
@@ -286,7 +286,7 @@ async fn gen_ra_cert(ca_cert_pem: String, ca_key_pem: String) -> Result<(String,
     let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let pubkey = key.public_key_der();
     let report_data = QuoteContentType::RaTlsCert.to_report_data(&pubkey);
-    let quote_res = tapp_quote(report_data.to_vec())
+    let quote_res = app_quote(report_data.to_vec())
         .await
         .context("Failed to get quote")?;
     let quote = quote_res.quote;

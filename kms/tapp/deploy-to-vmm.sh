@@ -14,7 +14,7 @@ else
 # Required environment variables for KMS deployment
 # Please uncomment and set values for the following variables:
 
-# The URL of the dstack-vmm RPC service used to deploy the KMS Tapp
+# The URL of the dstack-vmm RPC service used to deploy the KMS app
 # VMM_RPC=unix:../../../build/vmm.sock
 
 # The address of the KMS contract
@@ -32,7 +32,7 @@ ETH_RPC_URL=https://rpc.phala.network
 # The Git revision to deploy
 GIT_REV=HEAD
 
-# The DStack OS image name to use for the KMS Tapp
+# The DStack OS image name to use for the KMS app
 OS_IMAGE=dstack-0.4.0
 EOF
   echo "Please edit the .env file and set the required variables, then run this script again."

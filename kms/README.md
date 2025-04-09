@@ -57,8 +57,8 @@ CVMs running in dstack support three boot modes:
       - Maintains the allowed compose hashes for each app
 
 ### Deployment
-The first two components are deployed as an Tapp on dstack in Local-Key-Provider mode.
-The docker compose file would look like [this](tapp/docker-compose.yaml).
+The first two components are deployed as an dstack app on dstack in Local-Key-Provider mode.
+The docker compose file would look like [this](dstack-app/docker-compose.yaml).
 
 The solidity contracts are deployed on an ethereum compatible chain.
 
@@ -81,7 +81,7 @@ The key provisioning process:
 
 ### KMS Mode
 
-KMS itself runs as a Tapp in Local-Key-Provider mode,
+KMS itself runs as a dstack app in Local-Key-Provider mode,
 allowing it to persist keys on its local disk but not across machines.
 
 On startup, the KMS node will either:

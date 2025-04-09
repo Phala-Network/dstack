@@ -3,5 +3,5 @@ services:
     image: busybox:latest
     command: sh -c "cat /etc/motd"
     volumes:
-      - /tapp/motd:/etc/motd
+      - /dstack/motd:/etc/motd
     restart: no

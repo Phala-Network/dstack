@@ -47,7 +47,7 @@ pub struct SetupFdeArgs {
     #[arg(long)]
     host_shared: PathBuf,
     /// Copied host-shared directory
-    #[arg(long, default_value = "/tapp/.host-shared")]
+    #[arg(long, default_value = "/dstack/.host-shared")]
     host_shared_copy: PathBuf,
     /// Working directory
     #[arg(long)]

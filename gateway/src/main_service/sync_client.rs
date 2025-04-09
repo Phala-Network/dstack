@@ -19,7 +19,7 @@ pub enum SyncEvent {
 }
 
 struct SyncClient {
-    in_tapp: bool,
+    in_dstack: bool,
     cert_pem: String,
     key_pem: String,
     ca_cert_pem: String,
@@ -31,7 +31,7 @@ impl SyncClient {
     fn create_rpc_client(&self, url: &str) -> Result<GatewayClient<RaClient>> {
         let app_id = self.app_id.clone();
         let url = format!("{}/prpc", url.trim_end_matches('/'));
-        let client = if self.in_tapp {
+        let client = if self.in_dstack {
             RaClientConfig::builder()
                 .remote_uri(url)
                 // Don't verify server RA because we use the CA cert from KMS to verify
@@ -106,7 +106,7 @@ pub(crate) async fn sync_task(
             .context("Failed to get guest info")?
             .app_id;
         SyncClient {
-            in_tapp: true,
+            in_dstack: true,
             cert_pem: keys.certificate_chain.join("\n"),
             key_pem: keys.key,
             ca_cert_pem: keys.certificate_chain.last().cloned().unwrap_or_default(),
@@ -115,7 +115,7 @@ pub(crate) async fn sync_task(
         }
     } else {
         SyncClient {
-            in_tapp: false,
+            in_dstack: false,
             cert_pem: "".into(),
             key_pem: "".into(),
             ca_cert_pem: "".into(),

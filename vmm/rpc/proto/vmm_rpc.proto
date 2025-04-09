@@ -61,7 +61,7 @@ message VmConfiguration {
   // If provided, and KMS is enabled, it assumes the app is upgraded from given app_id.
   // If provided, and KMS is disabled, it must equal to the actual app_id computed from compose_file, or the VM will fail to start.
   optional string app_id = 9;
-  // User config that would be put at /tapp/.user-config in the CVM.
+  // User config that would be put at /dstack/.user-config in the CVM.
   string user_config = 10;
   // Hugepages enabled
   bool hugepages = 11;
