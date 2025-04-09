@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use config::{Config, TlsConfig};
 use dstack_guest_agent_rpc::{dstack_guest_client::DstackGuestClient, GetTlsKeyArgs};
@@ -49,11 +49,8 @@ fn set_max_ulimit() -> Result<()> {
 }
 
 fn dstack_agent() -> Result<DstackGuestClient<PrpcClient>> {
-    let uds_path = "/var/run/dstack.sock";
-    if !std::fs::exists(uds_path).unwrap_or_default() {
-        bail!("dstack socket({uds_path}) not found");
-    }
-    let http_client = PrpcClient::new_unix(uds_path.to_string(), "/prpc".to_string());
+    let address = dstack_types::dstack_agent_address();
+    let http_client = PrpcClient::new(address);
     Ok(DstackGuestClient::new(http_client))
 }
 
@@ -63,7 +60,7 @@ async fn maybe_gen_certs(config: &Config, tls_config: &TlsConfig) -> Result<()> 
         return Ok(());
     }
 
-    if config.run_as_tapp {
+    if config.run_in_dstack {
         info!("Using dstack guest agent for certificate generation");
         let agent_client = dstack_agent().context("Failed to create dstack client")?;
         let response = agent_client
@@ -146,7 +143,7 @@ async fn main() -> Result<()> {
         set_max_ulimit()?;
     }
 
-    let my_app_id = if config.run_as_tapp {
+    let my_app_id = if config.run_in_dstack {
         let dstack_client = dstack_agent().context("Failed to create dstack client")?;
         let info = dstack_client
             .info()

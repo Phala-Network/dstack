@@ -57,15 +57,15 @@ enum Commands {
     GenRaCert(GenRaCertArgs),
     /// Generate a CA certificate
     GenCaCert(GenCaCertArgs),
-    /// Generate app keys for an Tapp
+    /// Generate app keys for an dstack app
     GenAppKeys(GenAppKeysArgs),
     /// Generate random data
     Rand(RandArgs),
     /// Setup Disk Encryption
     SetupFde(SetupFdeArgs),
-    /// Boot the Tapp
+    /// Boot the dstack app
     Tboot(TbootArgs),
-    /// Notify the host about the Tapp
+    /// Notify the host about the dstack app
     NotifyHost(HostNotifyArgs),
     /// Remove orphaned containers
     RemoveOrphans(RemoveOrphansArgs),
@@ -174,7 +174,7 @@ struct TestAppFeatureArgs {
 }
 
 #[derive(Parser)]
-/// Notify the host about the Tapp
+/// Notify the host about the dstack app
 struct HostNotifyArgs {
     #[arg(short, long)]
     url: Option<String>,
@@ -544,7 +544,7 @@ async fn main() -> Result<()> {
                 if args.shutdown_on_fail {
                     cmd!(systemctl poweroff)?;
                 }
-                bail!("Failed to boot the Tapp");
+                bail!("Failed to boot the dstack app");
             }
         }
         Commands::NotifyHost(args) => {

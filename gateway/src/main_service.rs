@@ -586,7 +586,7 @@ pub struct RpcHandler {
 
 impl RpcHandler {
     fn ensure_from_gateway(&self) -> Result<()> {
-        if !self.state.config.run_as_tapp {
+        if !self.state.config.run_in_dstack {
             return Ok(());
         }
         if self.remote_app_id.is_none() {

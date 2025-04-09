@@ -690,7 +690,7 @@
                     <div class="form-group">
                         <label for="userConfig">User Config</label>
                         <textarea id="userConfig" v-model="vmForm.user_config"
-                            placeholder="Optional: User config to be put at /tapp/.user-config in the CVM"></textarea>
+                            placeholder="Optional: User config to be put at /dstack/.user-config in the CVM"></textarea>
                     </div>
 
                     <div class="form-group full-width" v-if="config.portMappingEnabled">
@@ -1083,7 +1083,7 @@
                     <div class="form-group">
                         <label for="userConfig">User Config</label>
                         <textarea id="userConfig" v-model="upgradeDialog.user_config"
-                            placeholder="Optional: User config to be put at /tapp/.user-config in the CVM"></textarea>
+                            placeholder="Optional: User config to be put at /dstack/.user-config in the CVM"></textarea>
                     </div>
                     <div class="app-id-preview">
                         Compose Hash: 0x{{ upgradeComposeHashPreview }}

@@ -133,3 +133,12 @@ impl KeyProviderInfo {
 }
 
 pub mod shared_filenames;
+
+/// Get the address of the dstack agent
+pub fn dstack_agent_address() -> String {
+    // Check env DSTACK_AGENT_ADDRESS
+    if let Ok(address) = std::env::var("DSTACK_AGENT_ADDRESS") {
+        return address;
+    }
+    "unix:/var/run/dstack.sock".into()
+}

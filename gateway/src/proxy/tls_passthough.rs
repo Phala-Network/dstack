@@ -11,16 +11,16 @@ use crate::{
 use super::{io_bridge::bridge, AddressGroup};
 
 #[derive(Debug)]
-struct TappAddress {
+struct AppAddress {
     app_id: String,
     port: u16,
 }
 
-impl TappAddress {
+impl AppAddress {
     fn parse(data: &[u8]) -> Result<Self> {
         // format: "3327603e03f5bd1f830812ca4a789277fc31f577:555"
-        let data = String::from_utf8(data.to_vec()).context("invalid tapp address")?;
-        let (app_id, port) = data.split_once(':').context("invalid tapp address")?;
+        let data = String::from_utf8(data.to_vec()).context("invalid app address")?;
+        let (app_id, port) = data.split_once(':').context("invalid app address")?;
         Ok(Self {
             app_id: app_id.to_string(),
             port: port.parse().context("invalid port")?,
@@ -28,21 +28,21 @@ impl TappAddress {
     }
 }
 
-/// resolve tapp address by sni
-async fn resolve_tapp_address(sni: &str) -> Result<TappAddress> {
-    let txt_domain = format!("_tapp-address.{sni}");
+/// resolve app address by sni
+async fn resolve_app_address(prefix: &str, sni: &str) -> Result<AppAddress> {
+    let txt_domain = format!("{prefix}.{sni}");
     let resolver = hickory_resolver::AsyncResolver::tokio_from_system_conf()
         .context("failed to create dns resolver")?;
     let lookup = resolver
         .txt_lookup(txt_domain)
         .await
-        .context("failed to lookup tapp address")?;
+        .context("failed to lookup app address")?;
     let txt_record = lookup.iter().next().context("no txt record found")?;
     let data = txt_record
         .txt_data()
         .first()
         .context("no data in txt record")?;
-    TappAddress::parse(data).context("failed to parse tapp address")
+    AppAddress::parse(data).context("failed to parse app address")
 }
 
 pub(crate) async fn proxy_with_sni(
@@ -51,11 +51,11 @@ pub(crate) async fn proxy_with_sni(
     buffer: Vec<u8>,
     sni: &str,
 ) -> Result<()> {
-    let tapp_addr = resolve_tapp_address(sni)
+    let addr = resolve_app_address(&state.config.proxy.app_address_ns_prefix, sni)
         .await
-        .context("failed to resolve tapp address")?;
-    debug!("target address is {}:{}", tapp_addr.app_id, tapp_addr.port);
-    proxy_to_app(state, inbound, buffer, &tapp_addr.app_id, tapp_addr.port).await
+        .context("failed to resolve app address")?;
+    debug!("target address is {}:{}", addr.app_id, addr.port);
+    proxy_to_app(state, inbound, buffer, &addr.app_id, addr.port).await
 }
 
 /// connect to multiple hosts simultaneously and return the first successful connection
@@ -81,7 +81,7 @@ pub(crate) async fn connect_multiple_hosts(
         match result {
             Ok(connection) => break (connection, counter),
             Err((e, addr, port)) => {
-                info!("failed to connect to tapp@{addr}:{port}: {e}");
+                info!("failed to connect to app@{addr}:{port}: {e}");
             }
         }
     };
@@ -102,12 +102,12 @@ pub(crate) async fn proxy_to_app(
         connect_multiple_hosts(addresses.clone(), port),
     )
     .await
-    .with_context(|| format!("connecting timeout to tapp {app_id}: {addresses:?}:{port}"))?
-    .with_context(|| format!("failed to connect to tapp {app_id}: {addresses:?}:{port}"))?;
+    .with_context(|| format!("connecting timeout to app {app_id}: {addresses:?}:{port}"))?
+    .with_context(|| format!("failed to connect to app {app_id}: {addresses:?}:{port}"))?;
     outbound
         .write_all(&buffer)
         .await
-        .context("failed to write to tapp")?;
+        .context("failed to write to app")?;
     bridge(inbound, outbound, &state.config.proxy)
         .await
         .context("failed to copy between inbound and outbound")?;
@@ -119,12 +119,14 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_resolve_tapp_address() {
-        let tapp_addr =
-            resolve_tapp_address("3327603e03f5bd1f830812ca4a789277fc31f577.app.kvin.wang")
-                .await
-                .unwrap();
-        assert_eq!(tapp_addr.app_id, "3327603e03f5bd1f830812ca4a789277fc31f577");
-        assert_eq!(tapp_addr.port, 8090);
+    async fn test_resolve_app_address() {
+        let app_addr = resolve_app_address(
+            "_dstack-app-address",
+            "3327603e03f5bd1f830812ca4a789277fc31f577.app.kvin.wang",
+        )
+        .await
+        .unwrap();
+        assert_eq!(app_addr.app_id, "3327603e03f5bd1f830812ca4a789277fc31f577");
+        assert_eq!(app_addr.port, 8090);
     }
 }

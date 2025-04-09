@@ -4,7 +4,7 @@ After=network.target tboot.service
 
 [Service]
 OOMScoreAdjust=-1000
-ExecStart=/bin/dstack-guest-agent --watchdog -c /tapp/agent.json
+ExecStart=/bin/dstack-guest-agent --watchdog -c /dstack/agent.json
 Restart=always
 User=root
 Group=root
