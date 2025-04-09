@@ -1,4 +1,0 @@
-web3==7.5.0
-eth-account==0.13.4
-tappd-client==0.1.3
-python-dotenv==1.0.0
