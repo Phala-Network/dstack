@@ -1418,17 +1418,19 @@
                         totalVMs.value = data.total || data.vms.length;
                         hasMorePages.value = data.vms.length === pageSize.value && totalVMs.value > (currentPage.value * pageSize.value);
 
-                        vms.value = data.vms.map(vm => ({
-                            ...vm,
-                            appCompose: (() => {
-                                try {
-                                    return JSON.parse(vm.configuration?.compose_file || '{}');
-                                } catch (e) {
-                                    console.error('Error parsing app config:', e);
-                                    return {};
-                                }
-                            })()
-                        }));
+                        const previousVms = vms.value;
+                        const previousVmMap = new Map(previousVms.map(vm => [vm.id, vm]));
+                        vms.value = data.vms.map(vm => {
+                            const previousVm = previousVmMap.get(vm.id);
+                            if (previousVm) {
+                                return {
+                                    ...vm,
+                                    configuration: previousVm.configuration,
+                                    appCompose: previousVm.appCompose
+                                };
+                            }
+                            return vm;
+                        });
 
                         config.value = {
                             portMappingEnabled: data.port_mapping_enabled
@@ -1516,6 +1518,7 @@
                     }
                     if (imgFeatures.compose_version < 3) {
                         app_compose.tproxy_enabled = app_compose.gateway_enabled;
+                        delete app_compose["gateway_enabled"];
                     }
                     return JSON.stringify(app_compose);
                 };
@@ -1750,7 +1753,6 @@
                 };
 
                 const dashboardAvailable = (vm) => {
-                    if (!gatewayEnabled(vm)) return false;
                     return vm.app_url
                 };
 

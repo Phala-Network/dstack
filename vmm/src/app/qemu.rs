@@ -15,7 +15,10 @@ use std::{
 use super::{image::Image, VmState};
 use anyhow::{bail, Context, Result};
 use bon::Builder;
-use dstack_types::shared_filenames::{APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, USER_CONFIG};
+use dstack_types::{
+    shared_filenames::{APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, USER_CONFIG},
+    AppCompose,
+};
 use dstack_vmm_rpc as pb;
 use fs_err as fs;
 use serde::{Deserialize, Serialize};
@@ -37,6 +40,7 @@ pub struct VmInfo {
     pub boot_error: String,
     pub shutdown_progress: String,
     pub image_version: String,
+    pub gateway_enabled: bool,
 }
 
 #[derive(Debug, Builder)]
@@ -46,6 +50,7 @@ pub struct VmConfig {
     pub cid: u32,
     pub networking: Networking,
     pub workdir: PathBuf,
+    pub gateway_enabled: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -79,7 +84,7 @@ fn create_hd(
 }
 
 impl VmInfo {
-    pub fn to_pb(&self, gw: &GatewayConfig) -> pb::VmInfo {
+    pub fn to_pb(&self, gw: &GatewayConfig, brief: bool) -> pb::VmInfo {
         let workdir = VmWorkDir::new(&self.workdir);
         pb::VmInfo {
             id: self.manifest.id.clone(),
@@ -90,47 +95,57 @@ impl VmInfo {
             boot_error: self.boot_error.clone(),
             shutdown_progress: self.shutdown_progress.clone(),
             image_version: self.image_version.clone(),
-            configuration: Some(pb::VmConfiguration {
-                name: self.manifest.name.clone(),
-                image: self.manifest.image.clone(),
-                compose_file: {
-                    fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
-                },
-                encrypted_env: { fs::read(workdir.encrypted_env_path()).unwrap_or_default() },
-                user_config: { fs::read_to_string(workdir.user_config_path()).unwrap_or_default() },
-                vcpu: self.manifest.vcpu,
-                memory: self.manifest.memory,
-                disk_size: self.manifest.disk_size,
-                ports: self
-                    .manifest
-                    .port_map
-                    .iter()
-                    .map(|pm| pb::PortMapping {
-                        protocol: pm.protocol.as_str().into(),
-                        host_address: pm.address.to_string(),
-                        host_port: pm.from as u32,
-                        vm_port: pm.to as u32,
-                    })
-                    .collect(),
-                app_id: Some(self.manifest.app_id.clone()),
-                hugepages: self.manifest.hugepages,
-                pin_numa: self.manifest.pin_numa,
-                gpus: self
-                    .manifest
-                    .gpus
-                    .iter()
-                    .map(|gpu| pb::GpuSpec {
-                        product_id: gpu.product_id.clone(),
-                        slot: gpu.slot.clone(),
-                    })
-                    .collect(),
-            }),
-            app_url: self.instance_id.as_ref().map(|id| {
-                format!(
-                    "https://{id}-{}.{}:{}",
-                    gw.agent_port, gw.base_domain, gw.port
-                )
-            }),
+            configuration: if brief {
+                None
+            } else {
+                Some(pb::VmConfiguration {
+                    name: self.manifest.name.clone(),
+                    image: self.manifest.image.clone(),
+                    compose_file: {
+                        fs::read_to_string(workdir.app_compose_path()).unwrap_or_default()
+                    },
+                    encrypted_env: { fs::read(workdir.encrypted_env_path()).unwrap_or_default() },
+                    user_config: {
+                        fs::read_to_string(workdir.user_config_path()).unwrap_or_default()
+                    },
+                    vcpu: self.manifest.vcpu,
+                    memory: self.manifest.memory,
+                    disk_size: self.manifest.disk_size,
+                    ports: self
+                        .manifest
+                        .port_map
+                        .iter()
+                        .map(|pm| pb::PortMapping {
+                            protocol: pm.protocol.as_str().into(),
+                            host_address: pm.address.to_string(),
+                            host_port: pm.from as u32,
+                            vm_port: pm.to as u32,
+                        })
+                        .collect(),
+                    app_id: Some(self.manifest.app_id.clone()),
+                    hugepages: self.manifest.hugepages,
+                    pin_numa: self.manifest.pin_numa,
+                    gpus: self
+                        .manifest
+                        .gpus
+                        .iter()
+                        .map(|gpu| pb::GpuSpec {
+                            product_id: gpu.product_id.clone(),
+                            slot: gpu.slot.clone(),
+                        })
+                        .collect(),
+                })
+            },
+            app_url: self
+                .gateway_enabled
+                .then_some(self.instance_id.as_ref())
+                .flatten()
+                .map(|id| {
+                    format!(
+                        "https://{id}-{}.{}:{}",
+                        gw.agent_port, gw.base_domain, gw.port
+                    )
+                }),
             app_id: self.manifest.app_id.clone(),
             instance_id: self.instance_id.as_deref().map(Into::into),
             exited_at: self.exited_at.clone(),
@@ -178,6 +193,7 @@ impl VmState {
             boot_error: self.state.boot_error.clone(),
             shutdown_progress: self.state.shutdown_progress.clone(),
             image_version: self.config.image.info.version.clone(),
+            gateway_enabled: self.config.gateway_enabled,
         }
     }
 }
@@ -526,5 +542,11 @@ impl VmWorkDir {
         let info_file = self.instance_info_path();
         let info: InstanceInfo = serde_json::from_slice(&fs::read(&info_file)?)?;
         Ok(info)
+    }
+
+    pub fn app_compose(&self) -> Result<AppCompose> {
+        let compose_file = self.app_compose_path();
+        let compose: AppCompose = serde_json::from_str(&fs::read_to_string(compose_file)?)?;
+        Ok(compose)
     }
 }

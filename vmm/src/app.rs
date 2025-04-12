@@ -138,6 +138,9 @@ impl App {
         let image_path = self.config.image_path.join(&manifest.image);
         let image = Image::load(&image_path).context("Failed to load image")?;
         let vm_id = manifest.id.clone();
+        let app_compose = vm_work_dir
+            .app_compose()
+            .context("Failed to read compose file")?;
         {
             let mut teapot = self.lock();
             let cid = teapot
@@ -152,6 +155,7 @@ impl App {
                 cid,
                 networking: self.config.networking.clone(),
                 workdir: vm_work_dir.path().to_path_buf(),
+                gateway_enabled: app_compose.gateway_enabled(),
             };
             if vm_config.manifest.disk_size > self.config.cvm.max_disk_size {
                 bail!(
@@ -349,7 +353,7 @@ impl App {
                     &self.work_dir(&vm.config.manifest.id),
                 )
             })
-            .map(|info| info.to_pb(&self.config.gateway))
+            .map(|info| info.to_pb(&self.config.gateway, request.brief))
             .collect::<Vec<_>>();
         Ok(StatusResponse {
             vms,
@@ -378,7 +382,7 @@ impl App {
         };
         let info = vm_state
             .merged_info(proc_state.as_ref(), &self.work_dir(id))
-            .to_pb(&self.config.gateway);
+            .to_pb(&self.config.gateway, false);
         Ok(Some(info))
     }
 
