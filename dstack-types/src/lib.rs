@@ -19,7 +19,7 @@ pub struct AppCompose {
     pub public_sysinfo: bool,
     #[serde(default)]
     pub kms_enabled: bool,
-    #[serde(default, alias = "tproxy_enabled")]
+    #[serde(deserialize_with = "deserialize_gateway_enabled", flatten)]
     pub gateway_enabled: bool,
     #[serde(default)]
     pub local_key_provider_enabled: bool,
@@ -29,6 +29,21 @@ pub struct AppCompose {
     pub allowed_envs: Vec<String>,
     #[serde(default)]
     pub no_instance_id: bool,
+}
+
+fn deserialize_gateway_enabled<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    struct GatewayEnabled {
+        #[serde(default)]
+        gateway_enabled: bool,
+        #[serde(default)]
+        tproxy_enabled: bool,
+    }
+    let value = GatewayEnabled::deserialize(deserializer)?;
+    Ok(value.gateway_enabled || value.tproxy_enabled)
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
