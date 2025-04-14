@@ -2,7 +2,7 @@ use anyhow::Result;
 use http_body_util::{BodyExt, Full};
 use hyper::body::Bytes;
 use hyper::Request;
-use hyper_util::client::legacy::{connect::HttpConnector, Client};
+use hyper_util::client::legacy::Client;
 use hyper_vsock::VsockClientExt;
 use hyperlocal::{UnixClientExt, UnixConnector, Uri};
 use log::debug;
@@ -54,15 +54,13 @@ pub async fn http_request(
             .body(Full::new(Bytes::copy_from_slice(body)))?;
         client.request(req).await?
     } else {
-        let client =
-            Client::builder(hyper_util::rt::TokioExecutor::new()).build(HttpConnector::new());
-
-        let uri = mk_url(base, path).parse::<hyper::Uri>()?;
-        let req = Request::builder()
-            .method(method)
-            .uri(uri)
-            .body(Full::new(Bytes::copy_from_slice(body)))?;
-        client.request(req).await?
+        let uri = mk_url(base, path);
+        let client = reqwest::Client::builder().build()?;
+        let response = client.post(uri).body(body.to_vec()).send().await?;
+        return Ok((
+            response.status().as_u16(),
+            response.text().await?.into_bytes(),
+        ));
     };
     debug!("Response: {:?}", response);
     let mut body = Vec::new();
