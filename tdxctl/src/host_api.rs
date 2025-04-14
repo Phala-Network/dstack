@@ -1,5 +1,3 @@
-use std::time::{Duration, SystemTime};
-
 use crate::utils::{deserialize_json_file, sha256, SysConfig};
 use anyhow::{anyhow, bail, Context, Result};
 use dstack_types::shared_filenames::{HOST_SHARED_DIR, SYS_CONFIG};
@@ -82,28 +80,12 @@ impl HostApi {
             .map_err(|err| anyhow!("Failed to get sealing key: {err:?}"))?;
 
         // verify the key provider quote
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .context("Invalid system time")?
-            .as_secs();
-
-        let pccs_url = self.pccs_url.as_deref().unwrap_or_default();
-        let pccs_url = if pccs_url.is_empty() {
-            "https://api.trustedservices.intel.com/sgx/certification/v4"
-        } else {
-            pccs_url
-        };
-        let quote_collateral = dcap_qvl::collateral::get_collateral(
-            pccs_url,
+        let verified_report = dcap_qvl::collateral::get_collateral_and_verify(
             &provision.provider_quote,
-            Duration::from_secs(10),
+            self.pccs_url.as_deref(),
         )
         .await
         .context("Failed to get quote collateral")?;
-        let verified_report =
-            dcap_qvl::verify::verify(&provision.provider_quote, &quote_collateral, now)
-                .ok()
-                .context("Failed to verify key provider quote")?;
         validate_tcb(&verified_report)?;
         let sgx_report = verified_report
             .report

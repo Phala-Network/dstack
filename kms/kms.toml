@@ -21,7 +21,6 @@ mandatory = false
 [core]
 cert_dir = "/etc/kms/certs"
 subject_postfix = ".dstack"
-pccs_url = "https://api.trustedservices.intel.com/tdx/certification/v4"
 
 [core.auth_api]
 type = "webhook"

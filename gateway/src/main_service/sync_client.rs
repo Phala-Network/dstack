@@ -25,6 +25,7 @@ struct SyncClient {
     ca_cert_pem: String,
     app_id: Vec<u8>,
     timeout: Duration,
+    pccs_url: Option<String>,
 }
 
 impl SyncClient {
@@ -43,6 +44,7 @@ impl SyncClient {
                 .tls_client_key(self.key_pem.clone())
                 .tls_ca_cert(self.ca_cert_pem.clone())
                 .tls_built_in_root_certs(false)
+                .maybe_pccs_url(self.pccs_url.clone())
                 .cert_validator(Box::new(move |cert| {
                     let cert = cert.context("TLS cert not found")?;
                     let remote_app_id = cert.app_id.context("App id not found")?;
@@ -112,6 +114,7 @@ pub(crate) async fn sync_task(
             ca_cert_pem: keys.certificate_chain.last().cloned().unwrap_or_default(),
             app_id: my_app_id,
             timeout: config.sync.timeout,
+            pccs_url: config.pccs_url.clone(),
         }
     } else {
         SyncClient {
@@ -121,6 +124,7 @@ pub(crate) async fn sync_task(
             ca_cert_pem: "".into(),
             app_id: vec![],
             timeout: config.sync.timeout,
+            pccs_url: config.pccs_url.clone(),
         }
     };
 

@@ -1,5 +1,7 @@
 //! Attestation functions
 
+use std::borrow::Cow;
+
 use anyhow::{anyhow, bail, Context, Result};
 use dcap_qvl::quote::Quote;
 use qvl::{
@@ -294,7 +296,15 @@ impl Attestation {
         if &self.decode_report_data()? != report_data {
             bail!("report data mismatch");
         }
-        let report = qvl::collateral::get_collateral_and_verify(quote, pccs_url)
+        let mut pccs_url = Cow::Borrowed(pccs_url.unwrap_or_default());
+        if pccs_url.is_empty() {
+            // try to read from PCCS_URL env var
+            pccs_url = match std::env::var("PCCS_URL") {
+                Ok(url) => Cow::Owned(url),
+                Err(_) => Cow::Borrowed(""),
+            };
+        }
+        let report = qvl::collateral::get_collateral_and_verify(quote, Some(pccs_url.as_ref()))
             .await
             .context("Failed to get collateral")?;
         if let Some(report) = report.report.as_td10() {

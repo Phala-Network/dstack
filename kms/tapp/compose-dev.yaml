@@ -19,6 +19,7 @@ services:
       - PORT=8000
       - ETH_RPC_URL=${ETH_RPC_URL}
       - KMS_CONTRACT_ADDR=${KMS_CONTRACT_ADDR}
+      - PCCS_URL=${PCCS_URL}
     restart: unless-stopped
 
   kms:

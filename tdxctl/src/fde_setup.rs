@@ -221,6 +221,7 @@ impl SetupFdeArgs {
 
     async fn request_app_keys_from_kms_url(
         &self,
+        host_shared: &HostShared,
         kms_url: String,
         app_compose: String,
     ) -> Result<AppKeys> {
@@ -243,6 +244,7 @@ impl SetupFdeArgs {
             .tls_client_cert(cert_pair.cert_pem)
             .tls_client_key(cert_pair.key_pem)
             .tls_ca_cert(tmp_ca.ca_cert.clone())
+            .maybe_pccs_url(host_shared.vm_config.pccs_url.clone())
             .cert_validator(Box::new(|cert| {
                 let Some(cert) = cert else {
                     bail!("Missing server cert");
@@ -294,7 +296,11 @@ impl SetupFdeArgs {
             for kms_url in host_shared.vm_config.kms_urls.iter() {
                 let kms_url = format!("{kms_url}/prpc");
                 let response = self
-                    .request_app_keys_from_kms_url(kms_url.clone(), app_compose.clone())
+                    .request_app_keys_from_kms_url(
+                        host_shared,
+                        kms_url.clone(),
+                        app_compose.clone(),
+                    )
                     .await;
                 match response {
                     Ok(response) => {
