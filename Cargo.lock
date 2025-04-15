@@ -2201,6 +2201,7 @@ dependencies = [
  "log",
  "pin-project-lite",
  "prpc",
+ "reqwest",
  "serde",
  "tokio",
  "tokio-vsock",
