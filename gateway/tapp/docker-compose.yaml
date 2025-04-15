@@ -31,6 +31,7 @@ services:
       - ACME_STAGING=${ACME_STAGING}
       - SUBNET_INDEX=${SUBNET_INDEX}
       - RUST_LOG=info,certbot=debug
+      - PCCS_URL=${PCCS_URL}
     restart: always
 
 volumes:

@@ -92,13 +92,19 @@ impl RaClient {
             .context("failed to create client")
     }
 
-    pub fn new_mtls(remote_uri: String, cert_pem: String, key_pem: String) -> Result<Self> {
+    pub fn new_mtls(
+        remote_uri: String,
+        cert_pem: String,
+        key_pem: String,
+        pccs_url: Option<String>,
+    ) -> Result<Self> {
         RaClientConfig::builder()
             .tls_no_check(true)
             .tls_built_in_root_certs(false)
             .remote_uri(remote_uri)
             .tls_client_cert(cert_pem)
             .tls_client_key(key_pem)
+            .maybe_pccs_url(pccs_url)
             .build()
             .into_client()
             .context("failed to create client")

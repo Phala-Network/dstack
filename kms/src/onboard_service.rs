@@ -80,6 +80,7 @@ impl OnboardRpc for OnboardHandler {
             &request.source_url,
             &request.domain,
             self.state.config.onboard.quote_enabled,
+            self.state.config.pccs_url.clone(),
         )
         .await
         .context("Failed to onboard")?;
@@ -171,14 +172,19 @@ impl Keys {
         })
     }
 
-    async fn onboard(other_kms_url: &str, domain: &str, quote_enabled: bool) -> Result<Self> {
+    async fn onboard(
+        other_kms_url: &str,
+        domain: &str,
+        quote_enabled: bool,
+        pccs_url: Option<String>,
+    ) -> Result<Self> {
         let kms_client = RaClient::new(other_kms_url.into(), true)?;
         let mut kms_client = KmsClient::new(kms_client);
 
         if quote_enabled {
             let tmp_ca = kms_client.get_temp_ca_cert().await?;
             let (ra_cert, ra_key) = gen_ra_cert(tmp_ca.temp_ca_cert, tmp_ca.temp_ca_key).await?;
-            let ra_client = RaClient::new_mtls(other_kms_url.into(), ra_cert, ra_key)
+            let ra_client = RaClient::new_mtls(other_kms_url.into(), ra_cert, ra_key, pccs_url)
                 .context("Failed to create client")?;
             kms_client = KmsClient::new(ra_client);
         }
