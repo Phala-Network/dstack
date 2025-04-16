@@ -142,12 +142,12 @@ impl App {
             .app_compose()
             .context("Failed to read compose file")?;
         {
-            let mut teapot = self.lock();
-            let cid = teapot
+            let mut states = self.lock();
+            let cid = states
                 .get(&vm_id)
                 .map(|vm| vm.config.cid)
                 .or_else(|| cids_assigned.get(&vm_id).cloned())
-                .or_else(|| teapot.cid_pool.allocate())
+                .or_else(|| states.cid_pool.allocate())
                 .context("CID pool exhausted")?;
             let vm_config = VmConfig {
                 manifest,
@@ -163,7 +163,14 @@ impl App {
                     self.config.cvm.max_disk_size
                 );
             }
-            teapot.add(VmState::new(vm_config));
+            match states.get_mut(&vm_id) {
+                Some(vm) => {
+                    vm.config = vm_config.into();
+                }
+                None => {
+                    states.add(VmState::new(vm_config));
+                }
+            }
         };
         if auto_start && vm_work_dir.started().unwrap_or_default() {
             self.start_vm(&vm_id).await?;
