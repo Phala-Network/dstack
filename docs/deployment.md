@@ -340,6 +340,6 @@ npx hardhat app:add-hash --network phala --app-id 0xA35b434eE853fdf9c2Bf48Fa1583
 
 After the app starts normally, click [Board] to access.
 
-You can see connections to two tproxy nodes:
+You can find the connections to dstack-gateway nodes, meaning that the app is now reachable from the internet:
 
 ![app board](assets/app-board.png)

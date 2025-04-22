@@ -1,16 +1,10 @@
 # Dstack
 
-Dstack is a **developer friendly** and **security first** SDK to simplify the deployment of arbitrary Docker-based apps into TEE.
-
-> **NOTE**
->
-> This tutorial assumes you have access to a compatible Intel TDX Server ready to be configured with Dstack. Check the [Hardware Requirements](https://docs.phala.network/dstack/hardware-requirements) for more information on buying a bare metal server or renting a server from OVH. To start learning about Dstack check out the [docs](https://docs.phala.network/dstack/overview).
->
-> If you are looking to deploy a CVM in minutes, go to the docs to learn how to [sign-up for a Phala Cloud Account](https://docs.phala.network/phala-cloud/getting-started/sign-up-for-cloud-account) and [deploy your first CVM on Dstack]((https://docs.phala.network/phala-cloud/getting-started/start-from-cloud-ui)).
+Dstack is a **developer friendly** and **security first** SDK to simplify the deployment of arbitrary containerized apps into TEE.
 
 Main features:
 
-- 🔒 Deploy Docker apps securely in TEE in minutes
+- 🔒 Deploy containerized apps securely in TEE in minutes
 - 🛠️ Use familiar tools - just write a docker-compose.yaml
 - 🔑 Safely manage secrets and sensitive data
 - 📡 Expose services via built-in TLS termination
@@ -51,10 +45,16 @@ dstack/
 
 ## Prerequisites
 
-- A TDX host machine setup following [canonical/tdx](https://github.com/canonical/tdx)
+- A bare metal TDX server setup following [canonical/tdx](https://github.com/canonical/tdx)
 - Public IPv4 address assigned to the machine
-- A domain name you can modify DNS records
 - At least 16GB RAM, 100GB free disk space.
+- A domain with DNS access if you want to set up `dstack-gateway` for Zero Trust HTTPS
+
+> [!NOTE]
+>
+> This doc assumes you have access to a compatible Intel TDX Server ready to be configured with Dstack. Check the [Hardware Requirements](https://docs.phala.network/dstack/hardware-requirements) for more information on buying a bare metal server or renting a server from OVH. To start learning about Dstack check out the [docs](https://docs.phala.network/dstack/overview).
+>
+> If you are looking to deploy a CVM in minutes, go to the docs to learn how to [sign-up for a Phala Cloud Account](https://docs.phala.network/phala-cloud/getting-started/sign-up-for-cloud-account) and [deploy your first CVM on Dstack]((https://docs.phala.network/phala-cloud/getting-started/start-from-cloud-ui)).
 
 ## Install dependencies
 
