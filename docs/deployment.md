@@ -47,10 +47,11 @@ port = 9300
 EOF
 
 # Download Guest OS images
-wget "https://github.com/Dstack-TEE/meta-dstack/releases/download/v0.4.1/dstack-0.4.1.tar.gz"
+DSTACK_VERSION=0.4.2
+wget "https://github.com/Dstack-TEE/meta-dstack/releases/download/v${DSTACK_VERSION}/dstack-${DSTACK_VERSION}.tar.gz"
 mkdir -p images/
-tar -xvf dstack-0.4.1.tar.gz -C images/
-rm -f dstack-0.4.1.tar.gz
+tar -xvf dstack-${DSTACK_VERSION}.tar.gz -C images/
+rm -f dstack-${DSTACK_VERSION}.tar.gz
 
 # run dstack-vmm
 ./dstack-vmm -c vmm.toml
@@ -266,7 +267,7 @@ Similar to the KMS deployment, it will deploy the dstack-gateway CVM to the dsta
 
 ## Deploy dstack-vmm on other TDX hosts to serve user workloads
 After the KMS and dstack-gateway are deployed, you can deploy dstack-vmm on other TDX hosts to serve user workloads.
-
+You can follow the steps at the beginning of this document to deploy dstack-vmm on other TDX hosts.
 Edit the vmm.toml file to set the KMS and dstack-gateway URLs.
 
 ```
@@ -275,3 +276,70 @@ Edit the vmm.toml file to set the KMS and dstack-gateway URLs.
 kms_urls = ["https://kms.test2.dstack.phala.network:9201"]
 gateway_urls = ["https://gateway.test2.dstack.phala.network:9202"]
 ```
+
+Then restart the dstack-vmm.
+
+## Deploy app on the dstack-vmm
+
+After the dstack-vmm is ready, you can deploy an app on it following the steps below.
+
+### 1. On-chain Registration
+
+The on-chain registration process includes two steps:
+
+1. Deploy an App's control contract AppAuth. Developers can develop their own or choose the reference contract from the Dstack repository. Custom contracts need to implement the IAppAuth interface.
+2. Call KmsAuth.registerApp(appAuthAddress) to register and obtain the App Id
+
+The Dstack repository provides scripts to complete these two steps:
+
+```bash
+git clone https://github.com/Dstack-TEE/dstack
+cd dstack/kms/auth-eth
+npm install
+npx hardhat compile
+export PRIVATE_KEY=<your eth private key here>
+export KMS_CONTRACT_ADDRESS=0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
+npx hardhat app:deploy --allow-any-device --network phala
+```
+
+Command output:
+```
+Deploying proxy...
+Waiting for deployment...
+AppAuth Proxy deployed to: 0xD4a546B1C7e63CD4CeD314b2C90108e49191A915
+Implementation deployed to: 0x5aC1671E1Df54994D023F0B05806821d6D84e086
+Deployment completed successfully
+Transaction hash: 0xceac2ac6d56a40fef903b947d3a05df42ccce66da7f356c5d54afda68277f9a9
+Waiting for transaction 0xe144e9007208079e5e82c04f727d2383c58184e74d4f860e62557b5f330ab832 to be confirmed...
+App registered in KMS successfully
+Registered AppId: 0xA35b434eE853fdf9c2Bf48Fa1583Ac1332d50255
+```
+
+Note the AppId, which needs to be filled in when deploying cvm.
+
+If you need to upgrade the contract in the future, please backup the `.openzeppelin/unknown-2035.json` file.
+
+### 2. Add the App compose hash to the whitelist
+
+Build app-compose.json and calculate its sha256 to get compose-hash. The compose hash can also be previewed in the dstack-vmm UI.
+
+Call the hardhat command to add it to the whitelist (using AppAuth as an example here; custom AppAuth follows its own custom permission control logic).
+
+```bash
+export PRIVATE_KEY=<your eth private key here>
+export KMS_CONTRACT_ADDRESS=0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
+npx hardhat app:add-hash --network phala --app-id 0xA35b434eE853fdf9c2Bf48Fa1583Ac1332d50255 0x44d9cb98aaa6ab11f5729fc7d6fd58117585e0e3fbec621612dcee6b2dfbcde5
+```
+
+### 3. Deploy instances using dstack-vmm
+
+![app deploy](assets/app-deploy.png)
+- Select image `dstack-0.4.2`
+- Fill in the AppId applied in the contract during deployment
+- Currently, test KmsAuth has set a whitelist for Base image, requiring instance memory to be `≥ 3G` or exactly `= 2G`
+
+After the app starts normally, click [Board] to access.
+
+You can see connections to two tproxy nodes:
+
+![app board](assets/app-board.png)
