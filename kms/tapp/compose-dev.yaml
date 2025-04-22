@@ -19,7 +19,6 @@ services:
       - PORT=8000
       - ETH_RPC_URL=${ETH_RPC_URL}
       - KMS_CONTRACT_ADDR=${KMS_CONTRACT_ADDR}
-      - PCCS_URL=${PCCS_URL}
     restart: unless-stopped
 
   kms:
@@ -42,11 +41,11 @@ services:
             cd dstack && \
             git checkout ${GIT_REV}
         WORKDIR /app/dstack
-        RUN cargo build --release -p kms
-        CMD ["./target/release/kms"]
+        RUN cargo build --release -p dstack-kms
+        CMD ["./target/release/dstack-kms"]
     volumes:
       - kms-volume:/etc/kms
-      - /var/run/dstack.sock:/var/run/dstack.sock
+      - /var/run/tappd.sock:/var/run/tappd.sock
     ports:
       - 8000:8000
     depends_on:
