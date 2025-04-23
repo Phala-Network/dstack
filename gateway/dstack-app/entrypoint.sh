@@ -86,7 +86,7 @@ rpc_domain = "gateway.$SRV_DOMAIN"
 run_in_dstack = true
 
 [core.sync]
-enabled = true
+enabled = false
 interval = "30s"
 my_url = "$MY_URL"
 bootnode = "$BOOTNODE_URL"
