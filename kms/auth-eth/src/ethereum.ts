@@ -54,4 +54,8 @@ export class EthereumBackend {
       gatewayAppId,
     }
   }
+
+  async getGatewayAppId(): Promise<string> {
+    return await this.kmsAuth.gatewayAppId();
+  }
 }

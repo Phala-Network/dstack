@@ -46,6 +46,14 @@ export async function build(): Promise<FastifyInstance> {
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   server.decorate('ethereum', new EthereumBackend(provider, kmsContractAddr));
 
+  server.get('/', async (request, reply) => {
+    return {
+      status: 'ok',
+      kmsContractAddr: kmsContractAddr,
+      gatewayAppId: await server.ethereum.getGatewayAppId(),
+    };
+  });
+
   // Define routes
   server.post<{
     Body: BootInfo;
@@ -61,6 +69,7 @@ export async function build(): Promise<FastifyInstance> {
     try {
       return await server.ethereum.checkBoot(request.body, false);
     } catch (error) {
+      console.error(error);
       reply.code(200).send({
         isAllowed: false,
         gatewayAppId: '',
@@ -83,6 +92,7 @@ export async function build(): Promise<FastifyInstance> {
     try {
       return await server.ethereum.checkBoot(request.body, true);
     } catch (error) {
+      console.error(error);
       reply.code(200).send({
         isAllowed: false,
         gatewayAppId: '',

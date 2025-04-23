@@ -20,6 +20,8 @@ services:
       - ETH_RPC_URL=${ETH_RPC_URL}
       - KMS_CONTRACT_ADDR=${KMS_CONTRACT_ADDR}
     restart: unless-stopped
+    ports:
+      - 8001:8000
 
   kms:
     build:
