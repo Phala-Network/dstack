@@ -53,6 +53,7 @@ if [[ ! "$SUBNET_INDEX" =~ ^[0-9]+$ ]] || [ "$SUBNET_INDEX" -lt 0 ] || [ "$SUBNE
     exit 1
 fi
 
+SYNC_ENABLED=$([ -z "$BOOTNODE_URL" ] && echo "false" || echo "true")
 # The IP address of this dstack-gateway node
 IP="10.4.0.$((SUBNET_INDEX + 1))/16"
 # Reserving 5 bits(32 IPs) for server use
@@ -63,6 +64,7 @@ CLIENT_RANGE="10.4.$((SUBNET_INDEX * 16)).0/20"
 echo "IP: $IP"
 echo "RESERVED_NET: $RESERVED_NET"
 echo "CLIENT_RANGE: $CLIENT_RANGE"
+echo "SYNC_ENABLED: $SYNC_ENABLED"
 
 # Create gateway.toml configuration
 cat >$CONFIG_PATH <<EOF
@@ -86,7 +88,7 @@ rpc_domain = "gateway.$SRV_DOMAIN"
 run_in_dstack = true
 
 [core.sync]
-enabled = false
+enabled = $SYNC_ENABLED
 interval = "30s"
 my_url = "$MY_URL"
 bootnode = "$BOOTNODE_URL"
