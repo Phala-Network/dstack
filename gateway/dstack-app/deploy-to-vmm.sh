@@ -15,7 +15,7 @@ else
 # Please uncomment and set values for the following variables:
 
 # The URL of the dstack-vmm RPC service
-# VMM_=unix:../../../build/vmm.sock
+# VMM_RPC=unix:../../../build/vmm.sock
 
 # Cloudflare API token for DNS challenge
 # CF_API_TOKEN=your_cloudflare_api_token
@@ -72,7 +72,7 @@ required_env_vars=(
   "WG_ADDR"
   "GATEWAY_APP_ID"
   "MY_URL"
-  "BOOTNODE_URL"
+  # "BOOTNODE_URL"
 )
 
 # Validate required environment variables

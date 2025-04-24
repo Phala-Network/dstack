@@ -20,6 +20,9 @@ else
 # The address of the KMS contract
 # KMS_CONTRACT_ADDR=0x59E4a36B01a87fD9D1A4C12377253FE9a7b018Ba
 
+# The address of the auth-api service listening on Host machine
+# AUTH_API_RPC_ADDR=0.0.0.0:8001
+
 # The address of the KMS service listening on Host machine
 # KMS_RPC_ADDR=0.0.0.0:9201
 
@@ -42,6 +45,7 @@ fi
 required_env_vars=(
   "VMM_RPC"
   "KMS_RPC_ADDR"
+  "AUTH_API_RPC_ADDR"
   "GUEST_AGENT_ADDR"
   "KMS_CONTRACT_ADDR"
   "ETH_RPC_URL"
@@ -104,6 +108,7 @@ $CLI deploy \
   --compose .app-compose.json \
   --image $OS_IMAGE \
   --port tcp:$KMS_RPC_ADDR:8000 \
+  --port tcp:$AUTH_API_RPC_ADDR:8001 \
   --port tcp:$GUEST_AGENT_ADDR:8090 \
   --vcpu 8 \
   --memory 8G \

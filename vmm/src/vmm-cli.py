@@ -676,6 +676,8 @@ def verify_signature(public_key: bytes, signature: bytes, app_id: str) -> Option
 
     # Create the message to verify
     prefix = b"dstack-env-encrypt-pubkey"
+    if app_id.startswith("0x"):
+        app_id = app_id[2:]
     message = prefix + b":" + bytes.fromhex(app_id) + public_key
 
     # Hash the message with Keccak-256

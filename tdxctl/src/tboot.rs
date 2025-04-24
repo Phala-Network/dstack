@@ -61,7 +61,11 @@ impl AppIdValidator {
             bail!("Missing app id");
         };
         let app_id = hex::encode(app_id);
-        if !self.allowed_app_id.contains(&app_id) {
+        if !self
+            .allowed_app_id
+            .to_lowercase()
+            .contains(&app_id.to_lowercase())
+        {
             bail!("Invalid dstack-gateway app id: {app_id}");
         }
         Ok(())
