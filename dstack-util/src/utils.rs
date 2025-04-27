@@ -1,12 +1,8 @@
-use std::{
-    io::{self, Read},
-    path::Path,
-};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use fs_err as fs;
 use serde::de::DeserializeOwned;
-use sha2::{digest::Output, Digest};
 use tdx_attest as att;
 
 pub use dstack_types::{AppCompose, AppKeys, KeyProviderKind, SysConfig};
@@ -30,32 +26,6 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
 pub fn sha256_file(path: impl AsRef<Path>) -> Result<[u8; 32]> {
     let data = fs::read(path).context("Failed to read file")?;
     Ok(sha256(&data))
-}
-
-pub struct HashingFile<H, F> {
-    file: F,
-    hasher: H,
-}
-
-impl<H: Digest, F: Read> Read for HashingFile<H, F> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let bytes_read = self.file.read(buf)?;
-        self.hasher.update(&buf[..bytes_read]);
-        Ok(bytes_read)
-    }
-}
-
-impl<H: Digest, F> HashingFile<H, F> {
-    pub fn new(file: F) -> Self {
-        Self {
-            file,
-            hasher: H::new(),
-        }
-    }
-
-    pub fn finalize(self) -> Output<H> {
-        self.hasher.finalize()
-    }
 }
 
 pub fn extend_rtmr3(event: &str, payload: &[u8]) -> Result<()> {

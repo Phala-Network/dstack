@@ -242,19 +242,38 @@ impl VmConfig {
                 workdir.qmp_socket().display()
             ));
         }
-        command.arg("-kernel").arg(&self.image.kernel);
-        command.arg("-initrd").arg(&self.image.initrd);
-        command
-            .arg("-drive")
-            .arg(format!("file={},if=none,id=hd0", hda_path.display()))
-            .arg("-device")
-            .arg("virtio-blk-pci,drive=hd0");
-        if let Some(rootfs) = &self.image.rootfs {
-            command.arg("-cdrom").arg(rootfs);
-        }
         if let Some(bios) = &self.image.bios {
             command.arg("-bios").arg(bios);
         }
+        command.arg("-kernel").arg(&self.image.kernel);
+        command.arg("-initrd").arg(&self.image.initrd);
+        if let Some(rootfs) = &self.image.rootfs {
+            let ext = rootfs
+                .extension()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or_default();
+            match ext {
+                "iso" => {
+                    command.arg("-cdrom").arg(rootfs);
+                }
+                "verity" => {
+                    command.arg("-drive").arg(format!(
+                        "file={},if=none,id=hd0,format=raw,readonly=on",
+                        rootfs.display()
+                    ));
+                    command.arg("-device").arg("virtio-blk-pci,drive=hd0");
+                }
+                _ => {
+                    bail!("Unsupported rootfs type: {ext}");
+                }
+            }
+        }
+        command
+            .arg("-drive")
+            .arg(format!("file={},if=none,id=hd1", hda_path.display()))
+            .arg("-device")
+            .arg("virtio-blk-pci,drive=hd1");
         let netdev = match &self.networking {
             Networking::User(netcfg) => {
                 let mut netdev = format!(

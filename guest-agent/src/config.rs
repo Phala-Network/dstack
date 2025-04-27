@@ -1,3 +1,5 @@
+use std::{collections::HashSet, path::PathBuf};
+
 use figment::Figment;
 use load_config::load_config;
 use serde::Deserialize;
@@ -23,6 +25,8 @@ pub struct Config {
     #[serde(default)]
     pub pccs_url: Option<String>,
     pub simulator: Simulator,
+    // List of disks to be shown in the dashboard
+    pub data_disks: HashSet<PathBuf>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

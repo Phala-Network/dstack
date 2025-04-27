@@ -4,10 +4,7 @@ import "google/protobuf/empty.proto";
 
 package kms;
 
-message GetAppKeyRequest {
-  // The app compose file
-  string app_compose = 2;
-}
+message GetAppKeyRequest {}
 
 message AppId {
   bytes app_id = 1;

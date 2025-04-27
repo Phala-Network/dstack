@@ -1,7 +1,7 @@
 [Unit]
 Description=DStack Guest Preparation Service
 After=network.target
-Before=app-compose.service dstack-guest-agent.service
+Before=app-compose.service dstack-guest-agent.service docker.service
 
 [Service]
 Type=oneshot
@@ -9,6 +9,8 @@ ExecStart=/bin/dstack-prepare.sh
 RemainAfterExit=yes
 StandardOutput=journal+console
 StandardError=journal+console
+OnFailure=reboot.target
+FailureAction=reboot
 
 [Install]
 WantedBy=multi-user.target

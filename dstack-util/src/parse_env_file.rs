@@ -43,13 +43,13 @@ struct Data {
 }
 
 pub fn parse_env(
-    decrypted_json: &[u8],
+    env_json: &[u8],
     allowed: &BTreeSet<String>,
 ) -> Result<BTreeMap<String, String>> {
     const MAX_ITEMS: usize = 1024;
     const MAX_TOTAL_SIZE: usize = 1024 * 1024;
 
-    let data: Data = serde_json::from_slice(decrypted_json).context("Failed to parse env")?;
+    let data: Data = serde_json::from_slice(env_json).context("Failed to parse env")?;
 
     if data.env.len() > MAX_ITEMS {
         bail!("Too many environment variables: {}", data.env.len());

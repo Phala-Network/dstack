@@ -1,4 +1,4 @@
-use std::{fmt::Debug, path::Path};
+use std::fmt::Debug;
 
 use anyhow::{Context, Result};
 use bollard::{container::ListContainersOptions, Docker};
@@ -72,10 +72,11 @@ impl GuestApiRpc for GuestApiHandler {
         let cpus = system.cpus();
 
         let disks = sysinfo::Disks::new_with_refreshed_list();
-        let disks = disks
+        let config = self.state.config();
+        let mut disks = disks
             .list()
             .iter()
-            .filter(|d| d.mount_point() == Path::new("/"))
+            .filter(|d| config.data_disks.contains(d.mount_point()))
             .map(|d| DiskInfo {
                 name: d.name().to_string_lossy().to_string(),
                 mount_point: d.mount_point().to_string_lossy().to_string(),
@@ -83,6 +84,7 @@ impl GuestApiRpc for GuestApiHandler {
                 free_size: d.available_space(),
             })
             .collect::<Vec<_>>();
+        disks.sort_by(|d1, d2| d1.mount_point.cmp(&d2.mount_point));
         let avg = System::load_average();
         Ok(SystemInfo {
             os_name: System::name().unwrap_or_default(),

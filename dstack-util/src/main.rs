@@ -1,10 +1,8 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use bollard::container::{ListContainersOptions, RemoveContainerOptions};
 use bollard::Docker;
 use clap::{Parser, Subcommand};
-use cmd_lib::run_cmd as cmd;
 use dstack_types::KeyProvider;
-use fde_setup::{cmd_setup_fde, SetupFdeArgs};
 use fs_err as fs;
 use getrandom::fill as getrandom;
 use host_api::HostApi;
@@ -22,15 +20,14 @@ use std::{
     io::{self, Read, Write},
     path::PathBuf,
 };
-use tboot::TbootArgs;
+use system_setup::{cmd_sys_setup, SetupArgs};
 use tdx_attest as att;
-use tracing::error;
 use utils::{extend_rtmr, AppKeys};
 
 mod crypto;
-mod fde_setup;
 mod host_api;
-mod tboot;
+mod parse_env_file;
+mod system_setup;
 mod utils;
 
 /// DStack guest utility
@@ -61,10 +58,8 @@ enum Commands {
     GenAppKeys(GenAppKeysArgs),
     /// Generate random data
     Rand(RandArgs),
-    /// Setup Disk Encryption
-    SetupFde(SetupFdeArgs),
-    /// Boot the dstack app
-    Tboot(TbootArgs),
+    /// Prepare dstack system.
+    Setup(SetupArgs),
     /// Notify the host about the dstack app
     NotifyHost(HostNotifyArgs),
     /// Remove orphaned containers
@@ -535,17 +530,8 @@ async fn main() -> Result<()> {
         Commands::GenAppKeys(args) => {
             cmd_gen_app_keys(args)?;
         }
-        Commands::SetupFde(args) => {
-            cmd_setup_fde(args).await?;
-        }
-        Commands::Tboot(args) => {
-            if let Err(err) = tboot::tboot(&args).await {
-                error!("{:?}", err);
-                if args.shutdown_on_fail {
-                    cmd!(systemctl poweroff)?;
-                }
-                bail!("Failed to boot the dstack app");
-            }
+        Commands::Setup(args) => {
+            cmd_sys_setup(args).await?;
         }
         Commands::NotifyHost(args) => {
             cmd_notify_host(args).await?;

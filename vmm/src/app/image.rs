@@ -13,6 +13,7 @@ pub struct ImageInfo {
     pub hda: Option<String>,
     pub rootfs: Option<String>,
     pub bios: Option<String>,
+    #[serde(default)]
     pub rootfs_hash: Option<String>,
     #[serde(default)]
     pub shared_ro: bool,

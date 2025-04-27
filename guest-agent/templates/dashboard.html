@@ -191,9 +191,9 @@
                 <div class="info-label">System Uptime</div>
                 <div class="info-value">{{system_info.uptime}}</div>
             </div>
-            {% for disk in system_info.disks %}
+            {% for (i, disk) in system_info.disks.iter().enumerate() %}
             <div class="info-row">
-                <div class="info-label">Disk</div>
+                <div class="info-label">Disk {{i}}</div>
                 <div class="info-value">Free: {{disk.free_size|hsize}} / Total: {{disk.total_size|hsize}}</div>
             </div>
             {% endfor %}

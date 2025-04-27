@@ -484,10 +484,6 @@ impl App {
         let image_path = cfg.image_path.join(&manifest.image);
         let image_info = ImageInfo::load(image_path.join("metadata.json"))
             .context("Failed to load image info")?;
-        let rootfs_hash = image_info
-            .rootfs_hash
-            .as_ref()
-            .context("Rootfs hash not found in image info")?;
         let img_ver = image_info.version_tuple().unwrap_or((0, 0, 0));
         let sys_config = if img_ver >= (0, 4, 2) {
             serde_json::json!({
@@ -498,6 +494,10 @@ impl App {
                 "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
             })
         } else if img_ver >= (0, 4, 0) {
+            let rootfs_hash = image_info
+                .rootfs_hash
+                .as_ref()
+                .context("Rootfs hash not found in image info")?;
             serde_json::json!({
                 "rootfs_hash": rootfs_hash,
                 "kms_urls": cfg.cvm.kms_urls,
@@ -507,6 +507,10 @@ impl App {
                 "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
             })
         } else {
+            let rootfs_hash = image_info
+                .rootfs_hash
+                .as_ref()
+                .context("Rootfs hash not found in image info")?;
             serde_json::json!({
                 "rootfs_hash": rootfs_hash,
                 "kms_url": cfg.cvm.kms_urls.first(),
