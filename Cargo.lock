@@ -1427,6 +1427,49 @@ dependencies = [
 ]
 
 [[package]]
+name = "dstack-util"
+version = "0.5.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "bollard",
+ "cert-client",
+ "clap",
+ "cmd_lib",
+ "curve25519-dalek",
+ "dcap-qvl",
+ "dstack-gateway-rpc",
+ "dstack-kms-rpc",
+ "dstack-types",
+ "fs-err",
+ "getrandom 0.3.1",
+ "hex",
+ "hex_fmt",
+ "host-api",
+ "k256",
+ "key-provider-client",
+ "parity-scale-codec",
+ "ra-rpc",
+ "ra-tls",
+ "rand 0.8.5",
+ "regex",
+ "schnorrkel",
+ "serde",
+ "serde-human-bytes",
+ "serde_json",
+ "serde_yaml2",
+ "sha2",
+ "sha3",
+ "tdx-attest",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "x25519-dalek",
+ "x509-parser",
+]
+
+[[package]]
 name = "dstack-vmm"
 version = "0.5.0"
 dependencies = [
@@ -5141,49 +5184,6 @@ version = "0.5.0"
 dependencies = [
  "bindgen 0.71.1",
  "cc",
-]
-
-[[package]]
-name = "tdxctl"
-version = "0.5.0"
-dependencies = [
- "aes-gcm",
- "anyhow",
- "bollard",
- "cert-client",
- "clap",
- "cmd_lib",
- "curve25519-dalek",
- "dcap-qvl",
- "dstack-gateway-rpc",
- "dstack-kms-rpc",
- "dstack-types",
- "fs-err",
- "getrandom 0.3.1",
- "hex",
- "hex_fmt",
- "host-api",
- "k256",
- "key-provider-client",
- "parity-scale-codec",
- "ra-rpc",
- "ra-tls",
- "rand 0.8.5",
- "regex",
- "schnorrkel",
- "serde",
- "serde-human-bytes",
- "serde_json",
- "serde_yaml2",
- "sha2",
- "sha3",
- "tdx-attest",
- "tokio",
- "toml",
- "tracing",
- "tracing-subscriber",
- "x25519-dalek",
- "x509-parser",
 ]
 
 [[package]]

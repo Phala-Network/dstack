@@ -12,7 +12,7 @@ members = [
     "ra-tls",
     "tdx-attest-sys",
     "tdx-attest",
-    "tdxctl",
+    "dstack-util",
     "iohash",
     "guest-agent",
     "guest-agent/rpc",

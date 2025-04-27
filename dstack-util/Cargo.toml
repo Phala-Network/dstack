@@ -1,5 +1,5 @@
 [package]
-name = "tdxctl"
+name = "dstack-util"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

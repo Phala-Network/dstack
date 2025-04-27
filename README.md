@@ -32,7 +32,7 @@ The overall architecture is shown below:
 dstack/
     kms/                         A prototype KMS server
     guest-agent/                 A service running in CVM to serve containers' key derivation and attestation requests.
-    tdxctl/                      A CLI tool getting TDX quote, extending RTMR, generating cert for RA-TLS, etc.
+    dstack-util/                 A CLI tool in the guest setting up the system, getting TDX quote, extending RTMR, generating cert for RA-TLS, etc.
     vmm/                         A service running in bare TDX host to manage CVMs
     gateway/                     A reverse proxy to forward TLS connections to CVMs
     certbot/                     A tool to automatically obtain and renew TLS certificates for dstack-gateway

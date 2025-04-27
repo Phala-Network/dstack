@@ -33,7 +33,7 @@ mod host_api;
 mod tboot;
 mod utils;
 
-/// TDX control utility
+/// DStack guest utility
 #[derive(Parser)]
 #[command(author, version, about)]
 struct Cli {

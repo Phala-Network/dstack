@@ -1,11 +1,11 @@
 [Unit]
-Description=Guest Boot Service
+Description=DStack Guest Preparation Service
 After=network.target
 Before=app-compose.service dstack-guest-agent.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/tboot.sh
+ExecStart=/bin/dstack-prepare.sh
 RemainAfterExit=yes
 StandardOutput=journal+console
 StandardError=journal+console
