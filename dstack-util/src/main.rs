@@ -22,7 +22,7 @@ use std::{
 };
 use system_setup::{cmd_sys_setup, SetupArgs};
 use tdx_attest as att;
-use utils::{extend_rtmr, AppKeys};
+use utils::AppKeys;
 
 mod crypto;
 mod host_api;
@@ -77,14 +77,6 @@ struct HexCommand {
 #[derive(Parser)]
 /// Extend RTMR
 struct ExtendArgs {
-    #[clap(short = 'i', long, default_value_t = 3)]
-    /// RTMR index (default: 3)
-    index: u32,
-
-    #[clap(short = 't', long, default_value_t = 1)]
-    /// event type (default: 1)
-    event_type: u32,
-
     #[clap(short, long)]
     /// event name
     event: String,
@@ -212,12 +204,7 @@ fn cmd_quote() -> Result<()> {
 
 fn cmd_extend(extend_args: ExtendArgs) -> Result<()> {
     let payload = hex::decode(&extend_args.payload).context("Failed to decode payload")?;
-    extend_rtmr(
-        extend_args.index,
-        extend_args.event_type,
-        &extend_args.event,
-        &payload,
-    )
+    att::extend_rtmr3(&extend_args.event, &payload).context("Failed to extend RTMR")
 }
 
 fn cmd_report() -> Result<()> {

@@ -17,6 +17,7 @@ use fs_err as fs;
 use ra_rpc::client::{CertInfo, RaClient, RaClientConfig};
 use ra_tls::cert::generate_ra_cert;
 use serde::{Deserialize, Serialize};
+use tdx_attest::extend_rtmr3;
 use tracing::{info, warn};
 
 use crate::{
@@ -25,8 +26,7 @@ use crate::{
     gen_app_keys_from_seed,
     host_api::HostApi,
     utils::{
-        deserialize_json_file, extend_rtmr3, sha256, sha256_file, AppCompose, AppKeys,
-        KeyProviderKind, SysConfig,
+        deserialize_json_file, sha256, sha256_file, AppCompose, AppKeys, KeyProviderKind, SysConfig,
     },
     GenAppKeysArgs,
 };
