@@ -417,3 +417,15 @@ func (c *DstackClient) Info(ctx context.Context) (*InfoResponse, error) {
 
 	return &response, nil
 }
+
+// EmitEvent sends an event to be extended to RTMR3 on TDX platform.
+// The event will be extended to RTMR3 with the provided name and payload.
+//
+// Requires Dstack OS 0.5.0 or later.
+func (c *DstackClient) EmitEvent(ctx context.Context, event string, payload []byte) error {
+	_, err := c.sendRPCRequest(ctx, "/EmitEvent", map[string]interface{}{
+		"event":   event,
+		"payload": hex.EncodeToString(payload),
+	})
+	return err
+}
