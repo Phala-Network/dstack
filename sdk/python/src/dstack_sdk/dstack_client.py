@@ -203,6 +203,33 @@ class DstackClient(BaseClient):
         result = self._send_rpc_request("/Info", {})
         return InfoResponse.model_validate(result)
 
+    def emit_event(
+        self,
+        event: str,
+        payload: str | bytes,
+    ) -> None:
+        """
+        Emit an event. This extends the event to RTMR3 on TDX platform.
+
+        Requires Dstack OS 0.5.0 or later.
+
+        Args:
+            event: The event name
+            payload: The event data as string or bytes
+
+        Returns:
+            None
+        """
+        if not event:
+            raise ValueError("event name cannot be empty")
+
+        if isinstance(payload, str):
+            payload = payload.encode()
+
+        hex_payload = binascii.hexlify(payload).decode()
+        self._send_rpc_request("/EmitEvent", {"event": event, "payload": hex_payload})
+        return None
+
     def get_tls_key(
         self,
         subject: str | None = None,
@@ -284,6 +311,33 @@ class AsyncDstackClient(BaseClient):
     async def info(self) -> InfoResponse:
         result = await self._send_rpc_request("/Info", {})
         return InfoResponse.model_validate(result)
+
+    async def emit_event(
+        self,
+        event: str,
+        payload: str | bytes,
+    ) -> None:
+        """
+        Emit an event. This extends the event to RTMR3 on TDX platform.
+
+        Requires Dstack OS 0.5.0 or later.
+
+        Args:
+            event: The event name
+            payload: The event data as string or bytes
+
+        Returns:
+            None
+        """
+        if not event:
+            raise ValueError("event name cannot be empty")
+
+        if isinstance(payload, str):
+            payload = payload.encode()
+
+        hex_payload = binascii.hexlify(payload).decode()
+        await self._send_rpc_request("/EmitEvent", {"event": event, "payload": hex_payload})
+        return None
 
     async def get_tls_key(
         self,

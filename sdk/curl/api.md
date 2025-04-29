@@ -165,6 +165,33 @@ curl --unix-socket /var/run/dstack.sock http://dstack/Info
 }
 ```
 
+### 5. Emit Event
+
+Emit an event to be extended to RTMR3 on TDX platform. This API requires Dstack OS 0.5.0 or later.
+
+**Endpoint:** `/EmitEvent`
+
+**Request Parameters:**
+
+| Field | Type | Description | Example |
+|-------|------|-------------|----------|
+| `event` | string | The event name | `"custom-event"` |
+| `payload` | string | Hex-encoded payload data | `"deadbeef"` |
+
+**Example:**
+```bash
+curl --unix-socket /var/run/dstack.sock -X POST \
+  http://dstack/EmitEvent \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "event": "custom-event",
+    "payload": "deadbeef"
+  }'
+```
+
+**Response:**
+Empty response with HTTP 200 status code on success.
+
 ## Error Responses
 
 All endpoints may return the following HTTP status codes:

@@ -6,9 +6,9 @@ use dstack_guest_agent_rpc::{
     dstack_guest_server::{DstackGuestRpc, DstackGuestServer},
     tappd_server::{TappdRpc, TappdServer},
     worker_server::{WorkerRpc, WorkerServer},
-    DeriveK256KeyResponse, DeriveKeyArgs, GetKeyArgs, GetKeyResponse, GetQuoteResponse,
-    GetTlsKeyArgs, GetTlsKeyResponse, RawQuoteArgs, TdxQuoteArgs, TdxQuoteResponse, WorkerInfo,
-    WorkerVersion,
+    DeriveK256KeyResponse, DeriveKeyArgs, EmitEventArgs, GetKeyArgs, GetKeyResponse,
+    GetQuoteResponse, GetTlsKeyArgs, GetTlsKeyResponse, RawQuoteArgs, TdxQuoteArgs,
+    TdxQuoteResponse, WorkerInfo, WorkerVersion,
 };
 use dstack_types::AppKeys;
 use fs_err as fs;
@@ -159,6 +159,13 @@ impl DstackGuestRpc for InternalRpcHandler {
             event_log,
             report_data: report_data.to_vec(),
         })
+    }
+
+    async fn emit_event(self, request: EmitEventArgs) -> Result<()> {
+        if self.state.config().simulator.enabled {
+            return Ok(());
+        }
+        tdx_attest::extend_rtmr3(&request.event, &request.payload)
     }
 
     async fn info(self) -> Result<WorkerInfo> {

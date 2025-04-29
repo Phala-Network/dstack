@@ -314,4 +314,28 @@ export class DstackClient {
       tcb_info: JSON.parse(result.tcb_info) as TcbInfo,
     })
   }
+
+  /**
+   * Emit an event. This extends the event to RTMR3 on TDX platform.
+   *
+   * Requires Dstack OS 0.5.0 or later.
+   *
+   * @param event The event name
+   * @param payload The event data as string or Buffer or Uint8Array
+   */
+  async emitEvent(event: string, payload: string | Buffer | Uint8Array): Promise<void> {
+    if (!event) {
+      throw new Error('Event name cannot be empty')
+    }
+
+    const hexPayload = to_hex(payload)
+    await send_rpc_request(
+      this.endpoint,
+      '/EmitEvent',
+      JSON.stringify({
+        event: event,
+        payload: hexPayload
+      })
+    )
+  }
 }
