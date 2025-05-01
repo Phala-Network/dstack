@@ -156,13 +156,10 @@ impl BaseClient for DstackClient {}
 impl DstackClient {
     pub fn new(endpoint: Option<&str>) -> Self {
         let endpoint = get_endpoint(endpoint);
-        let (base_url, client) = if
-            endpoint.starts_with("http://") ||
-            endpoint.starts_with("https://")
-        {
-            (endpoint.clone(), ClientKind::Http)
-        } else {
-            ("http://localhost".to_string(), ClientKind::Unix)
+        let (base_url, client) = match endpoint {
+            ref e if e.starts_with("http://") || e.starts_with("https://") =>
+                (e.to_string(), ClientKind::Http),
+            _ => ("http://localhost".to_string(), ClientKind::Unix),
         };
 
         DstackClient { base_url, endpoint, client }
@@ -177,7 +174,12 @@ impl DstackClient {
                     self.base_url.trim_end_matches('/'),
                     path.trim_start_matches('/')
                 );
-                let res = client.post(&url).json(payload).send().await?.error_for_status()?;
+                let res = client
+                    .post(&url)
+                    .json(payload)
+                    .header("Content-Type", "application/json")
+                    .send().await?
+                    .error_for_status()?;
                 Ok(res.json().await?)
             }
             ClientKind::Unix => {
@@ -200,11 +202,11 @@ impl DstackClient {
     ) -> Result<GetKeyResponse, Box<dyn Error>> {
         let data =
             json!({
-            "path": path.clone().unwrap_or_default(),
+            "path": path.unwrap_or_default(),
             "purpose": purpose.unwrap_or_default(),
         });
         let response = self.send_rpc_request("/GetKey", &data).await?;
-        let response = serde_json::from_value::<GetKeyResponse>(response.clone())?;
+        let response = serde_json::from_value::<GetKeyResponse>(response)?;
 
         Ok(response)
     }
@@ -219,7 +221,7 @@ impl DstackClient {
         let hex_data = hex_encode(report_data);
         let data = json!({ "report_data": hex_data });
         let response = self.send_rpc_request("/GetQuote", &data).await?;
-        let response = serde_json::from_value::<GetQuoteResponse>(response.clone())?;
+        let response = serde_json::from_value::<GetQuoteResponse>(response)?;
 
         Ok(response)
     }
@@ -256,7 +258,7 @@ impl DstackClient {
             "alt_names": alt_names.unwrap_or_default(),
         });
         let response = self.send_rpc_request("/GetTlsKey", &data).await?;
-        let response = serde_json::from_value::<GetTlsKeyResponse>(response.clone())?;
+        let response = serde_json::from_value::<GetTlsKeyResponse>(response)?;
 
         Ok(response)
     }
