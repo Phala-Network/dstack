@@ -1,5 +1,5 @@
-use dstack_sdk::dstack_client::{ DstackClient, GetKeyResponse };
-use dstack_sdk::ethereum::to_account;
+use dstack_rust::dstack_client::{ DstackClient, GetKeyResponse };
+use dstack_rust::ethereum::to_account;
 use tokio;
 
 #[tokio::test]

@@ -1,4 +1,4 @@
-use dstack_sdk::dstack_client::DstackClient as AsyncDstackClient;
+use dstack_rust::dstack_client::DstackClient as AsyncDstackClient;
 use evidence_api::tdx::quote::TdxQuote;
 use tokio;
 
