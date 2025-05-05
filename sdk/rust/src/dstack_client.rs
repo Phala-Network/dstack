@@ -1,15 +1,14 @@
-use hex::{ encode as hex_encode, FromHexError };
+use hex::{FromHexError, encode as hex_encode};
+use http_client_unix_domain_socket::{ClientUnix, Method};
 use reqwest::Client;
-use http_client_unix_domain_socket::{ ClientUnix, Method };
-use serde::{ Deserialize, Serialize };
-use serde_json::{ from_str, json, Value };
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, from_str, json};
 use sha2::Digest;
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
 
-const INIT_MR: &str =
-    "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+const INIT_MR: &str = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
 fn replay_rtmr(history: Vec<String>) -> Result<String, FromHexError> {
     if history.is_empty() {
@@ -157,12 +156,17 @@ impl DstackClient {
     pub fn new(endpoint: Option<&str>) -> Self {
         let endpoint = get_endpoint(endpoint);
         let (base_url, client) = match endpoint {
-            ref e if e.starts_with("http://") || e.starts_with("https://") =>
-                (e.to_string(), ClientKind::Http),
+            ref e if e.starts_with("http://") || e.starts_with("https://") => {
+                (e.to_string(), ClientKind::Http)
+            }
             _ => ("http://localhost".to_string(), ClientKind::Unix),
         };
 
-        DstackClient { base_url, endpoint, client }
+        DstackClient {
+            base_url,
+            endpoint,
+            client,
+        }
     }
 
     async fn send_rpc_request(&self, path: &str, payload: &Value) -> Result<Value, Box<dyn Error>> {
@@ -178,18 +182,21 @@ impl DstackClient {
                     .post(&url)
                     .json(payload)
                     .header("Content-Type", "application/json")
-                    .send().await?
+                    .send()
+                    .await?
                     .error_for_status()?;
                 Ok(res.json().await?)
             }
             ClientKind::Unix => {
                 let mut unix_client = ClientUnix::try_new(&self.endpoint).await?;
-                let res = unix_client.send_request_json::<Value, Value, Value>(
-                    path,
-                    Method::POST,
-                    &[("Content-Type", "application/json")],
-                    Some(payload)
-                ).await?;
+                let res = unix_client
+                    .send_request_json::<Value, Value, Value>(
+                        path,
+                        Method::POST,
+                        &[("Content-Type", "application/json")],
+                        Some(payload),
+                    )
+                    .await?;
                 Ok(res.1)
             }
         }
@@ -198,10 +205,9 @@ impl DstackClient {
     pub async fn get_key(
         &self,
         path: Option<String>,
-        purpose: Option<String>
+        purpose: Option<String>,
     ) -> Result<GetKeyResponse, Box<dyn Error>> {
-        let data =
-            json!({
+        let data = json!({
             "path": path.unwrap_or_default(),
             "purpose": purpose.unwrap_or_default(),
         });
@@ -213,7 +219,7 @@ impl DstackClient {
 
     pub async fn get_quote(
         &self,
-        report_data: Vec<u8>
+        report_data: Vec<u8>,
     ) -> Result<GetQuoteResponse, Box<dyn Error>> {
         if report_data.is_empty() || report_data.len() > 64 {
             return Err("Invalid report data length".into());
@@ -247,10 +253,9 @@ impl DstackClient {
         alt_names: Option<Vec<String>>,
         usage_ra_tls: bool,
         usage_server_auth: bool,
-        usage_client_auth: bool
+        usage_client_auth: bool,
     ) -> Result<GetTlsKeyResponse, Box<dyn Error>> {
-        let data =
-            json!({
+        let data = json!({
             "subject": subject.unwrap_or_default(),
             "usage_ra_tls": usage_ra_tls,
             "usage_server_auth": usage_server_auth,
