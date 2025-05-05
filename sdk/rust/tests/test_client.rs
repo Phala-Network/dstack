@@ -1,5 +1,5 @@
+use dcap_qvl::quote::Quote;
 use dstack_rust::dstack_client::DstackClient as AsyncDstackClient;
-use evidence_api::tdx::quote::TdxQuote;
 use tokio;
 
 #[tokio::test]
@@ -49,11 +49,12 @@ async fn test_replay_rtmr() {
     let rtmrs = result.replay_rtmrs().unwrap();
     let quote = result.decode_quote().unwrap();
 
-    let tdx_quote = TdxQuote::parse_tdx_quote(quote).unwrap();
-    assert_eq!(rtmrs[&0], hex::encode(tdx_quote.body.rtmr0));
-    assert_eq!(rtmrs[&1], hex::encode(tdx_quote.body.rtmr1));
-    assert_eq!(rtmrs[&2], hex::encode(tdx_quote.body.rtmr2));
-    assert_eq!(rtmrs[&3], hex::encode(tdx_quote.body.rtmr3));
+    let tdx_quote = Quote::parse(&quote).unwrap();
+    let quote_report = tdx_quote.report.as_td10().unwrap();
+    assert_eq!(rtmrs[&0], hex::encode(quote_report.rt_mr0));
+    assert_eq!(rtmrs[&1], hex::encode(quote_report.rt_mr1));
+    assert_eq!(rtmrs[&2], hex::encode(quote_report.rt_mr2));
+    assert_eq!(rtmrs[&3], hex::encode(quote_report.rt_mr3));
 }
 
 #[tokio::test]
@@ -63,11 +64,12 @@ async fn test_report_data() {
     let result = client.get_quote(report_data.into()).await.unwrap();
     let quote = result.decode_quote().unwrap();
 
-    let tdx_quote = TdxQuote::parse_tdx_quote(quote).unwrap();
+    let tdx_quote = Quote::parse(&quote).unwrap();
+    let quote_report = tdx_quote.report.as_td10().unwrap();
     let expected = {
         let mut padded = report_data.as_bytes().to_vec();
         padded.resize(64, 0);
         padded
     };
-    assert_eq!(&tdx_quote.body.report_data[..], &expected[..]);
+    assert_eq!(&quote_report.report_data[..], &expected[..]);
 }

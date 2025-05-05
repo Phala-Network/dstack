@@ -1,6 +1,6 @@
 # Dstack Crate
 
-This crate provides a rust client for communicating with the dstack server, which available inside dstack.
+This crate provides a rust client for communicating with the dstack server, which is available inside dstack.
 
 ## Installation
 

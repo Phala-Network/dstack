@@ -1,7 +1,10 @@
 [package]
 name = "dstack-rust"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+license = "MIT"
+description = "This crate provides a rust client for communicating with dstack"
+authors = ["Encifher <encifher@rizelabs.io>"]
 
 [dependencies]
 alloy = { version = "0.15", features = ["signers", "signer-local"] }
@@ -14,5 +17,5 @@ serde_json = "1.0"
 sha2 = "0.10.9"
 
 [dev-dependencies]
-evidence_api = { git = "https://github.com/cc-api/evidence-api.git", branch = "main" }
+dcap-qvl = "0.1.0"
 tokio = { version = "1", features = ["full"] }
