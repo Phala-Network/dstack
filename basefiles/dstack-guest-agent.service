@@ -1,6 +1,7 @@
 [Unit]
 Description=Dstack Guest Agent Service
 After=network.target tboot.service
+Before=docker.service
 
 [Service]
 OOMScoreAdjust=-1000
