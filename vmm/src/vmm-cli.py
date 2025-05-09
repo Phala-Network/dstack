@@ -422,6 +422,7 @@ class VmmCLI:
             "public_sysinfo": public_sysinfo,
             "allowed_envs": [k for k in envs.keys()],
             "no_instance_id": no_instance_id,
+            "secure_time": True,
         }
         if prelaunch_script:
             app_compose["prelaunch_script"] = prelaunch_script

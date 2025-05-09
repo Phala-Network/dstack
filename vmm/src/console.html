@@ -1500,6 +1500,7 @@
                         "local_key_provider_enabled": vmForm.value.local_key_provider_enabled,
                         "allowed_envs": vmForm.value.encrypted_envs.map(env => env.key),
                         "no_instance_id": !vmForm.value.gateway_enabled,
+                        "secure_time": false,
                     };
 
                     if (vmForm.value.preLaunchScript?.trim()) {

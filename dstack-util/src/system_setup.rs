@@ -203,6 +203,15 @@ fn emit_key_provider_info(provider_info: &KeyProviderInfo) -> Result<()> {
 
 pub async fn cmd_sys_setup(args: SetupArgs) -> Result<()> {
     let stage0 = Stage0::load(&args)?;
+    if stage0.shared.app_compose.secure_time {
+        info!("Waiting for the system time to be synchronized");
+        cmd! {
+            chronyc waitsync 20 0.1;
+        }
+        .context("Failed to sync system time")?;
+    } else {
+        info!("System time will be synchronized by chronyd in background");
+    }
     let stage1 = stage0.setup_fs().await?;
     stage1.setup().await
 }

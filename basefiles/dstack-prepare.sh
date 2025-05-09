@@ -23,9 +23,7 @@ chmod -x /usr/bin/containerd-shim-runc-v2
 echo "Syncing system time..."
 # Let the chronyd correct the system time immediately
 chronyc makestep
-echo "Waiting for the system time to be synchronized"
-# Wait for the system time to be synchronized
-chronyc waitsync 20 0.1
+
 # Setup dstack system
 echo "Preparing dstack system..."
 dstack-util setup --work-dir $WORK_DIR --device /dev/vdb --mount-point $DATA_MNT
