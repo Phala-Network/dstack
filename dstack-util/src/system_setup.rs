@@ -404,29 +404,22 @@ impl<'a> Stage0<'a> {
         deserialize_json_file(self.app_keys_file()).context("Failed to decode app keys")
     }
 
-    fn mount_e2fs(dev: &str, mount_point: &Path) -> Result<()> {
-        cmd! {
-            info "Checking filesystem";
-            sh -c "e2fsck -f -p $dev || [ $? -le 2 ]";
-            info "Trying to resize filesystem if needed";
-            resize2fs $dev;
-            info "Mounting filesystem";
-            mkdir -p $mount_point;
-            mount $dev $mount_point;
-        }?;
-        Ok(())
-    }
-
     async fn mount_data_disk(&self, initialized: bool, disk_crypt_key: &str) -> Result<()> {
         let name = "dstack_data_disk";
         let fs_dev = "/dev/mapper/".to_string() + name;
+        let mount_point = &self.args.mount_point;
         if !initialized {
             self.vmm
                 .notify_q("boot.progress", "initializing data disk")
                 .await;
             info!("Setting up disk encryption");
             self.luks_setup(disk_crypt_key, name)?;
-            cmd!(mkfs.ext4 -L dstack-data $fs_dev)?;
+            cmd! {
+                mkdir -p $mount_point;
+                zpool create -o autoexpand=on dstack $fs_dev;
+                zfs create -o mountpoint=$mount_point -o atime=off -o checksum=blake3 dstack/data;
+            }
+            .context("Failed to create zpool")?;
         } else {
             self.vmm
                 .notify_q("boot.progress", "mounting data disk")
@@ -436,8 +429,16 @@ impl<'a> Stage0<'a> {
             let disk_crypt_key = disk_crypt_key.trim();
             cmd!(echo -n $disk_crypt_key | cryptsetup luksOpen --type luks2 -d- $root_hd $name)
                 .or(Err(anyhow!("Failed to open encrypted data disk")))?;
+            cmd! {
+                zpool import dstack;
+                zpool status dstack;
+                zpool online -e dstack $fs_dev; // triggers autoexpand
+            }
+            .context("Failed to import zpool")?;
+            if cmd!(mountpoint -q $mount_point).is_err() {
+                cmd!(zfs mount dstack/data).context("Failed to mount zpool")?;
+            }
         }
-        Self::mount_e2fs(&fs_dev, &self.args.mount_point)?;
         Ok(())
     }
 
