@@ -1,12 +1,12 @@
-use hex::{FromHexError, encode as hex_encode};
+use anyhow::{anyhow, Result};
+use hex::{encode as hex_encode, FromHexError};
 use http_client_unix_domain_socket::{ClientUnix, Method};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, from_str, json};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::{from_str, json, Value};
 use sha2::Digest;
 use std::collections::HashMap;
 use std::env;
-use std::error::Error;
 
 const INIT_MR: &str = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
@@ -82,7 +82,7 @@ impl GetQuoteResponse {
         serde_json::from_str(&self.event_log)
     }
 
-    pub fn replay_rtmrs(&self) -> Result<HashMap<u8, String>, Box<dyn Error>> {
+    pub fn replay_rtmrs(&self) -> Result<HashMap<u8, String>> {
         let parsed_event_log: Vec<EventLog> = self.decode_event_log()?;
         let mut rtmrs = HashMap::new();
         for idx in 0..4 {
@@ -169,7 +169,11 @@ impl DstackClient {
         }
     }
 
-    async fn send_rpc_request(&self, path: &str, payload: &Value) -> Result<Value, Box<dyn Error>> {
+    async fn send_rpc_request<S: Serialize, D: DeserializeOwned>(
+        &self,
+        path: &str,
+        payload: &S,
+    ) -> anyhow::Result<D> {
         match &self.client {
             ClientKind::Http => {
                 let client = Client::new();
@@ -189,15 +193,16 @@ impl DstackClient {
             }
             ClientKind::Unix => {
                 let mut unix_client = ClientUnix::try_new(&self.endpoint).await?;
+                let json_payload = serde_json::to_value(payload)?;
                 let res = unix_client
                     .send_request_json::<Value, Value, Value>(
                         path,
                         Method::POST,
                         &[("Content-Type", "application/json")],
-                        Some(payload),
+                        Some(&json_payload),
                     )
                     .await?;
-                Ok(res.1)
+                Ok(serde_json::from_value(res.1)?)
             }
         }
     }
@@ -206,7 +211,7 @@ impl DstackClient {
         &self,
         path: Option<String>,
         purpose: Option<String>,
-    ) -> Result<GetKeyResponse, Box<dyn Error>> {
+    ) -> Result<GetKeyResponse> {
         let data = json!({
             "path": path.unwrap_or_default(),
             "purpose": purpose.unwrap_or_default(),
@@ -217,12 +222,9 @@ impl DstackClient {
         Ok(response)
     }
 
-    pub async fn get_quote(
-        &self,
-        report_data: Vec<u8>,
-    ) -> Result<GetQuoteResponse, Box<dyn Error>> {
+    pub async fn get_quote(&self, report_data: Vec<u8>) -> Result<GetQuoteResponse> {
         if report_data.is_empty() || report_data.len() > 64 {
-            return Err("Invalid report data length".into());
+            return Err(anyhow!("Invalid report data length"));
         }
         let hex_data = hex_encode(report_data);
         let data = json!({ "report_data": hex_data });
@@ -232,18 +234,18 @@ impl DstackClient {
         Ok(response)
     }
 
-    pub async fn info(&self) -> Result<InfoResponse, Box<dyn Error>> {
+    pub async fn info(&self) -> Result<InfoResponse> {
         let response = self.send_rpc_request("/Info", &json!({})).await?;
         Ok(InfoResponse::validated_from_value(response)?)
     }
 
-    pub async fn emit_event(&self, event: String, payload: Vec<u8>) -> Result<(), Box<dyn Error>> {
+    pub async fn emit_event(&self, event: String, payload: Vec<u8>) -> Result<()> {
         if event.is_empty() {
-            return Err("Event name cannot be empty".into());
+            return Err(anyhow!("Event name cannot be empty"));
         }
         let hex_payload = hex_encode(payload);
         let data = json!({ "event": event, "payload": hex_payload });
-        self.send_rpc_request("/EmitEvent", &data).await?;
+        self.send_rpc_request::<_, ()>("/EmitEvent", &data).await?;
         Ok(())
     }
 
@@ -254,7 +256,7 @@ impl DstackClient {
         usage_ra_tls: bool,
         usage_server_auth: bool,
         usage_client_auth: bool,
-    ) -> Result<GetTlsKeyResponse, Box<dyn Error>> {
+    ) -> Result<GetTlsKeyResponse> {
         let data = json!({
             "subject": subject.unwrap_or_default(),
             "usage_ra_tls": usage_ra_tls,
