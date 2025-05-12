@@ -12,7 +12,7 @@ dstack-rust = { git = "https://github.com/Dstack-TEE/dstack.git", package = "dst
 ## Basic Usage
 
 ```rust
-use dstack_client::DstackClient;
+use dstack_sdk::DstackClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
