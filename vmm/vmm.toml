@@ -16,6 +16,7 @@ dhcp_start = "10.0.2.10"
 restrict = false
 
 [cvm]
+qemu_path = ""
 kms_urls = ["http://127.0.0.1:8081"]
 gateway_urls = ["http://127.0.0.1:8082"]
 # PCCS URL used by guest to verify the quote from local key provider

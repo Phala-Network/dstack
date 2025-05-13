@@ -366,7 +366,7 @@ impl VmConfig {
 
                 let addr = 0xa + ind;
                 command.arg("-device").arg(format!(
-                    "pxb-pcie,id=pcie.node{node},bus=pcie.0,addr={addr},numa_node={node},bus_nr={bus_nr}",
+                    "pxb-pcie,id=pcie.node{node},bus=pcie.0,addr={addr},numa_node={ind},bus_nr={bus_nr}",
                 ));
                 bus_nr += count + 1;
             }
@@ -378,11 +378,6 @@ impl VmConfig {
             command.arg("-object").arg("iommufd,id=iommufd0");
 
             if !hugepages {
-                // Add root port for non-hugepages configuration
-                command
-                    .arg("-device")
-                    .arg("pcie-root-port,id=pci.1,bus=pcie.0");
-
                 // Add each GPU
                 for device in &gpus.gpus {
                     let slot = &device.slot;
