@@ -685,34 +685,34 @@
 
                     <div class="form-group full-width">
                         <label>Features</label>
-                        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.kms_enabled">
-                                KMS
+                                <span style="margin-left: 5px;">KMS</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.local_key_provider_enabled">
-                                Local Key Provider
+                                <span style="margin-left: 5px;">Local Key Provider</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.gateway_enabled">
-                                Dstack Gateway
+                                <span style="margin-left: 5px;">Dstack Gateway</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.public_logs">
-                                Public Logs
+                                <span style="margin-left: 5px;">Public Logs</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.public_sysinfo">
-                                Public Sysinfo
+                                <span style="margin-left: 5px;">Public Sysinfo</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.pin_numa">
-                                Pin NUMA
+                                <span style="margin-left: 5px;">Pin NUMA</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.hugepages">
-                                Hugepages
+                                <span style="margin-left: 5px;">Hugepages</span>
                             </label>
                         </div>
                     </div>
