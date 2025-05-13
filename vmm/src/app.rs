@@ -1,4 +1,4 @@
-use crate::config::{Config, ProcessNote, Protocol};
+use crate::config::{Config, Protocol};
 
 use anyhow::{bail, Context, Result};
 use bon::Builder;
@@ -12,7 +12,7 @@ use guest_api::client::DefaultClient as GuestClient;
 use id_pool::IdPool;
 use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -50,13 +50,43 @@ pub struct Manifest {
     #[serde(default)]
     pub pin_numa: bool,
     #[serde(default)]
+    pub gpus: GpuConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum AttachMode {
+    All,
+    #[default]
+    Listed,
+}
+
+impl std::fmt::Display for AttachMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AttachMode::All => write!(f, "all"),
+            AttachMode::Listed => write!(f, "listed"),
+        }
+    }
+}
+
+impl AttachMode {
+    pub fn is_all(&self) -> bool {
+        matches!(self, AttachMode::All)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GpuConfig {
+    pub attach_mode: AttachMode,
+    #[serde(default)]
     pub gpus: Vec<GpuSpec>,
+    #[serde(default)]
+    pub bridges: Vec<GpuSpec>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GpuSpec {
-    #[serde(default)]
-    pub product_id: String,
     #[serde(default)]
     pub slot: String,
 }
@@ -85,33 +115,10 @@ impl App {
         let cid_start = config.cvm.cid_start;
         let cid_end = cid_start.saturating_add(config.cvm.cid_pool_size);
         let cid_pool = IdPool::new(cid_start, cid_end);
-        let devices = if !config.cvm.gpu.enabled {
-            Vec::new()
-        } else {
-            match config.cvm.gpu.list_devices() {
-                Ok(devices) => devices,
-                Err(e) => {
-                    error!("Failed to list GPU devices: {e:?}");
-                    Vec::new()
-                }
-            }
-        };
-        let gpu_pool = devices
-            .into_iter()
-            .map(|d| DeviceState {
-                allocated: false,
-                pci_in_use: d.in_use(),
-                product_id: d.full_product_id(),
-                description: d.description,
-                slot: d.slot,
-            })
-            .collect();
-
         Self {
             supervisor: supervisor.clone(),
             state: Arc::new(Mutex::new(AppState {
                 cid_pool,
-                gpu_pool,
                 vms: HashMap::new(),
             })),
             config: Arc::new(config),
@@ -205,7 +212,6 @@ impl App {
                 }
             }
 
-            self.refresh_gpu_state().await?;
             let devices = self.try_allocate_gpus(&vm_config.manifest)?;
             let process_config = vm_config.config_qemu(&work_dir, &self.config.cvm, &devices)?;
             self.supervisor
@@ -227,17 +233,9 @@ impl App {
             .context("Failed to set started")
     }
 
-    pub fn release_devices(&self, id: &str) -> Result<()> {
-        let mut state = self.lock();
-        let vm_state = state.get_mut(id).context("VM not found")?;
-        vm_state.state.devices.clear();
-        Ok(())
-    }
-
     pub async fn stop_vm(&self, id: &str) -> Result<()> {
         self.set_started(id, false)?;
         self.supervisor.stop(id).await?;
-        self.release_devices(id)?;
         Ok(())
     }
 
@@ -270,14 +268,6 @@ impl App {
     pub async fn reload_vms(&self) -> Result<()> {
         let vm_path = self.vm_dir();
         let running_vms = self.supervisor.list().await.context("Failed to list VMs")?;
-        let occupied_devices: HashMap<String, Vec<String>> = running_vms
-            .iter()
-            .filter(|p| p.state.status.is_running())
-            .map(|p| {
-                let note: ProcessNote = serde_json::from_str(&p.config.note).unwrap_or_default();
-                (p.config.id.clone(), note.devices.clone())
-            })
-            .collect();
         let occupied_cids = running_vms
             .iter()
             .flat_map(|p| p.config.cid.map(|cid| (p.config.id.clone(), cid)))
@@ -286,13 +276,6 @@ impl App {
             let mut state = self.lock();
             for cid in occupied_cids.values() {
                 state.cid_pool.occupy(*cid)?;
-            }
-            for slot in occupied_devices.values().flat_map(|od| od.iter()) {
-                let Some(gpu) = state.gpu_pool.iter_mut().find(|gpu| gpu.slot == *slot) else {
-                    continue;
-                };
-                info!("Occupied GPU: {slot}");
-                gpu.allocated = true;
             }
         }
         if vm_path.exists() {
@@ -303,14 +286,6 @@ impl App {
                     if let Err(err) = self.load_vm(vm_path, &occupied_cids, true).await {
                         error!("Failed to load VM: {err:?}");
                     }
-                }
-            }
-        }
-        {
-            let mut state = self.lock();
-            for vm in state.vms.values_mut() {
-                if let Some(od) = occupied_devices.get(&vm.config.manifest.id) {
-                    vm.state.devices = od.to_vec();
                 }
             }
         }
@@ -575,103 +550,31 @@ impl App {
         )))
     }
 
-    async fn refresh_gpu_state(&self) -> Result<()> {
+    fn try_allocate_gpus(&self, manifest: &Manifest) -> Result<GpuConfig> {
         if !self.config.cvm.gpu.enabled {
-            return Ok(());
+            return Ok(GpuConfig::default());
         }
-
-        let pci_devices = self.config.cvm.gpu.list_devices()?;
-        let used_slots = pci_devices
-            .iter()
-            .filter(|dev| dev.in_use())
-            .map(|dev| dev.slot.clone())
-            .collect::<HashSet<_>>();
-        let mut state = self.lock();
-        state.gpu_pool.iter_mut().for_each(|gpu| {
-            gpu.pci_in_use = false;
-            gpu.allocated = false;
-        });
-        for device in pci_devices {
-            let Some(gpu) = state
-                .gpu_pool
-                .iter_mut()
-                .find(|gpu| gpu.slot == device.slot)
-            else {
-                continue;
-            };
-            gpu.pci_in_use = device.in_use();
-        }
-        let mut allocated_devices = HashSet::new();
-        for vm in state.vms.values() {
-            if vm.config.manifest.gpus.is_empty() {
-                continue;
-            }
-            allocated_devices.extend(
-                vm.state
-                    .devices
-                    .iter()
-                    .filter(|slot| used_slots.contains(*slot))
-                    .cloned(),
-            );
-        }
-        for gpu in state.gpu_pool.iter_mut() {
-            if allocated_devices.contains(&gpu.slot) {
-                gpu.allocated = true;
-            }
-        }
-        Ok(())
-    }
-
-    fn try_allocate_gpus(&self, manifest: &Manifest) -> Result<Vec<String>> {
-        if !self.config.cvm.gpu.enabled {
-            return Ok(Vec::new());
-        }
-        let mut state = self.lock();
-        let mut cloned_pool = state.gpu_pool.clone();
-        let mut allocated_devices = Vec::new();
-
-        for spec in &manifest.gpus {
-            // If specific product_id or slot is requested, try to match it
-            let gpu_index = if !spec.product_id.is_empty() || !spec.slot.is_empty() {
-                cloned_pool.iter().position(|gpu| {
-                    gpu.is_free()
-                        && (spec.product_id.is_empty() || gpu.product_id == spec.product_id)
-                        && (spec.slot.is_empty() || gpu.slot == spec.slot)
-                })
-            } else {
-                // If no specific GPU is requested, allocate any available one
-                cloned_pool.iter().position(|gpu| gpu.is_free())
-            };
-
-            match gpu_index {
-                Some(index) => {
-                    cloned_pool[index].allocated = true;
-                    allocated_devices.push(cloned_pool[index].slot.clone());
-                }
-                None => bail!("No available GPU found"),
-            }
-        }
-        state.gpu_pool = cloned_pool;
-
-        Ok(allocated_devices)
+        Ok(manifest.gpus.clone())
     }
 
     pub(crate) async fn list_gpus(&self) -> Result<Vec<GpuInfo>> {
         if !self.config.cvm.gpu.enabled {
             return Ok(Vec::new());
         }
-        self.refresh_gpu_state().await?;
-        let state = self.lock();
-        Ok(state
-            .gpu_pool
+        let gpus = self
+            .config
+            .cvm
+            .gpu
+            .list_devices()?
             .iter()
-            .map(|gpu| GpuInfo {
-                slot: gpu.slot.clone(),
-                product_id: gpu.product_id.clone(),
-                description: gpu.description.clone(),
-                is_free: gpu.is_free(),
+            .map(|dev| GpuInfo {
+                slot: dev.slot.clone(),
+                product_id: dev.full_product_id().clone(),
+                description: dev.description.clone(),
+                is_free: !dev.in_use(),
             })
-            .collect())
+            .collect();
+        Ok(gpus)
     }
 
     pub(crate) async fn try_restart_exited_vms(&self) -> Result<()> {
@@ -728,7 +631,7 @@ struct VmStateMut {
     boot_progress: String,
     boot_error: String,
     shutdown_progress: String,
-    devices: Vec<String>,
+    devices: GpuConfig,
 }
 
 impl VmStateMut {
@@ -758,29 +661,8 @@ impl VmState {
     }
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct DeviceState {
-    /// Product ID of the device
-    product_id: String,
-    /// Description of the device
-    description: String,
-    /// Slot of the device
-    slot: String,
-    /// In use detected by lspci
-    pci_in_use: bool,
-    /// Allocated to a VM by dstack-vmm
-    allocated: bool,
-}
-
-impl DeviceState {
-    fn is_free(&self) -> bool {
-        !self.pci_in_use && !self.allocated
-    }
-}
-
 pub(crate) struct AppState {
     cid_pool: IdPool<u32>,
-    gpu_pool: Vec<DeviceState>,
     vms: HashMap<String, VmState>,
 }
 

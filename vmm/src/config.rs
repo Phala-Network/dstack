@@ -215,12 +215,6 @@ pub struct Config {
     pub key_provider: KeyProviderConfig,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
-pub struct ProcessNote {
-    #[serde(default)]
-    pub devices: Vec<String>,
-}
-
 impl Config {
     pub fn abs_path(self) -> Result<Self> {
         Ok(Self {

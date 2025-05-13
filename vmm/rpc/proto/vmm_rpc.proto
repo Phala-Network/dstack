@@ -67,13 +67,19 @@ message VmConfiguration {
   bool hugepages = 11;
   // Pin NUMA enabled
   bool pin_numa = 12;
+  // Gpu config
+  GpuConfig gpus = 13;
+}
+
+message GpuConfig {
   // GPUs
-  repeated GpuSpec gpus = 13;
+  repeated GpuSpec gpus = 1;
+  // Gpu attach mode
+  string attach_mode = 2;
 }
 
 message GpuSpec {
-  string product_id = 1;
-  string slot = 2;
+  string slot = 1;
 }
 
 // Message for port mapping
@@ -102,6 +108,8 @@ message UpgradeAppRequest {
   bool update_ports = 5;
   // Port mapping
   repeated PortMapping ports = 7;
+  // gpus
+  GpuConfig gpus = 13;
 }
 
 // Message for Status request
