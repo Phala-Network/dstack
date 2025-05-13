@@ -2,6 +2,7 @@
 Description=DStack Guest Preparation Service
 After=network.target chronyd.service
 Before=app-compose.service dstack-guest-agent.service docker.service
+OnFailure=reboot.target
 
 [Service]
 Type=oneshot
@@ -9,7 +10,6 @@ ExecStart=/bin/dstack-prepare.sh
 RemainAfterExit=yes
 StandardOutput=journal+console
 StandardError=journal+console
-OnFailure=reboot.target
 FailureAction=reboot
 
 [Install]
