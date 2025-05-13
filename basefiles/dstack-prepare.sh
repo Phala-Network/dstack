@@ -24,6 +24,8 @@ echo "Syncing system time..."
 # Let the chronyd correct the system time immediately
 chronyc makestep
 
+modprobe tdx-guest
+
 # Setup dstack system
 echo "Preparing dstack system..."
 dstack-util setup --work-dir $WORK_DIR --device /dev/vdb --mount-point $DATA_MNT
