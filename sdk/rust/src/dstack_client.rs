@@ -193,16 +193,15 @@ impl DstackClient {
             }
             ClientKind::Unix => {
                 let mut unix_client = ClientUnix::try_new(&self.endpoint).await?;
-                let json_payload = serde_json::to_value(payload)?;
                 let res = unix_client
-                    .send_request_json::<Value, Value, Value>(
+                    .send_request_json::<_, _, Value>(
                         path,
                         Method::POST,
                         &[("Content-Type", "application/json")],
-                        Some(&json_payload),
+                        Some(&payload),
                     )
                     .await?;
-                Ok(serde_json::from_value(res.1)?)
+                Ok(res.1)
             }
         }
     }
@@ -224,7 +223,7 @@ impl DstackClient {
 
     pub async fn get_quote(&self, report_data: Vec<u8>) -> Result<GetQuoteResponse> {
         if report_data.is_empty() || report_data.len() > 64 {
-            return Err(anyhow!("Invalid report data length"));
+            anyhow::bail!("Invalid report data length")
         }
         let hex_data = hex_encode(report_data);
         let data = json!({ "report_data": hex_data });
@@ -241,7 +240,7 @@ impl DstackClient {
 
     pub async fn emit_event(&self, event: String, payload: Vec<u8>) -> Result<()> {
         if event.is_empty() {
-            return Err(anyhow!("Event name cannot be empty"));
+            anyhow::bail!("Event name cannot be empty")
         }
         let hex_payload = hex_encode(payload);
         let data = json!({ "event": event, "payload": hex_payload });
