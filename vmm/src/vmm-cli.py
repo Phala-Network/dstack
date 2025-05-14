@@ -19,7 +19,8 @@ from eth_utils import keccak
 from typing import Optional, Dict, List, Tuple, Union, BinaryIO, Any
 
 # Default whitelist file location
-DEFAULT_KMS_WHITELIST_PATH = os.path.expanduser("~/.dstack-vmm/kms-whitelist.json")
+DEFAULT_KMS_WHITELIST_PATH = os.path.expanduser(
+    "~/.dstack-vmm/kms-whitelist.json")
 
 
 def encrypt_env(envs, hex_public_key: str) -> str:
@@ -461,10 +462,15 @@ class VmmCLI:
             "disk_size": disk_size,
             "app_id": app_id,
             "ports": [parse_port_mapping(port) for port in ports or []],
-            "gpus": [{"product_id": gpu} for gpu in gpus or []],
             "hugepages": hugepages,
             "pin_numa": pin_numa,
         }
+
+        if gpus:
+            params["gpus"] = {
+                "attach_mode": "listed",
+                "gpus": [{"slot": gpu} for gpu in gpus or []]
+            }
 
         app_id = app_id or self.calc_app_id(compose_content)
         print(f"App ID: {app_id}")
