@@ -188,9 +188,9 @@ impl<T> Attestation<T> {
                 || td_report.mr_owner != [0u8; 48]
                 || td_report.mr_owner_config != [0u8; 48]
             {
-                hasher.update(&td_report.mr_config_id);
-                hasher.update(&td_report.mr_owner);
-                hasher.update(&td_report.mr_owner_config);
+                hasher.update(td_report.mr_config_id);
+                hasher.update(td_report.mr_owner);
+                hasher.update(td_report.mr_owner_config);
             }
             hasher.finalize().into()
         };
