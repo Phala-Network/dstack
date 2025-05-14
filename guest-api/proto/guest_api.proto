@@ -62,8 +62,6 @@ message Container {
   string image = 3;
   // The ID of the image that this container was created from
   string image_id = 4;
-  // Command to run when starting the container
-  string command = 5;
   // When the container was created
   int64 created = 6;
   // The state of this container (e.g. Exited)

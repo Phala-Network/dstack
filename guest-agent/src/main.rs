@@ -13,6 +13,7 @@ use rocket_vsock_listener::VsockListener;
 use rpc_service::{AppState, ExternalRpcHandler, InternalRpcHandler, InternalRpcHandlerV0};
 use sd_notify::{notify as sd_notify, NotifyState};
 use std::time::Duration;
+use tokio::sync::oneshot;
 use tracing::{error, info};
 
 mod config;
@@ -44,7 +45,11 @@ struct Args {
     watchdog: bool,
 }
 
-async fn run_internal_v0(state: AppState, figment: Figment) -> Result<()> {
+async fn run_internal_v0(
+    state: AppState,
+    figment: Figment,
+    sock_ready_tx: oneshot::Sender<()>,
+) -> Result<()> {
     let rocket = rocket::custom(figment)
         .mount(
             "/prpc/",
@@ -64,6 +69,7 @@ async fn run_internal_v0(state: AppState, figment: Figment) -> Result<()> {
         // Allow any user to connect to the socket
         fs_err::set_permissions(path, Permissions::from_mode(0o777))?;
     }
+    sock_ready_tx.send(()).ok();
     ignite
         .launch_on(listener)
         .await
@@ -71,7 +77,11 @@ async fn run_internal_v0(state: AppState, figment: Figment) -> Result<()> {
     Ok(())
 }
 
-async fn run_internal(state: AppState, figment: Figment) -> Result<()> {
+async fn run_internal(
+    state: AppState,
+    figment: Figment,
+    sock_ready_tx: oneshot::Sender<()>,
+) -> Result<()> {
     let rocket = rocket::custom(figment)
         .mount("/", ra_rpc::prpc_routes!(AppState, InternalRpcHandler))
         .manage(state);
@@ -88,6 +98,7 @@ async fn run_internal(state: AppState, figment: Figment) -> Result<()> {
         // Allow any user to connect to the socket
         fs_err::set_permissions(path, Permissions::from_mode(0o777))?;
     }
+    sock_ready_tx.send(()).ok();
     ignite
         .launch_on(listener)
         .await
@@ -204,12 +215,16 @@ async fn main() -> Result<()> {
         .extract()
         .context("Failed to extract bind address")?;
     let guest_api_figment = figment.select("guest-api");
+    let (tappd_ready_tx, tappd_ready_rx) = oneshot::channel();
+    let (sock_ready_tx, sock_ready_rx) = oneshot::channel();
     tokio::select!(
-        res = run_internal_v0(state.clone(), internal_v0_figment) => res?,
-        res = run_internal(state.clone(), internal_figment) => res?,
+        res = run_internal_v0(state.clone(), internal_v0_figment, tappd_ready_tx) => res?,
+        res = run_internal(state.clone(), internal_figment, sock_ready_tx) => res?,
         res = run_external(state.clone(), external_figment) => res?,
         res = run_guest_api(state.clone(), guest_api_figment) => res?,
         _ = async {
+            let _ = tappd_ready_rx.await;
+            let _ = sock_ready_rx.await;
             if args.watchdog {
                 run_watchdog(bind_addr.port).await;
             } else {

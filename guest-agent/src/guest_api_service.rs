@@ -131,7 +131,6 @@ pub(crate) async fn list_containers() -> Result<ListContainersResponse> {
                 names: c.names.unwrap_or_default(),
                 image: c.image.unwrap_or_default(),
                 image_id: c.image_id.unwrap_or_default(),
-                command: c.command.unwrap_or_default(),
                 created: c.created.unwrap_or_default(),
                 state: c.state.unwrap_or_default(),
                 status: c.status.unwrap_or_default(),

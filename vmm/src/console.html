@@ -809,7 +809,7 @@
                                 <div class="vm-actions">
                                     <!-- Dropdown menu for primary actions -->
                                     <div class="dropdown">
-                                        <button class="dropdown-toggle" @click="toggleDropdown($event, vm.id)"
+                                        <button class="dropdown-toggle" @click="toggleDropdown($event, vm)"
                                             title="Actions">
                                             <i class="fas fa-cog"></i>
                                         </button>
@@ -2123,16 +2123,19 @@
                     loadVMList();
                 };
 
-                const toggleDropdown = (event, vmId) => {
+                const toggleDropdown = (event, vm) => {
+                    if (!vm.configuration) {
+                        loadVMDetails(vm.id);
+                    }
                     // Close all other dropdowns first
                     document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-                        if (dropdown.id !== 'dropdown-' + vmId) {
+                        if (dropdown.id !== 'dropdown-' + vm.id) {
                             dropdown.classList.remove('show');
                         }
                     });
 
                     // Toggle the clicked dropdown
-                    const dropdownContent = document.getElementById('dropdown-' + vmId);
+                    const dropdownContent = document.getElementById('dropdown-' + vm.id);
                     dropdownContent.classList.toggle('show');
 
                     // Stop event propagation to prevent immediate closing

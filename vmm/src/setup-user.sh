@@ -23,11 +23,13 @@
 #    user = "dstack-prd1"
 #    ```
 #
+set -e
 
 # Default values
 USERNAME=""
 GROUP_NAME=""
 NO_FW=false
+NO_SERVICE=false
 ALLOWED_TCP_PORTS=""
 ALLOWED_UDP_PORTS=""
 
@@ -36,6 +38,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
     --no-fw)
         NO_FW=true
+        shift
+        ;;
+    --no-svc)
+        NO_SERVICE=true
         shift
         ;;
     --allow-tcp)
@@ -54,9 +60,10 @@ while [[ $# -gt 0 ]]; do
         shift
         ;;
     -h | --help)
-        echo "Usage: $0 <username> [--ufw] [-g|--group] [--no-fw] [--allow-tcp <port> --allow-udp <port>]"
+        echo "Usage: $0 <username> [-g|--group] [--no-fw] [--no-svc] [--allow-tcp <port> --allow-udp <port>]"
         echo "Options:"
         echo "  --no-fw     Do not setup/clear firewall rules"
+        echo "  --no-svc    Do not setup/clear service rules"
         echo "  --allow-tcp Allow the specified TCP port to be accessed"
         echo "  --allow-udp Allow the specified UDP port to be accessed"
         echo "  -g, --group Add the user to the specified group"
@@ -79,7 +86,7 @@ done
 # Check if username is provided
 if [[ -z "$USERNAME" ]]; then
     echo "Error: Username is required"
-    echo "Usage: $0 <username> [--ufw] [--no-fw] [--allow <port>]"
+    echo "Usage: $0 <username> [-g|--group] [--no-fw] [--no-svc] [--allow-tcp <port> --allow-udp <port>]"
     exit 1
 fi
 
@@ -100,15 +107,37 @@ if [ -n "$GROUP_NAME" ]; then
     usermod -aG $GROUP_NAME $USERNAME
 fi
 
+rule_nums=$(iptables -L OUTPUT --line-numbers | grep $CHAIN_NAME | awk '{print $1}' | sort -r)
+echo $rule_nums
+
 if iptables -L $CHAIN_NAME >/dev/null 2>&1; then
     echo "Removing existing firewall rules"
-    iptables -D OUTPUT -o lo -m owner --uid-owner $USERNAME -j $CHAIN_NAME 2>/dev/null || true
+    # Delete each rule (in reverse order to avoid index shifting)
+    if [ -n "$rule_nums" ]; then
+        echo "Removing rules jumping to $CHAIN_NAME from OUTPUT chain"
+        for num in $rule_nums; do
+            echo "Removing rule $num"
+            iptables -D OUTPUT $num
+        done
+        echo "All rules jumping to $CHAIN_NAME removed"
+    else
+        echo "No rules jumping to $CHAIN_NAME found in OUTPUT chain"
+    fi
     iptables -F $CHAIN_NAME 2>/dev/null || true
     iptables -X $CHAIN_NAME 2>/dev/null || true
     echo "Removed iptables chain $CHAIN_NAME"
 fi
 
 rm -f $RULES_FILE
+
+if [ "$NO_SERVICE" = true ]; then
+    echo "Removing existing systemd service"
+    rm -f /etc/systemd/system/iptables-restore.service
+    rm -f /etc/iptables/dstack-rules-${USERNAME}.v4
+    systemctl disable iptables-restore.service || true
+    systemctl daemon-reload
+    echo "Removed systemd service and rules file"
+fi
 
 if [ "$NO_FW" = true ]; then
     echo "Skipping firewall rules setup"
@@ -129,21 +158,28 @@ fi
 # Add rules to allow specific ports
 for port in $ALLOWED_TCP_PORTS; do
     echo "Adding exception for TCP port $port"
-    iptables -A $CHAIN_NAME -o lo -d 127.0.0.1 -p tcp --dport $port -j ACCEPT
-    iptables -A $CHAIN_NAME -o lo -d 127.0.0.1 -p tcp --sport $port -j ACCEPT
+    iptables -A $CHAIN_NAME -p tcp --dport $port -j ACCEPT
+    iptables -A $CHAIN_NAME -p tcp --sport $port -j ACCEPT
 done
 for port in $ALLOWED_UDP_PORTS; do
     echo "Adding exception for UDP port $port"
-    iptables -A $CHAIN_NAME -o lo -d 127.0.0.1 -p udp --dport $port -j ACCEPT
-    iptables -A $CHAIN_NAME -o lo -d 127.0.0.1 -p udp --sport $port -j ACCEPT
+    iptables -A $CHAIN_NAME -p udp --dport $port -j ACCEPT
+    iptables -A $CHAIN_NAME -p udp --sport $port -j ACCEPT
 done
 
 # Add final DROP rule for all other traffic to localhost
-iptables -A $CHAIN_NAME -o lo -d 127.0.0.1 -j DROP
+iptables -A $CHAIN_NAME -p udp -j DROP
+iptables -A $CHAIN_NAME -p tcp -m tcp --syn -j DROP
+
 
 # Ensure our chain is referenced from the OUTPUT chain
 if ! iptables -C OUTPUT -o lo -m owner --uid-owner $USERNAME -j $CHAIN_NAME 2>/dev/null; then
-    iptables -I OUTPUT -o lo -m owner --uid-owner $USERNAME -j $CHAIN_NAME
+    iptables -I OUTPUT -o lo -d 127.0.0.1 -m owner --uid-owner $USERNAME -j $CHAIN_NAME
+fi
+
+if [ "$NO_SERVICE" = true ]; then
+    echo "Skipping service rules setup"
+    exit 0
 fi
 
 # Make iptables rules persistent

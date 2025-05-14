@@ -39,6 +39,9 @@ service DstackGuest {
   // Generates a TDX quote with given report data.
   rpc GetQuote(RawQuoteArgs) returns (GetQuoteResponse) {}
 
+  // Emit an event. This extends the event to RTMR3 on TDX platform.
+  rpc EmitEvent(EmitEventArgs) returns (google.protobuf.Empty) {}
+
   // Get worker info
   rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
 }
@@ -159,6 +162,13 @@ message GetQuoteResponse {
   string event_log = 2;
   // Report data
   bytes report_data = 3;
+}
+
+message EmitEventArgs {
+  // The event name
+  string event = 1;
+  // The event data
+  bytes payload = 2;
 }
 
 // The request to derive a key
