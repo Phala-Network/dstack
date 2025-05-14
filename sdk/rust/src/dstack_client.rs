@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use hex::{encode as hex_encode, FromHexError};
 use http_client_unix_domain_socket::{ClientUnix, Method};
 use reqwest::Client;
@@ -258,10 +258,10 @@ impl DstackClient {
     ) -> Result<GetTlsKeyResponse> {
         let data = json!({
             "subject": subject.unwrap_or_default(),
+            "alt_names": alt_names.unwrap_or_default(),
             "usage_ra_tls": usage_ra_tls,
             "usage_server_auth": usage_server_auth,
-            "usage_client_auth": usage_client_auth,
-            "alt_names": alt_names.unwrap_or_default(),
+            "usage_client_auth": usage_client_auth
         });
         let response = self.send_rpc_request("/GetTlsKey", &data).await?;
         let response = serde_json::from_value::<GetTlsKeyResponse>(response)?;
