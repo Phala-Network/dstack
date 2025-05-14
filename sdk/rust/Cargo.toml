@@ -9,6 +9,7 @@ authors = ["Encifher <encifher@rizelabs.io>"]
 [dependencies]
 alloy = { version = "0.15", features = ["signers", "signer-local"] }
 anyhow.workspace = true
+bon.workspace = true
 hex.workspace = true 
 http.workspace = true 
 http-client-unix-domain-socket = "0.1.1"

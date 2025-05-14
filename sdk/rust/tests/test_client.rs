@@ -19,10 +19,8 @@ async fn test_async_client_get_quote() {
 #[tokio::test]
 async fn test_async_client_get_tls_key() {
     let client = AsyncDstackClient::new(None);
-    let result = client
-        .get_tls_key(None, None, false, false, false)
-        .await
-        .unwrap();
+    let key_config = dstack_sdk::dstack_client::TlsKeyConfig::builder().build();
+    let result = client.get_tls_key(key_config).await.unwrap();
     assert!(result.key.starts_with("-----BEGIN PRIVATE KEY-----"));
     assert!(!result.certificate_chain.is_empty());
 }
@@ -30,14 +28,10 @@ async fn test_async_client_get_tls_key() {
 #[tokio::test]
 async fn test_tls_key_uniqueness() {
     let client = AsyncDstackClient::new(None);
-    let result1 = client
-        .get_tls_key(None, None, false, false, false)
-        .await
-        .unwrap();
-    let result2 = client
-        .get_tls_key(None, None, false, false, false)
-        .await
-        .unwrap();
+    let key_config_1 = dstack_sdk::dstack_client::TlsKeyConfig::builder().build();
+    let key_config_2 = dstack_sdk::dstack_client::TlsKeyConfig::builder().build();
+    let result1 = client.get_tls_key(key_config_1).await.unwrap();
+    let result2 = client.get_tls_key(key_config_2).await.unwrap();
     assert_ne!(result1.key, result2.key);
 }
 
