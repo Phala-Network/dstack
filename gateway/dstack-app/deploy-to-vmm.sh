@@ -45,7 +45,7 @@ SUBNET_INDEX=0
 # BOOTNODE_URL=https://gateway.test2.dstack.phala.network:9202
 
 # DStack OS image name
-OS_IMAGE=dstack-0.4.0
+OS_IMAGE=dstack-0.5.0
 
 # Set defaults for variables that might not be in .env
 GIT_REV=HEAD
@@ -165,6 +165,6 @@ $CLI deploy \
   --port tcp:$GATEWAY_SERVING_ADDR:443 \
   --port tcp:$GUEST_AGENT_ADDR:8090 \
   --port udp:$WG_ADDR:51820 \
-  --vcpu 8 \
-  --memory 8G \
+  --vcpu 32 \
+  --memory 32G \
 

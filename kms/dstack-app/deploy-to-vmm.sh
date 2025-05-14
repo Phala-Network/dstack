@@ -36,7 +36,7 @@ ETH_RPC_URL=https://rpc.phala.network
 GIT_REV=HEAD
 
 # The DStack OS image name to use for the KMS app
-OS_IMAGE=dstack-0.4.0
+OS_IMAGE=dstack-0.5.0
 EOF
   echo "Please edit the .env file and set the required variables, then run this script again."
   exit 1
