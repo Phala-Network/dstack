@@ -125,11 +125,9 @@ impl VmInfo {
                     app_id: Some(self.manifest.app_id.clone()),
                     hugepages: self.manifest.hugepages,
                     pin_numa: self.manifest.pin_numa,
-                    gpus: Some(pb::GpuConfig {
-                        attach_mode: self.manifest.gpus.attach_mode.to_string(),
-                        gpus: self
-                            .manifest
-                            .gpus
+                    gpus: self.manifest.gpus.as_ref().map(|g| pb::GpuConfig {
+                        attach_mode: g.attach_mode.to_string(),
+                        gpus: g
                             .gpus
                             .iter()
                             .map(|gpu| pb::GpuSpec {

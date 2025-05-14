@@ -49,8 +49,8 @@ pub struct Manifest {
     pub hugepages: bool,
     #[serde(default)]
     pub pin_numa: bool,
-    #[serde(default)]
-    pub gpus: GpuConfig,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gpus: Option<GpuConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -554,7 +554,7 @@ impl App {
         if !self.config.cvm.gpu.enabled {
             return Ok(GpuConfig::default());
         }
-        Ok(manifest.gpus.clone())
+        Ok(manifest.gpus.clone().unwrap_or_default())
     }
 
     pub(crate) async fn list_gpus(&self) -> Result<Vec<GpuInfo>> {

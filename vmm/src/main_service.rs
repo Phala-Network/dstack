@@ -266,7 +266,7 @@ impl VmmRpc for RpcHandler {
         let vm_work_dir = self.app.work_dir(&request.id);
         let mut manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
         if let Some(gpus) = request.gpus {
-            manifest.gpus = resolve_gpus(&gpus)?;
+            manifest.gpus = Some(resolve_gpus(&gpus)?);
         }
         if request.update_ports {
             manifest.port_map = request

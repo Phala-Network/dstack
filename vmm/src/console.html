@@ -1665,6 +1665,9 @@
                                 slot: slot
                             }));
                         }
+                        if (gpus.length === 0) {
+                            return null;
+                        }
                         return {
                             attach_mode: 'listed',
                             gpus: gpus
