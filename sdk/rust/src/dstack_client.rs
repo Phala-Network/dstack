@@ -51,6 +51,19 @@ pub struct EventLog {
     event_payload: String,
 }
 
+#[derive(bon::Builder, Serialize)]
+pub struct TlsKeyConfig {
+    #[builder(into)]
+    pub subject: Option<String>,
+    pub alt_names: Option<Vec<String>>,
+    #[builder(default = false)]
+    pub usage_ra_tls: bool,
+    #[builder(default = true)]
+    pub usage_server_auth: bool,
+    #[builder(default = false)]
+    pub usage_client_auth: bool,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct GetKeyResponse {
     pub key: String,
@@ -248,22 +261,8 @@ impl DstackClient {
         Ok(())
     }
 
-    pub async fn get_tls_key(
-        &self,
-        subject: Option<String>,
-        alt_names: Option<Vec<String>>,
-        usage_ra_tls: bool,
-        usage_server_auth: bool,
-        usage_client_auth: bool,
-    ) -> Result<GetTlsKeyResponse> {
-        let data = json!({
-            "subject": subject.unwrap_or_default(),
-            "alt_names": alt_names.unwrap_or_default(),
-            "usage_ra_tls": usage_ra_tls,
-            "usage_server_auth": usage_server_auth,
-            "usage_client_auth": usage_client_auth
-        });
-        let response = self.send_rpc_request("/GetTlsKey", &data).await?;
+    pub async fn get_tls_key(&self, tls_key_config: TlsKeyConfig) -> Result<GetTlsKeyResponse> {
+        let response = self.send_rpc_request("/GetTlsKey", &tls_key_config).await?;
         let response = serde_json::from_value::<GetTlsKeyResponse>(response)?;
 
         Ok(response)
