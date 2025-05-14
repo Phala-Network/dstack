@@ -14,6 +14,7 @@ mount_overlay() {
 mount_overlay /etc/wireguard
 mount_overlay /etc/docker
 mount_overlay /usr/bin
+mount_overlay /home/root
 
 # Disable the containerd-shim-runc-v2 temporarily to prevent the containers from starting
 # before docker compose removal orphans. It will be enabled in app-compose.sh
