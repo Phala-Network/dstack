@@ -9,7 +9,7 @@ use rocket::{
     response::content::RawHtml,
     Shutdown,
 };
-use tracing::info;
+use tracing::{info, warn};
 
 mod config;
 // mod ct_log;
@@ -92,6 +92,11 @@ async fn main() -> Result<()> {
             bail!("Failed to onboard");
         }
     }
+
+    info!("Updating certs");
+    if let Err(err) = onboard_service::update_certs(&config).await {
+        warn!("Failed to update certs: {err}");
+    };
 
     info!("Starting KMS");
     info!("Supported methods:");

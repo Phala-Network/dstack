@@ -163,7 +163,7 @@ impl HostShared {
             if src_size > max_size {
                 bail!("Source file {src} is too large, max size is {max_size} bytes");
             }
-            std::fs::copy(src_path, dst_path)?;
+            fs_err::copy(src_path, dst_path)?;
             Ok(())
         };
         cmd! {

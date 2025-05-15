@@ -98,7 +98,7 @@ async fn async_main(args: Args) -> Result<()> {
     if let Some(uds) = args.uds {
         mk_parents(&uds)?;
         if args.remove_existing_uds {
-            std::fs::remove_file(&uds).ok();
+            fs_err::remove_file(&uds).ok();
         }
         figment = figment.join(("address", format!("unix:{uds}")));
     } else if let Some(address) = args.address {
