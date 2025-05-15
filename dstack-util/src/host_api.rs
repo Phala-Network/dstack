@@ -5,8 +5,8 @@ use host_api::{
     client::{new_client, DefaultClient},
     Notification,
 };
-use key_provider_client::guest::{generate_keypair, open_sealed_box, PUBLICKEYBYTES};
 use ra_tls::attestation::validate_tcb;
+use sodiumbox::{generate_keypair, open_sealed_box, PUBLICKEYBYTES};
 use tracing::warn;
 
 pub(crate) struct KeyProvision {
@@ -67,7 +67,7 @@ impl HostApi {
     pub async fn get_sealing_key(&self) -> Result<KeyProvision> {
         let (pk, sk) = generate_keypair();
         let mut report_data = [0u8; 64];
-        report_data[..PUBLICKEYBYTES].copy_from_slice(&pk.0);
+        report_data[..PUBLICKEYBYTES].copy_from_slice(pk.as_bytes());
         let (_, quote) =
             tdx_attest::get_quote(&report_data, None).context("Failed to get quote")?;
 
