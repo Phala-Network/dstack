@@ -1929,13 +1929,14 @@
                     const currentGpuConfig = updatedVM.configuration?.gpus || {};
                     const isAttachAll = currentGpuConfig.gpus_attach_mode === 'all';
                     const selectedGpuSlots = currentGpuConfig.gpus?.map(gpu => gpu.slot) || [];
+                    const appCompose = JSON.parse(updatedVM.configuration?.compose_file || "{}");
 
                     upgradeDialog.value = {
                         show: true,
                         vm: updatedVM,
                         updateCompose: false,
-                        dockerComposeFile: updatedVM.configuration?.compose_file || '',
-                        preLaunchScript: updatedVM.configuration?.pre_launch_script || '',
+                        dockerComposeFile: appCompose.docker_compose_file || '',
+                        preLaunchScript: appCompose.pre_launch_script || '',
                         encryptedEnvs: [],
                         resetSecrets: false,
                         user_config: updatedVM.configuration?.user_config || '',
