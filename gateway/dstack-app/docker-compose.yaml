@@ -17,7 +17,7 @@ services:
         CMD ["/src/dstack/target/release/dstack-gateway", "-c", "/data/gateway/gateway.toml"]
     volumes:
       - /var/run/dstack.sock:/var/run/dstack.sock
-      - /dstack-app:/dstack-app
+      - /dstack:/dstack
       - data:/data
     network_mode: host
     privileged: true
