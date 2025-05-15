@@ -14,15 +14,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@1.84.1
+      uses: dtolnay/rust-toolchain@1.86
       with:
         components: clippy, rustfmt
-    
+
     - name: Run Clippy
-      run: cargo clippy -- -D warnings --allow unused_variables 
-    
+      run: cargo clippy -- -D warnings --allow unused_variables
+
     - name: Cargo fmt check
       run: cargo fmt --check --all
 
