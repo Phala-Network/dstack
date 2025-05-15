@@ -42,10 +42,7 @@ struct Data {
     env: Vec<Pair>,
 }
 
-pub fn parse_env(
-    env_json: &[u8],
-    allowed: &BTreeSet<String>,
-) -> Result<BTreeMap<String, String>> {
+pub fn parse_env(env_json: &[u8], allowed: &BTreeSet<String>) -> Result<BTreeMap<String, String>> {
     const MAX_ITEMS: usize = 1024;
     const MAX_TOTAL_SIZE: usize = 1024 * 1024;
 
