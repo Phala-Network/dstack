@@ -364,6 +364,32 @@
         }
     </style>
     <style>
+        /* Checkbox styling */
+        .form-check {
+            margin-bottom: 12px;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: #333;
+        }
+
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #4285F4;
+        }
+    </style>
+    <style>
         .vm-details {
             font-size: 14px;
         }
@@ -654,9 +680,7 @@
 
                     <div class="form-group" v-if="availableGpus.length > 0">
                         <label for="gpuSelection">GPU</label>
-                        <gpu-config-editor
-                            :available-gpus="availableGpus"
-                            v-model:gpus="vmForm.selectedGpus"
+                        <gpu-config-editor :available-gpus="availableGpus" v-model:gpus="vmForm.selectedGpus"
                             v-model:attach-all="vmForm.attachAllGpus">
                         </gpu-config-editor>
                     </div>
@@ -685,7 +709,8 @@
 
                     <div class="form-group full-width">
                         <label>Features</label>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+                        <div
+                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
                             <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.kms_enabled">
                                 <span style="margin-left: 5px;">KMS</span>
@@ -1042,26 +1067,25 @@
 
                 <!-- GPU Configuration -->
                 <div class="form-group" v-if="availableGpus.length > 0">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                        <label style="margin-bottom: 0;">GPU Configuration</label>
-                        <label style="display: flex; align-items: center; gap: 5px; margin-bottom: 0;">
+                    <div class="form-check">
+                        <label class="checkbox-container">
                             <input type="checkbox" v-model="upgradeDialog.updateGpuConfig">
-                            <span>Update GPU configuration</span>
+                            <span class="checkbox-label">Update GPU configuration</span>
                         </label>
                     </div>
 
                     <div v-if="upgradeDialog.updateGpuConfig">
-                        <gpu-config-editor
-                            :available-gpus="availableGpus"
-                            v-model:gpus="upgradeDialog.selectedGpus"
+                        <gpu-config-editor :available-gpus="availableGpus" v-model:gpus="upgradeDialog.selectedGpus"
                             v-model:attach-all="upgradeDialog.attachAllGpus">
                         </gpu-config-editor>
                     </div>
                 </div>
 
-                <div style="display: flex; align-items: center; margin-top: 16px;">
-                    <input type="checkbox" v-model="upgradeDialog.updateCompose" style="width: 16px; height: 16px;">
-                    <span style="margin-left: 8px;">Update App Compose</span>
+                <div class="form-check" style="margin-top: 16px;">
+                    <label class="checkbox-container">
+                        <input type="checkbox" v-model="upgradeDialog.updateCompose">
+                        <span class="checkbox-label">Update App Compose</span>
+                    </label>
                 </div>
                 <div v-if="upgradeDialog.updateCompose">
                     <div class="form-group">
@@ -1094,9 +1118,11 @@
                         Compose Hash: 0x{{ upgradeComposeHashPreview }}
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; margin-top: 16px;">
-                    <input type="checkbox" v-model="upgradeDialog.resetSecrets" style="width: 16px; height: 16px;">
-                    <span style="margin-left: 8px;">Reset secrets</span>
+                <div class="form-check" style="margin-top: 16px;">
+                    <label class="checkbox-container">
+                        <input type="checkbox" v-model="upgradeDialog.resetSecrets">
+                        <span class="checkbox-label">Reset secrets</span>
+                    </label>
                 </div>
                 <div v-if="kmsEnabled(upgradeDialog.vm) && upgradeDialog.resetSecrets" style="margin-top: 16px;">
                     <encrypted-env-editor :env-vars="upgradeDialog.encryptedEnvs"></encrypted-env-editor>
@@ -1223,11 +1249,13 @@
                 <div style="margin-bottom: 5px; font-size: 0.9em; color: #666;">
                     Select GPUs to attach:
                 </div>
-                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+                <div
+                    style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
                     <div v-for="gpu in availableGpus" :key="gpu.slot" style="margin-bottom: 8px;">
                         <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                             <input type="checkbox" :value="gpu.slot" v-model="gpus">
-                            <span style="margin-left: 5px;">{{ gpu.slot }}: {{ gpu.description }} {{ gpu.is_free ? '' : '(in use)' }}</span>
+                            <span style="margin-left: 5px;">{{ gpu.slot }}: {{ gpu.description }} {{ gpu.is_free ? '' :
+                                '(in use)' }}</span>
                         </label>
                     </div>
                 </div>
@@ -1871,7 +1899,7 @@
                     }
                 };
 
-                function autoMemoryDisply(mb) {
+                function autoMemoryDisplay(mb) {
                     if (mb >= 1024) {
                         return {
                             memoryValue: (mb / 1024).toFixed(1),
@@ -1913,8 +1941,7 @@
                         user_config: updatedVM.configuration?.user_config || '',
                         vcpu: updatedVM.configuration?.vcpu || 1,
                         memory: updatedVM.configuration?.memory || 1024,
-                        memoryValue: convertMemoryToValue(updatedVM.configuration?.memory || 1024),
-                        memoryUnit: convertMemoryToUnit(updatedVM.configuration?.memory || 1024),
+                        ...autoMemoryDisplay(updatedVM.configuration?.memory),
                         disk_size: updatedVM.configuration?.disk_size || 10,
                         image: updatedVM.configuration?.image || '',
                         ports: updatedVM.configuration?.ports?.map(port => ({ ...port })) || [],
