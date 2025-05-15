@@ -201,6 +201,7 @@ impl KmsRpc for RpcHandler {
             env_crypt_key: env_crypt_key.to_vec(),
             k256_key,
             k256_signature,
+            tproxy_app_id: gateway_app_id.clone(),
             gateway_app_id,
         })
     }

@@ -7,6 +7,7 @@ use dstack_kms_rpc::{
     onboard_server::{OnboardRpc, OnboardServer},
     BootstrapRequest, BootstrapResponse, OnboardRequest, OnboardResponse,
 };
+use fs_err as fs;
 use http_client::prpc::PrpcClient;
 use k256::ecdsa::SigningKey;
 use ra_rpc::{client::RaClient, CallContext, RpcCall};
@@ -102,6 +103,7 @@ struct Keys {
     ca_cert: Certificate,
     rpc_key: KeyPair,
     rpc_cert: Certificate,
+    rpc_domain: String,
 }
 
 impl Keys {
@@ -169,6 +171,7 @@ impl Keys {
             ca_cert,
             rpc_key,
             rpc_cert,
+            rpc_domain: domain.to_string(),
         })
     }
 
@@ -216,23 +219,57 @@ impl Keys {
     }
 
     fn store(&self, cfg: &KmsConfig) -> Result<()> {
-        // Store the temporary CA cert and key
-        safe_write(cfg.tmp_ca_cert(), self.tmp_ca_cert.pem())?;
-        safe_write(cfg.tmp_ca_key(), self.tmp_ca_key.serialize_pem())?;
-
-        // Store the root CA cert and key
-        safe_write(cfg.root_ca_cert(), self.ca_cert.pem())?;
-        safe_write(cfg.root_ca_key(), self.ca_key.serialize_pem())?;
-
-        // Store the RPC cert and key
-        safe_write(cfg.rpc_cert(), self.rpc_cert.pem())?;
-        safe_write(cfg.rpc_key(), self.rpc_key.serialize_pem())?;
-
-        // Store the ECDSA root key
-        safe_write(cfg.k256_key(), self.k256_key.to_bytes())?;
-
+        self.store_keys(cfg)?;
+        self.store_certs(cfg)?;
+        safe_write(cfg.rpc_domain(), self.rpc_domain.as_bytes())?;
         Ok(())
     }
+
+    fn store_keys(&self, cfg: &KmsConfig) -> Result<()> {
+        safe_write(cfg.tmp_ca_key(), self.tmp_ca_key.serialize_pem())?;
+        safe_write(cfg.root_ca_key(), self.ca_key.serialize_pem())?;
+        safe_write(cfg.rpc_key(), self.rpc_key.serialize_pem())?;
+        safe_write(cfg.k256_key(), self.k256_key.to_bytes())?;
+        Ok(())
+    }
+
+    fn store_certs(&self, cfg: &KmsConfig) -> Result<()> {
+        safe_write(cfg.tmp_ca_cert(), self.tmp_ca_cert.pem())?;
+        safe_write(cfg.root_ca_cert(), self.ca_cert.pem())?;
+        safe_write(cfg.rpc_cert(), self.rpc_cert.pem())?;
+        Ok(())
+    }
+}
+
+pub(crate) async fn update_certs(cfg: &KmsConfig) -> Result<()> {
+    // Read existing keys
+    let tmp_ca_key = KeyPair::from_pem(&fs::read_to_string(cfg.tmp_ca_key())?)?;
+    let ca_key = KeyPair::from_pem(&fs::read_to_string(cfg.root_ca_key())?)?;
+    let rpc_key = KeyPair::from_pem(&fs::read_to_string(cfg.rpc_key())?)?;
+
+    // Read k256 key
+    let k256_key_bytes = fs::read(cfg.k256_key())?;
+    let k256_key = SigningKey::from_slice(&k256_key_bytes)?;
+
+    let domain = fs::read_to_string(cfg.rpc_domain())?;
+    let domain = domain.trim();
+
+    // Regenerate certificates using existing keys
+    let keys = Keys::from_keys(
+        tmp_ca_key,
+        ca_key,
+        rpc_key,
+        k256_key,
+        domain,
+        cfg.onboard.quote_enabled,
+    )
+    .await
+    .context("Failed to regenerate certificates")?;
+
+    // Write the new certificates to files
+    keys.store_certs(cfg)?;
+
+    Ok(())
 }
 
 pub(crate) async fn bootstrap_keys(cfg: &KmsConfig) -> Result<()> {

@@ -177,7 +177,23 @@ impl<T> Attestation<T> {
             &rtmrs[2],
             &mr_key_provider,
         ]);
-        let mr_aggregated = sha256(&[&td_report.mr_td, &rtmrs[0], &rtmrs[1], &rtmrs[2], &rtmrs[3]]);
+        let mr_aggregated = {
+            use sha2::{Digest as _, Sha256};
+            let mut hasher = Sha256::new();
+            for d in [&td_report.mr_td, &rtmrs[0], &rtmrs[1], &rtmrs[2], &rtmrs[3]] {
+                hasher.update(d);
+            }
+            // For backward compatibility. Don't include mr_config_id, mr_owner, mr_owner_config if they are all 0.
+            if td_report.mr_config_id != [0u8; 48]
+                || td_report.mr_owner != [0u8; 48]
+                || td_report.mr_owner_config != [0u8; 48]
+            {
+                hasher.update(td_report.mr_config_id);
+                hasher.update(td_report.mr_owner);
+                hasher.update(td_report.mr_owner_config);
+            }
+            hasher.finalize().into()
+        };
         let mr_image = sha256(&[&td_report.mr_td, &rtmrs[1], &rtmrs[2]]);
         Ok(AppInfo {
             app_id: self.find_event_payload("app-id").unwrap_or_default(),
@@ -337,15 +353,6 @@ pub fn validate_tcb(report: &VerifiedReport) -> Result<()> {
         }
         if report.mr_signer_seam != [0u8; 48] {
             bail!("Invalid mr signer seam");
-        }
-        if report.mr_config_id != [0u8; 48] {
-            bail!("Invalid mr config id");
-        }
-        if report.mr_owner != [0u8; 48] {
-            bail!("Invalid mr owner");
-        }
-        if report.mr_owner_config != [0u8; 48] {
-            bail!("Invalid mr owner config");
         }
         Ok(())
     }

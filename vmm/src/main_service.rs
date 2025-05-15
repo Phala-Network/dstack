@@ -3,6 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, bail, Context, Result};
 use dstack_types::AppCompose;
+use dstack_vmm_rpc as rpc;
 use dstack_vmm_rpc::vmm_server::{VmmRpc, VmmServer};
 use dstack_vmm_rpc::{
     AppId, GatewaySettings, GetInfoResponse, GetMetaResponse, Id, ImageInfo as RpcImageInfo,
@@ -14,7 +15,7 @@ use fs_err as fs;
 use ra_rpc::{CallContext, RpcCall};
 use tracing::{info, warn};
 
-use crate::app::{App, GpuSpec, Manifest, PortMapping, VmWorkDir};
+use crate::app::{App, AttachMode, GpuConfig, GpuSpec, Manifest, PortMapping, VmWorkDir};
 
 fn hex_sha256(data: &str) -> String {
     use sha2::Digest;
@@ -55,6 +56,54 @@ fn validate_label(label: &str) -> Result<()> {
         bail!("Invalid name: {}", label);
     }
     Ok(())
+}
+
+fn resolve_gpus(gpu_cfg: &rpc::GpuConfig) -> Result<GpuConfig> {
+    // Check the attach mode to determine how to handle GPUs
+    match gpu_cfg.attach_mode.as_str() {
+        "listed" => {
+            // If the mode is "listed", use the GPUs specified in the request
+            let gpus = gpu_cfg
+                .gpus
+                .iter()
+                .map(|g| GpuSpec {
+                    slot: g.slot.clone(),
+                })
+                .collect();
+
+            Ok(GpuConfig {
+                attach_mode: AttachMode::Listed,
+                gpus,
+                bridges: Vec::new(),
+            })
+        }
+        "all" => {
+            // If the mode is "all", find all NVIDIA GPUs and NVSwitches
+            let devices = lspci::lspci_filtered(|dev| {
+                // Check if it's an NVIDIA device (vendor ID 10de)
+                dev.vendor_id == "10de"
+            })
+            .context("Failed to list PCI devices")?;
+
+            let mut gpus = Vec::new();
+            let mut bridges = Vec::new();
+
+            for dev in devices {
+                // Check if it's a GPU (3D controller) or NVSwitch (Bridge)
+                if dev.class.contains("3D controller") {
+                    gpus.push(GpuSpec { slot: dev.slot });
+                } else if dev.class.contains("Bridge") {
+                    bridges.push(GpuSpec { slot: dev.slot });
+                }
+            }
+            Ok(GpuConfig {
+                attach_mode: AttachMode::All,
+                gpus,
+                bridges,
+            })
+        }
+        _ => bail!("Invalid GPU attach mode: {}", gpu_cfg.attach_mode),
+    }
 }
 
 impl VmmRpc for RpcHandler {
@@ -98,6 +147,10 @@ impl VmmRpc for RpcHandler {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
+        let gpus = match &request.gpus {
+            Some(gpus) => resolve_gpus(gpus)?,
+            None => GpuConfig::default(),
+        };
         let manifest = Manifest::builder()
             .id(id.clone())
             .name(request.name.clone())
@@ -110,16 +163,7 @@ impl VmmRpc for RpcHandler {
             .created_at_ms(now)
             .hugepages(request.hugepages)
             .pin_numa(request.pin_numa)
-            .gpus(
-                request
-                    .gpus
-                    .iter()
-                    .map(|gpu| GpuSpec {
-                        product_id: gpu.product_id.clone(),
-                        slot: gpu.slot.clone(),
-                    })
-                    .collect(),
-            )
+            .gpus(gpus)
             .build();
         let vm_work_dir = self.app.work_dir(&id);
         vm_work_dir
@@ -194,7 +238,6 @@ impl VmmRpc for RpcHandler {
     }
 
     async fn upgrade_app(self, request: UpgradeAppRequest) -> Result<Id> {
-        let mut need_reload = false;
         let new_id = if !request.compose_file.is_empty() {
             // check the compose file is valid
             let _app_compose: AppCompose =
@@ -221,8 +264,11 @@ impl VmmRpc for RpcHandler {
                 .context("Failed to write user config")?;
         }
         let vm_work_dir = self.app.work_dir(&request.id);
+        let mut manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
+        if let Some(gpus) = request.gpus {
+            manifest.gpus = Some(resolve_gpus(&gpus)?);
+        }
         if request.update_ports {
-            let mut manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
             manifest.port_map = request
                 .ports
                 .iter()
@@ -235,18 +281,15 @@ impl VmmRpc for RpcHandler {
                     })
                 })
                 .collect::<Result<Vec<_>>>()?;
-            vm_work_dir
-                .put_manifest(&manifest)
-                .context("Failed to put manifest")?;
-            need_reload = true;
         }
+        vm_work_dir
+            .put_manifest(&manifest)
+            .context("Failed to put manifest")?;
 
-        if need_reload {
-            self.app
-                .load_vm(&vm_work_dir, &Default::default(), false)
-                .await
-                .context("Failed to load VM")?;
-        }
+        self.app
+            .load_vm(&vm_work_dir, &Default::default(), false)
+            .await
+            .context("Failed to load VM")?;
         Ok(Id { id: new_id })
     }
 
@@ -340,7 +383,6 @@ impl VmmRpc for RpcHandler {
 
     async fn shutdown_vm(self, request: Id) -> Result<()> {
         self.guest_agent_client(&request.id)?.shutdown().await?;
-        self.app.release_devices(&request.id)?;
         Ok(())
     }
 

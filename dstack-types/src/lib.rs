@@ -29,6 +29,12 @@ pub struct AppCompose {
     pub allowed_envs: Vec<String>,
     #[serde(default)]
     pub no_instance_id: bool,
+    #[serde(default = "default_true")]
+    pub secure_time: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn deserialize_gateway_enabled<'de, D>(deserializer: D) -> Result<bool, D::Error>

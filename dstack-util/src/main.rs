@@ -1,10 +1,8 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use bollard::container::{ListContainersOptions, RemoveContainerOptions};
 use bollard::Docker;
 use clap::{Parser, Subcommand};
-use cmd_lib::run_cmd as cmd;
 use dstack_types::KeyProvider;
-use fde_setup::{cmd_setup_fde, SetupFdeArgs};
 use fs_err as fs;
 use getrandom::fill as getrandom;
 use host_api::HostApi;
@@ -22,18 +20,17 @@ use std::{
     io::{self, Read, Write},
     path::PathBuf,
 };
-use tboot::TbootArgs;
+use system_setup::{cmd_sys_setup, SetupArgs};
 use tdx_attest as att;
-use tracing::error;
-use utils::{extend_rtmr, AppKeys};
+use utils::AppKeys;
 
 mod crypto;
-mod fde_setup;
 mod host_api;
-mod tboot;
+mod parse_env_file;
+mod system_setup;
 mod utils;
 
-/// TDX control utility
+/// DStack guest utility
 #[derive(Parser)]
 #[command(author, version, about)]
 struct Cli {
@@ -61,10 +58,8 @@ enum Commands {
     GenAppKeys(GenAppKeysArgs),
     /// Generate random data
     Rand(RandArgs),
-    /// Setup Disk Encryption
-    SetupFde(SetupFdeArgs),
-    /// Boot the dstack app
-    Tboot(TbootArgs),
+    /// Prepare dstack system.
+    Setup(SetupArgs),
     /// Notify the host about the dstack app
     NotifyHost(HostNotifyArgs),
     /// Remove orphaned containers
@@ -82,14 +77,6 @@ struct HexCommand {
 #[derive(Parser)]
 /// Extend RTMR
 struct ExtendArgs {
-    #[clap(short = 'i', long, default_value_t = 3)]
-    /// RTMR index (default: 3)
-    index: u32,
-
-    #[clap(short = 't', long, default_value_t = 1)]
-    /// event type (default: 1)
-    event_type: u32,
-
     #[clap(short, long)]
     /// event name
     event: String,
@@ -217,12 +204,7 @@ fn cmd_quote() -> Result<()> {
 
 fn cmd_extend(extend_args: ExtendArgs) -> Result<()> {
     let payload = hex::decode(&extend_args.payload).context("Failed to decode payload")?;
-    extend_rtmr(
-        extend_args.index,
-        extend_args.event_type,
-        &extend_args.event,
-        &payload,
-    )
+    att::extend_rtmr3(&extend_args.event, &payload).context("Failed to extend RTMR")
 }
 
 fn cmd_report() -> Result<()> {
@@ -535,17 +517,8 @@ async fn main() -> Result<()> {
         Commands::GenAppKeys(args) => {
             cmd_gen_app_keys(args)?;
         }
-        Commands::SetupFde(args) => {
-            cmd_setup_fde(args).await?;
-        }
-        Commands::Tboot(args) => {
-            if let Err(err) = tboot::tboot(&args).await {
-                error!("{:?}", err);
-                if args.shutdown_on_fail {
-                    cmd!(systemctl poweroff)?;
-                }
-                bail!("Failed to boot the dstack app");
-            }
+        Commands::Setup(args) => {
+            cmd_sys_setup(args).await?;
         }
         Commands::NotifyHost(args) => {
             cmd_notify_host(args).await?;

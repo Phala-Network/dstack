@@ -1,9 +1,9 @@
 //! QEMU related code
 use crate::{
     app::Manifest,
-    config::{CvmConfig, GatewayConfig, Networking, ProcessNote},
+    config::{CvmConfig, GatewayConfig, Networking},
 };
-use std::os::unix::fs::PermissionsExt;
+use std::{collections::HashMap, os::unix::fs::PermissionsExt};
 use std::{
     fs::Permissions,
     ops::Deref,
@@ -12,7 +12,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use super::{image::Image, VmState};
+use super::{image::Image, GpuConfig, VmState};
 use anyhow::{bail, Context, Result};
 use bon::Builder;
 use dstack_types::{
@@ -125,15 +125,16 @@ impl VmInfo {
                     app_id: Some(self.manifest.app_id.clone()),
                     hugepages: self.manifest.hugepages,
                     pin_numa: self.manifest.pin_numa,
-                    gpus: self
-                        .manifest
-                        .gpus
-                        .iter()
-                        .map(|gpu| pb::GpuSpec {
-                            product_id: gpu.product_id.clone(),
-                            slot: gpu.slot.clone(),
-                        })
-                        .collect(),
+                    gpus: self.manifest.gpus.as_ref().map(|g| pb::GpuConfig {
+                        attach_mode: g.attach_mode.to_string(),
+                        gpus: g
+                            .gpus
+                            .iter()
+                            .map(|gpu| pb::GpuSpec {
+                                slot: gpu.slot.clone(),
+                            })
+                            .collect(),
+                    }),
                 })
             },
             app_url: self
@@ -203,7 +204,7 @@ impl VmConfig {
         &self,
         workdir: impl AsRef<Path>,
         cfg: &CvmConfig,
-        devices: &[String],
+        gpus: &GpuConfig,
     ) -> Result<ProcessConfig> {
         let workdir = VmWorkDir::new(workdir);
         let serial_file = workdir.serial_file();
@@ -222,12 +223,11 @@ impl VmConfig {
             fs::create_dir_all(&shared_dir)?;
         }
         let qemu = &cfg.qemu_path;
-        let smp = self.manifest.vcpu.max(1);
+        let mut smp = self.manifest.vcpu.max(1);
+        let mut mem = self.manifest.memory;
         let mut command = Command::new(qemu);
         command.arg("-accel").arg("kvm");
         command.arg("-cpu").arg("host");
-        command.arg("-smp").arg(smp.to_string());
-        command.arg("-m").arg(format!("{}M", self.manifest.memory));
         command.arg("-nographic");
         command.arg("-nodefaults");
         command.arg("-chardev").arg(format!(
@@ -242,19 +242,38 @@ impl VmConfig {
                 workdir.qmp_socket().display()
             ));
         }
-        command.arg("-kernel").arg(&self.image.kernel);
-        command.arg("-initrd").arg(&self.image.initrd);
-        command
-            .arg("-drive")
-            .arg(format!("file={},if=none,id=hd0", hda_path.display()))
-            .arg("-device")
-            .arg("virtio-blk-pci,drive=hd0");
-        if let Some(rootfs) = &self.image.rootfs {
-            command.arg("-cdrom").arg(rootfs);
-        }
         if let Some(bios) = &self.image.bios {
             command.arg("-bios").arg(bios);
         }
+        command.arg("-kernel").arg(&self.image.kernel);
+        command.arg("-initrd").arg(&self.image.initrd);
+        if let Some(rootfs) = &self.image.rootfs {
+            let ext = rootfs
+                .extension()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or_default();
+            match ext {
+                "iso" => {
+                    command.arg("-cdrom").arg(rootfs);
+                }
+                "verity" => {
+                    command.arg("-drive").arg(format!(
+                        "file={},if=none,id=hd0,format=raw,readonly=on",
+                        rootfs.display()
+                    ));
+                    command.arg("-device").arg("virtio-blk-pci,drive=hd0");
+                }
+                _ => {
+                    bail!("Unsupported rootfs type: {ext}");
+                }
+            }
+        }
+        command
+            .arg("-drive")
+            .arg(format!("file={},if=none,id=hd1", hda_path.display()))
+            .arg("-device")
+            .arg("virtio-blk-pci,drive=hd1");
         let netdev = match &self.networking {
             Networking::User(netcfg) => {
                 let mut netdev = format!(
@@ -299,47 +318,124 @@ impl VmConfig {
 
         let hugepages = self.manifest.hugepages;
         let pin_numa = self.manifest.pin_numa;
-        // Add GPU support if there are any GPU devices
-        if !devices.is_empty() {
-            command
-                .arg("-device")
-                .arg("pcie-root-port,id=pci.1,bus=pcie.0");
-            command
-                .arg("-fw_cfg")
-                .arg("name=opt/ovmf/X-PciMmio64,string=262144");
+        // Handle GPU configuration
+        let mut dev_num = 1;
+        let memory = self.manifest.memory;
 
-            // Add iommufd objects and vfio-pci devices for each GPU
-            for (i, device) in devices.iter().enumerate() {
-                command.arg("-object").arg(format!("iommufd,id=iommufd{i}"));
-                command.arg("-device").arg(format!(
-                    "vfio-pci,host={device},bus=pci.1,iommufd=iommufd{i}"
+        // Handle hugepages configuration
+        if hugepages && !gpus.gpus.is_empty() {
+            // Create a map of NUMA nodes to count of GPUs on that node
+            let mut numa_nodes = HashMap::new();
+
+            for device in &gpus.gpus {
+                let node = find_numa_node(&device.slot)?;
+                *numa_nodes.entry(node).or_insert(0) += 1;
+            }
+
+            if numa_nodes.is_empty() {
+                numa_nodes.insert("0".to_string(), 0);
+            }
+
+            let n_numa = numa_nodes.len() as u32;
+
+            // Round up CPU cores and memory to multiple times of NUMA nodes
+            let vcpu_count = round_up(smp, n_numa);
+            let mem_gb = round_up(memory / 1024, n_numa);
+            let vcpu_per_node = vcpu_count / n_numa;
+            let mem_per_node = mem_gb / n_numa;
+
+            mem = mem_gb * 1024;
+            smp = vcpu_count;
+
+            let mut bus_nr = 5_u32;
+
+            // Configure NUMA nodes
+            for (ind, (node, count)) in numa_nodes.into_iter().enumerate() {
+                let ind = ind as u32;
+                let cpu_start = ind * vcpu_per_node;
+                let cpu_end = (ind + 1) * vcpu_per_node - 1;
+                command.arg("-numa").arg(format!(
+                    "node,nodeid={ind},cpus={cpu_start}-{cpu_end},memdev=mem{ind}",
                 ));
+
+                command.arg("-object").arg(format!(
+                    "memory-backend-file,id=mem{ind},size={mem_per_node}G,mem-path=/dev/hugepages,share=on,prealloc=yes,host-nodes={node},policy=bind",
+                ));
+
+                let addr = 0xa + ind;
+                command.arg("-device").arg(format!(
+                    "pxb-pcie,id=pcie.node{node},bus=pcie.0,addr={addr},numa_node={ind},bus_nr={bus_nr}",
+                ));
+                bus_nr += count + 1;
+            }
+        }
+
+        // Configure GPU devices
+        if !gpus.gpus.is_empty() {
+            // Add iommufd object
+            command.arg("-object").arg("iommufd,id=iommufd0");
+
+            if !hugepages {
+                // Add each GPU
+                for device in &gpus.gpus {
+                    let slot = &device.slot;
+                    command.arg("-device").arg(format!(
+                        "pcie-root-port,id=pci.{dev_num},bus=pcie.0,chassis={dev_num}",
+                    ));
+                    command.arg("-device").arg(format!(
+                        "vfio-pci,host={slot},bus=pci.{dev_num},iommufd=iommufd0",
+                    ));
+
+                    dev_num += 1;
+                }
+            } else {
+                // Add each GPU with NUMA node awareness for hugepages configuration
+                for device in &gpus.gpus {
+                    let slot = &device.slot;
+                    let node = find_numa_node(slot)?;
+                    command.arg("-device").arg(format!(
+                        "pcie-root-port,id=pci.{dev_num},bus=pcie.node{node},chassis={dev_num}",
+                    ));
+                    command.arg("-device").arg(format!(
+                        "vfio-pci,host={slot},bus=pci.{dev_num},iommufd=iommufd0",
+                    ));
+                    dev_num += 1;
+                }
+            }
+
+            // Add bridges (NVSwitches) if any
+            if !gpus.bridges.is_empty() {
+                for bridge in &gpus.bridges {
+                    let slot = &bridge.slot;
+                    command.arg("-device").arg(format!(
+                        "pcie-root-port,id=pci.{dev_num},bus=pcie.0,chassis={dev_num}",
+                    ));
+                    command.arg("-device").arg(format!(
+                        "vfio-pci,host={slot},bus=pci.{dev_num},iommufd=iommufd0",
+                    ));
+                    dev_num += 1;
+                }
+            }
+        }
+        command.arg("-smp").arg(smp.to_string());
+        command.arg("-m").arg(format!("{}M", mem));
+
+        // NUMA pinning if requested
+        let mut numa_cpus = None;
+        if pin_numa {
+            if !gpus.gpus.is_empty() {
+                let (_, cpus) = find_numa(Some(gpus.gpus[0].slot.clone()))?;
+                numa_cpus = Some(cpus);
+            } else {
+                // Default to NUMA node 0 if no GPUs
+                let (_, cpus) = find_numa(None)?;
+                numa_cpus = Some(cpus);
             }
         }
 
         // Add kernel command line
         if let Some(cmdline) = &self.image.info.cmdline {
             command.arg("-append").arg(cmdline);
-        }
-
-        // NUMA and hugepages configuration
-        let mut numa_cpus = None;
-        let memory = self.manifest.memory;
-
-        // NUMA pinning if requested and we have exactly one GPU
-        if pin_numa {
-            // Get the NUMA node for the GPU
-            let (numa_node, cpus) = find_numa(devices.first().cloned())?;
-            // Apply hugepages configuration if enabled
-            if hugepages {
-                command
-                    .arg("-numa")
-                    .arg(format!("node,nodeid=0,cpus=0-{},memdev=mem0", smp - 1));
-                command.arg("-object").arg(format!(
-                "memory-backend-file,id=mem0,size={memory}M,mem-path=/dev/hugepages,share=on,prealloc=yes,host-nodes={numa_node},policy=bind",
-                ));
-            }
-            numa_cpus = Some(cpus);
         }
 
         let args = command
@@ -370,9 +466,7 @@ impl VmConfig {
         }
 
         let command = cmd_args.remove(0);
-        let note = ProcessNote {
-            devices: devices.to_vec(),
-        };
+        let note = "{}".to_string();
         let note = serde_json::to_string(&note)?;
         let process_config = ProcessConfig {
             id: self.manifest.id.clone(),
@@ -392,23 +486,48 @@ impl VmConfig {
     }
 }
 
+/// Round up a value to the nearest multiple of another value.
+/// If the value is already a multiple, it remains unchanged.
+fn round_up(value: u32, multiple: u32) -> u32 {
+    if multiple <= 1 {
+        return value;
+    }
+
+    let remainder = value % multiple;
+    if remainder == 0 {
+        return value;
+    }
+
+    value + (multiple - remainder)
+}
+
+/// Get the NUMA node associated with a PCI device.
+fn find_numa_node(device: &str) -> Result<String> {
+    // Ensure the device string only contains valid hexadecimal characters and colons
+    if !device
+        .chars()
+        .all(|c| c.is_ascii_hexdigit() || c == ':' || c == '.')
+    {
+        bail!("Invalid device string");
+    }
+    // Get the NUMA node for the device
+    let numa_node_path = format!("/sys/bus/pci/devices/0000:{}/numa_node", device);
+    let numa_node = fs::read_to_string(&numa_node_path)
+        .with_context(|| format!("Failed to read NUMA node from {}", numa_node_path))?
+        .trim()
+        .to_string();
+
+    // If the NUMA node is -1, default to 0
+    if numa_node == "-1" {
+        return Ok("0".to_string());
+    }
+
+    Ok(numa_node)
+}
+
 fn find_numa(device: Option<String>) -> Result<(String, String)> {
     let numa_node = match device {
-        Some(device) => {
-            // Ensure the device string only contains valid hexadecimal characters and colons
-            if !device
-                .chars()
-                .all(|c| c.is_ascii_hexdigit() || c == ':' || c == '.')
-            {
-                bail!("Invalid device string");
-            }
-            // Get the NUMA node for the device
-            let numa_node_path = format!("/sys/bus/pci/devices/0000:{}/numa_node", device);
-            fs::read_to_string(&numa_node_path)
-                .with_context(|| format!("Failed to read NUMA node from {}", numa_node_path))?
-                .trim()
-                .to_string()
-        }
+        Some(device) => find_numa_node(&device)?,
         None => "0".into(),
     };
     // Get the CPU list for this NUMA node

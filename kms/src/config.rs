@@ -14,6 +14,7 @@ const ROOT_CA_CERT: &str = "root-ca.crt";
 const ROOT_CA_KEY: &str = "root-ca.key";
 const RPC_CERT: &str = "rpc.crt";
 const RPC_KEY: &str = "rpc.key";
+const RPC_DOMAIN: &str = "rpc-domain";
 const K256_KEY: &str = "root-k256.key";
 const BOOTSTRAP_INFO: &str = "bootstrap-info.json";
 
@@ -58,6 +59,10 @@ impl KmsConfig {
 
     pub fn rpc_key(&self) -> PathBuf {
         self.cert_dir.join(RPC_KEY)
+    }
+
+    pub fn rpc_domain(&self) -> PathBuf {
+        self.cert_dir.join(RPC_DOMAIN)
     }
 
     pub fn k256_key(&self) -> PathBuf {

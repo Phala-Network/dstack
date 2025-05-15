@@ -24,6 +24,7 @@ contract KmsAuth is
     KmsInfo public kmsInfo;
 
     // The dstack-gateway App ID
+    /// @custom:oz-renamed-from tproxyAppId
     string public gatewayAppId;
 
     // Struct to store App configuration

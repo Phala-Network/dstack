@@ -79,7 +79,6 @@ impl PortMappingConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CvmConfig {
-    #[serde(default)]
     pub qemu_path: PathBuf,
     /// The URL of the KMS server
     pub kms_urls: Vec<String>,
@@ -213,12 +212,6 @@ pub struct Config {
 
     /// Key provider configuration
     pub key_provider: KeyProviderConfig,
-}
-
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
-pub struct ProcessNote {
-    #[serde(default)]
-    pub devices: Vec<String>,
 }
 
 impl Config {

@@ -654,25 +654,11 @@
 
                     <div class="form-group" v-if="availableGpus.length > 0">
                         <label for="gpuSelection">GPU</label>
-                        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
-                            <label style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
-                                <input type="checkbox" id="pinGpu" v-model="vmForm.pin_gpu" style="margin-right: 5px;">
-                                Pin to specific GPU
-                            </label>
-                        </div>
-                        <select id="gpuSelection" v-model="vmForm.selected_gpu_slot" v-if="vmForm.pin_gpu">
-                            <option value="">No GPU</option>
-                            <option v-for="gpu in availableGpus" :key="gpu.slot" :value="gpu.slot">
-                                {{ gpu.slot }}: {{ gpu.description }} {{ gpu.is_free ? '' : '(in use)' }}
-                            </option>
-                        </select>
-                        <select id="gpuSelection" v-model="vmForm.selected_gpu_product" v-if="!vmForm.pin_gpu">
-                            <option value="">No GPU</option>
-                            <option v-for="product in availableGpuProducts" :key="product.product_id"
-                                :value="product.product_id">
-                                {{ product.description }}
-                            </option>
-                        </select>
+                        <gpu-config-editor
+                            :available-gpus="availableGpus"
+                            v-model:gpus="vmForm.selectedGpus"
+                            v-model:attach-all="vmForm.attachAllGpus">
+                        </gpu-config-editor>
                     </div>
 
                     <div class="form-group">
@@ -699,40 +685,40 @@
 
                     <div class="form-group full-width">
                         <label>Features</label>
-                        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.kms_enabled">
-                                KMS
+                                <span style="margin-left: 5px;">KMS</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.local_key_provider_enabled">
-                                Local Key Provider
+                                <span style="margin-left: 5px;">Local Key Provider</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.gateway_enabled">
-                                Dstack Gateway
+                                <span style="margin-left: 5px;">Dstack Gateway</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.public_logs">
-                                Public Logs
+                                <span style="margin-left: 5px;">Public Logs</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.public_sysinfo">
-                                Public Sysinfo
+                                <span style="margin-left: 5px;">Public Sysinfo</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.pin_numa">
-                                Pin NUMA
+                                <span style="margin-left: 5px;">Pin NUMA</span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.hugepages">
-                                Hugepages
+                                <span style="margin-left: 5px;">Hugepages</span>
                             </label>
                         </div>
                     </div>
 
                     <div class="form-group full-width" v-if="vmForm.kms_enabled">
-                        <encrypted-env-editor :env-vars="vmForm.encrypted_envs"></encrypted-env-editor>
+                        <encrypted-env-editor :env-vars="vmForm.encryptedEnvs"></encrypted-env-editor>
                     </div>
 
                     <div class="form-group full-width">
@@ -1054,6 +1040,25 @@
                     </select>
                 </div>
 
+                <!-- GPU Configuration -->
+                <div class="form-group" v-if="availableGpus.length > 0">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <label style="margin-bottom: 0;">GPU Configuration</label>
+                        <label style="display: flex; align-items: center; gap: 5px; margin-bottom: 0;">
+                            <input type="checkbox" v-model="upgradeDialog.updateGpuConfig">
+                            <span>Update GPU configuration</span>
+                        </label>
+                    </div>
+
+                    <div v-if="upgradeDialog.updateGpuConfig">
+                        <gpu-config-editor
+                            :available-gpus="availableGpus"
+                            v-model:gpus="upgradeDialog.selectedGpus"
+                            v-model:attach-all="upgradeDialog.attachAllGpus">
+                        </gpu-config-editor>
+                    </div>
+                </div>
+
                 <div style="display: flex; align-items: center; margin-top: 16px;">
                     <input type="checkbox" v-model="upgradeDialog.updateCompose" style="width: 16px; height: 16px;">
                     <span style="margin-left: 8px;">Update App Compose</span>
@@ -1094,7 +1099,7 @@
                     <span style="margin-left: 8px;">Reset secrets</span>
                 </div>
                 <div v-if="kmsEnabled(upgradeDialog.vm) && upgradeDialog.resetSecrets" style="margin-top: 16px;">
-                    <encrypted-env-editor :env-vars="vmForm.encrypted_envs"></encrypted-env-editor>
+                    <encrypted-env-editor :env-vars="upgradeDialog.encryptedEnvs"></encrypted-env-editor>
                 </div>
 
                 <div class="form-group full-width" v-if="config.portMappingEnabled">
@@ -1206,6 +1211,33 @@
         </div>
     </template>
 
+    <template id="gpu-config-editor">
+        <div>
+            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                <label style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                    <input type="checkbox" v-model="attachAll" style="margin-right: 5px;">
+                    Attach All GPUs and NVSwitches
+                </label>
+            </div>
+            <div v-if="!attachAll" style="margin-top: 10px;">
+                <div style="margin-bottom: 5px; font-size: 0.9em; color: #666;">
+                    Select GPUs to attach:
+                </div>
+                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+                    <div v-for="gpu in availableGpus" :key="gpu.slot" style="margin-bottom: 8px;">
+                        <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
+                            <input type="checkbox" :value="gpu.slot" v-model="gpus">
+                            <span style="margin-left: 5px;">{{ gpu.slot }}: {{ gpu.description }} {{ gpu.is_free ? '' : '(in use)' }}</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div v-else class="gpu-info-text" style="margin-top: 10px; color: #666;">
+                All NVIDIA GPUs and NVSwitches will be attached to the VM
+            </div>
+        </div>
+    </template>
+
     <script>
         const {
             createApp,
@@ -1291,10 +1323,47 @@
             }
         };
 
+        // Define the GPU configuration editor component
+        const GpuConfigEditor = {
+            template: '#gpu-config-editor',
+            props: {
+                availableGpus: {
+                    type: Array,
+                    required: true
+                },
+                gpus: {
+                    type: Array,
+                    required: true
+                },
+                attachAll: {
+                    type: Boolean,
+                    required: true
+                }
+            },
+            emits: ['update:gpus', 'update:attachAll'],
+            setup(props, { emit }) {
+                const gpus = computed({
+                    get: () => props.gpus,
+                    set: (value) => emit('update:gpus', value)
+                });
+
+                const attachAll = computed({
+                    get: () => props.attachAll,
+                    set: (value) => emit('update:attachAll', value)
+                });
+
+                return {
+                    gpus,
+                    attachAll
+                };
+            }
+        };
+
         createApp({
             components: {
                 'encrypted-env-editor': EncryptedEnvEditor,
-                'port-mapping-editor': PortMappingEditor
+                'port-mapping-editor': PortMappingEditor,
+                'gpu-config-editor': GpuConfigEditor,
             },
             setup() {
                 const version = ref({
@@ -1324,11 +1393,10 @@
                     memoryValue: 2,
                     memoryUnit: 'GB',
                     disk_size: 20,
-                    selected_gpu_slot: '',
-                    selected_gpu_product: '',
-                    pin_gpu: true,
+                    selectedGpus: [],
+                    attachAllGpus: false,
                     ports: [],
-                    encrypted_envs: [],
+                    encryptedEnvs: [],
                     docker_config: {
                         enabled: false,
                         username: '',
@@ -1353,7 +1421,7 @@
                     updateCompose: false,
                     dockerComposeFile: '',
                     preLaunchScript: '',
-                    encrypted_envs: [],
+                    encryptedEnvs: [],
                     resetSecrets: false,
                     vcpu: 0,
                     memory: 0, // This will be computed from memoryValue and memoryUnit
@@ -1361,7 +1429,11 @@
                     memoryUnit: 'MB',
                     disk_size: 0,
                     image: '',
-                    ports: []
+                    ports: [],
+                    // GPU configuration
+                    attachAllGpus: false,
+                    selectedGpus: [],
+                    updateGpuConfig: false
                 });
                 const upgradeMessage = ref('');
                 const errorMessage = ref('');
@@ -1498,8 +1570,9 @@
                         "public_logs": vmForm.value.public_logs,
                         "public_sysinfo": vmForm.value.public_sysinfo,
                         "local_key_provider_enabled": vmForm.value.local_key_provider_enabled,
-                        "allowed_envs": vmForm.value.encrypted_envs.map(env => env.key),
+                        "allowed_envs": vmForm.value.encryptedEnvs.map(env => env.key),
                         "no_instance_id": !vmForm.value.gateway_enabled,
+                        "secure_time": false,
                     };
 
                     if (vmForm.value.preLaunchScript?.trim()) {
@@ -1579,29 +1652,33 @@
                     return await encryptEnv(envs, encryptPubkey.public_key);
                 };
 
-                const clearEncryptedEnv = () => {
-                    vmForm.value.encrypted_envs = [];
-                    vmForm.value.app_id = null;
-                };
-
-                const configGpu = () => {
-                    if (vmForm.value.pin_gpu) {
-                        if (!vmForm.value.selected_gpu_slot) return [];
-                        return [{
-                            slot: vmForm.value.selected_gpu_slot,
-                        }];
+                const configGpu = (form) => {
+                    if (form.attachAllGpus) {
+                        return {
+                            attach_mode: 'all'
+                        };
                     } else {
-                        if (!vmForm.value.selected_gpu_product) return [];
-                        return [{
-                            // Do not use slot, so that dstack-vmm can find a free slot for the GPU with the same product_id
-                            product_id: vmForm.value.selected_gpu_product,
-                        }];
+                        // Otherwise, use the selected GPU slots if any are specified
+                        let gpus = [];
+                        if (form.selectedGpus && form.selectedGpus.length > 0) {
+                            gpus = form.selectedGpus.map(slot => ({
+                                slot: slot
+                            }));
+                        }
+                        if (gpus.length === 0) {
+                            return null;
+                        }
+                        return {
+                            attach_mode: 'listed',
+                            gpus: gpus
+                        };
                     }
                 };
 
                 const showDeployDialog = () => {
                     showCreateDialog.value = true;
-                    clearEncryptedEnv();
+                    vmForm.value.encryptedEnvs = [];
+                    vmForm.value.app_id = null;
                     loadGpus();
                 };
 
@@ -1641,19 +1718,18 @@
                         const form = {
                             ...vmForm.value,
                             compose_file: makeAppComposeFile(),
-                            allowed_envs: vmForm.value.encrypted_envs.map(env => env.key),
+                            allowed_envs: vmForm.value.encryptedEnvs.map(env => env.key),
                             encrypted_env: await makeEncryptedEnv(
-                                vmForm.value.encrypted_envs,
+                                vmForm.value.encryptedEnvs,
                                 vmForm.value.kms_enabled,
                                 vmForm.value.app_id
                             ),
                             user_config: vmForm.value.user_config,
-                            gpus: configGpu(),
+                            gpus: configGpu(vmForm.value),
                         };
                         const _response = await rpcCall('CreateVm', form);
                         loadVMList();
                         showCreateDialog.value = false;
-                        clearEncryptedEnv();
                     } catch (error) {
                         console.error('Error creating VM:', error);
                         alert('Failed to create VM');
@@ -1821,22 +1897,32 @@
                         return;
                     }
 
+                    // Get current GPU configuration from VM
+                    const currentGpuConfig = updatedVM.configuration?.gpus || {};
+                    const isAttachAll = currentGpuConfig.gpus_attach_mode === 'all';
+                    const selectedGpuSlots = currentGpuConfig.gpus?.map(gpu => gpu.slot) || [];
+
                     upgradeDialog.value = {
                         show: true,
                         vm: updatedVM,
                         updateCompose: false,
-                        dockerComposeFile: updatedVM.appCompose.docker_compose_file,
-                        preLaunchScript: updatedVM.appCompose.pre_launch_script,
+                        dockerComposeFile: updatedVM.configuration?.compose_file || '',
+                        preLaunchScript: updatedVM.configuration?.pre_launch_script || '',
+                        encryptedEnvs: [],
                         resetSecrets: false,
-                        user_config: updatedVM.configuration?.user_config,
-                        vcpu: updatedVM.configuration?.vcpu,
-                        memory: updatedVM.configuration?.memory,
-                        disk_size: updatedVM.configuration?.disk_size,
-                        image: updatedVM.configuration?.image,
-                        ports: updatedVM.configuration?.ports ? [...updatedVM.configuration.ports] : [],
-                        ...autoMemoryDisply(updatedVM.configuration?.memory)
+                        user_config: updatedVM.configuration?.user_config || '',
+                        vcpu: updatedVM.configuration?.vcpu || 1,
+                        memory: updatedVM.configuration?.memory || 1024,
+                        memoryValue: convertMemoryToValue(updatedVM.configuration?.memory || 1024),
+                        memoryUnit: convertMemoryToUnit(updatedVM.configuration?.memory || 1024),
+                        disk_size: updatedVM.configuration?.disk_size || 10,
+                        image: updatedVM.configuration?.image || '',
+                        ports: updatedVM.configuration?.ports?.map(port => ({ ...port })) || [],
+                        // GPU configuration
+                        attachAllGpus: isAttachAll,
+                        selectedGpus: selectedGpuSlots,
+                        updateGpuConfig: false
                     };
-                    clearEncryptedEnv();
                 };
 
                 const loadUpgradeFile = (event) => {
@@ -1886,10 +1972,15 @@
 
                         if (upgradeDialog.value.resetSecrets) {
                             body.encrypted_env = await makeEncryptedEnv(
-                                vmForm.value.encrypted_envs,
+                                upgradeDialog.value.encryptedEnvs,
                                 kmsEnabled(upgradeDialog.value.vm),
                                 upgradeDialog.value.vm.app_id
                             );
+                        }
+
+                        // Add GPU configuration if update is requested
+                        if (upgradeDialog.value.updateGpuConfig) {
+                            body.gpus = configGpu(upgradeDialog.value);
                         }
 
                         body.update_ports = true;
@@ -1902,7 +1993,7 @@
 
                         const response = await rpcCall('UpgradeApp', body);
                         const data = await response.json();
-                        clearEncryptedEnv();
+                        upgradeDialog.value.encryptedEnvs = [];
                         upgradeDialog.value.show = false;
                         if (body.compose_file) {
                             upgradeMessage.value = `✅ Compose file updated!`;
@@ -1980,50 +2071,6 @@
                     });
                     const data = await response.json();
                     networkInfo.value[vm.id] = data;
-                };
-
-                const addEncryptedEnv = () => {
-                    vmForm.value.encrypted_envs.push({
-                        key: '',
-                        value: ''
-                    });
-                };
-
-                const removeEncryptedEnv = (index) => {
-                    vmForm.value.encrypted_envs.splice(index, 1);
-                };
-
-                const loadEnvFile = (event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            const content = e.target.result;
-                            const lines = content.split('\n');
-
-                            vmForm.value.encrypted_envs = [];
-
-                            lines.forEach(line => {
-                                // Skip empty lines and comments
-                                if (!line.trim() || line.startsWith('#')) return;
-
-                                // Split on first = only
-                                const [key, ...valueParts] = line.split('=');
-                                const value = valueParts.join('=');
-
-                                if (key && value) {
-                                    vmForm.value.encrypted_envs.push({
-                                        key: key.trim(),
-                                        value: value.trim()
-                                    });
-                                }
-                            });
-
-                            // Reset the file input
-                            event.target.value = '';
-                        };
-                        reader.readAsText(file);
-                    }
                 };
 
                 onMounted(() => {
@@ -2269,13 +2316,9 @@
                     expandedVMs,
                     networkInfo,
                     dashboardAvailable,
-                    addEncryptedEnv,
-                    removeEncryptedEnv,
-                    clearEncryptedEnv,
                     showForkVm,
                     forkDialog,
                     forkVm,
-                    loadEnvFile,
                     vmStatus,
                     imageFeatures,
                     shutdownVm,
