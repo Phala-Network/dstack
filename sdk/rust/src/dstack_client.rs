@@ -53,9 +53,10 @@ pub struct EventLog {
 
 #[derive(bon::Builder, Serialize)]
 pub struct TlsKeyConfig {
-    #[builder(into)]
-    pub subject: Option<String>,
-    pub alt_names: Option<Vec<String>>,
+    #[builder(into, default = String::new())]
+    pub subject: String,
+    #[builder(default = Vec::new())]
+    pub alt_names: Vec<String>,
     #[builder(default = false)]
     pub usage_ra_tls: bool,
     #[builder(default = true)]
