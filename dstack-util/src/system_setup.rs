@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use dstack_kms_rpc::GetAppKeyRequest;
+use dstack_kms_rpc as rpc;
 use dstack_types::{
     shared_filenames::{
         APP_COMPOSE, APP_KEYS, DECRYPTED_ENV, DECRYPTED_ENV_JSON, ENCRYPTED_ENV,
@@ -319,9 +319,16 @@ impl<'a> Stage0<'a> {
             .context("Failed to create client")?;
         let kms_client = dstack_kms_rpc::kms_client::KmsClient::new(ra_client);
         let response = kms_client
-            .get_app_key(GetAppKeyRequest {})
+            .get_app_key(rpc::GetAppKeyRequest {
+                api_version: 1,
+                vm_config: self.shared.sys_config.vm_config.clone(),
+            })
             .await
             .context("Failed to get app key")?;
+
+        extend_rtmr3("mr-image", &response.mr_image)
+            .context("Failed to extend mr-image to RTMR3")?;
+
         let keys = AppKeys {
             ca_cert: tmp_ca.ca_cert,
             disk_crypt_key: response.disk_crypt_key,
@@ -659,10 +666,13 @@ impl Stage1<'_> {
             usage_client_auth: true,
             ext_quote: true,
         };
-        let cert_client =
-            CertRequestClient::create(&self.keys, self.shared.sys_config.pccs_url.as_deref())
-                .await
-                .context("Failed to create cert client")?;
+        let cert_client = CertRequestClient::create(
+            &self.keys,
+            self.shared.sys_config.pccs_url.as_deref(),
+            self.shared.sys_config.vm_config.clone(),
+        )
+        .await
+        .context("Failed to create cert client")?;
         let client_key =
             KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).context("Failed to generate key")?;
         let client_certs = cert_client

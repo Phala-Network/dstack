@@ -39,6 +39,7 @@ members = [
     "lspci",
     "sdk/rust",
     "sodiumbox",
+    "serde-duration",
 ]
 resolver = "2"
 
@@ -66,6 +67,7 @@ dstack-types = { path = "dstack-types" }
 cert-client = { path = "cert-client" }
 lspci = { path = "lspci" }
 sodiumbox = { path = "sodiumbox" }
+serde-duration = { path = "serde-duration" }
 
 # Core dependencies
 anyhow = "1.0.97"

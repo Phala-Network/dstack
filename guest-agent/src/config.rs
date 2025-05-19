@@ -22,6 +22,7 @@ pub struct Config {
     pub public_logs: bool,
     pub public_sysinfo: bool,
     pub compose_file: String,
+    pub sys_config_file: PathBuf,
     #[serde(default)]
     pub pccs_url: Option<String>,
     pub simulator: Simulator,

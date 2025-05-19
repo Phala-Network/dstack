@@ -194,7 +194,6 @@ impl<T> Attestation<T> {
             }
             hasher.finalize().into()
         };
-        let mr_image = sha256(&[&td_report.mr_td, &rtmrs[1], &rtmrs[2]]);
         Ok(AppInfo {
             app_id: self.find_event_payload("app-id").unwrap_or_default(),
             compose_hash: self.find_event_payload("compose-hash")?,
@@ -205,7 +204,7 @@ impl<T> Attestation<T> {
             rtmr1: rtmrs[1],
             rtmr2: rtmrs[2],
             rtmr3: rtmrs[3],
-            mr_image,
+            mr_image: self.find_event_payload("mr-image").unwrap_or_default(),
             mr_system,
             mr_aggregated,
             mr_key_provider,
@@ -414,7 +413,7 @@ pub struct AppInfo {
     pub mr_aggregated: [u8; 32],
     /// Measurement of the app image
     #[serde(with = "hex_bytes")]
-    pub mr_image: [u8; 32],
+    pub mr_image: Vec<u8>,
     /// Measurement of the key provider
     #[serde(with = "hex_bytes")]
     pub mr_key_provider: [u8; 32],

@@ -38,6 +38,9 @@ ring.workspace = true
 safe-write.workspace = true
 serde_json.workspace = true
 dstack-types.workspace = true
+tokio = { workspace = true, features = ["process"] }
+tempfile.workspace = true
+serde-duration.workspace = true
 
 [features]
 default = []

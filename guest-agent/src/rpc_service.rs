@@ -10,7 +10,7 @@ use dstack_guest_agent_rpc::{
     GetQuoteResponse, GetTlsKeyArgs, GetTlsKeyResponse, RawQuoteArgs, TdxQuoteArgs,
     TdxQuoteResponse, WorkerInfo, WorkerVersion,
 };
-use dstack_types::AppKeys;
+use dstack_types::{AppKeys, SysConfig};
 use fs_err as fs;
 use k256::ecdsa::SigningKey;
 use ra_rpc::{Attestation, CallContext, RpcCall};
@@ -35,6 +35,7 @@ pub struct AppState {
 struct AppStateInner {
     config: Config,
     keys: AppKeys,
+    vm_config: String,
     cert_client: CertRequestClient,
     demo_cert: String,
 }
@@ -43,9 +44,14 @@ impl AppState {
     pub async fn new(config: Config) -> Result<Self> {
         let keys: AppKeys = serde_json::from_str(&fs::read_to_string(&config.keys_file)?)
             .context("Failed to parse app keys")?;
-        let cert_client = CertRequestClient::create(&keys, config.pccs_url.as_deref())
-            .await
-            .context("Failed to create cert signer")?;
+        let sys_config: SysConfig =
+            serde_json::from_str(&fs::read_to_string(&config.sys_config_file)?)
+                .context("Failed to parse VM config")?;
+        let vm_config = sys_config.vm_config;
+        let cert_client =
+            CertRequestClient::create(&keys, config.pccs_url.as_deref(), vm_config.clone())
+                .await
+                .context("Failed to create cert signer")?;
         let key = KeyPair::generate().context("Failed to generate demo key")?;
         let demo_cert = cert_client
             .request_cert(
@@ -69,6 +75,7 @@ impl AppState {
                 keys,
                 cert_client,
                 demo_cert,
+                vm_config,
             }),
         })
     }
@@ -349,7 +356,7 @@ impl WorkerRpc for ExternalRpcHandler {
             "rtmr2": hex::encode(app_info.rtmr2),
             "rtmr3": hex::encode(app_info.rtmr3),
             "mr_aggregated": hex::encode(app_info.mr_aggregated),
-            "mr_image": hex::encode(app_info.mr_image),
+            "mr_image": hex::encode(&app_info.mr_image),
             "mr_key_provider": hex::encode(app_info.mr_key_provider),
             "compose_hash": hex::encode(&app_info.compose_hash),
             "device_id": hex::encode(&app_info.device_id),
@@ -363,7 +370,7 @@ impl WorkerRpc for ExternalRpcHandler {
             instance_id: app_info.instance_id,
             device_id: app_info.device_id,
             mr_aggregated: app_info.mr_aggregated.to_vec(),
-            mr_image: app_info.mr_image.to_vec(),
+            mr_image: app_info.mr_image.clone(),
             mr_key_provider: app_info.mr_key_provider.to_vec(),
             key_provider_info: String::from_utf8(app_info.key_provider_info).unwrap_or_default(),
             compose_hash: app_info.compose_hash.clone(),
@@ -371,6 +378,7 @@ impl WorkerRpc for ExternalRpcHandler {
             tcb_info,
             public_logs: self.state.config().public_logs,
             public_sysinfo: self.state.config().public_sysinfo,
+            vm_config: self.state.inner.vm_config.clone(),
         })
     }
 

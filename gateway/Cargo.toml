@@ -41,6 +41,7 @@ dstack-guest-agent-rpc.workspace = true
 http-client = { workspace = true, features = ["prpc"] }
 sha2.workspace = true
 dstack-types.workspace = true
+serde-duration.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 nix = { workspace = true, features = ["resource"] }

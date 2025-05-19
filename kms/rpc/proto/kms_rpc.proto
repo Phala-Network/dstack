@@ -4,7 +4,10 @@ import "google/protobuf/empty.proto";
 
 package kms;
 
-message GetAppKeyRequest {}
+message GetAppKeyRequest {
+  uint32 api_version = 1;
+  string vm_config = 2;
+}
 
 message AppId {
   bytes app_id = 1;
@@ -30,6 +33,8 @@ message AppKeyResponse {
   string tproxy_app_id = 6;
   // Reverse proxy app ID from KmsAuth contract.
   string gateway_app_id = 7;
+  // MR Image
+  bytes mr_image = 8;
 }
 
 message GetMetaResponse {
@@ -37,6 +42,10 @@ message GetMetaResponse {
   bool allow_any_upgrade = 2;
   bytes k256_pubkey = 3;
   BootstrapResponse bootstrap_info = 4;
+}
+
+message GetKmsKeyRequest {
+  string vm_config = 1;
 }
 
 message KmsKeys {
@@ -56,8 +65,10 @@ message GetTempCaCertResponse {
 }
 
 message SignCertRequest {
-  bytes csr = 1;
-  bytes signature = 2;
+  uint32 api_version = 1;
+  bytes csr = 2;
+  bytes signature = 3;
+  string vm_config = 4;
 }
 
 message SignCertResponse {
@@ -69,7 +80,7 @@ service KMS {
   // Request the app key given the app id and tdx quote
   rpc GetAppKey(GetAppKeyRequest) returns (AppKeyResponse);
   // KMS key handover
-  rpc GetKmsKey(google.protobuf.Empty) returns (KmsKeyResponse);
+  rpc GetKmsKey(GetKmsKeyRequest) returns (KmsKeyResponse);
   // Request the app environment encryption public key given the app id
   rpc GetAppEnvEncryptPubKey(AppId) returns (PublicKeyResponse);
   // Request the KMS instance metadata for use as a probe and health check.

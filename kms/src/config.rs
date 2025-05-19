@@ -1,7 +1,7 @@
 use load_config::load_config;
 use rocket::figment::Figment;
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 pub const DEFAULT_CONFIG: &str = include_str!("../kms.toml");
 
 pub fn load_config_figment(config_file: Option<&str>) -> Figment {
@@ -18,12 +18,23 @@ const RPC_DOMAIN: &str = "rpc-domain";
 const K256_KEY: &str = "root-k256.key";
 const BOOTSTRAP_INFO: &str = "bootstrap-info.json";
 
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct ImageConfig {
+    pub verify: bool,
+    pub cache_dir: PathBuf,
+    pub download_url: String,
+    #[serde(with = "serde_duration")]
+    pub download_timeout: Duration,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct KmsConfig {
     pub cert_dir: PathBuf,
     pub pccs_url: Option<String>,
     pub auth_api: AuthApi,
     pub onboard: OnboardConfig,
+    pub image: ImageConfig,
 }
 
 impl KmsConfig {

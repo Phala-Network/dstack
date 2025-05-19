@@ -10,8 +10,13 @@ use ra_tls::{
 use tdx_attest::{eventlog::read_event_logs, get_quote};
 
 pub enum CertRequestClient {
-    Local { ca: CaCert },
-    Kms { client: KmsClient<RaClient> },
+    Local {
+        ca: CaCert,
+    },
+    Kms {
+        client: KmsClient<RaClient>,
+        vm_config: String,
+    },
 }
 
 impl CertRequestClient {
@@ -27,11 +32,13 @@ impl CertRequestClient {
                     .context("Failed to sign certificate")?;
                 Ok(vec![cert.pem(), ca.pem_cert.clone()])
             }
-            CertRequestClient::Kms { client } => {
+            CertRequestClient::Kms { client, vm_config } => {
                 let response = client
                     .sign_cert(SignCertRequest {
+                        api_version: 1,
                         csr: csr.to_vec(),
                         signature: signature.to_vec(),
+                        vm_config: vm_config.clone(),
                     })
                     .await?;
                 Ok(response.certificate_chain)
@@ -42,11 +49,15 @@ impl CertRequestClient {
     pub async fn get_root_ca(&self) -> Result<String> {
         match self {
             CertRequestClient::Local { ca } => Ok(ca.pem_cert.clone()),
-            CertRequestClient::Kms { client } => Ok(client.get_meta().await?.ca_cert),
+            CertRequestClient::Kms { client, .. } => Ok(client.get_meta().await?.ca_cert),
         }
     }
 
-    pub async fn create(keys: &AppKeys, pccs_url: Option<&str>) -> Result<CertRequestClient> {
+    pub async fn create(
+        keys: &AppKeys,
+        pccs_url: Option<&str>,
+        vm_config: String,
+    ) -> Result<CertRequestClient> {
         match &keys.key_provider {
             KeyProvider::Local { key } => {
                 let ca = CaCert::new(keys.ca_cert.clone(), key.clone())
@@ -74,7 +85,7 @@ impl CertRequestClient {
                     .into_client()
                     .context("Failed to create RA client")?;
                 let client = KmsClient::new(ra_client);
-                Ok(CertRequestClient::Kms { client })
+                Ok(CertRequestClient::Kms { client, vm_config })
             }
         }
     }

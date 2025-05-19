@@ -118,8 +118,16 @@ pub struct SysConfig {
     pub pccs_url: Option<String>,
     pub docker_registry: Option<String>,
     pub host_api_url: String,
-    #[serde(with = "hex_bytes", default)]
+    // JSON serialized VmConfig
+    pub vm_config: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct VmConfig {
+    #[serde(with = "hex_bytes")]
     pub mr_image: Vec<u8>,
+    pub cpu_count: u32,
+    pub memory_size: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

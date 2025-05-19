@@ -5,7 +5,7 @@ use dstack_guest_agent_rpc::{
 use dstack_kms_rpc::{
     kms_client::KmsClient,
     onboard_server::{OnboardRpc, OnboardServer},
-    BootstrapRequest, BootstrapResponse, OnboardRequest, OnboardResponse,
+    BootstrapRequest, BootstrapResponse, GetKmsKeyRequest, OnboardRequest, OnboardResponse,
 };
 use fs_err as fs;
 use http_client::prpc::PrpcClient;
@@ -192,7 +192,12 @@ impl Keys {
             kms_client = KmsClient::new(ra_client);
         }
 
-        let keys_res = kms_client.get_kms_key().await?;
+        let info = dstack_client().info().await.context("Failed to get info")?;
+        let keys_res = kms_client
+            .get_kms_key(GetKmsKeyRequest {
+                vm_config: info.vm_config,
+            })
+            .await?;
         if keys_res.keys.len() != 1 {
             return Err(anyhow::anyhow!("Invalid keys"));
         }

@@ -1,11 +1,13 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use dstack_kms_rpc::{
     kms_server::{KmsRpc, KmsServer},
-    AppId, AppKeyResponse, GetAppKeyRequest, GetMetaResponse, GetTempCaCertResponse,
-    KmsKeyResponse, KmsKeys, PublicKeyResponse, SignCertRequest, SignCertResponse,
+    AppId, AppKeyResponse, GetAppKeyRequest, GetKmsKeyRequest, GetMetaResponse,
+    GetTempCaCertResponse, KmsKeyResponse, KmsKeys, PublicKeyResponse, SignCertRequest,
+    SignCertResponse,
 };
+use dstack_types::VmConfig;
 use fs_err as fs;
 use k256::ecdsa::SigningKey;
 use ra_rpc::{Attestation, CallContext, RpcCall};
@@ -15,6 +17,8 @@ use ra_tls::{
     kdf,
 };
 use scale::Decode;
+use sha2::Digest;
+use tokio::{io::AsyncWriteExt, process::Command};
 use upgrade_authority::BootInfo;
 
 use crate::{
@@ -76,6 +80,7 @@ pub struct RpcHandler {
 struct BootConfig {
     boot_info: BootInfo,
     gateway_app_id: String,
+    mr_image: Vec<u8>,
 }
 
 impl RpcHandler {
@@ -86,16 +91,220 @@ impl RpcHandler {
         Ok(attestation)
     }
 
-    async fn ensure_kms_allowed(&self) -> Result<BootInfo> {
+    async fn ensure_kms_allowed(&self, vm_config: &str) -> Result<BootInfo> {
         let att = self.ensure_attested()?;
-        self.ensure_app_attestation_allowed(att, true, false)
+        self.ensure_app_attestation_allowed(att, true, false, vm_config)
             .await
             .map(|c| c.boot_info)
     }
 
-    async fn ensure_app_boot_allowed(&self) -> Result<BootConfig> {
+    async fn ensure_app_boot_allowed(&self, vm_config: &str) -> Result<BootConfig> {
         let att = self.ensure_attested()?;
-        self.ensure_app_attestation_allowed(att, false, false).await
+        self.ensure_app_attestation_allowed(att, false, false, vm_config)
+            .await
+    }
+
+    async fn check_image_mrs(&self, vm_config: &VmConfig, report: &BootInfo) -> Result<()> {
+        if !self.state.config.image.verify {
+            return Ok(());
+        }
+        let hex_mr_image = hex::encode(&vm_config.mr_image);
+        // Create a directory for the image if it doesn't exist
+        let image_dir = self.state.config.image.cache_dir.join(&hex_mr_image);
+        // Check if metadata.json exists, if not download the image
+        let metadata_path = image_dir.join("metadata.json");
+        if !metadata_path.exists() {
+            tokio::time::timeout(
+                self.state.config.image.download_timeout,
+                self.download_image(&hex_mr_image, &image_dir),
+            )
+            .await
+            .context("Download image timeout")?
+            .with_context(|| format!("Failed to download image {hex_mr_image}"))?;
+        }
+
+        // Calculate expected MRs with dstack-mr command
+        let vcpus = vm_config.cpu_count.to_string();
+        let memory = vm_config.memory_size.to_string();
+
+        let output = Command::new("dstack-mr")
+            .arg("-cpu")
+            .arg(vcpus)
+            .arg("-memory")
+            .arg(memory)
+            .arg("-json")
+            .arg("-metadata")
+            .arg(&metadata_path)
+            .output()
+            .await
+            .context("Failed to execute dstack-mr command")?;
+
+        if !output.status.success() {
+            bail!(
+                "dstack-mr failed with exit code {}: {}",
+                output.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+
+        // Parse the expected MRs
+        let expected_mrs: serde_json::Value =
+            serde_json::from_slice(&output.stdout).context("Failed to parse dstack-mr output")?;
+
+        // Compare MRs
+        let expected_mrtd = expected_mrs["mrtd"]
+            .as_str()
+            .context("Missing mrtd in expected MRs")?;
+        let expected_rtmr0 = expected_mrs["rtmr0"]
+            .as_str()
+            .context("Missing rtmr0 in expected MRs")?;
+        let expected_rtmr1 = expected_mrs["rtmr1"]
+            .as_str()
+            .context("Missing rtmr1 in expected MRs")?;
+        let expected_rtmr2 = expected_mrs["rtmr2"]
+            .as_str()
+            .context("Missing rtmr2 in expected MRs")?;
+
+        let report_mrtd = hex::encode(&report.mrtd);
+        let report_rtmr0 = hex::encode(&report.rtmr0);
+        let report_rtmr1 = hex::encode(&report.rtmr1);
+        let report_rtmr2 = hex::encode(&report.rtmr2);
+
+        if report_mrtd != expected_mrtd {
+            bail!("MRTD mismatch: {} != {}", report_mrtd, expected_mrtd);
+        }
+
+        if report_rtmr0 != expected_rtmr0 {
+            bail!("RTMR0 mismatch: {} != {}", report_rtmr0, expected_rtmr0);
+        }
+
+        if report_rtmr1 != expected_rtmr1 {
+            bail!("RTMR1 mismatch: {} != {}", report_rtmr1, expected_rtmr1);
+        }
+
+        if report_rtmr2 != expected_rtmr2 {
+            bail!("RTMR2 mismatch: {} != {}", report_rtmr2, expected_rtmr2);
+        }
+
+        Ok(())
+    }
+
+    async fn download_image(&self, hex_mr_image: &str, dst_dir: &Path) -> Result<()> {
+        // Create a hex representation of the mr_image for URL and directory naming
+        let url = self
+            .state
+            .config
+            .image
+            .download_url
+            .replace("{MR_IMAGE}", hex_mr_image);
+
+        // Create a temporary directory for extraction
+        let auto_delete_temp_dir =
+            tempfile::tempdir().context("Failed to create temporary directory")?;
+        let tmp_dir = auto_delete_temp_dir.path();
+        // Download the image tarball
+        let client = reqwest::Client::new();
+        let response = client
+            .get(&url)
+            .send()
+            .await
+            .context("Failed to download image")?;
+
+        if !response.status().is_success() {
+            bail!(
+                "Failed to download image: HTTP status {}, url: {url}",
+                response.status(),
+            );
+        }
+
+        // Save the tarball to a temporary file using streaming
+        let tarball_path = tmp_dir.join("image.tar.gz");
+        let mut file = tokio::fs::File::create(&tarball_path)
+            .await
+            .context("Failed to create tarball file")?;
+        let mut response = response;
+        while let Some(chunk) = response.chunk().await? {
+            file.write_all(&chunk)
+                .await
+                .context("Failed to write chunk to file")?;
+        }
+
+        let tmp_x_dir = tmp_dir.join("extracted");
+        fs::create_dir_all(&tmp_x_dir).context("Failed to create extraction directory")?;
+
+        // Extract the tarball
+        let output = Command::new("tar")
+            .arg("xzf")
+            .arg(&tarball_path)
+            .current_dir(&tmp_x_dir)
+            .output()
+            .await
+            .context("Failed to extract tarball")?;
+
+        if !output.status.success() {
+            bail!(
+                "Failed to extract tarball: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+
+        // Verify checksum
+        let output = Command::new("sha256sum")
+            .arg("-c")
+            .arg("sha256sum.txt")
+            .current_dir(&tmp_x_dir)
+            .output()
+            .await
+            .context("Failed to verify checksum")?;
+
+        if !output.status.success() {
+            bail!(
+                "Checksum verification failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        // Remove the files that are not listed in sha256sum.txt
+        let sha256sum_path = tmp_x_dir.join("sha256sum.txt");
+        let files_doc =
+            fs::read_to_string(&sha256sum_path).context("Failed to read sha256sum.txt")?;
+        let listed_files = files_doc
+            .lines()
+            .flat_map(|line| line.split_whitespace().nth(1))
+            .collect::<Vec<_>>();
+        let files = fs::read_dir(&tmp_x_dir).context("Failed to read directory")?;
+        for file in files {
+            let file = file.context("Failed to read directory entry")?;
+            let path = file.path();
+            if !listed_files.contains(&path.display().to_string().as_str()) {
+                if path.is_dir() {
+                    fs::remove_dir_all(&path).context("Failed to remove directory")?;
+                } else {
+                    fs::remove_file(&path).context("Failed to remove file")?;
+                }
+            }
+        }
+
+        // mr_image should eq to sha256sum of the sha256sum.txt
+        let mr_image = sha2::Sha256::new_with_prefix(files_doc.as_bytes()).finalize();
+        if hex::encode(mr_image) != hex_mr_image {
+            bail!("mr_image does not match sha256sum of the sha256sum.txt");
+        }
+
+        // Move the extracted files to the destination directory
+        let metadata_path = tmp_x_dir.join("metadata.json");
+        if !metadata_path.exists() {
+            bail!("metadata.json not found in the extracted archive");
+        }
+
+        if dst_dir.exists() {
+            fs::remove_dir_all(dst_dir).context("Failed to remove destination directory")?;
+        }
+        let dst_dir_parent = dst_dir.parent().context("Failed to get parent directory")?;
+        fs::create_dir_all(dst_dir_parent).context("Failed to create parent directory")?;
+        // Move the extracted files to the destination directory
+        fs::rename(tmp_x_dir, dst_dir)
+            .context("Failed to move extracted files to destination directory")?;
+        Ok(())
     }
 
     async fn ensure_app_attestation_allowed(
@@ -103,6 +312,7 @@ impl RpcHandler {
         att: &VerifiedAttestation,
         is_kms: bool,
         use_boottime_mr: bool,
+        vm_config: &str,
     ) -> Result<BootConfig> {
         let report = att
             .report
@@ -110,6 +320,9 @@ impl RpcHandler {
             .as_td10()
             .context("Failed to decode TD report")?;
         let app_info = att.decode_app_info(use_boottime_mr)?;
+        let vm_config: VmConfig =
+            serde_json::from_str(vm_config).context("Failed to decode VM config")?;
+        let mr_image = vm_config.mr_image.clone();
         let boot_info = BootInfo {
             mrtd: report.mr_td.to_vec(),
             rtmr0: report.rt_mr0.to_vec(),
@@ -117,7 +330,7 @@ impl RpcHandler {
             rtmr2: report.rt_mr2.to_vec(),
             rtmr3: report.rt_mr3.to_vec(),
             mr_aggregated: app_info.mr_aggregated.to_vec(),
-            mr_image: app_info.mr_image.to_vec(),
+            mr_image: mr_image.clone(),
             mr_system: app_info.mr_system.to_vec(),
             mr_key_provider: app_info.mr_key_provider.to_vec(),
             app_id: app_info.app_id,
@@ -139,9 +352,13 @@ impl RpcHandler {
         if !response.is_allowed {
             bail!("Boot denied: {}", response.reason);
         }
+        self.check_image_mrs(&vm_config, &boot_info)
+            .await
+            .context("Failed to check image MRs")?;
         Ok(BootConfig {
             boot_info,
             gateway_app_id: response.gateway_app_id,
+            mr_image,
         })
     }
 
@@ -167,12 +384,16 @@ impl RpcHandler {
 }
 
 impl KmsRpc for RpcHandler {
-    async fn get_app_key(self, _request: GetAppKeyRequest) -> Result<AppKeyResponse> {
+    async fn get_app_key(self, request: GetAppKeyRequest) -> Result<AppKeyResponse> {
+        if request.api_version > 1 {
+            bail!("Unsupported API version: {}", request.api_version);
+        }
         let BootConfig {
             boot_info,
             gateway_app_id,
+            mr_image,
         } = self
-            .ensure_app_boot_allowed()
+            .ensure_app_boot_allowed(&request.vm_config)
             .await
             .context("App not allowed")?;
         let app_id = boot_info.app_id;
@@ -203,6 +424,7 @@ impl KmsRpc for RpcHandler {
             k256_signature,
             tproxy_app_id: gateway_app_id.clone(),
             gateway_app_id,
+            mr_image,
         })
     }
 
@@ -248,9 +470,9 @@ impl KmsRpc for RpcHandler {
         })
     }
 
-    async fn get_kms_key(self) -> Result<KmsKeyResponse> {
+    async fn get_kms_key(self, request: GetKmsKeyRequest) -> Result<KmsKeyResponse> {
         if self.state.config.onboard.quote_enabled {
-            let _info = self.ensure_kms_allowed().await?;
+            let _info = self.ensure_kms_allowed(&request.vm_config).await?;
         }
         Ok(KmsKeyResponse {
             temp_ca_key: self.state.inner.temp_ca_key.clone(),
@@ -270,6 +492,9 @@ impl KmsRpc for RpcHandler {
     }
 
     async fn sign_cert(self, request: SignCertRequest) -> Result<SignCertResponse> {
+        if request.api_version > 1 {
+            bail!("Unsupported API version: {}", request.api_version);
+        }
         let csr =
             CertSigningRequest::decode(&mut &request.csr[..]).context("Failed to parse csr")?;
         csr.verify(&request.signature)
@@ -280,7 +505,7 @@ impl KmsRpc for RpcHandler {
             .await
             .context("Quote verification failed")?;
         let app_info = self
-            .ensure_app_attestation_allowed(&attestation, false, true)
+            .ensure_app_attestation_allowed(&attestation, false, true, &request.vm_config)
             .await?;
         let app_ca = self.derive_app_ca(&app_info.boot_info.app_id)?;
         let cert = app_ca

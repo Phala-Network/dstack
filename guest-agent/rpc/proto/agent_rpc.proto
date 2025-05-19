@@ -199,6 +199,8 @@ message WorkerInfo {
   string key_provider_info = 12;
   // Compose hash
   bytes compose_hash = 13;
+  // VM config
+  string vm_config = 14;
 }
 
 // The response to a WorkerInfo request

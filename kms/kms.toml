@@ -22,6 +22,12 @@ mandatory = false
 cert_dir = "/etc/kms/certs"
 subject_postfix = ".dstack"
 
+[core.image]
+verify = true
+cache_dir = "/usr/share/dstack/images"
+download_url = "http://localhost:8000/{MR_IMAGE}.tar.gz"
+download_timeout = "2m"
+
 [core.auth_api]
 type = "webhook"
 

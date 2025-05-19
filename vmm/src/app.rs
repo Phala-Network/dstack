@@ -12,6 +12,7 @@ use guest_api::client::DefaultClient as GuestClient;
 use id_pool::IdPool;
 use ra_rpc::client::RaClient;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::{BTreeSet, HashMap};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
@@ -439,7 +440,7 @@ impl App {
                 .context("Failed to write user config")?;
         }
         if !app_id.is_empty() {
-            let instance_info = serde_json::json!({
+            let instance_info = json!({
                 "app_id": app_id,
             });
             fs::write(
@@ -459,21 +460,22 @@ impl App {
         let image_path = cfg.image_path.join(&manifest.image);
         let image = Image::load(image_path).context("Failed to load image info")?;
         let img_ver = image.info.version_tuple().unwrap_or((0, 0, 0));
-        let sys_config = if img_ver >= (5, 0, 0) {
-            serde_json::json!({
+        let sys_config = if img_ver >= (0, 5, 0) {
+            let vm_config = serde_json::to_string(&json!({
+                "mr_image": image.digest.unwrap_or_default(),
+                "cpu_count": manifest.vcpu,
+                "memory_size": manifest.memory * 1024 * 1024,
+            }))?;
+            json!({
                 "kms_urls": cfg.cvm.kms_urls,
                 "gateway_urls": cfg.cvm.gateway_urls,
                 "pccs_url": cfg.cvm.pccs_url,
                 "docker_registry": cfg.cvm.docker_registry,
                 "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
-                "vm_config": {
-                    "mr_image": &image.digest,
-                    "cpu_count": manifest.vcpu,
-                    "memory_size": manifest.memory * 1024 * 1024,
-                },
+                "vm_config": vm_config,
             })
         } else if img_ver >= (0, 4, 2) {
-            serde_json::json!({
+            json!({
                 "kms_urls": cfg.cvm.kms_urls,
                 "gateway_urls": cfg.cvm.gateway_urls,
                 "pccs_url": cfg.cvm.pccs_url,
@@ -486,7 +488,7 @@ impl App {
                 .rootfs_hash
                 .as_ref()
                 .context("Rootfs hash not found in image info")?;
-            serde_json::json!({
+            json!({
                 "rootfs_hash": rootfs_hash,
                 "kms_urls": cfg.cvm.kms_urls,
                 "tproxy_urls": cfg.cvm.gateway_urls,
@@ -500,7 +502,7 @@ impl App {
                 .rootfs_hash
                 .as_ref()
                 .context("Rootfs hash not found in image info")?;
-            serde_json::json!({
+            json!({
                 "rootfs_hash": rootfs_hash,
                 "kms_url": cfg.cvm.kms_urls.first(),
                 "tproxy_url": cfg.cvm.gateway_urls.first(),
