@@ -118,6 +118,8 @@ pub struct SysConfig {
     pub pccs_url: Option<String>,
     pub docker_registry: Option<String>,
     pub host_api_url: String,
+    #[serde(with = "hex_bytes", default)]
+    pub mr_image: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

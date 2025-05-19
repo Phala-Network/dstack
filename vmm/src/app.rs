@@ -457,10 +457,22 @@ impl App {
         let manifest = work_dir.manifest().context("Failed to read manifest")?;
         let cfg = &self.config;
         let image_path = cfg.image_path.join(&manifest.image);
-        let image_info = ImageInfo::load(image_path.join("metadata.json"))
-            .context("Failed to load image info")?;
-        let img_ver = image_info.version_tuple().unwrap_or((0, 0, 0));
-        let sys_config = if img_ver >= (0, 4, 2) {
+        let image = Image::load(image_path).context("Failed to load image info")?;
+        let img_ver = image.info.version_tuple().unwrap_or((0, 0, 0));
+        let sys_config = if img_ver >= (5, 0, 0) {
+            serde_json::json!({
+                "kms_urls": cfg.cvm.kms_urls,
+                "gateway_urls": cfg.cvm.gateway_urls,
+                "pccs_url": cfg.cvm.pccs_url,
+                "docker_registry": cfg.cvm.docker_registry,
+                "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
+                "vm_config": {
+                    "mr_image": &image.digest,
+                    "cpu_count": manifest.vcpu,
+                    "memory_size": manifest.memory * 1024 * 1024,
+                },
+            })
+        } else if img_ver >= (0, 4, 2) {
             serde_json::json!({
                 "kms_urls": cfg.cvm.kms_urls,
                 "gateway_urls": cfg.cvm.gateway_urls,
@@ -469,7 +481,8 @@ impl App {
                 "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
             })
         } else if img_ver >= (0, 4, 0) {
-            let rootfs_hash = image_info
+            let rootfs_hash = image
+                .info
                 .rootfs_hash
                 .as_ref()
                 .context("Rootfs hash not found in image info")?;
@@ -482,7 +495,8 @@ impl App {
                 "host_api_url": format!("vsock://2:{}/api", cfg.host_api.port),
             })
         } else {
-            let rootfs_hash = image_info
+            let rootfs_hash = image
+                .info
                 .rootfs_hash
                 .as_ref()
                 .context("Rootfs hash not found in image info")?;
