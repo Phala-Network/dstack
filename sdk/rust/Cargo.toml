@@ -7,7 +7,7 @@ description = "This crate provides a rust client for communicating with dstack"
 authors = ["Encifher <encifher@rizelabs.io>"]
 
 [dependencies]
-alloy = { version = "0.15", features = ["signers", "signer-local"] }
+alloy = { workspace = true, features = ["signers", "signer-local"] }
 anyhow.workspace = true
 bon.workspace = true
 hex.workspace = true 
@@ -19,5 +19,5 @@ serde_json.workspace = true
 sha2.workspace = true 
 
 [dev-dependencies]
-dcap-qvl = "0.2.4"
+dcap-qvl.workspace = true
 tokio = { workspace = true, features = ["full"] }
