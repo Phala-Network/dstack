@@ -6129,6 +6129,7 @@ dependencies = [
  "git-version",
  "libc",
  "load_config",
+ "nix",
  "notify",
  "rocket",
  "serde",

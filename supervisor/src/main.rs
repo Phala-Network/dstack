@@ -58,7 +58,23 @@ struct Args {
     log_file: Option<String>,
 }
 
+#[cfg(unix)]
+fn set_max_ulimit() -> Result<()> {
+    use nix::sys::resource::{getrlimit, setrlimit, Resource};
+    let (soft, hard) = getrlimit(Resource::RLIMIT_NOFILE)?;
+    if soft < hard {
+        setrlimit(Resource::RLIMIT_NOFILE, hard, hard)?;
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
+    // Set max ulimit for file descriptors
+    #[cfg(unix)]
+    if let Err(err) = set_max_ulimit() {
+        error!("Failed to set max ulimit: {err:?}");
+    }
+
     let args = Args::parse();
     if let Some(log_file) = &args.log_file {
         mk_parents(log_file)?;
