@@ -104,7 +104,7 @@ impl RpcHandler {
             .await
     }
 
-    async fn check_image_mrs(&self, vm_config: &VmConfig, report: &BootInfo) -> Result<()> {
+    async fn verify_mr_image(&self, vm_config: &VmConfig, report: &BootInfo) -> Result<()> {
         if !self.state.config.image.verify {
             return Ok(());
         }
@@ -352,9 +352,9 @@ impl RpcHandler {
         if !response.is_allowed {
             bail!("Boot denied: {}", response.reason);
         }
-        self.check_image_mrs(&vm_config, &boot_info)
+        self.verify_mr_image(&vm_config, &boot_info)
             .await
-            .context("Failed to check image MRs")?;
+            .context("Failed to verify image MR")?;
         Ok(BootConfig {
             boot_info,
             gateway_app_id: response.gateway_app_id,
