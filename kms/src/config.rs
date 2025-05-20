@@ -18,7 +18,6 @@ const RPC_DOMAIN: &str = "rpc-domain";
 const K256_KEY: &str = "root-k256.key";
 const BOOTSTRAP_INFO: &str = "bootstrap-info.json";
 
-
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct ImageConfig {
     pub verify: bool,

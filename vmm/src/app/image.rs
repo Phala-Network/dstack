@@ -68,7 +68,9 @@ impl Image {
         let hda = info.hda.as_ref().map(|hda| base_path.join(hda));
         let rootfs = info.rootfs.as_ref().map(|rootfs| base_path.join(rootfs));
         let bios = info.bios.as_ref().map(|bios| base_path.join(bios));
-        let digest = fs::read_to_string(base_path.join("digest.txt")).ok().map(|s| s.trim().to_string());
+        let digest = fs::read_to_string(base_path.join("digest.txt"))
+            .ok()
+            .map(|s| s.trim().to_string());
         if info.version.is_empty() {
             // Older images does not have version field. Fallback to the version of the image folder name
             info.version = guess_version(&base_path).unwrap_or_default();
