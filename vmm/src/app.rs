@@ -464,7 +464,7 @@ impl App {
             let vm_config = serde_json::to_string(&json!({
                 "mr_image": image.digest.unwrap_or_default(),
                 "cpu_count": manifest.vcpu,
-                "memory_size": manifest.memory * 1024 * 1024,
+                "memory_size": manifest.memory as u64 * 1024 * 1024,
             }))?;
             json!({
                 "kms_urls": cfg.cvm.kms_urls,

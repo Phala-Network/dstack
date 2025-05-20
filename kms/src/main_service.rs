@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{ffi::OsStr, path::Path, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use dstack_kms_rpc::{
@@ -17,8 +17,10 @@ use ra_tls::{
     kdf,
 };
 use scale::Decode;
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use tokio::{io::AsyncWriteExt, process::Command};
+use tracing::info;
 use upgrade_authority::BootInfo;
 
 use crate::{
@@ -83,6 +85,49 @@ struct BootConfig {
     mr_image: Vec<u8>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+struct Mrs {
+    mrtd: String,
+    rtmr0: String,
+    rtmr1: String,
+    rtmr2: String,
+}
+
+impl Mrs {
+    fn assert_eq(&self, other: &Self) -> Result<()> {
+        let Self {
+            mrtd,
+            rtmr0,
+            rtmr1,
+            rtmr2,
+        } = self;
+        if mrtd != &other.mrtd {
+            bail!("MRTD does not match");
+        }
+        if rtmr0 != &other.rtmr0 {
+            bail!("RTMR0 does not match");
+        }
+        if rtmr1 != &other.rtmr1 {
+            bail!("RTMR1 does not match");
+        }
+        if rtmr2 != &other.rtmr2 {
+            bail!("RTMR2 does not match");
+        }
+        Ok(())
+    }
+}
+
+impl From<&BootInfo> for Mrs {
+    fn from(report: &BootInfo) -> Self {
+        Self {
+            mrtd: hex::encode(&report.mrtd),
+            rtmr0: hex::encode(&report.rtmr0),
+            rtmr1: hex::encode(&report.rtmr1),
+            rtmr2: hex::encode(&report.rtmr2),
+        }
+    }
+}
+
 impl RpcHandler {
     fn ensure_attested(&self) -> Result<&VerifiedAttestation> {
         let Some(attestation) = &self.attestation else {
@@ -104,16 +149,56 @@ impl RpcHandler {
             .await
     }
 
+    fn get_cached_mrs(&self, key: &str) -> Result<Mrs> {
+        let path = self.state.config.image.cache_dir.join("computed").join(key);
+        if !path.exists() {
+            bail!("Cached MRs not found");
+        }
+        let content = fs::read_to_string(path).context("Failed to read cached MRs")?;
+        let cached_mrs: Mrs =
+            serde_json::from_str(&content).context("Failed to parse cached MRs")?;
+        Ok(cached_mrs)
+    }
+
+    fn cache_mrs(&self, key: &str, mrs: &Mrs) -> Result<()> {
+        let path = self.state.config.image.cache_dir.join("computed").join(key);
+        fs::create_dir_all(path.parent().unwrap()).context("Failed to create cache directory")?;
+        safe_write::safe_write(
+            &path,
+            serde_json::to_string(mrs).context("Failed to serialize cached MRs")?,
+        )
+        .context("Failed to write cached MRs")?;
+        Ok(())
+    }
+
     async fn verify_mr_image(&self, vm_config: &VmConfig, report: &BootInfo) -> Result<()> {
         if !self.state.config.image.verify {
+            info!("Image verification is disabled");
             return Ok(());
         }
         let hex_mr_image = hex::encode(&vm_config.mr_image);
+        info!("Verifying image {hex_mr_image}");
+
+        let verified_mrs: Mrs = report.into();
+
+        let cache_key = {
+            let vm_config =
+                serde_json::to_vec(vm_config).context("Failed to serialize VM config")?;
+            hex::encode(sha2::Sha256::new_with_prefix(&vm_config).finalize())
+        };
+        if let Ok(cached_mrs) = self.get_cached_mrs(&cache_key) {
+            cached_mrs
+                .assert_eq(&verified_mrs)
+                .context("MRs do not match (cached)")?;
+            return Ok(());
+        }
+
         // Create a directory for the image if it doesn't exist
         let image_dir = self.state.config.image.cache_dir.join(&hex_mr_image);
         // Check if metadata.json exists, if not download the image
         let metadata_path = image_dir.join("metadata.json");
         if !metadata_path.exists() {
+            info!("Image {} not found, downloading", hex_mr_image);
             tokio::time::timeout(
                 self.state.config.image.download_timeout,
                 self.download_image(&hex_mr_image, &image_dir),
@@ -148,44 +233,13 @@ impl RpcHandler {
         }
 
         // Parse the expected MRs
-        let expected_mrs: serde_json::Value =
+        let expected_mrs: Mrs =
             serde_json::from_slice(&output.stdout).context("Failed to parse dstack-mr output")?;
-
-        // Compare MRs
-        let expected_mrtd = expected_mrs["mrtd"]
-            .as_str()
-            .context("Missing mrtd in expected MRs")?;
-        let expected_rtmr0 = expected_mrs["rtmr0"]
-            .as_str()
-            .context("Missing rtmr0 in expected MRs")?;
-        let expected_rtmr1 = expected_mrs["rtmr1"]
-            .as_str()
-            .context("Missing rtmr1 in expected MRs")?;
-        let expected_rtmr2 = expected_mrs["rtmr2"]
-            .as_str()
-            .context("Missing rtmr2 in expected MRs")?;
-
-        let report_mrtd = hex::encode(&report.mrtd);
-        let report_rtmr0 = hex::encode(&report.rtmr0);
-        let report_rtmr1 = hex::encode(&report.rtmr1);
-        let report_rtmr2 = hex::encode(&report.rtmr2);
-
-        if report_mrtd != expected_mrtd {
-            bail!("MRTD mismatch: {} != {}", report_mrtd, expected_mrtd);
-        }
-
-        if report_rtmr0 != expected_rtmr0 {
-            bail!("RTMR0 mismatch: {} != {}", report_rtmr0, expected_rtmr0);
-        }
-
-        if report_rtmr1 != expected_rtmr1 {
-            bail!("RTMR1 mismatch: {} != {}", report_rtmr1, expected_rtmr1);
-        }
-
-        if report_rtmr2 != expected_rtmr2 {
-            bail!("RTMR2 mismatch: {} != {}", report_rtmr2, expected_rtmr2);
-        }
-
+        self.cache_mrs(&cache_key, &expected_mrs)
+            .context("Failed to cache MRs")?;
+        expected_mrs
+            .assert_eq(&verified_mrs)
+            .context("MRs do not match")?;
         Ok(())
     }
 
@@ -198,9 +252,13 @@ impl RpcHandler {
             .download_url
             .replace("{MR_IMAGE}", hex_mr_image);
 
-        // Create a temporary directory for extraction
-        let auto_delete_temp_dir =
-            tempfile::tempdir().context("Failed to create temporary directory")?;
+        // Create a temporary directory for extraction within the cache directory
+        let cache_dir = self.state.config.image.cache_dir.join("tmp");
+        fs::create_dir_all(&cache_dir).context("Failed to create cache directory")?;
+        let auto_delete_temp_dir = tempfile::Builder::new()
+            .prefix("tmp-download-")
+            .tempdir_in(&cache_dir)
+            .context("Failed to create temporary directory")?;
         let tmp_dir = auto_delete_temp_dir.path();
         // Download the image tarball
         let client = reqwest::Client::new();
@@ -229,14 +287,14 @@ impl RpcHandler {
                 .context("Failed to write chunk to file")?;
         }
 
-        let tmp_x_dir = tmp_dir.join("extracted");
-        fs::create_dir_all(&tmp_x_dir).context("Failed to create extraction directory")?;
+        let extracted_dir = tmp_dir.join("extracted");
+        fs::create_dir_all(&extracted_dir).context("Failed to create extraction directory")?;
 
         // Extract the tarball
         let output = Command::new("tar")
             .arg("xzf")
             .arg(&tarball_path)
-            .current_dir(&tmp_x_dir)
+            .current_dir(&extracted_dir)
             .output()
             .await
             .context("Failed to extract tarball")?;
@@ -252,7 +310,7 @@ impl RpcHandler {
         let output = Command::new("sha256sum")
             .arg("-c")
             .arg("sha256sum.txt")
-            .current_dir(&tmp_x_dir)
+            .current_dir(&extracted_dir)
             .output()
             .await
             .context("Failed to verify checksum")?;
@@ -264,22 +322,23 @@ impl RpcHandler {
             );
         }
         // Remove the files that are not listed in sha256sum.txt
-        let sha256sum_path = tmp_x_dir.join("sha256sum.txt");
+        let sha256sum_path = extracted_dir.join("sha256sum.txt");
         let files_doc =
             fs::read_to_string(&sha256sum_path).context("Failed to read sha256sum.txt")?;
-        let listed_files = files_doc
+        let listed_files: Vec<&OsStr> = files_doc
             .lines()
             .flat_map(|line| line.split_whitespace().nth(1))
-            .collect::<Vec<_>>();
-        let files = fs::read_dir(&tmp_x_dir).context("Failed to read directory")?;
+            .map(|s| s.as_ref())
+            .collect();
+        let files = fs::read_dir(&extracted_dir).context("Failed to read directory")?;
         for file in files {
             let file = file.context("Failed to read directory entry")?;
-            let path = file.path();
-            if !listed_files.contains(&path.display().to_string().as_str()) {
-                if path.is_dir() {
-                    fs::remove_dir_all(&path).context("Failed to remove directory")?;
+            let filename = file.file_name();
+            if !listed_files.contains(&filename.as_os_str()) {
+                if file.path().is_dir() {
+                    fs::remove_dir_all(file.path()).context("Failed to remove directory")?;
                 } else {
-                    fs::remove_file(&path).context("Failed to remove file")?;
+                    fs::remove_file(file.path()).context("Failed to remove file")?;
                 }
             }
         }
@@ -291,7 +350,7 @@ impl RpcHandler {
         }
 
         // Move the extracted files to the destination directory
-        let metadata_path = tmp_x_dir.join("metadata.json");
+        let metadata_path = extracted_dir.join("metadata.json");
         if !metadata_path.exists() {
             bail!("metadata.json not found in the extracted archive");
         }
@@ -302,7 +361,7 @@ impl RpcHandler {
         let dst_dir_parent = dst_dir.parent().context("Failed to get parent directory")?;
         fs::create_dir_all(dst_dir_parent).context("Failed to create parent directory")?;
         // Move the extracted files to the destination directory
-        fs::rename(tmp_x_dir, dst_dir)
+        fs::rename(extracted_dir, dst_dir)
             .context("Failed to move extracted files to destination directory")?;
         Ok(())
     }
