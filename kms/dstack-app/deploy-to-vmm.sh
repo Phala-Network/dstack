@@ -78,6 +78,7 @@ subvar() {
 subvar ETH_RPC_URL
 subvar KMS_CONTRACT_ADDR
 subvar GIT_REV
+subvar IMAGE_DOWNLOAD_URL
 
 echo "Docker compose file:"
 cat "$COMPOSE_TMP"
