@@ -47,7 +47,7 @@ port = 9300
 EOF
 
 # Download Guest OS images
-DSTACK_VERSION=0.4.2
+DSTACK_VERSION=0.5.1
 wget "https://github.com/Dstack-TEE/meta-dstack/releases/download/v${DSTACK_VERSION}/dstack-${DSTACK_VERSION}.tar.gz"
 mkdir -p images/
 tar -xvf dstack-${DSTACK_VERSION}.tar.gz -C images/
@@ -83,10 +83,11 @@ The dstack-vmm is running now. Open another terminal and go to the `kms/dstack-a
 
 ```bash
 cd dstack/kms/dstack-app/
-./deploy-to-vmm.sh 
+./deploy-to-vmm.sh
 ```
 It will create a template `.env` file. Edit the `.env` file and set the required variables.
 Especially the `KMS_CONTRACT_ADDR` variable set to the address of the KmsAuth Proxy contract deployed in the previous step.
+The `IMAGE_DOWNLOAD_URL` variable should be set to the URL of the dstack OS image used to verify the mr_image.
 ```
 # .env
 VMM_RPC=unix:../../vmm-data/vmm.sock
@@ -95,7 +96,8 @@ KMS_RPC_ADDR=0.0.0.0:9201
 GUEST_AGENT_ADDR=127.0.0.1:9205
 ETH_RPC_URL=https://rpc.phala.network
 GIT_REV=HEAD
-OS_IMAGE=dstack-0.4.0
+OS_IMAGE=dstack-0.5.1
+IMAGE_DOWNLOAD_URL=https://files.kvin.wang/images/mr_{MR_IMAGE}.tar.gz
 ```
 
 Then run the script again.
@@ -221,7 +223,7 @@ MY_URL=https://gateway.test2.dstack.phala.network:9202
 BOOTNODE_URL=https://gateway.test2.dstack.phala.network:9202
 
 # DStack OS image name
-OS_IMAGE=dstack-0.4.0
+OS_IMAGE=dstack-0.5.1
 
 # Set defaults for variables that might not be in .env
 GIT_REV=HEAD
