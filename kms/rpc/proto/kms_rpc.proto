@@ -33,7 +33,7 @@ message AppKeyResponse {
   string tproxy_app_id = 6;
   // Reverse proxy app ID from KmsAuth contract.
   string gateway_app_id = 7;
-  // MR Image
+  // OS Image hash 
   bytes os_image_hash = 8;
 }
 

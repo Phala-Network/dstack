@@ -30,7 +30,7 @@ else
 # GUEST_AGENT_ADDR=127.0.0.1:9205
 
 # The URL of the dstack app image download URL
-# IMAGE_DOWNLOAD_URL=https://files.kvin.wang/images/mr_{MR_IMAGE}.tar.gz
+# IMAGE_DOWNLOAD_URL=https://files.kvin.wang/images/mr_{OS_IMAGE_HASH}.tar.gz
 
 # The URL of the Ethereum RPC service
 ETH_RPC_URL=https://rpc.phala.network

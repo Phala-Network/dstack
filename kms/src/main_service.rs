@@ -250,7 +250,7 @@ impl RpcHandler {
             .config
             .image
             .download_url
-            .replace("{MR_IMAGE}", hex_os_image_hash);
+            .replace("{OS_IMAGE_HASH}", hex_os_image_hash);
 
         // Create a temporary directory for extraction within the cache directory
         let cache_dir = self.state.config.image.cache_dir.join("tmp");
@@ -413,7 +413,7 @@ impl RpcHandler {
         }
         self.verify_os_image_hash(&vm_config, &boot_info)
             .await
-            .context("Failed to verify image MR")?;
+            .context("Failed to verify os image hash")?;
         Ok(BootConfig {
             boot_info,
             gateway_app_id: response.gateway_app_id,

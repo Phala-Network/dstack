@@ -21,7 +21,7 @@ export async function build(): Promise<FastifyInstance> {
     required: ['mrAggregated', 'osImageHash', 'appId', 'composeHash', 'instanceId', 'deviceId'],
     properties: {
       mrAggregated: { type: 'string', description: 'Aggregated MR measurement' },
-      osImageHash: { type: 'string', description: 'MR Image measurement' },
+      osImageHash: { type: 'string', description: 'OS Image hash' },
       appId: { type: 'string', description: 'Application ID' },
       composeHash: { type: 'string', description: 'Compose hash' },
       instanceId: { type: 'string', description: 'Instance ID' },

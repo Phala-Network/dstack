@@ -38,7 +38,7 @@ CVMs running in dstack support three boot modes:
    - Quote verification and boot info validation
    - Asks `dstack-kms-auth-eth` for permission
    - Builtin Replicator for root keys
-   
+
 2. **dstack-kms-auth-eth**
    - Chain interface for permission checks
    - Two-step validation:
@@ -49,7 +49,7 @@ CVMs running in dstack support three boot modes:
    - `KmsAuth.sol`
       - Maintains a registry for all Applications
       - Maintains the allowed KMS Instance MRs
-      - Maintains the allowed App Base Image MRs
+      - Maintains the allowed OS Images
       - Registers KMS root keys
    - `AppAuth.sol`
       - Apps can have either a dedicated `AppAuth` contract or share one with multiple apps

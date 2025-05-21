@@ -97,7 +97,7 @@ GUEST_AGENT_ADDR=127.0.0.1:9205
 ETH_RPC_URL=https://rpc.phala.network
 GIT_REV=HEAD
 OS_IMAGE=dstack-0.5.1
-IMAGE_DOWNLOAD_URL=https://files.kvin.wang/images/mr_{MR_IMAGE}.tar.gz
+IMAGE_DOWNLOAD_URL=https://files.kvin.wang/images/mr_{OS_IMAGE_HASH}.tar.gz
 ```
 
 Then run the script again.
@@ -149,18 +149,16 @@ The KMS instance is now ready to use.
 ## Deploy dstack-gateway in CVM
 dstack-gateway can be deployed as a dstack app in the same host as the KMS or in a different host.
 
-### Add base image MRs to the KMS whitelist
-In order to run user workloads that use the KMS, the OS image MRs must be added to the KMS whitelist.
+### Add OS image hash to the KMS whitelist
+In order to run user workloads that use the KMS, the OS image hash must be added to the KMS whitelist.
 
-The `mrSystem` is calculated from the MRTD, RTMR0, RTMR1, and key provider. It varies with the same image given different CPU/MEM configurations.
+The `os_image_hash` is generated during the image build process. It is stored in the `digest.txt` file.
 
-You can calculate the `mrSystem` by running `dstack-mr` or simply try deploying an App with the OS image and see it in the serial logs.
-
-After you get the `mrSystem`, you can register it to the KMS whitelist by running the following command:
+After you get the `os_image_hash`, you can register it to the KMS whitelist by running the following command:
 
 ```bash
 cd dstack/kms/auth-eth
-npx hardhat kms:add-system --network phala --mr <mr-value>
+npx hardhat kms:add-image --network phala --mr <os-image-hash>
 ```
 
 ### Register dstack-gateway in KMS
