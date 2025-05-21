@@ -142,39 +142,21 @@ task("kms:remove", "Remove a Aggregated MR of an KMS instance")
 
 // Image Management Tasks
 task("kms:add-image", "Add an image measurement")
-  .addPositionalParam("mrImage", "Image measurement")
-  .setAction(async ({ mrImage }, { ethers }) => {
+  .addPositionalParam("osImageHash", "Image measurement")
+  .setAction(async ({ osImageHash }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.addAppImageMr(mrImage);
+    const tx = await kmsAuth.addOsImageHash(osImageHash);
     await waitTx(tx);
     console.log("Image added successfully");
   });
 
 task("kms:remove-image", "Remove an image measurement")
-  .addPositionalParam("mrImage", "Image measurement")
-  .setAction(async ({ mrImage }, { ethers }) => {
+  .addPositionalParam("osImageHash", "Image measurement")
+  .setAction(async ({ osImageHash }, { ethers }) => {
     const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.removeAppImageMr(mrImage);
+    const tx = await kmsAuth.removeOsImageHash(osImageHash);
     await waitTx(tx);
     console.log("Image removed successfully");
-  });
-
-task("kms:add-system", "Add a system measurement")
-  .addPositionalParam("mrSystem", "System measurement")
-  .setAction(async ({ mrSystem }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.addAppSystemMr(mrSystem);
-    await waitTx(tx);
-    console.log("System measurement added successfully");
-  });
-
-task("kms:remove-system", "Remove a system measurement")
-  .addPositionalParam("mrSystem", "System measurement")
-  .setAction(async ({ mrSystem }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.removeAppSystemMr(mrSystem);
-    await waitTx(tx);
-    console.log("System measurement removed successfully");
   });
 
 task("kms:add-device", "Add a device ID of an KMS instance")

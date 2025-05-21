@@ -9,7 +9,7 @@ interface IAppAuth {
         bytes32 deviceId;
         bytes32 mrAggregated;
         bytes32 mrSystem;
-        bytes32 mrImage;
+        bytes32 osImageHash;
         string tcbStatus;
         string[] advisoryIds;
     }

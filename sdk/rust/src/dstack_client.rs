@@ -123,7 +123,7 @@ pub struct InfoResponse {
     public_sysinfo: bool,
     device_id: String,
     mr_aggregated: String,
-    mr_image: String,
+    os_image_hash: String,
     mr_key_provider: String,
     key_provider_info: String,
     compose_hash: String,

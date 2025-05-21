@@ -42,7 +42,7 @@ const _abi = [
           },
           {
             internalType: "bytes32",
-            name: "mrImage",
+            name: "osImageHash",
             type: "bytes32",
           },
           {

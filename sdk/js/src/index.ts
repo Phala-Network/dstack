@@ -46,7 +46,7 @@ export interface InfoResponse {
   public_sysinfo: boolean
   device_id: string
   mr_aggregated: string
-  mr_image: string
+  os_image_hash: string
   mr_key_provider: string
   key_provider_info: string
   compose_hash: string

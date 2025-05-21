@@ -326,8 +326,8 @@ impl<'a> Stage0<'a> {
             .await
             .context("Failed to get app key")?;
 
-        extend_rtmr3("mr-image", &response.mr_image)
-            .context("Failed to extend mr-image to RTMR3")?;
+        extend_rtmr3("os-image-hash", &response.os_image_hash)
+            .context("Failed to extend os-image-hash to RTMR3")?;
 
         let keys = AppKeys {
             ca_cert: tmp_ca.ca_cert,

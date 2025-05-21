@@ -45,15 +45,14 @@ beforeAll(async () => {
     deviceId: ethers.encodeBytes32String("test-device-id"),
     mrSystem: ethers.encodeBytes32String("test-mr-system"),
     mrAggregated: ethers.encodeBytes32String("test-mr-aggregated"),
-    mrImage: ethers.encodeBytes32String("test-mr-image"),
+    osImageHash: ethers.encodeBytes32String("test-os-image-hash"),
     tcbStatus: "UpToDate",
     advisoryIds: []
   };
   // Register some test enclaves and images
   await kmsAuth.addKmsAggregatedMr(ethers.encodeBytes32String("11"));
-  await kmsAuth.addAppImageMr(ethers.encodeBytes32String("22"));
+  await kmsAuth.addOsImageHash(ethers.encodeBytes32String("22"));
   await appAuth.addComposeHash(ethers.encodeBytes32String("33"));
-  await kmsAuth.addAppSystemMr(ethers.encodeBytes32String("44"));
 
   // Set up global test contracts
   global.testContracts = {

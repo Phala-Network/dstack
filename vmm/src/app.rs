@@ -462,7 +462,7 @@ impl App {
         let img_ver = image.info.version_tuple().unwrap_or((0, 0, 0));
         let sys_config = if img_ver >= (0, 5, 0) {
             let vm_config = serde_json::to_string(&json!({
-                "mr_image": image.digest.unwrap_or_default(),
+                "os_image_hash": image.digest.unwrap_or_default(),
                 "cpu_count": manifest.vcpu,
                 "memory_size": manifest.memory as u64 * 1024 * 1024,
             }))?;

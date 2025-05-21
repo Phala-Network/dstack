@@ -19,7 +19,7 @@ pub(crate) struct BootInfo {
     #[serde(with = "hex_bytes")]
     pub mr_aggregated: Vec<u8>,
     #[serde(with = "hex_bytes")]
-    pub mr_image: Vec<u8>,
+    pub os_image_hash: Vec<u8>,
     #[serde(with = "hex_bytes")]
     pub mr_system: Vec<u8>,
     #[serde(with = "hex_bytes")]

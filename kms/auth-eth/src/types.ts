@@ -2,8 +2,8 @@ export interface BootInfo {
   tcbStatus: string;
   advisoryIds: string[];
   mrAggregated: string;
-  mrImage: string;
   mrSystem: string;
+  osImageHash: string;
   appId: string;
   composeHash: string;
   instanceId: string;

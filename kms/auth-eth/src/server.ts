@@ -18,10 +18,10 @@ export async function build(): Promise<FastifyInstance> {
   server.addSchema({
     $id: 'bootInfo',
     type: 'object',
-    required: ['mrAggregated', 'mrImage', 'appId', 'composeHash', 'instanceId', 'deviceId'],
+    required: ['mrAggregated', 'osImageHash', 'appId', 'composeHash', 'instanceId', 'deviceId'],
     properties: {
       mrAggregated: { type: 'string', description: 'Aggregated MR measurement' },
-      mrImage: { type: 'string', description: 'MR Image measurement' },
+      osImageHash: { type: 'string', description: 'MR Image measurement' },
       appId: { type: 'string', description: 'Application ID' },
       composeHash: { type: 'string', description: 'Compose hash' },
       instanceId: { type: 'string', description: 'Instance ID' },

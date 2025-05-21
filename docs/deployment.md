@@ -87,7 +87,7 @@ cd dstack/kms/dstack-app/
 ```
 It will create a template `.env` file. Edit the `.env` file and set the required variables.
 Especially the `KMS_CONTRACT_ADDR` variable set to the address of the KmsAuth Proxy contract deployed in the previous step.
-The `IMAGE_DOWNLOAD_URL` variable should be set to the URL of the dstack OS image used to verify the mr_image.
+The `IMAGE_DOWNLOAD_URL` variable should be set to the URL of the dstack OS image used to verify the os_image_hash.
 ```
 # .env
 VMM_RPC=unix:../../vmm-data/vmm.sock

@@ -82,7 +82,7 @@ pub struct RpcHandler {
 struct BootConfig {
     boot_info: BootInfo,
     gateway_app_id: String,
-    mr_image: Vec<u8>,
+    os_image_hash: Vec<u8>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -171,13 +171,13 @@ impl RpcHandler {
         Ok(())
     }
 
-    async fn verify_mr_image(&self, vm_config: &VmConfig, report: &BootInfo) -> Result<()> {
+    async fn verify_os_image_hash(&self, vm_config: &VmConfig, report: &BootInfo) -> Result<()> {
         if !self.state.config.image.verify {
             info!("Image verification is disabled");
             return Ok(());
         }
-        let hex_mr_image = hex::encode(&vm_config.mr_image);
-        info!("Verifying image {hex_mr_image}");
+        let hex_os_image_hash = hex::encode(&vm_config.os_image_hash);
+        info!("Verifying image {hex_os_image_hash}");
 
         let verified_mrs: Mrs = report.into();
 
@@ -194,18 +194,18 @@ impl RpcHandler {
         }
 
         // Create a directory for the image if it doesn't exist
-        let image_dir = self.state.config.image.cache_dir.join(&hex_mr_image);
+        let image_dir = self.state.config.image.cache_dir.join(&hex_os_image_hash);
         // Check if metadata.json exists, if not download the image
         let metadata_path = image_dir.join("metadata.json");
         if !metadata_path.exists() {
-            info!("Image {} not found, downloading", hex_mr_image);
+            info!("Image {} not found, downloading", hex_os_image_hash);
             tokio::time::timeout(
                 self.state.config.image.download_timeout,
-                self.download_image(&hex_mr_image, &image_dir),
+                self.download_image(&hex_os_image_hash, &image_dir),
             )
             .await
             .context("Download image timeout")?
-            .with_context(|| format!("Failed to download image {hex_mr_image}"))?;
+            .with_context(|| format!("Failed to download image {hex_os_image_hash}"))?;
         }
 
         // Calculate expected MRs with dstack-mr command
@@ -243,14 +243,14 @@ impl RpcHandler {
         Ok(())
     }
 
-    async fn download_image(&self, hex_mr_image: &str, dst_dir: &Path) -> Result<()> {
-        // Create a hex representation of the mr_image for URL and directory naming
+    async fn download_image(&self, hex_os_image_hash: &str, dst_dir: &Path) -> Result<()> {
+        // Create a hex representation of the os_image_hash for URL and directory naming
         let url = self
             .state
             .config
             .image
             .download_url
-            .replace("{MR_IMAGE}", hex_mr_image);
+            .replace("{MR_IMAGE}", hex_os_image_hash);
 
         // Create a temporary directory for extraction within the cache directory
         let cache_dir = self.state.config.image.cache_dir.join("tmp");
@@ -343,10 +343,10 @@ impl RpcHandler {
             }
         }
 
-        // mr_image should eq to sha256sum of the sha256sum.txt
-        let mr_image = sha2::Sha256::new_with_prefix(files_doc.as_bytes()).finalize();
-        if hex::encode(mr_image) != hex_mr_image {
-            bail!("mr_image does not match sha256sum of the sha256sum.txt");
+        // os_image_hash should eq to sha256sum of the sha256sum.txt
+        let os_image_hash = sha2::Sha256::new_with_prefix(files_doc.as_bytes()).finalize();
+        if hex::encode(os_image_hash) != hex_os_image_hash {
+            bail!("os_image_hash does not match sha256sum of the sha256sum.txt");
         }
 
         // Move the extracted files to the destination directory
@@ -381,7 +381,7 @@ impl RpcHandler {
         let app_info = att.decode_app_info(use_boottime_mr)?;
         let vm_config: VmConfig =
             serde_json::from_str(vm_config).context("Failed to decode VM config")?;
-        let mr_image = vm_config.mr_image.clone();
+        let os_image_hash = vm_config.os_image_hash.clone();
         let boot_info = BootInfo {
             mrtd: report.mr_td.to_vec(),
             rtmr0: report.rt_mr0.to_vec(),
@@ -389,7 +389,7 @@ impl RpcHandler {
             rtmr2: report.rt_mr2.to_vec(),
             rtmr3: report.rt_mr3.to_vec(),
             mr_aggregated: app_info.mr_aggregated.to_vec(),
-            mr_image: mr_image.clone(),
+            os_image_hash: os_image_hash.clone(),
             mr_system: app_info.mr_system.to_vec(),
             mr_key_provider: app_info.mr_key_provider.to_vec(),
             app_id: app_info.app_id,
@@ -411,13 +411,13 @@ impl RpcHandler {
         if !response.is_allowed {
             bail!("Boot denied: {}", response.reason);
         }
-        self.verify_mr_image(&vm_config, &boot_info)
+        self.verify_os_image_hash(&vm_config, &boot_info)
             .await
             .context("Failed to verify image MR")?;
         Ok(BootConfig {
             boot_info,
             gateway_app_id: response.gateway_app_id,
-            mr_image,
+            os_image_hash,
         })
     }
 
@@ -450,7 +450,7 @@ impl KmsRpc for RpcHandler {
         let BootConfig {
             boot_info,
             gateway_app_id,
-            mr_image,
+            os_image_hash,
         } = self
             .ensure_app_boot_allowed(&request.vm_config)
             .await
@@ -483,7 +483,7 @@ impl KmsRpc for RpcHandler {
             k256_signature,
             tproxy_app_id: gateway_app_id.clone(),
             gateway_app_id,
-            mr_image,
+            os_image_hash,
         })
     }
 

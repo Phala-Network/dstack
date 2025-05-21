@@ -17,7 +17,7 @@ describe('Server', () => {
     tcbStatus: "UpToDate",
     advisoryIds: [],
     mrAggregated: '0x1234',
-    mrImage: '0x5678',
+    osImageHash: '0x5678',
     mrSystem: '0x9012',
     appId: '0x9012345678901234567890123456789012345678',
     composeHash: '0xabcd',

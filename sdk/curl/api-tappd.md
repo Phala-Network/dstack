@@ -193,7 +193,7 @@ curl --unix-socket /var/run/tappd.sock http://localhost/prpc/Tappd.Info
   "public_sysinfo": true,
   "device_id": "<hex-encoded-device-id>",
   "mr_aggregated": "<hex-encoded-mr-aggregated>",
-  "mr_image": "<hex-encoded-mr-image>",
+  "os_image_hash": "<hex-encoded-os-image-hash>",
   "mr_key_provider": "<hex-encoded-mr-key-provider>",
   "key_provider_info": "<key-provider-info-string>",
   "compose_hash": "<hex-encoded-compose-hash>"

@@ -34,7 +34,7 @@ message AppKeyResponse {
   // Reverse proxy app ID from KmsAuth contract.
   string gateway_app_id = 7;
   // MR Image
-  bytes mr_image = 8;
+  bytes os_image_hash = 8;
 }
 
 message GetMetaResponse {

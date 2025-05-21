@@ -8,5 +8,5 @@
     "pccs_url": "",
     "docker_registry": "",
     "host_api_url": "vsock://2:12000/api",
-    "vm_config": "{\"mr_image\":\"64f0d1545cd510a8dfed7ad609d105b5d41f0cb2afcfdda8867ede00c88add7a\",\"cpu_count\":1,\"memory_size\":2147483648}"
+    "vm_config": "{\"os_image_hash\":\"64f0d1545cd510a8dfed7ad609d105b5d41f0cb2afcfdda8867ede00c88add7a\",\"cpu_count\":1,\"memory_size\":2147483648}"
 }

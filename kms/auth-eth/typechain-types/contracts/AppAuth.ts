@@ -31,7 +31,7 @@ export declare namespace IAppAuth {
     deviceId: BytesLike;
     mrAggregated: BytesLike;
     mrSystem: BytesLike;
-    mrImage: BytesLike;
+    osImageHash: BytesLike;
     tcbStatus: string;
     advisoryIds: string[];
   };
@@ -43,7 +43,7 @@ export declare namespace IAppAuth {
     deviceId: string,
     mrAggregated: string,
     mrSystem: string,
-    mrImage: string,
+    osImageHash: string,
     tcbStatus: string,
     advisoryIds: string[]
   ] & {
@@ -53,7 +53,7 @@ export declare namespace IAppAuth {
     deviceId: string;
     mrAggregated: string;
     mrSystem: string;
-    mrImage: string;
+    osImageHash: string;
     tcbStatus: string;
     advisoryIds: string[];
   };

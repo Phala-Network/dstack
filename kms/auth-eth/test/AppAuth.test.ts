@@ -59,7 +59,7 @@ describe("AppAuth", function () {
     const composeHash = ethers.randomBytes(32);
     const deviceId = ethers.randomBytes(32);
     const mrAggregated = ethers.randomBytes(32);
-    const mrImage = ethers.randomBytes(32);
+    const osImageHash = ethers.randomBytes(32);
     const mrSystem = ethers.randomBytes(32);
     const instanceId = ethers.Wallet.createRandom().address;
 
@@ -74,8 +74,8 @@ describe("AppAuth", function () {
         instanceId,
         deviceId,
         mrAggregated,
-        mrImage,
         mrSystem,
+        osImageHash,
         tcbStatus: "UpToDate",
         advisoryIds: []
       };
@@ -94,7 +94,7 @@ describe("AppAuth", function () {
         instanceId,
         deviceId,
         mrAggregated,
-        mrImage,
+        osImageHash,
         mrSystem
       };
 
@@ -112,7 +112,7 @@ describe("AppAuth", function () {
         instanceId,
         deviceId,
         mrAggregated,
-        mrImage,
+        osImageHash,
         mrSystem,
       };
 

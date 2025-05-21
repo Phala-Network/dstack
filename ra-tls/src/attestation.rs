@@ -204,7 +204,7 @@ impl<T> Attestation<T> {
             rtmr1: rtmrs[1],
             rtmr2: rtmrs[2],
             rtmr3: rtmrs[3],
-            mr_image: self.find_event_payload("mr-image").unwrap_or_default(),
+            os_image_hash: self.find_event_payload("os-image-hash").unwrap_or_default(),
             mr_system,
             mr_aggregated,
             mr_key_provider,
@@ -413,7 +413,7 @@ pub struct AppInfo {
     pub mr_aggregated: [u8; 32],
     /// Measurement of the app image
     #[serde(with = "hex_bytes")]
-    pub mr_image: Vec<u8>,
+    pub os_image_hash: Vec<u8>,
     /// Measurement of the key provider
     #[serde(with = "hex_bytes")]
     pub mr_key_provider: [u8; 32],

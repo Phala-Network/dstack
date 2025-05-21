@@ -43,10 +43,7 @@ contract KmsAuth is
     mapping(bytes32 => bool) public kmsAllowedDeviceIds;
 
     // Mapping of allowed image measurements
-    mapping(bytes32 => bool) public appAllowedImages;
-
-    // Mapping of allowed KMS compose hashes
-    mapping(bytes32 => bool) public appAllowedSystemMrs;
+    mapping(bytes32 => bool) public allowedOsImages;
 
     // Sequence number for app IDs - per user
     mapping(address => uint256) public nextAppSequence;
@@ -58,10 +55,8 @@ contract KmsAuth is
     event KmsAggregatedMrRemoved(bytes32 mrAggregated);
     event KmsDeviceAdded(bytes32 deviceId);
     event KmsDeviceRemoved(bytes32 deviceId);
-    event AppImageMrAdded(bytes32 mrImage);
-    event AppImageMrRemoved(bytes32 mrImage);
-    event AppSystemMrAdded(bytes32 mrSystem);
-    event AppSystemMrRemoved(bytes32 mrSystem);
+    event OsImageHashAdded(bytes32 osImageHash);
+    event OsImageHashRemoved(bytes32 osImageHash);
     event GatewayAppIdSet(string gatewayAppId);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -150,27 +145,15 @@ contract KmsAuth is
     }
 
     // Function to register an image measurement
-    function addAppImageMr(bytes32 mrImage) external onlyOwner {
-        appAllowedImages[mrImage] = true;
-        emit AppImageMrAdded(mrImage);
+    function addOsImageHash(bytes32 osImageHash) external onlyOwner {
+        allowedOsImages[osImageHash] = true;
+        emit OsImageHashAdded(osImageHash);
     }
 
     // Function to deregister an image measurement
-    function removeAppImageMr(bytes32 mrImage) external onlyOwner {
-        appAllowedImages[mrImage] = false;
-        emit AppImageMrRemoved(mrImage);
-    }
-
-    // Function to register a system MR measurement
-    function addAppSystemMr(bytes32 mrSystem) external onlyOwner {
-        appAllowedSystemMrs[mrSystem] = true;
-        emit AppSystemMrAdded(mrSystem);
-    }
-
-    // Function to deregister a system MR measurement
-    function removeAppSystemMr(bytes32 mrSystem) external onlyOwner {
-        appAllowedSystemMrs[mrSystem] = false;
-        emit AppSystemMrRemoved(mrSystem);
+    function removeOsImageHash(bytes32 osImageHash) external onlyOwner {
+        allowedOsImages[osImageHash] = false;
+        emit OsImageHashRemoved(osImageHash);
     }
 
     // Function to check if KMS is allowed to boot
@@ -183,6 +166,11 @@ contract KmsAuth is
             keccak256(abi.encodePacked("UpToDate"))
         ) {
             return (false, "TCB status is not up to date");
+        }
+
+        // Check if the OS image is allowed
+        if (!allowedOsImages[bootInfo.osImageHash]) {
+            return (false, "OS image is not allowed");
         }
 
         // Check if the aggregated MR is allowed
@@ -208,11 +196,8 @@ contract KmsAuth is
         }
 
         // Check aggregated MR and image measurements
-        if (
-            !appAllowedSystemMrs[bootInfo.mrSystem] &&
-            !appAllowedImages[bootInfo.mrImage]
-        ) {
-            return (false, "Neither system MR nor image is allowed");
+        if (!allowedOsImages[bootInfo.osImageHash]) {
+            return (false, "OS image is not allowed");
         }
 
         // Ask the app controller if the app is allowed to boot

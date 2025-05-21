@@ -125,7 +125,7 @@ pub struct SysConfig {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct VmConfig {
     #[serde(with = "hex_bytes")]
-    pub mr_image: Vec<u8>,
+    pub os_image_hash: Vec<u8>,
     pub cpu_count: u32,
     pub memory_size: u64,
 }

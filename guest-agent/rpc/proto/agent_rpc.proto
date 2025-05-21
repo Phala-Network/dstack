@@ -192,7 +192,7 @@ message WorkerInfo {
   // MR Aggregated
   bytes mr_aggregated = 9;
   // MR Image
-  bytes mr_image = 10;
+  bytes os_image_hash = 10;
   // MR Key Provider
   bytes mr_key_provider = 11;
   // Key provider info
