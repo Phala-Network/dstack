@@ -256,7 +256,11 @@ pub(crate) async fn update_certs(cfg: &KmsConfig) -> Result<()> {
     let k256_key_bytes = fs::read(cfg.k256_key())?;
     let k256_key = SigningKey::from_slice(&k256_key_bytes)?;
 
-    let domain = fs::read_to_string(cfg.rpc_domain())?;
+    let domain = if cfg.onboard.auto_bootstrap_domain.is_empty() {
+        fs::read_to_string(cfg.rpc_domain())?
+    } else {
+        cfg.onboard.auto_bootstrap_domain.clone()
+    };
     let domain = domain.trim();
 
     // Regenerate certificates using existing keys

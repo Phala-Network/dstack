@@ -27,11 +27,20 @@ services:
     build:
       context: .
       dockerfile_inline: |
-        FROM rust:1.86.0@sha256:300ec56abce8cc9448ddea2172747d048ed902a3090e6b57babb2bf19f754081
+        FROM golang:1.22-alpine@sha256:1699c10032ca2582ec89a24a1312d986a3f094aed3d5c1147b19880afe40e052 AS dstack-mr-builder
+        WORKDIR /app
+        RUN apk add --no-cache git
+        RUN git clone https://github.com/kvinwang/dstack-mr.git
+        WORKDIR /app/dstack-mr
+        RUN git checkout 5cf6d917e076f3624eab1b6b662f222ece15600f
+        RUN CGO_ENABLED=0 go build -ldflags="-extldflags -static" -o /usr/local/bin/dstack-mr
+
+        FROM rust:1.86.0@sha256:300ec56abce8cc9448ddea2172747d048ed902a3090e6b57babb2bf19f754081 AS kms-builder
         WORKDIR /app
         RUN apt-get update && apt-get install -y \
             git \
             build-essential \
+            musl-tools \
             libssl-dev \
             protobuf-compiler \
             libprotobuf-dev \
@@ -43,11 +52,20 @@ services:
             cd dstack && \
             git checkout ${GIT_REV}
         WORKDIR /app/dstack
-        RUN cargo build --release -p dstack-kms
-        CMD ["./target/release/dstack-kms"]
+        RUN rustup target add x86_64-unknown-linux-musl
+        RUN cargo build --release -p dstack-kms --target x86_64-unknown-linux-musl
+
+        FROM alpine:latest
+        COPY --from=kms-builder /app/dstack/target/x86_64-unknown-linux-musl/release/dstack-kms /usr/local/bin/dstack-kms
+        COPY --from=kms-builder /app/dstack/kms/dstack-app/entrypoint.sh /entrypoint.sh
+        COPY --from=dstack-mr-builder /usr/local/bin/dstack-mr /usr/local/bin/dstack-mr
+        WORKDIR /app/kms
+        CMD ["/entrypoint.sh"]
     volumes:
       - kms-volume:/etc/kms
       - /var/run/dstack.sock:/var/run/dstack.sock
+    environment:
+      - IMAGE_DOWNLOAD_URL=${IMAGE_DOWNLOAD_URL}
     ports:
       - 8000:8000
     depends_on:

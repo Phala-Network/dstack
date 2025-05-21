@@ -29,6 +29,9 @@ else
 # The address of the guest agent service listening on Host machine
 # GUEST_AGENT_ADDR=127.0.0.1:9205
 
+# The URL of the dstack app image download URL
+# IMAGE_DOWNLOAD_URL=https://files.kvin.wang/images/mr_{MR_IMAGE}.tar.gz
+
 # The URL of the Ethereum RPC service
 ETH_RPC_URL=https://rpc.phala.network
 
@@ -49,6 +52,7 @@ required_env_vars=(
   "GUEST_AGENT_ADDR"
   "KMS_CONTRACT_ADDR"
   "ETH_RPC_URL"
+  "IMAGE_DOWNLOAD_URL"
 )
 
 for var in "${required_env_vars[@]}"; do
