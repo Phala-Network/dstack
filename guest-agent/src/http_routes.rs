@@ -16,7 +16,7 @@ use rocket::{get, response::content::RawHtml, routes, Route, State};
 pub fn external_routes(config: &Config) -> Vec<Route> {
     let mut routes = routes![index];
     if config.public_logs {
-        routes.extend(routes![get_logs]);
+        routes.extend(routes![get_logs, metrics]);
     }
     routes
 }
@@ -66,6 +66,25 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
     match model.render() {
         Ok(html) => Ok(RawHtml(html)),
         Err(err) => Err(format!("Failed to render template: {}", err)),
+    }
+}
+
+// Returns metrics about the guest in prometheus format if public_sysinfo is enabled
+#[get("/metrics")]
+async fn metrics(state: &State<AppState>) -> Result<String, String> {
+    let public_sysinfo = state.config().public_sysinfo;
+    if !public_sysinfo {
+        return Err("Sysinfo API is disabled".to_string());
+    }
+    let context = CallContext::builder().state(&**state).build();
+    let handler = GuestApiHandler::construct(context.clone())
+        .map_err(|e| format!("Failed to construct RPC handler: {}", e))?;
+
+    let system_info = handler.sys_info().await.unwrap_or_default();
+    let model = crate::models::Metrics { system_info };
+    match model.render() {
+        Ok(body) => Ok(body),
+        Err(err) => Err(format!("Failed to render template: {err}")),
     }
 }
 

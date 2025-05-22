@@ -44,3 +44,9 @@ pub struct Dashboard {
     pub public_sysinfo: bool,
     pub public_logs: bool,
 }
+
+#[derive(Template)]
+#[template(path = "metrics.tpl", escape = "none")]
+pub struct Metrics {
+    pub system_info: SystemInfo,
+}
