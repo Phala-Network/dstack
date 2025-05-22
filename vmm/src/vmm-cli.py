@@ -504,7 +504,7 @@ class VmmCLI:
         print(f"Created VM with ID: {response.get('id')}")
         return response.get('id')
 
-    def update_vm_env(self, vm_id: str, envs: Dict[str, str]) -> None:
+    def update_vm_env(self, vm_id: str, envs: Dict[str, str], kms_urls: Optional[List[str]] = None) -> None:
         """Update environment variables for a VM"""
         # First get the VM info to retrieve the app_id
         vm_info_response = self.rpc_call('GetInfo', {'id': vm_id})
@@ -516,11 +516,7 @@ class VmmCLI:
         print(f"Retrieved app ID: {app_id}")
 
         # Now get the encryption key for the app
-        response = self.rpc_call('GetAppEnvEncryptPubKey', {'app_id': app_id})
-        if 'public_key' not in response:
-            raise Exception("Failed to get encryption public key for the VM")
-
-        encrypt_pubkey = response['public_key']
+        encrypt_pubkey = self.get_app_env_encrypt_pub_key(app_id, kms_urls[0] if kms_urls else None)
         print(f"Encrypting environment variables with key: {encrypt_pubkey}")
         envs_list = [{"key": k, "value": v} for k, v in envs.items()]
         encrypted_env = encrypt_env(envs_list, encrypt_pubkey)
@@ -853,6 +849,9 @@ def main():
     update_env_parser.add_argument('vm_id', help='VM ID to update')
     update_env_parser.add_argument(
         '--env-file', required=True, help='File with environment variables to encrypt')
+    update_env_parser.add_argument(
+        '--kms-url', action='append', type=str,
+        help='KMS URL')
 
     # Whitelist command
     kms_parser = subparsers.add_parser(
@@ -927,7 +926,7 @@ def main():
     elif args.command == 'lsgpu':
         cli.list_gpus()
     elif args.command == 'update-env':
-        cli.update_vm_env(args.vm_id, parse_env_file(args.env_file))
+        cli.update_vm_env(args.vm_id, parse_env_file(args.env_file), kms_urls=args.kms_url)
     elif args.command == 'kms':
         if not args.kms_action:
             kms_parser.print_help()
