@@ -95,7 +95,7 @@ impl AuthApi {
             AuthApi::Dev { dev } => Ok(GetInfoResponse {
                 is_dev: true,
                 kms_contract_address: None,
-                gateway_app_id: Some(dev.gateway_app_id.clone().into()),
+                gateway_app_id: Some(dev.gateway_app_id.clone()),
                 chain_id: None,
             }),
             AuthApi::Webhook { webhook } => {
@@ -106,7 +106,7 @@ impl AuthApi {
                 Ok(GetInfoResponse {
                     is_dev: false,
                     kms_contract_address: Some(info.kms_contract_addr.clone()),
-                    chain_id: Some(info.chain_id.clone()),
+                    chain_id: Some(info.chain_id),
                     gateway_app_id: Some(info.gateway_app_id.clone()),
                 })
             }
