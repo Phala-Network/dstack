@@ -63,4 +63,8 @@ export class EthereumBackend {
     const chainId = await this.provider.getNetwork().then((network) => network.chainId);
     return Number(chainId);
   }
+
+  async getAppAuthImplementation(): Promise<string> {
+    return await this.kmsAuth.appAuthImplementation();
+  }
 }

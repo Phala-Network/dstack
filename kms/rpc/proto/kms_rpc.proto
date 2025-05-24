@@ -46,6 +46,7 @@ message GetMetaResponse {
   optional string gateway_app_id = 6;
   optional string kms_contract_address = 7;
   optional uint64 chain_id = 8;
+  optional string app_auth_implementation = 9;
 }
 
 message GetKmsKeyRequest {

@@ -54,6 +54,7 @@ pub(crate) struct AuthApiInfoResponse {
     pub kms_contract_addr: String,
     pub gateway_app_id: String,
     pub chain_id: u64,
+    pub app_auth_implementation: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -63,6 +64,7 @@ pub(crate) struct GetInfoResponse {
     pub gateway_app_id: Option<String>,
     pub kms_contract_address: Option<String>,
     pub chain_id: Option<u64>,
+    pub app_auth_implementation: Option<String>,
 }
 
 impl AuthApi {
@@ -97,6 +99,7 @@ impl AuthApi {
                 kms_contract_address: None,
                 gateway_app_id: Some(dev.gateway_app_id.clone()),
                 chain_id: None,
+                app_auth_implementation: None,
             }),
             AuthApi::Webhook { webhook } => {
                 let client = reqwest::Client::new();
@@ -108,6 +111,7 @@ impl AuthApi {
                     kms_contract_address: Some(info.kms_contract_addr.clone()),
                     chain_id: Some(info.chain_id),
                     gateway_app_id: Some(info.gateway_app_id.clone()),
+                    app_auth_implementation: Some(info.app_auth_implementation.clone()),
                 })
             }
         }
