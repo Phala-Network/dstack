@@ -8,6 +8,7 @@
   "tproxy_enabled": true,
   "public_logs": true,
   "public_sysinfo": true,
+  "public_tcbinfo": false,
   "local_key_provider_enabled": false,
   "allowed_envs": [],
   "no_instance_id": false

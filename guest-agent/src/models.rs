@@ -43,6 +43,7 @@ pub struct Dashboard {
     pub system_info: SystemInfo,
     pub public_sysinfo: bool,
     pub public_logs: bool,
+    pub public_tcbinfo: bool,
 }
 
 #[derive(Template)]

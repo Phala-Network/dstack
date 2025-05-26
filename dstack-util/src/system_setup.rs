@@ -773,9 +773,6 @@ impl Stage1<'_> {
         let config = serde_json::json!({
             "default": {
                 "core": {
-                    "app_name": self.shared.app_compose.name,
-                    "public_logs": self.shared.app_compose.public_logs,
-                    "public_sysinfo": self.shared.app_compose.public_sysinfo,
                     "pccs_url": self.shared.sys_config.pccs_url,
                     "data_disks": data_disks,
                 }

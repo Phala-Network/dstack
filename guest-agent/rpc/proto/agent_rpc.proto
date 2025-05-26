@@ -23,8 +23,8 @@ service Tappd {
   // identifier in the report_data to avoid Quote Repurposing Attacks.
   rpc RawQuote(RawQuoteArgs) returns (TdxQuoteResponse) {}
 
-  // Get worker info
-  rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
+  // Get app info
+  rpc Info(google.protobuf.Empty) returns (AppInfo) {}
 }
 
 // The service for the dstack guest agent
@@ -42,8 +42,8 @@ service DstackGuest {
   // Emit an event. This extends the event to RTMR3 on TDX platform.
   rpc EmitEvent(EmitEventArgs) returns (google.protobuf.Empty) {}
 
-  // Get worker info
-  rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
+  // Get app info
+  rpc Info(google.protobuf.Empty) returns (AppInfo) {}
 }
 
 // The request to derive a key
@@ -172,7 +172,7 @@ message EmitEventArgs {
 }
 
 // The request to derive a key
-message WorkerInfo {
+message AppInfo {
   // App ID
   bytes app_id = 1;
   // App Instance ID
@@ -183,10 +183,6 @@ message WorkerInfo {
   string tcb_info = 4;
   // App name
   string app_name = 5;
-  // Whether the app logs are public
-  bool public_logs = 6;
-  // Whether the app sysinfo is public
-  bool public_sysinfo = 7;
   // Device ID
   bytes device_id = 8;
   // MR Aggregated
@@ -203,7 +199,7 @@ message WorkerInfo {
   string vm_config = 14;
 }
 
-// The response to a WorkerInfo request
+// The response to a Version request
 message WorkerVersion {
   // Dstack version
   string version = 1;
@@ -212,8 +208,8 @@ message WorkerVersion {
 }
 
 service Worker {
-  // Get worker info
-  rpc Info(google.protobuf.Empty) returns (WorkerInfo) {}
+  // Get app info
+  rpc Info(google.protobuf.Empty) returns (AppInfo) {}
   // Get the guest agent version
   rpc Version(google.protobuf.Empty) returns (WorkerVersion) {}
 }

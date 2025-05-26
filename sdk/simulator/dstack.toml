@@ -7,12 +7,9 @@ keep_alive = 10
 log_level = "debug"
 
 [default.core]
-app_name = ""
 keys_file = "appkeys.json"
 compose_file = "app-compose.json"
 sys_config_file = "sys-config.json"
-public_logs = true
-public_sysinfo = true
 
 [default.core.simulator]
 enabled = true

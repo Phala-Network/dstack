@@ -6,9 +6,9 @@ use dstack_guest_agent_rpc::{
     dstack_guest_server::{DstackGuestRpc, DstackGuestServer},
     tappd_server::{TappdRpc, TappdServer},
     worker_server::{WorkerRpc, WorkerServer},
-    DeriveK256KeyResponse, DeriveKeyArgs, EmitEventArgs, GetKeyArgs, GetKeyResponse,
+    AppInfo, DeriveK256KeyResponse, DeriveKeyArgs, EmitEventArgs, GetKeyArgs, GetKeyResponse,
     GetQuoteResponse, GetTlsKeyArgs, GetTlsKeyResponse, RawQuoteArgs, TdxQuoteArgs,
-    TdxQuoteResponse, WorkerInfo, WorkerVersion,
+    TdxQuoteResponse, WorkerVersion,
 };
 use dstack_types::{AppKeys, SysConfig};
 use fs_err as fs;
@@ -87,6 +87,66 @@ impl AppState {
 
 pub struct InternalRpcHandler {
     state: AppState,
+}
+
+pub async fn get_info(state: &AppState, external: bool) -> Result<AppInfo> {
+    let hide_tcb_info = external && !state.config().app_compose.public_tcbinfo;
+    let response = InternalRpcHandler {
+        state: state.clone(),
+    }
+    .get_quote(RawQuoteArgs {
+        report_data: [0; 64].to_vec(),
+    })
+    .await;
+    let Ok(response) = response else {
+        return Ok(AppInfo::default());
+    };
+    let Ok(attestation) = Attestation::new(response.quote, response.event_log.into()) else {
+        return Ok(AppInfo::default());
+    };
+    let app_info = attestation
+        .decode_app_info(false)
+        .context("Failed to decode app info")?;
+    let event_log = &attestation.event_log;
+    let tcb_info = if hide_tcb_info {
+        "".to_string()
+    } else {
+        let app_compose = state.config().app_compose.raw.clone();
+        serde_json::to_string_pretty(&json!({
+            "mrtd": hex::encode(app_info.mrtd),
+            "rtmr0": hex::encode(app_info.rtmr0),
+            "rtmr1": hex::encode(app_info.rtmr1),
+            "rtmr2": hex::encode(app_info.rtmr2),
+            "rtmr3": hex::encode(app_info.rtmr3),
+            "mr_aggregated": hex::encode(app_info.mr_aggregated),
+            "os_image_hash": hex::encode(&app_info.os_image_hash),
+            "mr_key_provider": hex::encode(app_info.mr_key_provider),
+            "compose_hash": hex::encode(&app_info.compose_hash),
+            "device_id": hex::encode(&app_info.device_id),
+            "event_log": event_log,
+            "app_compose": app_compose,
+        }))
+        .unwrap_or_default()
+    };
+    let vm_config = if hide_tcb_info {
+        "".to_string()
+    } else {
+        state.inner.vm_config.clone()
+    };
+    Ok(AppInfo {
+        app_name: state.config().app_compose.name.clone(),
+        app_id: app_info.app_id,
+        instance_id: app_info.instance_id,
+        device_id: app_info.device_id,
+        mr_aggregated: app_info.mr_aggregated.to_vec(),
+        os_image_hash: app_info.os_image_hash.clone(),
+        mr_key_provider: app_info.mr_key_provider.to_vec(),
+        key_provider_info: String::from_utf8(app_info.key_provider_info).unwrap_or_default(),
+        compose_hash: app_info.compose_hash.clone(),
+        app_cert: state.inner.demo_cert.clone(),
+        tcb_info,
+        vm_config,
+    })
 }
 
 impl DstackGuestRpc for InternalRpcHandler {
@@ -175,8 +235,8 @@ impl DstackGuestRpc for InternalRpcHandler {
         tdx_attest::extend_rtmr3(&request.event, &request.payload)
     }
 
-    async fn info(self) -> Result<WorkerInfo> {
-        ExternalRpcHandler { state: self.state }.info().await
+    async fn info(self) -> Result<AppInfo> {
+        get_info(&self.state, false).await
     }
 }
 
@@ -304,8 +364,8 @@ impl TappdRpc for InternalRpcHandlerV0 {
         .await
     }
 
-    async fn info(self) -> Result<WorkerInfo> {
-        ExternalRpcHandler { state: self.state }.info().await
+    async fn info(self) -> Result<AppInfo> {
+        get_info(&self.state, false).await
     }
 }
 
@@ -330,56 +390,8 @@ impl ExternalRpcHandler {
 }
 
 impl WorkerRpc for ExternalRpcHandler {
-    async fn info(self) -> Result<WorkerInfo> {
-        let response = InternalRpcHandler {
-            state: self.state.clone(),
-        }
-        .get_quote(RawQuoteArgs {
-            report_data: [0; 64].to_vec(),
-        })
-        .await;
-        let Ok(response) = response else {
-            return Ok(WorkerInfo::default());
-        };
-        let Ok(attestation) = Attestation::new(response.quote, response.event_log.into()) else {
-            return Ok(WorkerInfo::default());
-        };
-        let app_info = attestation
-            .decode_app_info(false)
-            .context("Failed to decode app info")?;
-        let event_log = &attestation.event_log;
-        let app_compose = fs::read_to_string(&self.state.config().compose_file).unwrap_or_default();
-        let tcb_info = serde_json::to_string_pretty(&json!({
-            "mrtd": hex::encode(app_info.mrtd),
-            "rtmr0": hex::encode(app_info.rtmr0),
-            "rtmr1": hex::encode(app_info.rtmr1),
-            "rtmr2": hex::encode(app_info.rtmr2),
-            "rtmr3": hex::encode(app_info.rtmr3),
-            "mr_aggregated": hex::encode(app_info.mr_aggregated),
-            "os_image_hash": hex::encode(&app_info.os_image_hash),
-            "mr_key_provider": hex::encode(app_info.mr_key_provider),
-            "compose_hash": hex::encode(&app_info.compose_hash),
-            "device_id": hex::encode(&app_info.device_id),
-            "event_log": event_log,
-            "app_compose": app_compose,
-        }))
-        .unwrap_or_default();
-        Ok(WorkerInfo {
-            app_name: self.state.config().app_name.clone(),
-            app_id: app_info.app_id,
-            instance_id: app_info.instance_id,
-            device_id: app_info.device_id,
-            mr_aggregated: app_info.mr_aggregated.to_vec(),
-            os_image_hash: app_info.os_image_hash.clone(),
-            mr_key_provider: app_info.mr_key_provider.to_vec(),
-            key_provider_info: String::from_utf8(app_info.key_provider_info).unwrap_or_default(),
-            compose_hash: app_info.compose_hash.clone(),
-            app_cert: self.state.inner.demo_cert.clone(),
-            tcb_info,
-            public_logs: self.state.config().public_logs,
-            public_sysinfo: self.state.config().public_sysinfo,
-            vm_config: self.state.inner.vm_config.clone(),
-        })
+    async fn info(self) -> Result<AppInfo> {
+        get_info(&self.state, true).await
     }
 
     async fn version(self) -> Result<WorkerVersion> {

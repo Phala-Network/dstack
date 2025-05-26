@@ -5,7 +5,7 @@ use crate::guest_api_service::{list_containers, GuestApiHandler};
 use crate::rpc_service::{AppState, ExternalRpcHandler};
 use anyhow::Result;
 use docker_logs::parse_duration;
-use dstack_guest_agent_rpc::{worker_server::WorkerRpc, WorkerInfo};
+use dstack_guest_agent_rpc::{worker_server::WorkerRpc, AppInfo};
 use guest_api::guest_api_server::GuestApiRpc;
 use ra_rpc::{CallContext, RpcCall};
 use rinja::Template;
@@ -15,18 +15,24 @@ use rocket::{get, response::content::RawHtml, routes, Route, State};
 
 pub fn external_routes(config: &Config) -> Vec<Route> {
     let mut routes = routes![index];
-    if config.public_logs {
-        routes.extend(routes![get_logs, metrics]);
+    if config.app_compose.public_logs {
+        routes.extend(routes![get_logs]);
+    }
+    if config.app_compose.public_sysinfo {
+        routes.extend(routes![metrics]);
     }
     routes
 }
 
 #[get("/")]
 async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
+    let public_logs = state.config().app_compose.public_logs;
+    let public_sysinfo = state.config().app_compose.public_sysinfo;
+    let public_tcbinfo = state.config().app_compose.public_tcbinfo;
     let context = CallContext::builder().state(&**state).build();
     let handler = ExternalRpcHandler::construct(context.clone())
         .map_err(|e| format!("Failed to construct RPC handler: {}", e))?;
-    let WorkerInfo {
+    let AppInfo {
         app_name,
         app_id,
         instance_id,
@@ -38,8 +44,6 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         compose_hash: _,
         tcb_info,
         app_cert: _,
-        public_logs,
-        public_sysinfo,
         vm_config: _,
     } = handler
         .info()
@@ -62,6 +66,7 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         system_info,
         public_sysinfo,
         public_logs,
+        public_tcbinfo,
     };
     match model.render() {
         Ok(html) => Ok(RawHtml(html)),
@@ -72,7 +77,7 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
 // Returns metrics about the guest in prometheus format if public_sysinfo is enabled
 #[get("/metrics")]
 async fn metrics(state: &State<AppState>) -> Result<String, String> {
-    let public_sysinfo = state.config().public_sysinfo;
+    let public_sysinfo = state.config().app_compose.public_sysinfo;
     if !public_sysinfo {
         return Err("Sysinfo API is disabled".to_string());
     }
