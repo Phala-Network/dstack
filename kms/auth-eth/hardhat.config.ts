@@ -87,13 +87,48 @@ async function getAppAuth(ethers: any, appId: string) {
 
 // KMS Contract Tasks
 task("kms:deploy", "Deploy the KmsAuth contract")
-  .setAction(async (_, hre) => {
+  .addOptionalParam("appImplementation", "AppAuth implementation address to set during initialization", "", types.string)
+  .setAction(async (taskArgs, hre) => {
     const { ethers } = hre;
     const [deployer] = await ethers.getSigners();
     const deployerAddress = await deployer.getAddress();
     console.log("Deploying with account:", deployerAddress);
     console.log("Account balance:", await accountBalance(ethers, deployerAddress));
-    await deployContract(hre, "KmsAuth", [deployerAddress]);
+    
+    const appImplementation = taskArgs.appImplementation || ethers.ZeroAddress;
+    if (appImplementation !== ethers.ZeroAddress) {
+      console.log("Setting AppAuth implementation during initialization:", appImplementation);
+    }
+    
+    await deployContract(hre, "KmsAuth", [deployerAddress, appImplementation]);
+  });
+
+task("kms:deploy-complete", "Deploy AppAuth implementation and KmsAuth in one go")
+  .setAction(async (_, hre) => {
+    const { ethers } = hre;
+    const [deployer] = await ethers.getSigners();
+    const deployerAddress = await deployer.getAddress();
+    console.log("Deploying complete KMS setup with account:", deployerAddress);
+    console.log("Account balance:", await accountBalance(ethers, deployerAddress));
+    
+    // 1. Deploy AppAuth implementation
+    console.log("Step 1: Deploying AppAuth implementation...");
+    const AppAuth = await ethers.getContractFactory("AppAuth");
+    const appAuthImpl = await AppAuth.deploy();
+    await appAuthImpl.waitForDeployment();
+    const appImplementationAddress = await appAuthImpl.getAddress();
+    console.log("✅ AppAuth implementation deployed to:", appImplementationAddress);
+    
+    // 2. Deploy KmsAuth with AppAuth implementation set
+    console.log("Step 2: Deploying KmsAuth with AppAuth implementation...");
+    const kmsAuth = await deployContract(hre, "KmsAuth", [deployerAddress, appImplementationAddress]);
+    
+    if (kmsAuth) {
+      console.log("✅ Complete KMS setup deployed successfully!");
+      console.log("- AppAuth implementation:", appImplementationAddress);
+      console.log("- KmsAuth proxy:", await kmsAuth.getAddress());
+      console.log("🚀 Ready for factory app deployments!");
+    }
   });
 
 task("kms:upgrade", "Upgrade the KmsAuth contract")

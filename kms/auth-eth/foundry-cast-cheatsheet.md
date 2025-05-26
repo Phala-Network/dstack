@@ -20,16 +20,38 @@ alias mycast="cast --private-key $PRIVATE_KEY --rpc-url $RPC_URL"
 
 ### Initial Setup (One-time)
 
+#### Option 1: Complete Setup (Recommended)
+
 ```bash
-# 1. Deploy KmsAuth UUPS proxy (equivalent to kms:deploy)
-# Use hardhat for initial deployment:
+# Deploy AppAuth implementation and KmsAuth with implementation set in one command
+npx hardhat kms:deploy-complete --network test
+# This automatically:
+# 1. Deploys AppAuth implementation
+# 2. Deploys KmsAuth UUPS proxy with AppAuth implementation set during initialization
+# 3. Ready for factory app deployments immediately!
+```
+
+#### Option 2: Step-by-step Setup
+
+```bash
+# 1. Deploy AppAuth implementation first (equivalent to app:deploy-impl)
+npx hardhat app:deploy-impl --network test
+# Note the implementation address: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+
+# 2. Deploy KmsAuth UUPS proxy with AppAuth implementation set during initialization
+npx hardhat kms:deploy --network test --app-implementation 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+```
+
+#### Option 3: Legacy Setup (Manual)
+
+```bash
+# 1. Deploy KmsAuth UUPS proxy without AppAuth implementation
 npx hardhat kms:deploy --network test
 
-# 2. Deploy AppAuth implementation (equivalent to app:deploy-impl)
+# 2. Deploy AppAuth implementation separately
 npx hardhat app:deploy-impl --network test
-# This deploys the implementation contract at: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
 
-# 3. Set AppAuth implementation in KMS (equivalent to kms:set-app-implementation)
+# 3. Set AppAuth implementation in KMS manually (equivalent to kms:set-app-implementation)
 cast send $KMS_CONTRACT_ADDRESS "setAppAuthImplementation(address)" \
   "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0" \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
@@ -429,6 +451,25 @@ cast send $APP_AUTH_ADDRESS "addDevice(bytes32)" "0x1234..." \
 
 ### Production Deployment Process
 
+#### Streamlined Deployment (Recommended)
+
+```bash
+# 1. Complete Setup (Deploy AppAuth implementation and KMS in one command)
+npx hardhat kms:deploy-complete --network test
+export KMS_CONTRACT_ADDRESS="DEPLOYED_PROXY_ADDRESS"
+
+# 2. Configure KMS (add allowed MRs, devices, images)
+cast send $KMS_CONTRACT_ADDRESS "addKmsAggregatedMr(bytes32)" "0x..." \
+  --private-key $PRIVATE_KEY --rpc-url $RPC_URL
+
+# 3. Users can now deploy apps via factory immediately!
+cast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,bytes32)" \
+  "$USER_ADDRESS" false true "0x..." "0x..." \
+  --private-key $USER_PRIVATE_KEY --rpc-url $RPC_URL
+```
+
+#### Traditional Deployment Process
+
 ```bash
 # 1. Initial Setup (Deploy KMS with UUPS proxy)
 npx hardhat kms:deploy --network test
@@ -474,7 +515,8 @@ cast call $KMS_CONTRACT_ADDRESS "owner()" --rpc-url $RPC_URL
 
 | Hardhat Task | Cast Equivalent | Notes |
 |--------------|-----------------|-------|
-| `kms:deploy` | Use hardhat (complex proxy deployment) | Creates UUPS proxy |
+| `kms:deploy` | Use hardhat (complex proxy deployment) | Creates UUPS proxy, optionally sets AppAuth impl |
+| `kms:deploy-complete` | Use hardhat | **⭐ Recommended**: Deploys both AppAuth impl & KMS in one go |
 | `kms:deploy-impl` | `npx hardhat kms:deploy-impl` | Deploys implementation only |
 | `app:deploy-impl` | `npx hardhat app:deploy-impl` | Deploys AppAuth implementation |
 | `kms:upgrade` | `cast send ... upgradeTo` | Upgrades proxy to new impl |
@@ -484,7 +526,7 @@ cast call $KMS_CONTRACT_ADDRESS "owner()" --rpc-url $RPC_URL
 | `app:deploy` | Complex hardhat task | Multi-transaction deployment |
 | `app:deploy-with-data` | Complex hardhat task | Use initializeWithData |
 | `app:deploy-factory` | `cast send ... deployAndRegisterApp` | **Single transaction deployment** ⭐ |
-| `kms:set-app-implementation` | `cast send ... setAppAuthImplementation` | One-time setup for factory |
+| `kms:set-app-implementation` | `cast send ... setAppAuthImplementation` | Manual setup (rarely needed now) |
 | `kms:get-app-implementation` | `cast call ... appAuthImplementation` | Query factory implementation |
 
 ## Important Notes
