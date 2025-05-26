@@ -273,19 +273,30 @@ task("app:deploy", "Deploy AppAuth with a UUPS proxy")
     const proxyAddress = await appAuth.getAddress();
     const tx = await kmsContract.registerApp(proxyAddress);
     const receipt = await waitTx(tx);
+    
     // Parse the AppRegistered event from the logs
-    const appRegisteredEvent = receipt.logs
-      .filter((log: any) => log.fragment?.name === 'AppRegistered')
-      .map((log: any) => {
-        const { appId } = log.args;
-        return { appId };
-      })[0];
+    let appRegisteredEvent = null;
+    for (const log of receipt.logs) {
+      try {
+        const parsedLog = kmsContract.interface.parseLog({
+          topics: log.topics,
+          data: log.data
+        });
+        
+        if (parsedLog?.name === 'AppRegistered') {
+          appRegisteredEvent = parsedLog.args;
+          break;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
 
     if (appRegisteredEvent) {
       console.log("App registered in KMS successfully");
       console.log("Registered AppId:", appRegisteredEvent.appId);
     } else {
-      console.log("App registered in KMS successfully (event not found)");
+      console.log("App registered in KMS successfully (event not parsed)");
     }
   });
 
@@ -330,12 +341,22 @@ task("app:deploy-with-data", "Deploy AppAuth with initial device and compose has
     const receipt = await waitTx(tx);
     
     // Parse the AppRegistered event from the logs
-    const appRegisteredEvent = receipt.logs
-      .filter((log: any) => log.fragment?.name === 'AppRegistered')
-      .map((log: any) => {
-        const { appId } = log.args;
-        return { appId };
-      })[0];
+    let appRegisteredEvent = null;
+    for (const log of receipt.logs) {
+      try {
+        const parsedLog = kmsContract.interface.parseLog({
+          topics: log.topics,
+          data: log.data
+        });
+        
+        if (parsedLog?.name === 'AppRegistered') {
+          appRegisteredEvent = parsedLog.args;
+          break;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
 
     if (appRegisteredEvent) {
       console.log("App registered in KMS successfully");
@@ -345,7 +366,7 @@ task("app:deploy-with-data", "Deploy AppAuth with initial device and compose has
       const hasHash = composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
       console.log(`Deployed with ${hasDevice ? "1" : "0"} initial device and ${hasHash ? "1" : "0"} initial compose hash`);
     } else {
-      console.log("App registered in KMS successfully (event not found)");
+      console.log("App registered in KMS successfully (event not parsed)");
     }
   });
 
@@ -380,14 +401,27 @@ task("app:deploy-factory", "Deploy AppAuth via KMS factory method (single transa
     
     const receipt = await waitTx(tx);
     
-    // Parse events
-    const factoryEvent = receipt.logs
-      .filter((log: any) => log.fragment?.name === 'AppDeployedViaFactory')
-      .map((log: any) => log.args)[0];
-      
-    const registeredEvent = receipt.logs
-      .filter((log: any) => log.fragment?.name === 'AppRegistered')
-      .map((log: any) => log.args)[0];
+    // Parse events using contract interface
+    let factoryEvent = null;
+    let registeredEvent = null;
+    
+    for (const log of receipt.logs) {
+      try {
+        const parsedLog = kmsAuth.interface.parseLog({
+          topics: log.topics,
+          data: log.data
+        });
+        
+        if (parsedLog?.name === 'AppDeployedViaFactory') {
+          factoryEvent = parsedLog.args;
+        } else if (parsedLog?.name === 'AppRegistered') {
+          registeredEvent = parsedLog.args;
+        }
+      } catch (e) {
+        // Skip logs that can't be parsed by this contract
+        continue;
+      }
+    }
     
     if (factoryEvent && registeredEvent) {
       console.log("✅ App deployed and registered in single transaction!");
@@ -400,7 +434,20 @@ task("app:deploy-factory", "Deploy AppAuth via KMS factory method (single transa
       const hasHash = composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
       console.log(`Deployed with ${hasDevice ? "1" : "0"} initial device and ${hasHash ? "1" : "0"} initial compose hash`);
     } else {
-      console.log("App deployed successfully (events not found)");
+      console.log("✅ App deployed successfully!");
+      console.log("Transaction hash:", tx.hash);
+      
+      // Try to get app ID from the transaction return values if events failed
+      try {
+        const result = await tx.wait();
+        console.log("Transaction confirmed in block:", result.blockNumber);
+        
+        // If we can't parse events, suggest manual verification
+        console.log("💡 To verify deployment, use:");
+        console.log(`cast call ${KMS_CONTRACT_ADDRESS} "nextAppSequence(address)" "${deployerAddress}" --rpc-url \${RPC_URL}`);
+      } catch (e) {
+        console.log("Could not parse transaction details");
+      }
     }
   });
 

@@ -160,7 +160,7 @@ contract KmsAuth is
         
         // Prepare initialization data
         bytes memory initData = abi.encodeWithSelector(
-            bytes4(keccak256("initializeWithData(address,address,bool,bool,bytes32,bytes32)")),
+            bytes4(keccak256("initialize(address,address,bool,bool,bytes32,bytes32)")),
             initialOwner,
             appId,
             disableUpgrades,
