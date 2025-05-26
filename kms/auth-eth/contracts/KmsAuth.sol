@@ -115,15 +115,20 @@ contract KmsAuth is
         return address(uint160(uint256(fullHash)));
     }
 
-    // Function to register an app
-    function registerApp(address controller) external {
-        require(controller != address(0), "Invalid controller address");
-        address appId = nextAppId();
+    // Internal function to register an app with the given app ID and controller
+    function _registerAppInternal(address appId, address controller) private {
         require(!apps[appId].isRegistered, "App already registered");
         apps[appId].isRegistered = true;
         apps[appId].controller = controller;
         nextAppSequence[msg.sender]++;
         emit AppRegistered(appId);
+    }
+
+    // Function to register an app
+    function registerApp(address controller) external {
+        require(controller != address(0), "Invalid controller address");
+        address appId = nextAppId();
+        _registerAppInternal(appId, controller);
     }
 
     // Function to set AppAuth implementation contract address
@@ -162,12 +167,7 @@ contract KmsAuth is
         proxyAddress = address(new ERC1967Proxy(appAuthImplementation, initData));
         
         // Register to KMS
-        require(!apps[appId].isRegistered, "App already registered");
-        apps[appId].isRegistered = true;
-        apps[appId].controller = proxyAddress;
-        nextAppSequence[msg.sender]++;
-        
-        emit AppRegistered(appId);
+        _registerAppInternal(appId, proxyAddress);
         emit AppDeployedViaFactory(appId, proxyAddress, msg.sender);
     }
 
