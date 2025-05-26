@@ -164,7 +164,7 @@ export interface KmsAuthInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "initialize",
-    values: [AddressLike]
+    values: [AddressLike, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "isAppAllowed",
@@ -617,7 +617,7 @@ export interface KmsAuth extends BaseContract {
   gatewayAppId: TypedContractMethod<[], [string], "view">;
 
   initialize: TypedContractMethod<
-    [initialOwner: AddressLike],
+    [initialOwner: AddressLike, _appAuthImplementation: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -774,7 +774,11 @@ export interface KmsAuth extends BaseContract {
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "initialize"
-  ): TypedContractMethod<[initialOwner: AddressLike], [void], "nonpayable">;
+  ): TypedContractMethod<
+    [initialOwner: AddressLike, _appAuthImplementation: AddressLike],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "isAppAllowed"
   ): TypedContractMethod<

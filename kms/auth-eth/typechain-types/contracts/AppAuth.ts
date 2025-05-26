@@ -71,7 +71,6 @@ export interface AppAuthInterface extends Interface {
       | "appId"
       | "disableUpgrades"
       | "initialize"
-      | "initializeWithData"
       | "isAppAllowed"
       | "owner"
       | "proxiableUUID"
@@ -127,10 +126,6 @@ export interface AppAuthInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "initialize",
-    values: [AddressLike, AddressLike, boolean, boolean]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "initializeWithData",
     values: [AddressLike, AddressLike, boolean, boolean, BytesLike, BytesLike]
   ): string;
   encodeFunctionData(
@@ -194,10 +189,6 @@ export interface AppAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "initialize", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "initializeWithData",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(
     functionFragment: "isAppAllowed",
     data: BytesLike
@@ -412,17 +403,6 @@ export interface AppAuth extends BaseContract {
       initialOwner: AddressLike,
       _appId: AddressLike,
       _disableUpgrades: boolean,
-      _allowAnyDevice: boolean
-    ],
-    [void],
-    "nonpayable"
-  >;
-
-  initializeWithData: TypedContractMethod<
-    [
-      initialOwner: AddressLike,
-      _appId: AddressLike,
-      _disableUpgrades: boolean,
       _allowAnyDevice: boolean,
       initialDeviceId: BytesLike,
       initialComposeHash: BytesLike
@@ -503,18 +483,6 @@ export interface AppAuth extends BaseContract {
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "initialize"
-  ): TypedContractMethod<
-    [
-      initialOwner: AddressLike,
-      _appId: AddressLike,
-      _disableUpgrades: boolean,
-      _allowAnyDevice: boolean
-    ],
-    [void],
-    "nonpayable"
-  >;
-  getFunction(
-    nameOrSignature: "initializeWithData"
   ): TypedContractMethod<
     [
       initialOwner: AddressLike,
