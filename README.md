@@ -11,7 +11,7 @@ Main features:
 
 Dstack is community driven. Open sourced and built by [Kevin Wang](https://github.com/kvinwang) and many others from [Phala Network](https://github.com/Phala-Network), inspired by [Andrew Miller](https://github.com/amiller) (Flashbots & Teleport), and contributed by [Neithermind](https://github.com/neithermind) and [many others](#contributors).
 
-![](./docs/assets/org-contributors-2024-12-26.png)
+![Alt](https://repobeats.axiom.co/api/embed/0a001cc3c1f387fae08172a9e116b0ec367b8971.svg "Repobeats analytics image")
 
 # Overview
 
