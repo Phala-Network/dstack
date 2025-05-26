@@ -70,10 +70,16 @@ contract KmsAuth is
         _disableInitializers();
     }
 
-    // Initialize the contract with the owner wallet address
-    function initialize(address initialOwner) public initializer {
+    // Initialize the contract with the owner wallet address and optionally set AppAuth implementation
+    function initialize(address initialOwner, address _appAuthImplementation) public initializer {
         __Ownable_init(initialOwner);
         __UUPSUpgradeable_init();
+        
+        // Set AppAuth implementation if provided
+        if (_appAuthImplementation != address(0)) {
+            appAuthImplementation = _appAuthImplementation;
+            emit AppAuthImplementationSet(_appAuthImplementation);
+        }
     }
 
     // Function to authorize upgrades (required by UUPSUpgradeable)
