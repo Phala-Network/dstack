@@ -1,11 +1,15 @@
-use std::{ffi::OsStr, path::Path, sync::Arc};
+use std::{
+    ffi::OsStr,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::{bail, Context, Result};
 use dstack_kms_rpc::{
     kms_server::{KmsRpc, KmsServer},
-    AppId, AppKeyResponse, GetAppKeyRequest, GetKmsKeyRequest, GetMetaResponse,
-    GetTempCaCertResponse, KmsKeyResponse, KmsKeys, PublicKeyResponse, SignCertRequest,
-    SignCertResponse,
+    AppId, AppKeyResponse, ClearImageCacheRequest, GetAppKeyRequest, GetKmsKeyRequest,
+    GetMetaResponse, GetTempCaCertResponse, KmsKeyResponse, KmsKeys, PublicKeyResponse,
+    SignCertRequest, SignCertResponse,
 };
 use dstack_types::VmConfig;
 use fs_err as fs;
@@ -149,8 +153,33 @@ impl RpcHandler {
             .await
     }
 
+    fn image_cache_dir(&self) -> PathBuf {
+        self.state.config.image.cache_dir.join("images")
+    }
+
+    fn mr_cache_dir(&self) -> PathBuf {
+        self.state.config.image.cache_dir.join("computed")
+    }
+
+    fn remove_cache_dir(&self, parent_dir: &PathBuf, sub_dir: &str) -> Result<()> {
+        if sub_dir.is_empty() {
+            return Ok(());
+        }
+        if sub_dir == "all" {
+            fs::remove_dir_all(parent_dir)?;
+        } else {
+            let path = parent_dir.join(sub_dir);
+            if path.is_dir() {
+                fs::remove_dir_all(path)?;
+            } else {
+                fs::remove_file(path)?;
+            }
+        }
+        Ok(())
+    }
+
     fn get_cached_mrs(&self, key: &str) -> Result<Mrs> {
-        let path = self.state.config.image.cache_dir.join("computed").join(key);
+        let path = self.mr_cache_dir().join(key);
         if !path.exists() {
             bail!("Cached MRs not found");
         }
@@ -161,7 +190,7 @@ impl RpcHandler {
     }
 
     fn cache_mrs(&self, key: &str, mrs: &Mrs) -> Result<()> {
-        let path = self.state.config.image.cache_dir.join("computed").join(key);
+        let path = self.mr_cache_dir().join(key);
         fs::create_dir_all(path.parent().unwrap()).context("Failed to create cache directory")?;
         safe_write::safe_write(
             &path,
@@ -194,7 +223,7 @@ impl RpcHandler {
         }
 
         // Create a directory for the image if it doesn't exist
-        let image_dir = self.state.config.image.cache_dir.join(&hex_os_image_hash);
+        let image_dir = self.image_cache_dir().join(&hex_os_image_hash);
         // Check if metadata.json exists, if not download the image
         let metadata_path = image_dir.join("metadata.json");
         if !metadata_path.exists() {
@@ -253,7 +282,7 @@ impl RpcHandler {
             .replace("{OS_IMAGE_HASH}", hex_os_image_hash);
 
         // Create a temporary directory for extraction within the cache directory
-        let cache_dir = self.state.config.image.cache_dir.join("tmp");
+        let cache_dir = self.image_cache_dir().join("tmp");
         fs::create_dir_all(&cache_dir).context("Failed to create cache directory")?;
         let auto_delete_temp_dir = tempfile::Builder::new()
             .prefix("tmp-download-")
@@ -577,6 +606,18 @@ impl KmsRpc for RpcHandler {
                 self.state.root_ca.pem_cert.clone(),
             ],
         })
+    }
+
+    async fn clear_image_cache(self, request: ClearImageCacheRequest) -> Result<()> {
+        let token_hash = sha2::Sha256::new_with_prefix(&request.token).finalize();
+        if token_hash.as_slice() != self.state.config.admin_token_hash.as_slice() {
+            bail!("Invalid token");
+        }
+        self.remove_cache_dir(&self.image_cache_dir(), &request.image_hash)
+            .context("Failed to clear image cache")?;
+        self.remove_cache_dir(&self.mr_cache_dir(), &request.config_hash)
+            .context("Failed to clear MR cache")?;
+        Ok(())
     }
 }
 

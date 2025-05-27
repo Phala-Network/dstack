@@ -40,6 +40,9 @@ GIT_REV=HEAD
 
 # The DStack OS image name to use for the KMS app
 OS_IMAGE=dstack-0.5.0
+
+# The admin token for the KMS app
+ADMIN_TOKEN=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 EOF
   echo "Please edit the .env file and set the required variables, then run this script again."
   exit 1
@@ -69,6 +72,8 @@ COMPOSE_TMP=$(mktemp)
 
 GIT_REV=$(git rev-parse $GIT_REV)
 
+ADMIN_TOKEN_HASH=$(echo -n $ADMIN_TOKEN | sha256sum | cut -d' ' -f1)
+
 cp compose-dev.yaml "$COMPOSE_TMP"
 
 subvar() {
@@ -79,6 +84,7 @@ subvar ETH_RPC_URL
 subvar KMS_CONTRACT_ADDR
 subvar GIT_REV
 subvar IMAGE_DOWNLOAD_URL
+subvar ADMIN_TOKEN_HASH
 
 echo "Docker compose file:"
 cat "$COMPOSE_TMP"

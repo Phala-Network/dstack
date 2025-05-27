@@ -2,6 +2,9 @@
 set -e
 
 cat <<EOF > ./kms.toml
+[core]
+admin_token_hash = "${ADMIN_TOKEN_HASH}"
+
 [core.image]
 verify = true
 cache_dir = "./images"
