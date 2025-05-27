@@ -178,6 +178,14 @@ impl RpcHandler {
         Ok(())
     }
 
+    fn ensure_admin(&self, token: &str) -> Result<()> {
+        let token_hash = sha2::Sha256::new_with_prefix(token).finalize();
+        if token_hash.as_slice() != self.state.config.admin_token_hash.as_slice() {
+            bail!("Invalid token");
+        }
+        Ok(())
+    }
+
     fn get_cached_mrs(&self, key: &str) -> Result<Mrs> {
         let path = self.mr_cache_dir().join(key);
         if !path.exists() {
@@ -609,10 +617,7 @@ impl KmsRpc for RpcHandler {
     }
 
     async fn clear_image_cache(self, request: ClearImageCacheRequest) -> Result<()> {
-        let token_hash = sha2::Sha256::new_with_prefix(&request.token).finalize();
-        if token_hash.as_slice() != self.state.config.admin_token_hash.as_slice() {
-            bail!("Invalid token");
-        }
+        self.ensure_admin(&request.token)?;
         self.remove_cache_dir(&self.image_cache_dir(), &request.image_hash)
             .context("Failed to clear image cache")?;
         self.remove_cache_dir(&self.mr_cache_dir(), &request.config_hash)
