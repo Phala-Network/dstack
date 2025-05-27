@@ -1,5 +1,7 @@
 # Dstack
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Dstack-TEE/dstack)
+
 Dstack is a **developer friendly** and **security first** SDK to simplify the deployment of arbitrary containerized apps into TEE.
 
 Main features:
