@@ -225,31 +225,11 @@ $ curl 'http://0.0.0.0:9190/logs/zk-provider-server?text&timestamps'
 {"channel":"stdout","message":"2024-09-29T03:05:45.209546381Z [2024-09-29T03:05:44Z INFO  rust_prover::groth16] Starting setup process\n"}
 ```
 
-## Reverse proxy: TLS Passthrough
+## TLS Passthrough with Custom Domain
 
-dstack-gateway listens for incoming TLS connections and forwards them to the appropriate app based on `SNI`. If the SNI is your custom domain, dstack-gateway queries the TXT DNS record `_dstack-app-address.<custom_domain>` to determine the forwarding destination.
+dstack-gateway supports TLS passthrough for custom domains.
 
-For example, assuming I've deployed an app at `3327603e03f5bd1f830812ca4a789277fc31f577`, as shown below:
-
-![appid](./docs/assets/appid.png)
-
-Now, I want to use my custom domain `myapp.kvin.wang` to access the app. I need to set up two DNS records with my DNS provider (Cloudflare in my case):
-
-1. `A` or `CNAME` record to point the domain to the tdx machine:
-
-    ![app-dns-a](./docs/assets/app-dns-a.png)
-
-2. `TXT` record to instruct the dstack-gateway to direct the request to the specified app:
-
-    ![app-dns-txt](./docs/assets/app-dns-txt.png)
-
-Where
-
-`_dstack-app-address.myapp.kvin.wang` means configuring the app destination address of domain `myapp.kvin.wang`.
-
-The TXT record value `3327603e03f5bd1f830812ca4a789277fc31f577:8043` means that requests sent to `myapp.kvin.wang` will be processed by app `3327603e03f5bd1f830812ca4a789277fc31f577` on port `8043`
-
-Now we can go to [`https://myapp.kvin.wang`](https://myapp.kvin.wang) and the request will be handled by the service listening on `8043` in app `3327603e03f5bd1f830812ca4a789277fc31f577`.
+See the example [here](https://github.com/Dstack-TEE/dstack-examples/tree/main/custom-domain/dstack-ingress) for more details.
 
 ## Upgrade an App
 
