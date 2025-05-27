@@ -161,7 +161,7 @@ impl RpcHandler {
         self.state.config.image.cache_dir.join("computed")
     }
 
-    fn remove_cache_dir(&self, parent_dir: &PathBuf, sub_dir: &str) -> Result<()> {
+    fn remove_cache(&self, parent_dir: &PathBuf, sub_dir: &str) -> Result<()> {
         if sub_dir.is_empty() {
             return Ok(());
         }
@@ -618,9 +618,9 @@ impl KmsRpc for RpcHandler {
 
     async fn clear_image_cache(self, request: ClearImageCacheRequest) -> Result<()> {
         self.ensure_admin(&request.token)?;
-        self.remove_cache_dir(&self.image_cache_dir(), &request.image_hash)
+        self.remove_cache(&self.image_cache_dir(), &request.image_hash)
             .context("Failed to clear image cache")?;
-        self.remove_cache_dir(&self.mr_cache_dir(), &request.config_hash)
+        self.remove_cache(&self.mr_cache_dir(), &request.config_hash)
             .context("Failed to clear MR cache")?;
         Ok(())
     }
