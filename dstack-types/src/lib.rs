@@ -17,6 +17,8 @@ pub struct AppCompose {
     pub public_logs: bool,
     #[serde(default)]
     pub public_sysinfo: bool,
+    #[serde(default = "default_true")]
+    pub public_tcbinfo: bool,
     #[serde(default)]
     pub kms_enabled: bool,
     #[serde(deserialize_with = "deserialize_gateway_enabled", flatten)]

@@ -230,7 +230,11 @@
     </table>
 
     <h2>TCB Info</h2>
+    {% if public_tcbinfo %}
     <textarea readonly>{{tcb_info}}</textarea>
+    {% else %}
+    <p>TCB info is not public</p>
+    {% endif %}
 </body>
 
 </html>

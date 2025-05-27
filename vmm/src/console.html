@@ -732,6 +732,10 @@
                                 <span style="margin-left: 5px;">Public Sysinfo</span>
                             </label>
                             <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
+                                <input type="checkbox" v-model="vmForm.public_tcbinfo">
+                                <span style="margin-left: 5px;">Public TCB Info</span>
+                            </label>
+                            <label style="display: grid; grid-template-columns: 20px 1fr; align-items: center;">
                                 <input type="checkbox" v-model="vmForm.pin_numa">
                                 <span style="margin-left: 5px;">Pin NUMA</span>
                             </label>
@@ -1436,6 +1440,7 @@
                     gateway_enabled: true,
                     public_logs: true,
                     public_sysinfo: true,
+                    public_tcbinfo: true,
                     pin_numa: false,
                     hugepages: false,
                     user_config: ''
@@ -1597,6 +1602,7 @@
                         "gateway_enabled": vmForm.value.gateway_enabled,
                         "public_logs": vmForm.value.public_logs,
                         "public_sysinfo": vmForm.value.public_sysinfo,
+                        "public_tcbinfo": vmForm.value.public_tcbinfo,
                         "local_key_provider_enabled": vmForm.value.local_key_provider_enabled,
                         "allowed_envs": vmForm.value.encryptedEnvs.map(env => env.key),
                         "no_instance_id": !vmForm.value.gateway_enabled,
@@ -1853,6 +1859,7 @@
                     if (gatewayEnabled(vm)) features.push("gateway");
                     if (defaultTrue(vm.appCompose?.public_logs)) features.push("logs");
                     if (defaultTrue(vm.appCompose?.public_sysinfo)) features.push("sysinfo");
+                    if (defaultTrue(vm.appCompose?.public_tcbinfo)) features.push("tcbinfo");
                     return features.join(', ');
                 };
 
@@ -2280,6 +2287,7 @@
                     () => vmForm.value.gateway_enabled,
                     () => vmForm.value.public_logs,
                     () => vmForm.value.public_sysinfo,
+                    () => vmForm.value.public_tcbinfo,
                     () => vmForm.value.local_key_provider_enabled,
                     () => vmForm.value.docker_config.enabled,
                     () => vmForm.value.docker_config.username,

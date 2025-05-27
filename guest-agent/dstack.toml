@@ -7,12 +7,9 @@ keep_alive = 10
 log_level = "debug"
 
 [default.core]
-app_name = ""
 keys_file = "/dstack/.host-shared/.appkeys.json"
 compose_file = "/dstack/.host-shared/app-compose.json"
 sys_config_file = "/dstack/.host-shared/.sys-config.json"
-public_logs = true
-public_sysinfo = true
 data_disks = ["/"]
 
 [default.core.simulator]
