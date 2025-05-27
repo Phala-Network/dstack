@@ -81,7 +81,14 @@ macro_rules! declare_prpc_routes {
         $crate::declare_prpc_routes!(path: "/<method>", $post, $get, $state, $handler, trim: $trim_prefix);
     };
     (path: $path: literal, $post:ident, $get:ident, $state:ty, $handler:ty, trim: $trim_prefix:literal) => {
+        fn next_req_id() -> u64 {
+            use std::sync::atomic::{AtomicU64, Ordering};
+            static NEXT_REQ_ID: AtomicU64 = AtomicU64::new(0);
+            NEXT_REQ_ID.fetch_add(1, Ordering::Relaxed)
+        }
+
         #[rocket::post($path, data = "<data>")]
+        #[tracing::instrument(level = "INFO", skip_all, fields(id = next_req_id(), method = %method))]
         async fn $post<'a: 'd, 'd>(
             state: &'a $crate::rocket_helper::deps::State<$state>,
             method: &'a str,
@@ -100,6 +107,7 @@ macro_rules! declare_prpc_routes {
         }
 
         #[rocket::get($path)]
+        #[tracing::instrument(level = "INFO", skip_all, fields(id = next_req_id(), method = %method))]
         async fn $get(
             state: &$crate::rocket_helper::deps::State<$state>,
             method: &str,
