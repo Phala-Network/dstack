@@ -67,63 +67,45 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ## Build and run
 
+### Build the artifacts
 ```bash
 git clone https://github.com/Dstack-TEE/meta-dstack.git --recursive
 cd meta-dstack/
-source dev-setup
 
 mkdir build
 cd build
-../build.sh
+../build.sh hostcfg
 # This outputs the following message:
 # Config file ../build-config.sh created, please edit it to configure the build
 
 vim ./build-config.sh
 ```
 
-Now edit the config file. The following configurations values must be changed properly according to your environment:
+Review and customize the `build-config.sh` configuration file according to your environment requirements. The file contains network ports, domain settings, and other important parameters. Once configured, run the build script again to generate the necessary artifacts:
 
 ```bash
-# The internal port for dstack-vmm to listen to requests from you
-VMM_RPC_LISTEN_PORT=9080
-# The start CID for dstack-vmm to allocate to CVMs
-VMM_CID_POOL_START=20000
-
-# The internal port for kms to listen to requests from CVMs
-KMS_RPC_LISTEN_PORT=9043
-# The internal port for dstack-gateway to listen to requests from CVMs
-GATEWAY_RPC_LISTEN_PORT=9070
-
-# WireGuard interface name for dstack-gateway
-GATEWAY_WG_INTERFACE=dgw-kvin
-# WireGuard listening port for dstack-gateway
-GATEWAY_WG_LISTEN_PORT=9182
-# WireGuard server IP for dstack-gateway
-GATEWAY_WG_IP=10.0.3.1
-# WireGuard client IP range
-GATEWAY_WG_CLIENT_IP_RANGE=10.0.3.0/24
-# The public port for dstack-gateway to listen to requests that would be forwarded to app in CVMs
-GATEWAY_SERVE_PORT=9443
-
-# The public domain name for dstack-gateway. Please set a wildacard DNS record (e.g. *.app.kvin.wang in this example)
-# for this domain that points the IP address of your TDX host.
-GATEWAY_PUBLIC_DOMAIN=app.kvin.wang
-# The path to the TLS certificate for dstack-gateway's public endpoint
-GATEWAY_CERT=/etc/rproxy/certs/cert.pem
-# The path to the TLS key for dstack-gateway's public endpoint
-GATEWAY_KEY=/etc/rproxy/certs/key.pem
-```
-
-Run build.sh again to build the artifacts.
-
-```bash
-../build.sh
+../build.sh hostcfg
 
 # If everything is okay, you should see the built artifacts in the `build` directory.
 $ ls
 certs  images  dstack-kms  kms.toml  run  dstack-vmm  vmm.toml  dstack-gateway  gateway.toml
 ```
 
+### Download guest image or build guest image from source
+
+```bash
+# This will download the guest image from the release page.
+../build.sh dl 0.5.0
+```
+
+Or build guest image from source:
+
+```bash
+# This will build the guest image from source using the yocto meta layer. This will take a while.
+../build.sh guest
+```
+
+### Run components
 Now you can open 3 terminals to start the components:
 
 1. Run `./dstack-kms -c kms.toml`
