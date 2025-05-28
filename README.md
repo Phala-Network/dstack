@@ -97,7 +97,7 @@ certs  images  dstack-kms  kms.toml  run  dstack-vmm  vmm.toml  dstack-gateway  
 
 ```bash
 # This will download the guest image from the release page.
-../build.sh dl 0.5.0
+../build.sh dl 0.5.1
 ```
 
 Or build guest image from source:
