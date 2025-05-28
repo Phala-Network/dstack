@@ -34,6 +34,8 @@ pub(crate) struct KmsConfig {
     pub auth_api: AuthApi,
     pub onboard: OnboardConfig,
     pub image: ImageConfig,
+    #[serde(with = "serde_human_bytes")]
+    pub admin_token_hash: Vec<u8>,
 }
 
 impl KmsConfig {

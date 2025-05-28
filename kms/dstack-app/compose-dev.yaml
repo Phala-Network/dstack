@@ -66,6 +66,7 @@ services:
       - /var/run/dstack.sock:/var/run/dstack.sock
     environment:
       - IMAGE_DOWNLOAD_URL=${IMAGE_DOWNLOAD_URL}
+      - ADMIN_TOKEN_HASH=${ADMIN_TOKEN_HASH}
     ports:
       - 8000:8000
     depends_on:

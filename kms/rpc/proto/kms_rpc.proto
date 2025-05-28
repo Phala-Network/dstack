@@ -89,6 +89,14 @@ service KMS {
   rpc GetTempCaCert(google.protobuf.Empty) returns (GetTempCaCertResponse);
   // Sign a certificate
   rpc SignCert(SignCertRequest) returns (SignCertResponse);
+  // Clear the image cache
+  rpc ClearImageCache(ClearImageCacheRequest) returns (google.protobuf.Empty);
+}
+
+message ClearImageCacheRequest {
+  string token = 1;
+  string image_hash = 2;
+  string config_hash = 3;
 }
 
 message BootstrapRequest {
