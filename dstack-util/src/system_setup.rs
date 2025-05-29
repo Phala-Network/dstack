@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
+use dcap_qvl::quote::{Quote, Report};
 use dstack_kms_rpc as rpc;
 use dstack_types::{
     shared_filenames::{
@@ -17,7 +18,7 @@ use fs_err as fs;
 use ra_rpc::client::{CertInfo, RaClient, RaClientConfig};
 use ra_tls::cert::generate_ra_cert;
 use serde::{Deserialize, Serialize};
-use tdx_attest::extend_rtmr3;
+use tdx_attest::{extend_rtmr3, get_quote};
 use tracing::{info, warn};
 
 use crate::{
@@ -470,6 +471,8 @@ impl<'a> Stage0<'a> {
         let key_provider = self.shared.app_compose.key_provider();
         let mut instance_info = self.shared.instance_info.clone();
 
+        validate_compose_hash(&compose_hash).context("Failed to validate compose hash")?;
+
         if instance_info.app_id.is_empty() {
             instance_info.app_id = truncated_compose_hash.to_vec();
         }
@@ -534,6 +537,25 @@ impl<'a> Stage0<'a> {
             keys: app_keys,
         })
     }
+}
+
+fn validate_compose_hash(compose_hash: &[u8]) -> Result<()> {
+    // If configid is not all zero, use it as compose_hash
+    let (_, quote) = get_quote(&[0u8; 64], None).context("Failed to get quote")?;
+    let quote = Quote::parse(&quote).context("Failed to parse quote")?;
+    let configid = match quote.report {
+        Report::SgxEnclave(_report) => bail!("SGX quote is not supported"),
+        Report::TD10(report) => report.mr_config_id,
+        Report::TD15(report) => report.base.mr_config_id,
+    };
+    info!("mr_config_id: {}", hex_fmt::HexFmt(&configid));
+    if configid == [0u8; 48] {
+        return Ok(());
+    }
+    if &configid[..32] != compose_hash {
+        bail!("mr_config_id does not match compose hash");
+    }
+    Ok(())
 }
 
 impl Stage1<'_> {
