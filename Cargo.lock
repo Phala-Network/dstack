@@ -2205,6 +2205,7 @@ name = "dstack-vmm"
 version = "0.5.1"
 dependencies = [
  "anyhow",
+ "base64",
  "bon",
  "clap",
  "dirs",

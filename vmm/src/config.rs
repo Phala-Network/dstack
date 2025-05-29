@@ -120,6 +120,9 @@ pub struct CvmConfig {
 
     /// Auto restart configuration
     pub auto_restart: AutoRestartConfig,
+
+    /// Use mrconfigid instead of compose hash
+    pub use_mrconfigid: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

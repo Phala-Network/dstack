@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
+use dcap_qvl::quote::{Quote, Report};
 use dstack_kms_rpc as rpc;
 use dstack_types::{
     shared_filenames::{
@@ -17,7 +18,7 @@ use fs_err as fs;
 use ra_rpc::client::{CertInfo, RaClient, RaClientConfig};
 use ra_tls::cert::generate_ra_cert;
 use serde::{Deserialize, Serialize};
-use tdx_attest::extend_rtmr3;
+use tdx_attest::{extend_rtmr3, get_quote};
 use tracing::{info, warn};
 
 use crate::{
@@ -364,6 +365,7 @@ impl<'a> Stage0<'a> {
             let (_, ca_pem) = x509_parser::pem::parse_x509_pem(keys.ca_cert.as_bytes())
                 .context("Failed to parse ca cert")?;
             let x509 = ca_pem.parse_x509().context("Failed to parse ca cert")?;
+            self.ensure_provider_id_matches(x509.public_key().raw)?;
             let id = hex::encode(x509.public_key().raw);
             let provider_info = KeyProviderInfo::new("kms".into(), id);
             emit_key_provider_info(&provider_info)?;
@@ -373,6 +375,20 @@ impl<'a> Stage0<'a> {
         Ok(())
     }
 
+    fn ensure_provider_id_matches(&self, provider_id: &[u8]) -> Result<()> {
+        let expected_key_provider_id = &self.shared.app_compose.key_provider_id;
+        if expected_key_provider_id.is_empty() {
+            return Ok(());
+        };
+        if expected_key_provider_id != provider_id {
+            bail!(
+                "Unexpected key provider id: {:?}, expected: {:?}",
+                hex_fmt::HexFmt(provider_id),
+                hex_fmt::HexFmt(expected_key_provider_id)
+            );
+        }
+        Ok(())
+    }
     async fn get_keys_from_local_key_provider(&self) -> Result<()> {
         info!("Getting keys from local key provider");
         let provision = self
@@ -387,6 +403,7 @@ impl<'a> Stage0<'a> {
         fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
 
         // write to RTMR
+        self.ensure_provider_id_matches(&provision.mr)?;
         let provider_info = KeyProviderInfo::new("local-sgx".into(), hex::encode(provision.mr));
         emit_key_provider_info(&provider_info)?;
         Ok(())
@@ -470,6 +487,8 @@ impl<'a> Stage0<'a> {
         let key_provider = self.shared.app_compose.key_provider();
         let mut instance_info = self.shared.instance_info.clone();
 
+        validate_compose_hash(&compose_hash).context("Failed to validate compose hash")?;
+
         if instance_info.app_id.is_empty() {
             instance_info.app_id = truncated_compose_hash.to_vec();
         }
@@ -534,6 +553,25 @@ impl<'a> Stage0<'a> {
             keys: app_keys,
         })
     }
+}
+
+fn validate_compose_hash(compose_hash: &[u8]) -> Result<()> {
+    // If configid is not all zero, use it as compose_hash
+    let (_, quote) = get_quote(&[0u8; 64], None).context("Failed to get quote")?;
+    let quote = Quote::parse(&quote).context("Failed to parse quote")?;
+    let configid = match quote.report {
+        Report::SgxEnclave(_report) => bail!("SGX quote is not supported"),
+        Report::TD10(report) => report.mr_config_id,
+        Report::TD15(report) => report.base.mr_config_id,
+    };
+    info!("mr_config_id: {}", hex_fmt::HexFmt(&configid));
+    if configid == [0u8; 48] {
+        return Ok(());
+    }
+    if &configid[..32] != compose_hash {
+        bail!("mr_config_id does not match compose hash");
+    }
+    Ok(())
 }
 
 impl Stage1<'_> {
