@@ -68,7 +68,6 @@ type InfoResponse struct {
 	PublicSysinfo   bool   `json:"public_sysinfo"`
 	DeviceID        string `json:"device_id"`
 	MrAggregated    string `json:"mr_aggregated"`
-	MrKeyProvider   string `json:"mr_key_provider"`
 	KeyProviderInfo string `json:"key_provider_info"`
 	OsImageHash     string `json:"os_image_hash"`
 	ComposeHash     string `json:"compose_hash"`

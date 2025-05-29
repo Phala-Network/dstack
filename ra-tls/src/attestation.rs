@@ -207,7 +207,6 @@ impl<T> Attestation<T> {
             os_image_hash: self.find_event_payload("os-image-hash").unwrap_or_default(),
             mr_system,
             mr_aggregated,
-            mr_key_provider,
             key_provider_info,
         })
     }
@@ -414,9 +413,6 @@ pub struct AppInfo {
     /// Measurement of the app image
     #[serde(with = "hex_bytes")]
     pub os_image_hash: Vec<u8>,
-    /// Measurement of the key provider
-    #[serde(with = "hex_bytes")]
-    pub mr_key_provider: [u8; 32],
     /// Key provider info
     #[serde(with = "hex_bytes")]
     pub key_provider_info: Vec<u8>,

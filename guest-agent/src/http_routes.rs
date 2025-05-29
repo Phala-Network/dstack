@@ -39,7 +39,6 @@ async fn index(state: &State<AppState>) -> Result<RawHtml<String>, String> {
         device_id,
         mr_aggregated: _,
         os_image_hash: _,
-        mr_key_provider: _,
         key_provider_info,
         compose_hash: _,
         tcb_info,

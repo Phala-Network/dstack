@@ -110,7 +110,6 @@ class InfoResponse(BaseModel):
     device_id: str
     mr_aggregated: str
     os_image_hash: str
-    mr_key_provider: str
     key_provider_info: str
     compose_hash: str
 
