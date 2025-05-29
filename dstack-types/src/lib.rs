@@ -27,6 +27,8 @@ pub struct AppCompose {
     pub local_key_provider_enabled: bool,
     #[serde(default)]
     pub key_provider: Option<KeyProviderKind>,
+    #[serde(default, with = "hex_bytes")]
+    pub key_provider_id: Vec<u8>,
     #[serde(default)]
     pub allowed_envs: Vec<String>,
     #[serde(default)]

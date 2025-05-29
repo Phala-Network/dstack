@@ -365,6 +365,7 @@ impl<'a> Stage0<'a> {
             let (_, ca_pem) = x509_parser::pem::parse_x509_pem(keys.ca_cert.as_bytes())
                 .context("Failed to parse ca cert")?;
             let x509 = ca_pem.parse_x509().context("Failed to parse ca cert")?;
+            self.ensure_provider_id_matches(x509.public_key().raw)?;
             let id = hex::encode(x509.public_key().raw);
             let provider_info = KeyProviderInfo::new("kms".into(), id);
             emit_key_provider_info(&provider_info)?;
@@ -374,6 +375,20 @@ impl<'a> Stage0<'a> {
         Ok(())
     }
 
+    fn ensure_provider_id_matches(&self, provider_id: &[u8]) -> Result<()> {
+        let expected_key_provider_id = &self.shared.app_compose.key_provider_id;
+        if expected_key_provider_id.is_empty() {
+            return Ok(());
+        };
+        if expected_key_provider_id != provider_id {
+            bail!(
+                "Unexpected key provider id: {:?}, expected: {:?}",
+                hex_fmt::HexFmt(provider_id),
+                hex_fmt::HexFmt(expected_key_provider_id)
+            );
+        }
+        Ok(())
+    }
     async fn get_keys_from_local_key_provider(&self) -> Result<()> {
         info!("Getting keys from local key provider");
         let provision = self
@@ -388,6 +403,7 @@ impl<'a> Stage0<'a> {
         fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
 
         // write to RTMR
+        self.ensure_provider_id_matches(&provision.mr)?;
         let provider_info = KeyProviderInfo::new("local-sgx".into(), hex::encode(provision.mr));
         emit_key_provider_info(&provider_info)?;
         Ok(())
