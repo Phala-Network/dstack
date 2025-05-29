@@ -404,6 +404,7 @@ class VmmCLI:
                            kms_enabled: bool,
                            gateway_enabled: bool,
                            local_key_provider_enabled: bool,
+                           key_provider_id: str,
                            public_logs: bool,
                            public_sysinfo: bool,
                            envs: Optional[Dict],
@@ -419,6 +420,7 @@ class VmmCLI:
             "kms_enabled": kms_enabled,
             "gateway_enabled": gateway_enabled,
             "local_key_provider_enabled": local_key_provider_enabled,
+            "key_provider_id": key_provider_id,
             "public_logs": public_logs,
             "public_sysinfo": public_sysinfo,
             "allowed_envs": [k for k in envs.keys()],
@@ -782,6 +784,8 @@ def main():
     compose_parser.add_argument(
         '--local-key-provider', action='store_true', help='Enable local key provider')
     compose_parser.add_argument(
+        '--key-provider-id', default=None, help='Key provider ID if you want to bind to a specific key provider')
+    compose_parser.add_argument(
         '--public-logs', action='store_true', help='Enable public logs')
     compose_parser.add_argument(
         '--public-sysinfo', action='store_true', help='Enable public sysinfo')
@@ -872,6 +876,7 @@ def main():
             kms_enabled=args.kms,
             gateway_enabled=args.gateway,
             local_key_provider_enabled=args.local_key_provider,
+            key_provider_id=args.key_provider_id,
             public_logs=args.public_logs,
             public_sysinfo=args.public_sysinfo,
             envs=parse_env_file(args.env_file),

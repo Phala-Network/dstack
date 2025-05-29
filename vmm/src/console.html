@@ -745,6 +745,11 @@
                             </label>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label for="keyProviderId">Key Provider ID (optional)</label>
+                        <input id="keyProviderId" v-model="vmForm.key_provider_id" type="text"
+                            placeholder="Key provider ID if you want to bind to a specific key provider">
+                    </div>
 
                     <div class="form-group full-width" v-if="vmForm.kms_enabled">
                         <encrypted-env-editor :env-vars="vmForm.encryptedEnvs"></encrypted-env-editor>
@@ -1437,6 +1442,7 @@
                     app_id: '',
                     kms_enabled: true,
                     local_key_provider_enabled: false,
+                    key_provider_id: '',
                     gateway_enabled: true,
                     public_logs: true,
                     public_sysinfo: true,
@@ -1604,6 +1610,7 @@
                         "public_sysinfo": vmForm.value.public_sysinfo,
                         "public_tcbinfo": vmForm.value.public_tcbinfo,
                         "local_key_provider_enabled": vmForm.value.local_key_provider_enabled,
+                        "key_provider_id": vmForm.value.key_provider_id,
                         "allowed_envs": vmForm.value.encryptedEnvs.map(env => env.key),
                         "no_instance_id": !vmForm.value.gateway_enabled,
                         "secure_time": false,
@@ -2289,6 +2296,7 @@
                     () => vmForm.value.public_sysinfo,
                     () => vmForm.value.public_tcbinfo,
                     () => vmForm.value.local_key_provider_enabled,
+                    () => vmForm.value.key_provider_id,
                     () => vmForm.value.docker_config.enabled,
                     () => vmForm.value.docker_config.username,
                     () => vmForm.value.docker_config.token_key
