@@ -14,6 +14,7 @@ use std::{
 
 use super::{image::Image, GpuConfig, VmState};
 use anyhow::{bail, Context, Result};
+use base64::prelude::*;
 use bon::Builder;
 use dstack_types::{
     shared_filenames::{APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, USER_CONFIG},
@@ -301,7 +302,19 @@ impl VmConfig {
         command
             .arg("-machine")
             .arg("q35,kernel-irqchip=split,confidential-guest-support=tdx,hpet=off");
-        command.arg("-object").arg("tdx-guest,id=tdx");
+
+        let tdx_object = if cfg.use_mrconfigid {
+            let mut compose_hash = workdir
+                .app_compose_hash()
+                .context("Failed to get compose hash")?;
+            compose_hash.resize(48, 0);
+            let mrconfigid = BASE64_STANDARD.encode(&compose_hash);
+            format!("tdx-guest,id=tdx,mrconfigid={mrconfigid}")
+        } else {
+            "tdx-guest,id=tdx".to_string()
+        };
+        command.arg("-object").arg(tdx_object);
+
         command
             .arg("-device")
             .arg(format!("vhost-vsock-pci,guest-cid={}", self.cid));
@@ -609,6 +622,13 @@ impl VmWorkDir {
 
     pub fn app_compose_path(&self) -> PathBuf {
         self.shared_dir().join(APP_COMPOSE)
+    }
+
+    pub fn app_compose_hash(&self) -> Result<Vec<u8>> {
+        use sha2::Digest;
+        let compose_path = self.app_compose_path();
+        let compose = fs::read(compose_path).context("Failed to read compose")?;
+        Ok(sha2::Sha256::new_with_prefix(&compose).finalize().to_vec())
     }
 
     pub fn user_config_path(&self) -> PathBuf {
