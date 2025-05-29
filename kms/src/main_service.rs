@@ -428,7 +428,6 @@ impl RpcHandler {
             mr_aggregated: app_info.mr_aggregated.to_vec(),
             os_image_hash: os_image_hash.clone(),
             mr_system: app_info.mr_system.to_vec(),
-            mr_key_provider: app_info.mr_key_provider.to_vec(),
             app_id: app_info.app_id,
             compose_hash: app_info.compose_hash,
             instance_id: app_info.instance_id,

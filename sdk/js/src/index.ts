@@ -47,7 +47,6 @@ export interface InfoResponse {
   device_id: string
   mr_aggregated: string
   os_image_hash: string
-  mr_key_provider: string
   key_provider_info: string
   compose_hash: string
 }
