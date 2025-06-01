@@ -7,9 +7,9 @@ use dstack_vmm_rpc as rpc;
 use dstack_vmm_rpc::vmm_server::{VmmRpc, VmmServer};
 use dstack_vmm_rpc::{
     AppId, ComposeHash as RpcComposeHash, GatewaySettings, GetInfoResponse, GetMetaResponse, Id,
-    ImageInfo as RpcImageInfo, ImageListResponse, KmsSettings, ListGpusResponse,
-    PublicKeyResponse, ResizeVmRequest, ResourcesSettings, StatusRequest, StatusResponse,
-    UpgradeAppRequest, VersionResponse, VmConfiguration,
+    ImageInfo as RpcImageInfo, ImageListResponse, KmsSettings, ListGpusResponse, PublicKeyResponse,
+    ResizeVmRequest, ResourcesSettings, StatusRequest, StatusResponse, UpgradeAppRequest,
+    VersionResponse, VmConfiguration,
 };
 use fs_err as fs;
 use ra_rpc::{CallContext, RpcCall};
