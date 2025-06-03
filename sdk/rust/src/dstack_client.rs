@@ -117,7 +117,7 @@ pub struct InfoResponse {
     app_id: String,
     instance_id: String,
     app_cert: String,
-    tcb_info: TcbInfo,
+    pub tcb_info: TcbInfo,
     app_name: String,
     public_logs: bool,
     public_sysinfo: bool,
@@ -139,7 +139,7 @@ impl InfoResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-struct TcbInfo {
+pub struct TcbInfo {
     mrtd: String,
     rootfs_hash: String,
     rtmr0: String,
