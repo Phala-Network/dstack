@@ -42,32 +42,47 @@ pub enum ClientKind {
     Unix,
 }
 
+/// Represents an event log entry in the system
 #[derive(Serialize, Deserialize)]
 pub struct EventLog {
+    /// The index of the IMR (Integrity Measurement Register)
     imr: u32,
+    /// The type of event being logged
     event_type: u32,
+    /// The cryptographic digest of the event
     digest: String,
+    /// The type of event as a string
     event: String,
+    /// The payload data associated with the event
     event_payload: String,
 }
 
+/// Configuration for TLS key generation
 #[derive(bon::Builder, Serialize)]
 pub struct TlsKeyConfig {
+    /// The subject name for the certificate
     #[builder(into, default = String::new())]
     pub subject: String,
+    /// Alternative names for the certificate
     #[builder(default = Vec::new())]
     pub alt_names: Vec<String>,
+    /// Whether the key should be used for remote attestation TLS
     #[builder(default = false)]
     pub usage_ra_tls: bool,
+    /// Whether the key should be used for server authentication
     #[builder(default = true)]
     pub usage_server_auth: bool,
+    /// Whether the key should be used for client authentication
     #[builder(default = false)]
     pub usage_client_auth: bool,
 }
 
+/// Response containing a key and its signature chain
 #[derive(Serialize, Deserialize)]
 pub struct GetKeyResponse {
+    /// The key in hexadecimal format
     pub key: String,
+    /// The chain of signatures verifying the key
     pub signature_chain: Vec<String>,
 }
 
@@ -81,9 +96,12 @@ impl GetKeyResponse {
     }
 }
 
+/// Response containing a quote and associated event log
 #[derive(Serialize, Deserialize)]
 pub struct GetQuoteResponse {
+    /// The attestation quote in hexadecimal format
     pub quote: String,
+    /// The event log associated with the quote
     pub event_log: String,
 }
 
@@ -112,19 +130,32 @@ impl GetQuoteResponse {
     }
 }
 
+/// Response containing instance information and attestation data
 #[derive(Serialize, Deserialize)]
 pub struct InfoResponse {
+    /// The application identifier
     app_id: String,
+    /// The instance identifier
     instance_id: String,
+    /// The application certificate
     app_cert: String,
+    /// Trusted Computing Base information
     tcb_info: TcbInfo,
+    /// The name of the application
     app_name: String,
+    /// Whether public logs are enabled
     public_logs: bool,
+    /// Whether public system information is enabled
     public_sysinfo: bool,
+    /// The device identifier
     device_id: String,
+    /// The aggregated measurement register value
     mr_aggregated: String,
+    /// The hash of the OS image
     os_image_hash: String,
+    /// Information about the key provider
     key_provider_info: String,
+    /// The hash of the compose configuration
     compose_hash: String,
 }
 
@@ -138,28 +169,43 @@ impl InfoResponse {
     }
 }
 
+/// Trusted Computing Base information structure
 #[derive(Serialize, Deserialize)]
 struct TcbInfo {
+    /// The measurement root of trust
     mrtd: String,
+    /// The hash of the root filesystem
     rootfs_hash: String,
+    /// The value of RTMR0 (Runtime Measurement Register 0)
     rtmr0: String,
+    /// The value of RTMR1 (Runtime Measurement Register 1)
     rtmr1: String,
+    /// The value of RTMR2 (Runtime Measurement Register 2)
     rtmr2: String,
+    /// The value of RTMR3 (Runtime Measurement Register 3)
     rtmr3: String,
+    /// The event log entries
     event_log: Vec<EventLog>,
 }
 
+/// Response containing TLS key and certificate chain
 #[derive(Serialize, Deserialize)]
 pub struct GetTlsKeyResponse {
+    /// The TLS key in hexadecimal format
     pub key: String,
+    /// The chain of certificates
     pub certificate_chain: Vec<String>,
 }
 
 pub trait BaseClient {}
 
+/// The main client for interacting with the dstack service
 pub struct DstackClient {
+    /// The base URL for HTTP requests
     base_url: String,
+    /// The endpoint for Unix domain socket communication
     endpoint: String,
+    /// The type of client (HTTP or Unix domain socket)
     client: ClientKind,
 }
 
