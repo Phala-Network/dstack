@@ -34,5 +34,5 @@ dstack-util setup --work-dir $WORK_DIR --device /dev/vdb --mount-point $DATA_MNT
 echo "Mounting docker dirs to persistent storage"
 # Mount docker dirs to DATA_MNT
 mkdir -p $DATA_MNT/var/lib/docker
-mount --bind $DATA_MNT/var/lib/docker /var/lib/docker
-mount --bind $WORK_DIR /dstack
+mount --rbind $DATA_MNT/var/lib/docker /var/lib/docker
+mount --rbind $WORK_DIR /dstack
