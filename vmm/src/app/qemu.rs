@@ -17,17 +17,22 @@ use anyhow::{bail, Context, Result};
 use base64::prelude::*;
 use bon::Builder;
 use dstack_types::{
+    mr_config::MrConfig,
     shared_filenames::{APP_COMPOSE, ENCRYPTED_ENV, INSTANCE_INFO, USER_CONFIG},
     AppCompose,
 };
 use dstack_vmm_rpc as pb;
 use fs_err as fs;
 use serde::{Deserialize, Serialize};
+use serde_human_bytes as hex_bytes;
 use supervisor_client::supervisor::{ProcessConfig, ProcessInfo};
 
 #[derive(Debug, Deserialize)]
 pub struct InstanceInfo {
+    #[serde(default)]
     pub instance_id: String,
+    #[serde(default, with = "hex_bytes")]
+    pub app_id: Vec<u8>,
 }
 
 pub struct VmInfo {
@@ -316,11 +321,34 @@ impl VmConfig {
             .arg("q35,kernel-irqchip=split,confidential-guest-support=tdx,hpet=off");
 
         let tdx_object = if cfg.use_mrconfigid {
-            let mut compose_hash = workdir
+            let app_compose = workdir.app_compose().context("Failed to get app compose")?;
+            let compose_hash = workdir
                 .app_compose_hash()
                 .context("Failed to get compose hash")?;
-            compose_hash.resize(48, 0);
-            let mrconfigid = BASE64_STANDARD.encode(&compose_hash);
+            let mr_config = if app_compose.key_provider_id.is_empty() {
+                MrConfig::V1 {
+                    compose_hash: &compose_hash,
+                }
+            } else {
+                let instance_info = workdir
+                    .instance_info()
+                    .context("Failed to get instance info")?;
+                let app_id = if instance_info.app_id.is_empty() {
+                    &compose_hash[..20]
+                } else {
+                    &instance_info.app_id
+                };
+
+                let key_provider = app_compose.key_provider();
+                let key_provider_id = &app_compose.key_provider_id;
+                MrConfig::V2 {
+                    compose_hash: &compose_hash,
+                    app_id: &app_id.try_into().context("Invalid app ID")?,
+                    key_provider,
+                    key_provider_id,
+                }
+            };
+            let mrconfigid = BASE64_STANDARD.encode(mr_config.to_mr_config_id());
             format!("tdx-guest,id=tdx,mrconfigid={mrconfigid}")
         } else {
             "tdx-guest,id=tdx".to_string()
@@ -636,11 +664,11 @@ impl VmWorkDir {
         self.shared_dir().join(APP_COMPOSE)
     }
 
-    pub fn app_compose_hash(&self) -> Result<Vec<u8>> {
+    pub fn app_compose_hash(&self) -> Result<[u8; 32]> {
         use sha2::Digest;
         let compose_path = self.app_compose_path();
         let compose = fs::read(compose_path).context("Failed to read compose")?;
-        Ok(sha2::Sha256::new_with_prefix(&compose).finalize().to_vec())
+        Ok(sha2::Sha256::new_with_prefix(&compose).finalize().into())
     }
 
     pub fn user_config_path(&self) -> PathBuf {

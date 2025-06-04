@@ -2155,6 +2155,7 @@ version = "0.5.1"
 dependencies = [
  "serde",
  "serde-human-bytes",
+ "sha3",
 ]
 
 [[package]]
@@ -2230,6 +2231,7 @@ dependencies = [
  "rocket-vsock-listener",
  "safe-write",
  "serde",
+ "serde-human-bytes",
  "serde_json",
  "sha2",
  "shared_child",

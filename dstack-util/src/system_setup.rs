@@ -5,7 +5,6 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use dcap_qvl::quote::{Quote, Report};
 use dstack_kms_rpc as rpc;
 use dstack_types::{
     shared_filenames::{
@@ -17,19 +16,19 @@ use dstack_types::{
 use fs_err as fs;
 use ra_rpc::client::{CertInfo, RaClient, RaClientConfig};
 use ra_tls::cert::generate_ra_cert;
+use rand::Rng as _;
 use serde::{Deserialize, Serialize};
-use tdx_attest::{extend_rtmr3, get_quote};
+use tdx_attest::extend_rtmr3;
 use tracing::{info, warn};
 
 use crate::{
-    cmd_gen_app_keys, cmd_show_mrs,
+    cmd_show_mrs,
     crypto::dh_decrypt,
     gen_app_keys_from_seed,
     host_api::HostApi,
     utils::{
         deserialize_json_file, sha256, sha256_file, AppCompose, AppKeys, KeyProviderKind, SysConfig,
     },
-    GenAppKeysArgs,
 };
 use cert_client::CertRequestClient;
 use cmd_lib::run_fun as cmd;
@@ -42,6 +41,8 @@ use ra_tls::{
 };
 use serde_human_bytes as hex_bytes;
 use serde_json::Value;
+
+mod config_id_verifier;
 
 #[derive(clap::Parser)]
 /// Prepare full disk encryption
@@ -244,6 +245,11 @@ impl AppIdValidator {
     }
 }
 
+struct AppInfo {
+    instance_info: InstanceInfo,
+    compose_hash: [u8; 32],
+}
+
 struct Stage0<'a> {
     args: &'a SetupArgs,
     shared: HostShared,
@@ -330,6 +336,11 @@ impl<'a> Stage0<'a> {
         extend_rtmr3("os-image-hash", &response.os_image_hash)
             .context("Failed to extend os-image-hash to RTMR3")?;
 
+        let (_, ca_pem) = x509_parser::pem::parse_x509_pem(tmp_ca.ca_cert.as_bytes())
+            .context("Failed to parse ca cert")?;
+        let x509 = ca_pem.parse_x509().context("Failed to parse ca cert")?;
+        let root_pubkey = x509.public_key().raw.to_vec();
+
         let keys = AppKeys {
             ca_cert: tmp_ca.ca_cert,
             disk_crypt_key: response.disk_crypt_key,
@@ -337,12 +348,15 @@ impl<'a> Stage0<'a> {
             k256_key: response.k256_key,
             k256_signature: response.k256_signature,
             gateway_app_id: response.gateway_app_id,
-            key_provider: KeyProvider::Kms { url: kms_url },
+            key_provider: KeyProvider::Kms {
+                url: kms_url,
+                pubkey: root_pubkey,
+            },
         };
         Ok(keys)
     }
 
-    async fn request_app_keys_from_kms(&self) -> Result<()> {
+    async fn request_app_keys_from_kms(&self) -> Result<AppKeys> {
         if self.shared.sys_config.kms_urls.is_empty() {
             bail!("No KMS URLs are set");
         }
@@ -361,21 +375,10 @@ impl<'a> Stage0<'a> {
             }
             bail!("Failed to get app keys from KMS");
         };
-        {
-            let (_, ca_pem) = x509_parser::pem::parse_x509_pem(keys.ca_cert.as_bytes())
-                .context("Failed to parse ca cert")?;
-            let x509 = ca_pem.parse_x509().context("Failed to parse ca cert")?;
-            self.ensure_provider_id_matches(x509.public_key().raw)?;
-            let id = hex::encode(x509.public_key().raw);
-            let provider_info = KeyProviderInfo::new("kms".into(), id);
-            emit_key_provider_info(&provider_info)?;
-        };
-        let keys_json = serde_json::to_string(&keys).context("Failed to serialize app keys")?;
-        fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
-        Ok(())
+        Ok(keys)
     }
 
-    fn ensure_provider_id_matches(&self, provider_id: &[u8]) -> Result<()> {
+    fn verify_key_provider_id(&self, provider_id: &[u8]) -> Result<()> {
         let expected_key_provider_id = &self.shared.app_compose.key_provider_id;
         if expected_key_provider_id.is_empty() {
             return Ok(());
@@ -389,7 +392,7 @@ impl<'a> Stage0<'a> {
         }
         Ok(())
     }
-    async fn get_keys_from_local_key_provider(&self) -> Result<()> {
+    async fn get_keys_from_local_key_provider(&self) -> Result<AppKeys> {
         info!("Getting keys from local key provider");
         let provision = self
             .vmm
@@ -397,35 +400,22 @@ impl<'a> Stage0<'a> {
             .await
             .context("Failed to get sealing key")?;
         // write to fs
-        let app_keys =
-            gen_app_keys_from_seed(&provision.sk).context("Failed to generate app keys")?;
-        let keys_json = serde_json::to_string(&app_keys).context("Failed to serialize app keys")?;
-        fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
-
-        // write to RTMR
-        self.ensure_provider_id_matches(&provision.mr)?;
-        let provider_info = KeyProviderInfo::new("local-sgx".into(), hex::encode(provision.mr));
-        emit_key_provider_info(&provider_info)?;
-        Ok(())
+        let app_keys = gen_app_keys_from_seed(&provision.sk, Some(provision.mr.to_vec()))
+            .context("Failed to generate app keys")?;
+        Ok(app_keys)
     }
 
     async fn request_app_keys(&self) -> Result<AppKeys> {
         let key_provider = self.shared.app_compose.key_provider();
         match key_provider {
-            KeyProviderKind::Kms => self.request_app_keys_from_kms().await?,
-            KeyProviderKind::Local => self.get_keys_from_local_key_provider().await?,
+            KeyProviderKind::Kms => self.request_app_keys_from_kms().await,
+            KeyProviderKind::Local => self.get_keys_from_local_key_provider().await,
             KeyProviderKind::None => {
                 info!("No key provider is enabled, generating temporary app keys");
-                let provider_info = KeyProviderInfo::new("none".into(), "".into());
-                emit_key_provider_info(&provider_info)?;
-                cmd_gen_app_keys(GenAppKeysArgs {
-                    ca_level: 1,
-                    output: self.app_keys_file(),
-                })?;
+                let seed: [u8; 32] = rand::thread_rng().gen();
+                gen_app_keys_from_seed(&seed, None).context("Failed to generate app keys")
             }
         }
-
-        deserialize_json_file(self.app_keys_file()).context("Failed to decode app keys")
     }
 
     async fn mount_data_disk(&self, initialized: bool, disk_crypt_key: &str) -> Result<()> {
@@ -480,14 +470,12 @@ impl<'a> Stage0<'a> {
         Ok(())
     }
 
-    fn measure_app_info(&self) -> Result<InstanceInfo> {
+    fn measure_app_info(&self) -> Result<AppInfo> {
         let compose_hash = sha256_file(self.shared.dir.app_compose_file())?;
         let truncated_compose_hash = truncate(&compose_hash, 20);
         let kms_enabled = self.shared.app_compose.kms_enabled();
         let key_provider = self.shared.app_compose.key_provider();
         let mut instance_info = self.shared.instance_info.clone();
-
-        validate_compose_hash(&compose_hash).context("Failed to validate compose hash")?;
 
         if instance_info.app_id.is_empty() {
             instance_info.app_id = truncated_compose_hash.to_vec();
@@ -518,12 +506,42 @@ impl<'a> Stage0<'a> {
         extend_rtmr3("compose-hash", &compose_hash)?;
         extend_rtmr3("instance-id", &instance_id)?;
         extend_rtmr3("boot-mr-done", &[])?;
-        Ok(instance_info)
+        Ok(AppInfo {
+            instance_info,
+            compose_hash,
+        })
+    }
+
+    fn verify_app(&self, app_info: &AppInfo, keys: &AppKeys) -> Result<()> {
+        config_id_verifier::verify_mr_config_id(
+            &app_info.compose_hash,
+            &app_info
+                .instance_info
+                .app_id
+                .as_slice()
+                .try_into()
+                .ok()
+                .context("Invalid app id")?,
+            keys.key_provider.kind(),
+            keys.key_provider.id(),
+        )?;
+        self.verify_key_provider_id(keys.key_provider.id())?;
+        let kp_info = match &keys.key_provider {
+            KeyProvider::None { .. } => KeyProviderInfo::new("none".into(), "".into()),
+            KeyProvider::Local { mr, .. } => {
+                KeyProviderInfo::new("local-sgx".into(), hex::encode(mr))
+            }
+            KeyProvider::Kms { pubkey, .. } => {
+                KeyProviderInfo::new("kms".into(), hex::encode(pubkey))
+            }
+        };
+        emit_key_provider_info(&kp_info)?;
+        Ok(())
     }
 
     async fn setup_fs(self) -> Result<Stage1<'a>> {
         let is_initialized = self.shared.instance_info.is_initialized();
-        let instance_info = self.measure_app_info()?;
+        let app_info = self.measure_app_info()?;
         if self.shared.app_compose.key_provider().is_kms() {
             cmd_show_mrs()?;
         }
@@ -534,11 +552,22 @@ impl<'a> Stage0<'a> {
         if app_keys.disk_crypt_key.is_empty() {
             bail!("Failed to get valid key phrase from KMS");
         }
+
+        self.verify_app(&app_info, &app_keys)
+            .context("Failed to verify app")?;
+
+        // Save app keys
+        let keys_json = serde_json::to_string(&app_keys).context("Failed to serialize app keys")?;
+        fs::write(self.app_keys_file(), keys_json).context("Failed to write app keys")?;
+
         self.vmm.notify_q("boot.progress", "unsealing env").await;
         self.mount_data_disk(is_initialized, &hex::encode(&app_keys.disk_crypt_key))
             .await?;
         self.vmm
-            .notify_q("instance.info", &serde_json::to_string(&instance_info)?)
+            .notify_q(
+                "instance.info",
+                &serde_json::to_string(&app_info.instance_info)?,
+            )
             .await;
         extend_rtmr3("system-ready", &[])?;
         self.vmm.notify_q("boot.progress", "data disk ready").await;
@@ -553,25 +582,6 @@ impl<'a> Stage0<'a> {
             keys: app_keys,
         })
     }
-}
-
-fn validate_compose_hash(compose_hash: &[u8]) -> Result<()> {
-    // If configid is not all zero, use it as compose_hash
-    let (_, quote) = get_quote(&[0u8; 64], None).context("Failed to get quote")?;
-    let quote = Quote::parse(&quote).context("Failed to parse quote")?;
-    let configid = match quote.report {
-        Report::SgxEnclave(_report) => bail!("SGX quote is not supported"),
-        Report::TD10(report) => report.mr_config_id,
-        Report::TD15(report) => report.base.mr_config_id,
-    };
-    info!("mr_config_id: {}", hex_fmt::HexFmt(&configid));
-    if configid == [0u8; 48] {
-        return Ok(());
-    }
-    if &configid[..32] != compose_hash {
-        bail!("mr_config_id does not match compose hash");
-    }
-    Ok(())
 }
 
 impl Stage1<'_> {
