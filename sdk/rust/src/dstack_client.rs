@@ -44,11 +44,11 @@ pub enum ClientKind {
 
 #[derive(Serialize, Deserialize)]
 pub struct EventLog {
-    imr: u32,
-    event_type: u32,
-    digest: String,
-    event: String,
-    event_payload: String,
+    pub imr: u32,
+    pub event_type: u32,
+    pub digest: String,
+    pub event: String,
+    pub event_payload: String,
 }
 
 #[derive(bon::Builder, Serialize)]
@@ -114,18 +114,18 @@ impl GetQuoteResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct InfoResponse {
-    app_id: String,
-    instance_id: String,
-    app_cert: String,
+    pub app_id: String,
+    pub instance_id: String,
+    pub app_cert: String,
     pub tcb_info: TcbInfo,
-    app_name: String,
-    public_logs: bool,
-    public_sysinfo: bool,
-    device_id: String,
-    mr_aggregated: String,
-    os_image_hash: String,
-    key_provider_info: String,
-    compose_hash: String,
+    pub app_name: String,
+    pub public_logs: bool,
+    pub public_sysinfo: bool,
+    pub device_id: String,
+    pub mr_aggregated: String,
+    pub os_image_hash: String,
+    pub key_provider_info: String,
+    pub compose_hash: String,
 }
 
 impl InfoResponse {
@@ -140,13 +140,13 @@ impl InfoResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct TcbInfo {
-    mrtd: String,
-    rootfs_hash: String,
-    rtmr0: String,
-    rtmr1: String,
-    rtmr2: String,
-    rtmr3: String,
-    event_log: Vec<EventLog>,
+    pub mrtd: String,
+    pub rootfs_hash: String,
+    pub rtmr0: String,
+    pub rtmr1: String,
+    pub rtmr2: String,
+    pub rtmr3: String,
+    pub event_log: Vec<EventLog>,
 }
 
 #[derive(Serialize, Deserialize)]
