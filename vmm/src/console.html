@@ -1941,7 +1941,7 @@
 
                     // Get current GPU configuration from VM
                     const currentGpuConfig = updatedVM.configuration?.gpus || {};
-                    const isAttachAll = currentGpuConfig.gpus_attach_mode === 'all';
+                    const isAttachAll = currentGpuConfig.attach_mode === 'all';
                     const selectedGpuSlots = currentGpuConfig.gpus?.map(gpu => gpu.slot) || [];
                     const appCompose = JSON.parse(updatedVM.configuration?.compose_file || "{}");
 
