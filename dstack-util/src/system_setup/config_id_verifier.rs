@@ -5,11 +5,11 @@ use tracing::info;
 fn read_mr_config_id() -> Result<[u8; 48]> {
     let (_, quote) = tdx_attest::get_quote(&[0u8; 64], None).context("Failed to get quote")?;
     let quote = dcap_qvl::quote::Quote::parse(&quote).context("Failed to parse quote")?;
-    let configid = match quote.report {
-        dcap_qvl::quote::Report::SgxEnclave(_report) => bail!("SGX quote is not supported"),
-        dcap_qvl::quote::Report::TD10(report) => report.mr_config_id,
-        dcap_qvl::quote::Report::TD15(report) => report.base.mr_config_id,
-    };
+    let configid = quote
+        .report
+        .as_td10()
+        .context("Failed to get TD10 report")?
+        .mr_config_id;
     Ok(configid)
 }
 
