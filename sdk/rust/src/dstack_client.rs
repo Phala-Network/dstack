@@ -46,15 +46,15 @@ pub enum ClientKind {
 #[derive(Serialize, Deserialize)]
 pub struct EventLog {
     /// The index of the IMR (Integrity Measurement Register)
-    imr: u32,
+    pub imr: u32,
     /// The type of event being logged
-    event_type: u32,
+    pub event_type: u32,
     /// The cryptographic digest of the event
-    digest: String,
+    pub digest: String,
     /// The type of event as a string
-    event: String,
+    pub event: String,
     /// The payload data associated with the event
-    event_payload: String,
+    pub event_payload: String,
 }
 
 /// Configuration for TLS key generation
@@ -134,29 +134,29 @@ impl GetQuoteResponse {
 #[derive(Serialize, Deserialize)]
 pub struct InfoResponse {
     /// The application identifier
-    app_id: String,
+    pub app_id: String,
     /// The instance identifier
-    instance_id: String,
+    pub instance_id: String,
     /// The application certificate
-    app_cert: String,
+    pub app_cert: String,
     /// Trusted Computing Base information
-    tcb_info: TcbInfo,
+    pub tcb_info: TcbInfo,
     /// The name of the application
-    app_name: String,
+    pub app_name: String,
     /// Whether public logs are enabled
-    public_logs: bool,
+    pub public_logs: bool,
     /// Whether public system information is enabled
-    public_sysinfo: bool,
+    pub public_sysinfo: bool,
     /// The device identifier
-    device_id: String,
+    pub device_id: String,
     /// The aggregated measurement register value
-    mr_aggregated: String,
+    pub mr_aggregated: String,
     /// The hash of the OS image
-    os_image_hash: String,
+    pub os_image_hash: String,
     /// Information about the key provider
-    key_provider_info: String,
+    pub key_provider_info: String,
     /// The hash of the compose configuration
-    compose_hash: String,
+    pub compose_hash: String,
 }
 
 impl InfoResponse {
@@ -171,21 +171,21 @@ impl InfoResponse {
 
 /// Trusted Computing Base information structure
 #[derive(Serialize, Deserialize)]
-struct TcbInfo {
+pub struct TcbInfo {
     /// The measurement root of trust
-    mrtd: String,
+    pub mrtd: String,
     /// The hash of the root filesystem
-    rootfs_hash: String,
+    pub rootfs_hash: String,
     /// The value of RTMR0 (Runtime Measurement Register 0)
-    rtmr0: String,
+    pub rtmr0: String,
     /// The value of RTMR1 (Runtime Measurement Register 1)
-    rtmr1: String,
+    pub rtmr1: String,
     /// The value of RTMR2 (Runtime Measurement Register 2)
-    rtmr2: String,
+    pub rtmr2: String,
     /// The value of RTMR3 (Runtime Measurement Register 3)
-    rtmr3: String,
+    pub rtmr3: String,
     /// The event log entries
-    event_log: Vec<EventLog>,
+    pub event_log: Vec<EventLog>,
 }
 
 /// Response containing TLS key and certificate chain
