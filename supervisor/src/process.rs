@@ -16,6 +16,7 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::{Child, Command};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
+use tracing::Instrument;
 use tracing::{error, info};
 
 #[derive(Debug, Clone, Builder, Serialize, Deserialize)]
@@ -231,37 +232,40 @@ impl Process {
             let process_uuid = self.config.id.clone();
             let weak_state = Arc::downgrade(&self.state);
 
-            tokio::spawn(async move {
-                let span = tracing::info_span!("process", id = process_uuid);
-                let _enter = span.enter();
-                let (killed, result) = wait_on_process(process, kill_rx).await;
-                let state = weak_state.upgrade();
-                let next_status = match result {
-                    Ok(status) => {
-                        if killed {
-                            info!("Stopped");
-                        } else if status.success() {
-                            info!("Exited");
-                        } else {
-                            error!("Exited: {status:?}");
+            let span = tracing::info_span!("process", id = process_uuid);
+            tokio::spawn(
+                async move {
+                    info!("Started");
+                    let (killed, result) = wait_on_process(process, kill_rx).await;
+                    let state = weak_state.upgrade();
+                    let next_status = match result {
+                        Ok(status) => {
+                            if killed {
+                                info!("Stopped");
+                            } else if status.success() {
+                                info!("Exited");
+                            } else {
+                                error!("Exited: {status:?}");
+                            }
+                            if killed {
+                                ProcessStatus::Stopped
+                            } else {
+                                ProcessStatus::Exited(exit_code(status))
+                            }
                         }
-                        if killed {
-                            ProcessStatus::Stopped
-                        } else {
-                            ProcessStatus::Exited(exit_code(status))
+                        Err(e) => {
+                            error!("Failed to wait on process: {e:?}");
+                            ProcessStatus::Error(e.to_string())
                         }
+                    };
+                    if let Some(state) = state {
+                        let mut state = state.lock().unwrap();
+                        state.status = next_status;
+                        state.stopped_at = Some(SystemTime::now());
                     }
-                    Err(e) => {
-                        error!("Failed to wait on process: {e:?}");
-                        ProcessStatus::Error(e.to_string())
-                    }
-                };
-                if let Some(state) = state {
-                    let mut state = state.lock().unwrap();
-                    state.status = next_status;
-                    state.stopped_at = Some(SystemTime::now());
                 }
-            });
+                .instrument(span),
+            );
         }
 
         Ok(())

@@ -42,32 +42,47 @@ pub enum ClientKind {
     Unix,
 }
 
+/// Represents an event log entry in the system
 #[derive(Serialize, Deserialize)]
 pub struct EventLog {
+    /// The index of the IMR (Integrity Measurement Register)
     pub imr: u32,
+    /// The type of event being logged
     pub event_type: u32,
+    /// The cryptographic digest of the event
     pub digest: String,
+    /// The type of event as a string
     pub event: String,
+    /// The payload data associated with the event
     pub event_payload: String,
 }
 
+/// Configuration for TLS key generation
 #[derive(bon::Builder, Serialize)]
 pub struct TlsKeyConfig {
+    /// The subject name for the certificate
     #[builder(into, default = String::new())]
     pub subject: String,
+    /// Alternative names for the certificate
     #[builder(default = Vec::new())]
     pub alt_names: Vec<String>,
+    /// Whether the key should be used for remote attestation TLS
     #[builder(default = false)]
     pub usage_ra_tls: bool,
+    /// Whether the key should be used for server authentication
     #[builder(default = true)]
     pub usage_server_auth: bool,
+    /// Whether the key should be used for client authentication
     #[builder(default = false)]
     pub usage_client_auth: bool,
 }
 
+/// Response containing a key and its signature chain
 #[derive(Serialize, Deserialize)]
 pub struct GetKeyResponse {
+    /// The key in hexadecimal format
     pub key: String,
+    /// The chain of signatures verifying the key
     pub signature_chain: Vec<String>,
 }
 
@@ -81,9 +96,12 @@ impl GetKeyResponse {
     }
 }
 
+/// Response containing a quote and associated event log
 #[derive(Serialize, Deserialize)]
 pub struct GetQuoteResponse {
+    /// The attestation quote in hexadecimal format
     pub quote: String,
+    /// The event log associated with the quote
     pub event_log: String,
 }
 
@@ -112,19 +130,32 @@ impl GetQuoteResponse {
     }
 }
 
+/// Response containing instance information and attestation data
 #[derive(Serialize, Deserialize)]
 pub struct InfoResponse {
+    /// The application identifier
     pub app_id: String,
+    /// The instance identifier
     pub instance_id: String,
+    /// The application certificate
     pub app_cert: String,
+    /// Trusted Computing Base information
     pub tcb_info: TcbInfo,
+    /// The name of the application
     pub app_name: String,
+    /// Whether public logs are enabled
     pub public_logs: bool,
+    /// Whether public system information is enabled
     pub public_sysinfo: bool,
+    /// The device identifier
     pub device_id: String,
+    /// The aggregated measurement register value
     pub mr_aggregated: String,
+    /// The hash of the OS image
     pub os_image_hash: String,
+    /// Information about the key provider
     pub key_provider_info: String,
+    /// The hash of the compose configuration
     pub compose_hash: String,
 }
 
@@ -138,28 +169,43 @@ impl InfoResponse {
     }
 }
 
+/// Trusted Computing Base information structure
 #[derive(Serialize, Deserialize)]
 pub struct TcbInfo {
+    /// The measurement root of trust
     pub mrtd: String,
+    /// The hash of the root filesystem
     pub rootfs_hash: String,
+    /// The value of RTMR0 (Runtime Measurement Register 0)
     pub rtmr0: String,
+    /// The value of RTMR1 (Runtime Measurement Register 1)
     pub rtmr1: String,
+    /// The value of RTMR2 (Runtime Measurement Register 2)
     pub rtmr2: String,
+    /// The value of RTMR3 (Runtime Measurement Register 3)
     pub rtmr3: String,
+    /// The event log entries
     pub event_log: Vec<EventLog>,
 }
 
+/// Response containing TLS key and certificate chain
 #[derive(Serialize, Deserialize)]
 pub struct GetTlsKeyResponse {
+    /// The TLS key in hexadecimal format
     pub key: String,
+    /// The chain of certificates
     pub certificate_chain: Vec<String>,
 }
 
 pub trait BaseClient {}
 
+/// The main client for interacting with the dstack service
 pub struct DstackClient {
+    /// The base URL for HTTP requests
     base_url: String,
+    /// The endpoint for Unix domain socket communication
     endpoint: String,
+    /// The type of client (HTTP or Unix domain socket)
     client: ClientKind,
 }
 
