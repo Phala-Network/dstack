@@ -59,12 +59,12 @@ impl CertRequestClient {
         vm_config: String,
     ) -> Result<CertRequestClient> {
         match &keys.key_provider {
-            KeyProvider::Local { key } => {
+            KeyProvider::None { key } | KeyProvider::Local { key, .. } => {
                 let ca = CaCert::new(keys.ca_cert.clone(), key.clone())
                     .context("Failed to create CA")?;
                 Ok(CertRequestClient::Local { ca })
             }
-            KeyProvider::Kms { url } => {
+            KeyProvider::Kms { url, .. } => {
                 let tmp_client =
                     RaClient::new(url.into(), true).context("Failed to create RA client")?;
                 let tmp_client = KmsClient::new(tmp_client);

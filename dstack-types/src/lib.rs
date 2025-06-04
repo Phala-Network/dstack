@@ -151,8 +151,37 @@ pub struct AppKeys {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum KeyProvider {
-    Local { key: String },
-    Kms { url: String },
+    None {
+        key: String,
+    },
+    Local {
+        key: String,
+        #[serde(with = "hex_bytes")]
+        mr: Vec<u8>,
+    },
+    Kms {
+        url: String,
+        #[serde(with = "hex_bytes")]
+        pubkey: Vec<u8>,
+    },
+}
+
+impl KeyProvider {
+    pub fn kind(&self) -> KeyProviderKind {
+        match self {
+            KeyProvider::None { .. } => KeyProviderKind::None,
+            KeyProvider::Local { .. } => KeyProviderKind::Local,
+            KeyProvider::Kms { .. } => KeyProviderKind::Kms,
+        }
+    }
+
+    pub fn id(&self) -> &[u8] {
+        match self {
+            KeyProvider::None { .. } => &[],
+            KeyProvider::Local { mr, .. } => mr,
+            KeyProvider::Kms { pubkey, .. } => pubkey,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -167,6 +196,7 @@ impl KeyProviderInfo {
     }
 }
 
+pub mod mr_config;
 pub mod shared_filenames;
 
 /// Get the address of the dstack agent

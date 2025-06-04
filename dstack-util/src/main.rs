@@ -339,18 +339,18 @@ fn cmd_gen_app_keys(args: GenAppKeysArgs) -> Result<()> {
     let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let disk_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?;
     let k256_key = SigningKey::random(&mut rand::thread_rng());
-    let app_keys = make_app_keys(key, disk_key, k256_key, args.ca_level)?;
+    let app_keys = make_app_keys(key, disk_key, k256_key, args.ca_level, None)?;
     let app_keys = serde_json::to_string(&app_keys).context("Failed to serialize app keys")?;
     fs::write(&args.output, app_keys).context("Failed to write app keys")?;
     Ok(())
 }
 
-fn gen_app_keys_from_seed(seed: &[u8]) -> Result<AppKeys> {
+fn gen_app_keys_from_seed(seed: &[u8], mr: Option<Vec<u8>>) -> Result<AppKeys> {
     let key = derive_ecdsa_key_pair_from_bytes(seed, &["app-key".as_bytes()])?;
     let disk_key = derive_ecdsa_key_pair_from_bytes(seed, &["app-disk-key".as_bytes()])?;
     let k256_key = derive_ecdsa_key(seed, &["app-k256-key".as_bytes()], 32)?;
     let k256_key = SigningKey::from_bytes(&k256_key).context("Failed to parse k256 key")?;
-    make_app_keys(key, disk_key, k256_key, 1)
+    make_app_keys(key, disk_key, k256_key, 1, mr)
 }
 
 fn make_app_keys(
@@ -358,6 +358,7 @@ fn make_app_keys(
     disk_key: KeyPair,
     k256_key: SigningKey,
     ca_level: u8,
+    mr: Option<Vec<u8>>,
 ) -> Result<AppKeys> {
     use ra_tls::cert::CertRequest;
     let pubkey = app_key.public_key_der();
@@ -383,8 +384,14 @@ fn make_app_keys(
         k256_signature: vec![],
         gateway_app_id: "".to_string(),
         ca_cert: cert.pem(),
-        key_provider: KeyProvider::Local {
-            key: app_key.serialize_pem(),
+        key_provider: match mr {
+            Some(mr) => KeyProvider::Local {
+                mr,
+                key: app_key.serialize_pem(),
+            },
+            None => KeyProvider::None {
+                key: app_key.serialize_pem(),
+            },
         },
     })
 }
