@@ -99,6 +99,16 @@ impl VmInfo {
             configuration: if brief {
                 None
             } else {
+                let vm_config = workdir.manifest();
+                let kms_urls = vm_config
+                    .as_ref()
+                    .map(|c| c.kms_urls.clone())
+                    .unwrap_or_default();
+                let gateway_urls = vm_config
+                    .as_ref()
+                    .map(|c| c.gateway_urls.clone())
+                    .unwrap_or_default();
+
                 Some(pb::VmConfiguration {
                     name: self.manifest.name.clone(),
                     image: self.manifest.image.clone(),
@@ -136,6 +146,8 @@ impl VmInfo {
                             })
                             .collect(),
                     }),
+                    kms_urls,
+                    gateway_urls,
                 })
             },
             app_url: self
