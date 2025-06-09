@@ -72,7 +72,7 @@ impl AcmeClient {
             None,
         )
         .await
-        .context("failed to create new account")?;
+        .with_context(|| format!("failed to create ACME account for {acme_url}"))?;
         let credentials = Credentials {
             acme_url: acme_url.to_string(),
             account_id: account.id().to_string(),
