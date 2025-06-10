@@ -47,7 +47,7 @@ port = 9300
 EOF
 
 # Download Guest OS images
-DSTACK_VERSION=0.5.1
+DSTACK_VERSION=0.5.2
 wget "https://github.com/Dstack-TEE/meta-dstack/releases/download/v${DSTACK_VERSION}/dstack-${DSTACK_VERSION}.tar.gz"
 mkdir -p images/
 tar -xvf dstack-${DSTACK_VERSION}.tar.gz -C images/
@@ -96,7 +96,7 @@ KMS_RPC_ADDR=0.0.0.0:9201
 GUEST_AGENT_ADDR=127.0.0.1:9205
 ETH_RPC_URL=https://rpc.phala.network
 GIT_REV=HEAD
-OS_IMAGE=dstack-0.5.1
+OS_IMAGE=dstack-0.5.2
 IMAGE_DOWNLOAD_URL=https://files.kvin.wang/images/mr_{OS_IMAGE_HASH}.tar.gz
 ```
 
@@ -221,7 +221,7 @@ MY_URL=https://gateway.test2.dstack.phala.network:9202
 BOOTNODE_URL=https://gateway.test2.dstack.phala.network:9202
 
 # DStack OS image name
-OS_IMAGE=dstack-0.5.1
+OS_IMAGE=dstack-0.5.2
 
 # Set defaults for variables that might not be in .env
 GIT_REV=HEAD
