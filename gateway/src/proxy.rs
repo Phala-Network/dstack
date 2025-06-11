@@ -155,8 +155,7 @@ pub async fn run(config: &ProxyConfig, app_state: Proxy) -> Result<()> {
         Arc::new(format!(".{base_domain}"))
     };
     let tls_terminate_proxy =
-        TlsTerminateProxy::new(&app_state, &config.cert_chain, &config.cert_key)
-            .context("failed to create tls terminate proxy")?;
+        TlsTerminateProxy::new(&app_state).context("failed to create tls terminate proxy")?;
     let tls_terminate_proxy = Arc::new(tls_terminate_proxy);
 
     let listener = TcpListener::bind((config.listen_addr, config.listen_port))
