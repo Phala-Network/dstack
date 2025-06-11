@@ -3,7 +3,10 @@ use crate::config::{load_config_figment, Config};
 
 async fn create_test_state() -> Proxy {
     let figment = load_config_figment(None);
-    let config = figment.focus("core").extract::<Config>().unwrap();
+    let mut config = figment.focus("core").extract::<Config>().unwrap();
+    let cargo_dir = env!("CARGO_MANIFEST_DIR");
+    config.proxy.cert_chain = format!("{cargo_dir}/assets/cert.pem");
+    config.proxy.cert_key = format!("{cargo_dir}/assets/cert.key");
     Proxy::new(config, None)
         .await
         .expect("failed to create app state")
