@@ -1,7 +1,8 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     net::Ipv4Addr,
-    sync::{Arc, Mutex, MutexGuard, Weak},
+    ops::Deref,
+    sync::{Arc, Mutex, MutexGuard, RwLock},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -21,14 +22,14 @@ use rinja::Template as _;
 use safe_write::safe_write;
 use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
-use sync_client::SyncEvent;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::Notify;
+use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, warn};
 
 use crate::{
     config::Config,
     models::{InstanceInfo, WgConf},
-    proxy::{AddressGroup, AddressInfo},
+    proxy::{create_acceptor, AddressGroup, AddressInfo},
 };
 
 mod sync_client;
@@ -37,12 +38,24 @@ mod auth_client;
 
 #[derive(Clone)]
 pub struct Proxy {
+    _inner: Arc<ProxyInner>,
+}
+
+impl Deref for Proxy {
+    type Target = ProxyInner;
+    fn deref(&self) -> &Self::Target {
+        &self._inner
+    }
+}
+
+pub struct ProxyInner {
     pub(crate) config: Arc<Config>,
     pub(crate) certbot: Option<Arc<CertBot>>,
     my_app_id: Option<Vec<u8>>,
-    sync_tx: Sender<SyncEvent>,
-    inner: Arc<Mutex<ProxyState>>,
-    auth_client: Arc<AuthClient>,
+    state: Mutex<ProxyState>,
+    notify_state_updated: Notify,
+    auth_client: AuthClient,
+    pub(crate) acceptor: RwLock<TlsAcceptor>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,8 +82,16 @@ pub(crate) struct ProxyState {
 }
 
 impl Proxy {
+    pub async fn new(config: Config, my_app_id: Option<Vec<u8>>) -> Result<Self> {
+        Ok(Self {
+            _inner: Arc::new(ProxyInner::new(config, my_app_id).await?),
+        })
+    }
+}
+
+impl ProxyInner {
     pub(crate) fn lock(&self) -> MutexGuard<ProxyState> {
-        self.inner.lock().expect("Failed to lock AppState")
+        self.state.lock().expect("Failed to lock AppState")
     }
 
     pub async fn new(config: Config, my_app_id: Option<Vec<u8>>) -> Result<Self> {
@@ -97,23 +118,57 @@ impl Proxy {
                 last_seen: SystemTime::now(),
             },
         );
-        let inner = Arc::new(Mutex::new(ProxyState {
+        let state = Mutex::new(ProxyState {
             config: config.clone(),
             state,
-        }));
-        start_recycle_thread(Arc::downgrade(&inner), config.clone());
-        let (sync_tx, sync_rx) = mpsc::channel(1);
-        start_sync_task(Arc::downgrade(&inner), config.clone(), sync_rx);
-        let certbot = start_certbot_task(&config).await?;
-        let auth_client = Arc::new(AuthClient::new(config.auth.clone()));
+        });
+        let auth_client = AuthClient::new(config.auth.clone());
+        let certbot = match config.certbot.enabled {
+            true => {
+                let certbot = config
+                    .certbot
+                    .build_bot()
+                    .await
+                    .context("Failed to build certbot")?;
+                info!("Certbot built, renewing...");
+                // Try first renewal for the acceptor creation
+                certbot.renew(false).await.context("Failed to renew cert")?;
+                Some(Arc::new(certbot))
+            }
+            false => None,
+        };
+        let acceptor =
+            RwLock::new(create_acceptor(&config.proxy).context("Failed to create acceptor")?);
         Ok(Self {
             config,
-            inner,
-            certbot,
+            state,
+            notify_state_updated: Notify::new(),
             my_app_id,
-            sync_tx,
             auth_client,
+            acceptor,
+            certbot,
         })
+    }
+}
+
+impl Proxy {
+    pub(crate) async fn start_bg_tasks(&self) -> Result<()> {
+        start_recycle_thread(self.clone());
+        start_sync_task(self.clone());
+        start_certbot_task(self.clone()).await?;
+        Ok(())
+    }
+
+    pub(crate) async fn renew_cert(&self, force: bool) -> Result<bool> {
+        let Some(certbot) = &self.certbot else {
+            return Ok(false);
+        };
+        let renewed = certbot.renew(force).await.context("Failed to renew cert")?;
+        if renewed {
+            self.reload_certificates()
+                .context("Failed to reload certificates")?;
+        }
+        Ok(renewed)
     }
 }
 
@@ -122,68 +177,42 @@ fn load_state(state_path: &str) -> Result<ProxyStateMut> {
     serde_json::from_str(&state_str).context("Failed to load state")
 }
 
-fn start_recycle_thread(state: Weak<Mutex<ProxyState>>, config: Arc<Config>) {
-    if !config.recycle.enabled {
+fn start_recycle_thread(proxy: Proxy) {
+    if !proxy.config.recycle.enabled {
         info!("recycle is disabled");
         return;
     }
     std::thread::spawn(move || loop {
-        std::thread::sleep(config.recycle.interval);
-        let Some(state) = state.upgrade() else {
-            break;
-        };
-        if let Err(err) = state.lock().unwrap().recycle() {
+        std::thread::sleep(proxy.config.recycle.interval);
+        if let Err(err) = proxy.lock().recycle() {
             error!("failed to run recycle: {err}");
         };
     });
 }
 
-async fn start_certbot_task(config: &Arc<Config>) -> Result<Option<Arc<CertBot>>> {
-    if !config.certbot.enabled {
-        info!("Certbot is disabled");
-        return Ok(None);
-    }
-    info!("Starting certbot...");
-    let certbot = config
-        .certbot
-        .build_bot()
-        .await
-        .context("Failed to build certbot")?;
-    info!("First renewal...");
-    certbot.renew(false).await.context("Failed to renew cert")?;
-    let certbot = Arc::new(certbot);
-    let certbot_clone = certbot.clone();
+async fn start_certbot_task(proxy: Proxy) -> Result<()> {
+    let Some(certbot) = proxy.certbot.clone() else {
+        info!("Certbot is not enabled");
+        return Ok(());
+    };
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(certbot.renew_interval()).await;
-            match certbot.renew(false).await {
-                Err(e) => {
-                    error!("Failed to run certbot: {e:?}");
-                }
-                Ok(renewed) => {
-                    if renewed {
-                        // Restart self
-                        info!("Certificate renewed, restarting...");
-                        std::process::exit(0);
-                    }
-                }
+            if let Err(err) = proxy.renew_cert(false).await {
+                error!("Failed to renew cert: {err}");
             }
         }
     });
-    Ok(Some(certbot_clone))
+    Ok(())
 }
 
-fn start_sync_task(
-    proxy: Weak<Mutex<ProxyState>>,
-    config: Arc<Config>,
-    event_rx: Receiver<SyncEvent>,
-) {
-    if !config.sync.enabled {
+fn start_sync_task(proxy: Proxy) {
+    if !proxy.config.sync.enabled {
         info!("sync is disabled");
         return;
     }
     tokio::spawn(async move {
-        match sync_client::sync_task(proxy, config, event_rx).await {
+        match sync_client::sync_task(proxy).await {
             Ok(_) => info!("Sync task exited"),
             Err(err) => error!("Failed to run sync task: {err}"),
         }
@@ -647,9 +676,7 @@ impl GatewayRpc for RpcHandler {
                 domain: state.config.proxy.base_domain.clone(),
             }),
         };
-        if let Err(err) = self.state.sync_tx.try_send(SyncEvent::Broadcast) {
-            warn!("Failed to talk to sync task: {err}");
-        }
+        self.state.notify_state_updated.notify_one();
         Ok(response)
     }
 

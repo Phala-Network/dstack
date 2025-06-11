@@ -1,22 +1,12 @@
-use std::{
-    sync::{Arc, Mutex, Weak},
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use dstack_gateway_rpc::{gateway_client::GatewayClient, GatewayState};
 use dstack_guest_agent_rpc::GetTlsKeyArgs;
 use ra_rpc::client::{RaClient, RaClientConfig};
-use tokio::sync::mpsc::Receiver;
 use tracing::{error, info};
 
-use crate::{config::Config, dstack_agent};
-
-use super::ProxyState;
-
-pub enum SyncEvent {
-    Broadcast,
-}
+use crate::{dstack_agent, main_service::Proxy};
 
 struct SyncClient {
     in_dstack: bool,
@@ -85,11 +75,8 @@ impl SyncClient {
     }
 }
 
-pub(crate) async fn sync_task(
-    proxy: Weak<Mutex<ProxyState>>,
-    config: Arc<Config>,
-    mut event_rx: Receiver<SyncEvent>,
-) -> Result<()> {
+pub(crate) async fn sync_task(proxy: Proxy) -> Result<()> {
+    let config = proxy.config.clone();
     let sync_client = if config.run_in_dstack {
         let agent = dstack_agent().context("Failed to create dstack agent client")?;
         let keys = agent
@@ -135,12 +122,7 @@ pub(crate) async fn sync_task(
             last_broadcast_time = Instant::now();
         }
 
-        let Some(proxy) = proxy.upgrade() else {
-            info!("Proxy state was dropped, stopping sync task");
-            break;
-        };
-
-        let (mut nodes, apps) = proxy.lock().unwrap().dump_state();
+        let (mut nodes, apps) = proxy.lock().dump_state();
         // Sort nodes by pubkey
         nodes.sort_by(|a, b| a.id.cmp(&b.id));
 
@@ -186,21 +168,12 @@ pub(crate) async fn sync_task(
         }
 
         tokio::select! {
-            event = event_rx.recv() => {
-                let Some(event) = event else {
-                    info!("Event channel closed, stopping sync task");
-                    break;
-                };
-                match event {
-                    SyncEvent::Broadcast => {
-                        broadcast = true;
-                    }
-                }
+            _ = proxy.notify_state_updated.notified() => {
+                broadcast = true;
             }
             _ = tokio::time::sleep(config.sync.interval) => {
                 broadcast = last_broadcast_time.elapsed() >= config.sync.broadcast_interval;
             }
         }
     }
-    Ok(())
 }
