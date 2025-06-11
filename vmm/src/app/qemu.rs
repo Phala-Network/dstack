@@ -320,7 +320,9 @@ impl VmConfig {
             .arg("-machine")
             .arg("q35,kernel-irqchip=split,confidential-guest-support=tdx,hpet=off");
 
-        let tdx_object = if cfg.use_mrconfigid {
+        let img_ver = self.image.info.version_tuple().unwrap_or_default();
+        let support_mr_config_id = img_ver >= (0, 5, 2);
+        let tdx_object = if cfg.use_mrconfigid && support_mr_config_id {
             let app_compose = workdir.app_compose().context("Failed to get app compose")?;
             let compose_hash = workdir
                 .app_compose_hash()
