@@ -145,7 +145,15 @@ async fn handle_connection(
     }
 }
 
-pub async fn run(config: &ProxyConfig, proxy: Proxy) -> Result<()> {
+#[inline(never)]
+pub async fn proxy_main(config: &ProxyConfig, proxy: Proxy) -> Result<()> {
+    let workers_rt = tokio::runtime::Builder::new_multi_thread()
+        .thread_name("proxy-worker")
+        .enable_all()
+        .worker_threads(config.workers)
+        .build()
+        .expect("Failed to build Tokio runtime");
+
     let dotted_base_domain = {
         let base_domain = config.base_domain.as_str();
         let base_domain = base_domain.strip_prefix(".").unwrap_or(base_domain);
@@ -174,7 +182,7 @@ pub async fn run(config: &ProxyConfig, proxy: Proxy) -> Result<()> {
                 info!(%from, "new connection");
                 let proxy = proxy.clone();
                 let dotted_base_domain = dotted_base_domain.clone();
-                tokio::spawn(
+                workers_rt.spawn(
                     async move {
                         let _conn_entered = conn_entered;
                         let timeouts = &proxy.config.proxy.timeouts;
@@ -211,14 +219,24 @@ fn next_connection_id() -> usize {
 }
 
 pub fn start(config: ProxyConfig, app_state: Proxy) {
-    tokio::spawn(async move {
-        if let Err(err) = run(&config, app_state).await {
-            error!(
-                "error on {}:{}: {err:?}",
-                config.listen_addr, config.listen_port
-            );
-        }
-    });
+    std::thread::Builder::new()
+        .name("proxy-main".to_string())
+        .spawn(move || {
+            // Create a new single-threaded runtime
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("Failed to build Tokio runtime");
+
+            // Run the proxy_main function in this runtime
+            if let Err(err) = rt.block_on(proxy_main(&config, app_state)) {
+                error!(
+                    "error on {}:{}: {err:?}",
+                    config.listen_addr, config.listen_port
+                );
+            }
+        })
+        .expect("Failed to spawn proxy-main thread");
 }
 
 #[cfg(test)]
