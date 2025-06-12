@@ -106,6 +106,19 @@ fn resolve_gpus(gpu_cfg: &rpc::GpuConfig) -> Result<GpuConfig> {
     }
 }
 
+impl RpcHandler {
+    fn resolve_gpus(&self, gpu_cfg: &rpc::GpuConfig) -> Result<GpuConfig> {
+        let gpus = resolve_gpus(gpu_cfg)?;
+        if !self.app.config.cvm.gpu.enabled {
+            bail!("GPU is not enabled");
+        }
+        if !self.app.config.cvm.gpu.allow_attach_all && gpus.attach_mode.is_all() {
+            bail!("Attaching all GPUs is not allowed");
+        }
+        Ok(gpus)
+    }
+}
+
 impl VmmRpc for RpcHandler {
     async fn create_vm(self, request: VmConfiguration) -> Result<Id> {
         validate_label(&request.name)?;
@@ -148,7 +161,7 @@ impl VmmRpc for RpcHandler {
             .unwrap_or_default()
             .as_millis() as u64;
         let gpus = match &request.gpus {
-            Some(gpus) => resolve_gpus(gpus)?,
+            Some(gpus) => self.resolve_gpus(gpus)?,
             None => GpuConfig::default(),
         };
         let manifest = Manifest::builder()
@@ -268,7 +281,7 @@ impl VmmRpc for RpcHandler {
         let vm_work_dir = self.app.work_dir(&request.id);
         let mut manifest = vm_work_dir.manifest().context("Failed to read manifest")?;
         if let Some(gpus) = request.gpus {
-            manifest.gpus = Some(resolve_gpus(&gpus)?);
+            manifest.gpus = Some(self.resolve_gpus(&gpus)?);
         }
         if request.update_ports {
             manifest.port_map = request
@@ -433,7 +446,11 @@ impl VmmRpc for RpcHandler {
 
     async fn list_gpus(self) -> Result<ListGpusResponse> {
         let gpus = self.app.list_gpus().await?;
-        Ok(ListGpusResponse { gpus })
+        let allow_attach_all = self.app.config.cvm.gpu.allow_attach_all;
+        Ok(ListGpusResponse {
+            gpus,
+            allow_attach_all,
+        })
     }
 
     async fn get_compose_hash(self, request: VmConfiguration) -> Result<RpcComposeHash> {

@@ -214,6 +214,7 @@ message VersionResponse {
 
 message ListGpusResponse {
   repeated GpuInfo gpus = 1;
+  bool allow_attach_all = 2;
 }
 
 message GpuInfo {

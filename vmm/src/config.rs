@@ -135,6 +135,8 @@ pub struct GpuConfig {
     pub exclude: Vec<String>,
     /// The PCI addresses to include in passthrough
     pub include: Vec<String>,
+    /// Allow attach all GPUs
+    pub allow_attach_all: bool,
 }
 
 impl GpuConfig {

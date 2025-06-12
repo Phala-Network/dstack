@@ -680,7 +680,7 @@
 
                     <div class="form-group" v-if="availableGpus.length > 0">
                         <label for="gpuSelection">GPU</label>
-                        <gpu-config-editor :available-gpus="availableGpus" v-model:gpus="vmForm.selectedGpus"
+                        <gpu-config-editor :available-gpus="availableGpus" :allow-attach-all="allowAttachAllGpus" v-model:gpus="vmForm.selectedGpus"
                             v-model:attach-all="vmForm.attachAllGpus">
                         </gpu-config-editor>
                     </div>
@@ -1084,7 +1084,7 @@
                     </div>
 
                     <div v-if="upgradeDialog.updateGpuConfig">
-                        <gpu-config-editor :available-gpus="availableGpus" v-model:gpus="upgradeDialog.selectedGpus"
+                        <gpu-config-editor :available-gpus="availableGpus" :allow-attach-all="allowAttachAllGpus" v-model:gpus="upgradeDialog.selectedGpus"
                             v-model:attach-all="upgradeDialog.attachAllGpus">
                         </gpu-config-editor>
                     </div>
@@ -1248,7 +1248,7 @@
 
     <template id="gpu-config-editor">
         <div>
-            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+            <div v-if="allowAttachAll" style="display: flex; flex-wrap: wrap; gap: 20px;">
                 <label style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
                     <input type="checkbox" v-model="attachAll" style="margin-right: 5px;">
                     Attach All GPUs and NVSwitches
@@ -1375,6 +1375,10 @@
                 attachAll: {
                     type: Boolean,
                     required: true
+                },
+                allowAttachAll: {
+                    type: Boolean,
+                    required: true
                 }
             },
             emits: ['update:gpus', 'update:attachAll'],
@@ -1454,6 +1458,7 @@
                 const availableImages = ref([]);
                 const availableGpus = ref([]);
                 const availableGpuProducts = ref([]);
+                const allowAttachAllGpus = ref(false);
                 const upgradeDialog = ref({
                     show: false,
                     vm: null,
@@ -1902,6 +1907,7 @@
                         const gpus = data.gpus || [];
                         availableGpus.value = gpus;
                         availableGpuProducts.value = [];
+                        allowAttachAllGpus.value = data.allow_attach_all;
                         for (const gpu of gpus) {
                             if (!availableGpuProducts.value.find(product => product.product_id == gpu.product_id)) {
                                 console.log('appending gpu', gpu);
@@ -2339,6 +2345,7 @@
                     availableImages,
                     availableGpus,
                     availableGpuProducts,
+                    allowAttachAllGpus,
                     createVm,
                     stopVm,
                     startVm,

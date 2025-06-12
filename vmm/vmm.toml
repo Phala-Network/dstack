@@ -53,6 +53,8 @@ listing = ["10de:2335"]
 exclude = []
 # The PCI addresses of the cards to include
 include = []
+# Allow attach all GPUs
+allow_attach_all = true
 
 [gateway]
 base_domain = "localhost"
