@@ -90,6 +90,15 @@ pub struct GpuConfig {
     pub bridges: Vec<GpuSpec>,
 }
 
+impl GpuConfig {
+    pub fn is_empty(&self) -> bool {
+        if self.attach_mode.is_all() {
+            return false;
+        }
+        self.gpus.is_empty() && self.bridges.is_empty()
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GpuSpec {
     #[serde(default)]
