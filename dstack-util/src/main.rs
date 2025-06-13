@@ -269,7 +269,6 @@ impl core::fmt::Debug for ParsedReport {
 fn cmd_show_mrs() -> Result<()> {
     let attestation = ra_tls::attestation::Attestation::local()?;
     let app_info = attestation.decode_app_info(false)?;
-    println!("========== Measurement Report ==========");
     serde_json::to_writer_pretty(io::stdout(), &app_info)?;
     println!();
     Ok(())
