@@ -7,23 +7,33 @@ set -e
 # # How to Use
 # This script can be used in a systemd service to set up firewall rules before starting VMs.
 # Example systemd service configuration:
-#
+# ```
 # [Unit]
 # Description=Dstack Firewall Configuration
 # Before=dstack-vmm.service
 #
 # [Service]
 # Type=oneshot
-# ExecStart=/path/to/config-fw.sh -u dstack-vmm --allow-tcp 22 --allow-tcp 8080
+# ExecStart=/path/to/config-fw.sh -u dstack-vmm
 # RemainAfterExit=yes
 #
 # [Install]
 # WantedBy=multi-user.target
+# ```
 #
 # # Note
 # The dstack supervisor must be run with a dedicated user specified by USERNAME in this script.
 # For example, if dstack-gateway is running on the same host, it must use a different user account than USERNAME.
-#
+# To allow specific local ports to be accessed by CVMs, add --allow-tcp and --allow-udp.
+# For example, if dstack-gateway is running on local host and listening RPC on port 9001, wg on port 9182:
+# ```
+# ./config-fw.sh -u dstack-vmm --allow-tcp 9001 --allow-udp 9182
+# ```
+# If the KMS is also running on the same host and listening on port 9002:
+# ```
+# ./config-fw.sh -u dstack-vmm --allow-tcp 9001 --allow-udp 9182 --allow-tcp 9002
+# ```
+
 
 # Default values
 USERNAME=${USERNAME:-""}
