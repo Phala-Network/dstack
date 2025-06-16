@@ -44,6 +44,7 @@ x509-parser.workspace = true
 serde_yaml2.workspace = true
 bollard.workspace = true
 sodiumbox.workspace = true
+libc.workspace = true
 
 [dev-dependencies]
 rand.workspace = true

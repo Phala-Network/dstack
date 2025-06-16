@@ -165,7 +165,16 @@ impl HostShared {
             if src_size > max_size {
                 bail!("Source file {src} is too large, max size is {max_size} bytes");
             }
-            fs_err::copy(src_path, dst_path)?;
+            use fs::os::unix::fs::OpenOptionsExt;
+            let mut src_io = fs::OpenOptions::new()
+                .read(true)
+                .custom_flags(libc::O_NOFOLLOW)
+                .open(src_path)?;
+            let mut dst_io = fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open(dst_path)?;
+            std::io::copy(&mut src_io, &mut dst_io)?;
             Ok(())
         };
         cmd! {

@@ -2182,6 +2182,7 @@ dependencies = [
  "hex_fmt",
  "host-api",
  "k256",
+ "libc",
  "parity-scale-codec",
  "ra-rpc",
  "ra-tls",
