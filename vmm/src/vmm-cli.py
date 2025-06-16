@@ -528,6 +528,18 @@ class VmmCLI:
                       'encrypted_env': encrypted_env})
         print(f"Environment variables updated for VM {vm_id}")
 
+    def update_vm_user_config(self, vm_id: str, user_config: str) -> None:
+        """Update user config for a VM"""
+        self.rpc_call('UpgradeApp', {'id': vm_id,
+                      'user_config': user_config})
+        print(f"User config updated for VM {vm_id}")
+
+    def update_vm_app_compose(self, vm_id: str, app_compose: str) -> None:
+        """Update app compose for a VM"""
+        self.rpc_call('UpgradeApp', {'id': vm_id,
+                      'compose_file': app_compose})
+        print(f"App compose updated for VM {vm_id}")
+
     def list_gpus(self) -> None:
         """List all available GPUs"""
         response = self.rpc_call('ListGpus')
@@ -877,6 +889,20 @@ def main():
         'remove', help='Remove public key from trusted signers')
     remove_kms_parser.add_argument('pubkey', help='Public key to remove')
 
+    # Update app compose
+    update_app_compose_parser = subparsers.add_parser(
+        'update-app-compose', help='Update app compose for a VM')
+    update_app_compose_parser.add_argument('vm_id', help='VM ID to update')
+    update_app_compose_parser.add_argument(
+        'compose', help='Path to app-compose.json file')
+
+    # Update user config
+    update_user_config_parser = subparsers.add_parser(
+        'update-user-config', help='Update user config for a VM')
+    update_user_config_parser.add_argument('vm_id', help='VM ID to update')
+    update_user_config_parser.add_argument(
+        'user_config', help='Path to user config file')
+
     args = parser.parse_args()
 
     cli = VmmCLI(args.url)
@@ -932,6 +958,10 @@ def main():
         cli.list_gpus()
     elif args.command == 'update-env':
         cli.update_vm_env(args.vm_id, parse_env_file(args.env_file), kms_urls=args.kms_url)
+    elif args.command == 'update-user-config':
+        cli.update_vm_user_config(args.vm_id, open(args.user_config, 'r').read())
+    elif args.command == 'update-app-compose':
+        cli.update_vm_app_compose(args.vm_id, open(args.compose, 'r').read())
     elif args.command == 'kms':
         if not args.kms_action:
             kms_parser.print_help()

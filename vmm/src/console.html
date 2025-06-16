@@ -1933,11 +1933,8 @@
                 }
 
                 const showUpgradeDialog = async (vm) => {
-                    if (!vm.configuration) {
-                        // Load full VM details before showing the dialog
-                        await loadVMDetails(vm.id);
-                    }
-
+                    // Load full VM details before showing the dialog
+                    await loadVMDetails(vm.id);
                     // Get the updated VM with full details
                     const updatedVM = vms.value.find(v => v.id === vm.id);
                     if (!updatedVM) {
@@ -2038,6 +2035,7 @@
                             host_port: port.host_port,
                             vm_port: port.vm_port
                         }));
+                        body.user_config = upgradeDialog.value.user_config;
 
                         const response = await rpcCall('UpgradeApp', body);
                         const data = await response.json();
