@@ -1424,11 +1424,26 @@
                 const maxPage = computed(() => {
                     return Math.ceil(totalVMs.value / pageSize.value) || 1;
                 });
+                const preLaunchScript = `
+EXPECTED_TOKEN_HASH=$(jq -j .launch_token_hash app-compose.json)
+if [ "$EXPECTED_TOKEN_HASH" == "null" ]; then
+    echo "Skipped APP_LAUNCH_TOKEN check"
+else
+  ACTUAL_TOKEN_HASH=$(echo -n "$APP_LAUNCH_TOKEN" | sha256sum | cut -d' ' -f1)
+  if [ "$EXPECTED_TOKEN_HASH" != "$ACTUAL_TOKEN_HASH" ]; then
+      echo "Error: Incorrect APP_LAUNCH_TOKEN, please make sure set the correct APP_LAUNCH_TOKEN in env"
+      reboot
+      exit 1
+  else
+      echo "APP_LAUNCH_TOKEN checked OK"
+  fi
+fi
+`;
                 const vmForm = ref({
                     name: '',
                     image: '',
                     dockerComposeFile: '',
-                    preLaunchScript: '',
+                    preLaunchScript,
                     vcpu: 1,
                     memory: 2048, // This will be computed from memoryValue and memoryUnit
                     memoryValue: 2,
@@ -1599,7 +1614,7 @@
                     }
                 };
 
-                const makeAppComposeFile = () => {
+                const makeAppComposeFile = async () => {
                     const app_compose = {
                         "manifest_version": 2,
                         "name": vmForm.value.name,
@@ -1625,6 +1640,12 @@
                         app_compose.pre_launch_script = vmForm.value.preLaunchScript;
                     }
 
+                    // If APP_LAUNCH_TOKEN is set, add it's sha256 hash to the app compose file
+                    const launchToken = vmForm.value.encryptedEnvs.find(env => env.key === 'APP_LAUNCH_TOKEN');
+                    if (launchToken) {
+                        app_compose.launch_token_hash = await calcComposeHash(launchToken.value);
+                    }
+
                     const imgFeatures = imageVersionFeatures(imageVersion(vmForm.value.image));
                     if (imgFeatures.compose_version < 2) {
                         // Compatibility with old images
@@ -1648,7 +1669,8 @@
                 }
 
                 const calcAppId = async () => {
-                    const composeHash = await calcComposeHash(makeAppComposeFile());
+                    const appCompose = await makeAppComposeFile();
+                    const composeHash = await calcComposeHash(appCompose);
                     return composeHash.slice(0, 40);
                 };
 
@@ -1763,7 +1785,7 @@
 
                         const form = {
                             ...vmForm.value,
-                            compose_file: makeAppComposeFile(),
+                            compose_file: await makeAppComposeFile(),
                             allowed_envs: vmForm.value.encryptedEnvs.map(env => env.key),
                             encrypted_env: await makeEncryptedEnv(
                                 vmForm.value.encryptedEnvs,
@@ -1981,12 +2003,18 @@
                     }
                 };
 
-                const updatedCompose = () => {
+                const updatedCompose = async () => {
                     const currentAppCompose = upgradeDialog.value.vm.appCompose;
                     const app_compose = {
                         ...currentAppCompose,
                         docker_compose_file: upgradeDialog.value.dockerComposeFile || currentAppCompose.docker_compose_file
                     };
+                    if (upgradeDialog.value.resetSecrets) {
+                        const launchToken = upgradeDialog.value.encryptedEnvs.find(env => env.key == 'APP_LAUNCH_TOKEN');
+                        if (launchToken) {
+                            app_compose.launch_token_hash = await calcComposeHash(launchToken.value);
+                        }
+                    }
                     app_compose.pre_launch_script = upgradeDialog.value.preLaunchScript?.trim();
                     return JSON.stringify(app_compose);
                 }
@@ -2011,9 +2039,6 @@
                         const body = {
                             id: upgradeDialog.value.vm.id,
                         };
-                        if (upgradeDialog.value.updateCompose) {
-                            body.compose_file = updatedCompose();
-                        }
 
                         if (upgradeDialog.value.resetSecrets) {
                             body.encrypted_env = await makeEncryptedEnv(
@@ -2022,6 +2047,10 @@
                                 upgradeDialog.value.vm.app_id
                             );
                         }
+                        if (upgradeDialog.value.updateCompose) {
+                            body.compose_file = await updatedCompose();
+                        }
+
 
                         // Add GPU configuration if update is requested
                         if (upgradeDialog.value.updateGpuConfig) {
@@ -2303,10 +2332,12 @@
                     () => vmForm.value.key_provider_id,
                     () => vmForm.value.docker_config.enabled,
                     () => vmForm.value.docker_config.username,
-                    () => vmForm.value.docker_config.token_key
+                    () => vmForm.value.docker_config.token_key,
+                    () => vmForm.value.encryptedEnvs
                 ], async () => {
                     try {
-                        composeHashPreview.value = await calcComposeHash(makeAppComposeFile());
+                        const appCompose = await makeAppComposeFile();
+                        composeHashPreview.value = await calcComposeHash(appCompose);
                     } catch (error) {
                         composeHashPreview.value = 'Error calculating hash';
                     }
@@ -2315,13 +2346,14 @@
                 // Watch for changes to upgrade dialog compose fields
                 watch([
                     () => upgradeDialog.value.dockerComposeFile,
-                    () => upgradeDialog.value.preLaunchScript
+                    () => upgradeDialog.value.preLaunchScript,
+                    () => upgradeDialog.value.encryptedEnvs
                 ], async () => {
                     if (!upgradeDialog.value.show || !upgradeDialog.value.updateCompose) return;
 
                     try {
                         // Calculate hash with upgrade values
-                        upgradeComposeHashPreview.value = await calcComposeHash(updatedCompose());
+                        upgradeComposeHashPreview.value = await calcComposeHash(await updatedCompose());
                     } catch (error) {
                         upgradeComposeHashPreview.value = 'Error calculating hash';
                     }
