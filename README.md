@@ -67,7 +67,7 @@ sudo apt install -y build-essential chrpath diffstat lz4 wireguard-tools xorriso
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-## Build and run
+## Build and run for local development
 
 ### Build the artifacts
 ```bash
@@ -113,6 +113,9 @@ Now you can open 3 terminals to start the components:
 1. Run `./dstack-kms -c kms.toml`
 2. Run `sudo ./dstack-gateway -c gateway.toml`
 3. Run `./dstack-vmm -c vmm.toml`
+
+⚠️ *Warning: this is for local development, and the kms is not secure, so you should not use it in production.*
+For production, you should follow the [deployment guide](./docs/deployment.md).
 
 ## Deploy an App
 Open the dstack-vmm webpage [http://localhost:9080](http://localhost:9080)(change the port according to your configuration) on your local machine to deploy a `docker-compose.yaml` file:
