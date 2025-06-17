@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 import { EthereumBackend } from '../src/ethereum';
 import { BootInfo } from '../src/types';
 import { KmsAuth } from "../typechain-types/contracts/KmsAuth";
-import { AppAuth } from "../typechain-types/contracts/AppAuth";
+import { AppAuth } from "../typechain-types/contracts/AppAuth.sol/AppAuth";
 
 describe('EthereumBackend', () => {
   let kmsAuth: KmsAuth;
