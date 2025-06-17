@@ -5,12 +5,14 @@ import "./IAppAuth.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract KmsAuth is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
+    ERC165Upgradeable,
     IAppAuth
 {
     // Struct for KMS information
@@ -74,12 +76,31 @@ contract KmsAuth is
     function initialize(address initialOwner, address _appAuthImplementation) public initializer {
         __Ownable_init(initialOwner);
         __UUPSUpgradeable_init();
+        __ERC165_init();
         
         // Set AppAuth implementation if provided
         if (_appAuthImplementation != address(0)) {
             appAuthImplementation = _appAuthImplementation;
             emit AppAuthImplementationSet(_appAuthImplementation);
         }
+    }
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     * @notice Returns true if this contract implements the interface defined by interfaceId
+     * @param interfaceId The interface identifier, as specified in ERC-165
+     * @return True if the contract implements `interfaceId`
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC165Upgradeable, IERC165)
+        returns (bool)
+    {
+        return
+            interfaceId == 0x1e079198 || // IAppAuth
+            super.supportsInterface(interfaceId);
     }
 
     // Function to authorize upgrades (required by UUPSUpgradeable)

@@ -5,12 +5,32 @@ import "./IAppAuth.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
+
+/**
+ * @title IAppAuthBasicManagement
+ * @notice Basic management interface for App Authentication contracts  
+ * @dev Interface ID: 0x8fd37527
+ */
+interface IAppAuthBasicManagement is IERC165 {
+    event ComposeHashAdded(bytes32 composeHash);
+    event ComposeHashRemoved(bytes32 composeHash);
+    event DeviceAdded(bytes32 deviceId);
+    event DeviceRemoved(bytes32 deviceId);
+
+    function addComposeHash(bytes32 composeHash) external;
+    function removeComposeHash(bytes32 composeHash) external;
+    function addDevice(bytes32 deviceId) external;
+    function removeDevice(bytes32 deviceId) external;
+}
 
 contract AppAuth is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
-    IAppAuth
+    ERC165Upgradeable,
+    IAppAuth,
+    IAppAuthBasicManagement
 {
     // App ID this contract is managing
     address public appId;
@@ -27,12 +47,8 @@ contract AppAuth is
     // Mapping of allowed device IDs for this app
     mapping(bytes32 => bool) public allowedDeviceIds;
 
-    // Events
-    event ComposeHashAdded(bytes32 composeHash);
-    event ComposeHashRemoved(bytes32 composeHash);
+    // Additional events specific to AppAuth
     event UpgradesDisabled();
-    event DeviceAdded(bytes32 deviceId);
-    event DeviceRemoved(bytes32 deviceId);
     event AllowAnyDeviceSet(bool allowAny);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -70,6 +86,26 @@ contract AppAuth is
         
         __Ownable_init(initialOwner);
         __UUPSUpgradeable_init();
+        __ERC165_init();
+    }
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     * @notice Returns true if this contract implements the interface defined by interfaceId
+     * @param interfaceId The interface identifier, as specified in ERC-165
+     * @return True if the contract implements `interfaceId`
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC165Upgradeable, IERC165)
+        returns (bool)
+    {
+        return
+            interfaceId == 0x1e079198 || // IAppAuth
+            interfaceId == 0x8fd37527 || // IAppAuthBasicManagement
+            super.supportsInterface(interfaceId);
     }
 
     // Function to authorize upgrades (required by UUPSUpgradeable)
