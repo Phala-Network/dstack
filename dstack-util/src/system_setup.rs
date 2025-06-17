@@ -60,8 +60,6 @@ pub struct SetupArgs {
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 struct InstanceInfo {
-    #[serde(default)]
-    bootstrapped: Option<bool>,
     #[serde(with = "hex_bytes", default)]
     instance_id_seed: Vec<u8>,
     #[serde(with = "hex_bytes", default)]
@@ -72,8 +70,7 @@ struct InstanceInfo {
 
 impl InstanceInfo {
     fn is_initialized(&self) -> bool {
-        self.bootstrapped
-            .unwrap_or(!self.instance_id_seed.is_empty())
+        !self.instance_id_seed.is_empty()
     }
 }
 

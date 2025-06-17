@@ -107,6 +107,7 @@ export interface KmsAuthInterface extends Interface {
       | "setKmsEventlog"
       | "setKmsInfo"
       | "setKmsQuote"
+      | "supportsInterface"
       | "transferOwnership"
       | "upgradeToAndCall"
   ): FunctionFragment;
@@ -234,6 +235,10 @@ export interface KmsAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "supportsInterface",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
@@ -338,6 +343,10 @@ export interface KmsAuthInterface extends Interface {
   decodeFunctionResult(functionFragment: "setKmsInfo", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "setKmsQuote",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "supportsInterface",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -715,6 +724,12 @@ export interface KmsAuth extends BaseContract {
 
   setKmsQuote: TypedContractMethod<[quote: BytesLike], [void], "nonpayable">;
 
+  supportsInterface: TypedContractMethod<
+    [interfaceId: BytesLike],
+    [boolean],
+    "view"
+  >;
+
   transferOwnership: TypedContractMethod<
     [newOwner: AddressLike],
     [void],
@@ -855,6 +870,9 @@ export interface KmsAuth extends BaseContract {
   getFunction(
     nameOrSignature: "setKmsQuote"
   ): TypedContractMethod<[quote: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "supportsInterface"
+  ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;

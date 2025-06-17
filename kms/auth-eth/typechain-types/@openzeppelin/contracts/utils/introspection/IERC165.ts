@@ -7,7 +7,6 @@ import type {
   FunctionFragment,
   Result,
   Interface,
-  AddressLike,
   ContractRunner,
   ContractMethod,
   Listener,
@@ -18,73 +17,27 @@ import type {
   TypedEventLog,
   TypedListener,
   TypedContractMethod,
-} from "../common";
+} from "../../../../common";
 
-export declare namespace IAppAuth {
-  export type AppBootInfoStruct = {
-    appId: AddressLike;
-    composeHash: BytesLike;
-    instanceId: AddressLike;
-    deviceId: BytesLike;
-    mrAggregated: BytesLike;
-    mrSystem: BytesLike;
-    osImageHash: BytesLike;
-    tcbStatus: string;
-    advisoryIds: string[];
-  };
+export interface IERC165Interface extends Interface {
+  getFunction(nameOrSignature: "supportsInterface"): FunctionFragment;
 
-  export type AppBootInfoStructOutput = [
-    appId: string,
-    composeHash: string,
-    instanceId: string,
-    deviceId: string,
-    mrAggregated: string,
-    mrSystem: string,
-    osImageHash: string,
-    tcbStatus: string,
-    advisoryIds: string[]
-  ] & {
-    appId: string;
-    composeHash: string;
-    instanceId: string;
-    deviceId: string;
-    mrAggregated: string;
-    mrSystem: string;
-    osImageHash: string;
-    tcbStatus: string;
-    advisoryIds: string[];
-  };
-}
-
-export interface IAppAuthInterface extends Interface {
-  getFunction(
-    nameOrSignature: "isAppAllowed" | "supportsInterface"
-  ): FunctionFragment;
-
-  encodeFunctionData(
-    functionFragment: "isAppAllowed",
-    values: [IAppAuth.AppBootInfoStruct]
-  ): string;
   encodeFunctionData(
     functionFragment: "supportsInterface",
     values: [BytesLike]
   ): string;
 
   decodeFunctionResult(
-    functionFragment: "isAppAllowed",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "supportsInterface",
     data: BytesLike
   ): Result;
 }
 
-export interface IAppAuth extends BaseContract {
-  connect(runner?: ContractRunner | null): IAppAuth;
+export interface IERC165 extends BaseContract {
+  connect(runner?: ContractRunner | null): IERC165;
   waitForDeployment(): Promise<this>;
 
-  interface: IAppAuthInterface;
+  interface: IERC165Interface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
@@ -123,12 +76,6 @@ export interface IAppAuth extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
-  isAppAllowed: TypedContractMethod<
-    [bootInfo: IAppAuth.AppBootInfoStruct],
-    [[boolean, string] & { isAllowed: boolean; reason: string }],
-    "view"
-  >;
-
   supportsInterface: TypedContractMethod<
     [interfaceId: BytesLike],
     [boolean],
@@ -139,13 +86,6 @@ export interface IAppAuth extends BaseContract {
     key: string | FunctionFragment
   ): T;
 
-  getFunction(
-    nameOrSignature: "isAppAllowed"
-  ): TypedContractMethod<
-    [bootInfo: IAppAuth.AppBootInfoStruct],
-    [[boolean, string] & { isAllowed: boolean; reason: string }],
-    "view"
-  >;
   getFunction(
     nameOrSignature: "supportsInterface"
   ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;

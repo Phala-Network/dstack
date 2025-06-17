@@ -78,6 +78,7 @@ export interface AppAuthInterface extends Interface {
       | "removeDevice"
       | "renounceOwnership"
       | "setAllowAnyDevice"
+      | "supportsInterface"
       | "transferOwnership"
       | "upgradeToAndCall"
   ): FunctionFragment;
@@ -154,6 +155,10 @@ export interface AppAuthInterface extends Interface {
     values: [boolean]
   ): string;
   encodeFunctionData(
+    functionFragment: "supportsInterface",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
@@ -212,6 +217,10 @@ export interface AppAuthInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "setAllowAnyDevice",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "supportsInterface",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -441,6 +450,12 @@ export interface AppAuth extends BaseContract {
     "nonpayable"
   >;
 
+  supportsInterface: TypedContractMethod<
+    [interfaceId: BytesLike],
+    [boolean],
+    "view"
+  >;
+
   transferOwnership: TypedContractMethod<
     [newOwner: AddressLike],
     [void],
@@ -520,6 +535,9 @@ export interface AppAuth extends BaseContract {
   getFunction(
     nameOrSignature: "setAllowAnyDevice"
   ): TypedContractMethod<[_allowAnyDevice: boolean], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "supportsInterface"
+  ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;

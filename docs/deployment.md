@@ -65,17 +65,24 @@ A KMS node requires a KMSAuth contract to be deployed on the Ethereum-compatible
 cd dstack/kms/auth-eth
 npm install
 npx hardhat compile
-PRIVATE_KEY=<your-private-key> npx hardhat kms:deploy --network phala
+PRIVATE_KEY=<your-private-key> npx hardhat kms:deploy --with-app-impl --network phala
 ```
-It will deploy the KmsAuth contract to the Phala network and print the contract address:
+It will deploy both the AppAuth implementation and KmsAuth contract to the Phala network and print the contract addresses:
 
 ```
+Step 1: Deploying AppAuth implementation...
+✅ AppAuth implementation deployed to: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+Step 2: Deploying KmsAuth...
 Deploying proxy...
 Waiting for deployment...
 KmsAuth Proxy deployed to: 0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
-Implementation deployed to: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+Implementation deployed to: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
 Deployment completed successfully
 Transaction hash: 0xd413d01a0640b6193048b0e98afb7c173abe58c74d9cf01f368166bc53f4fefe
+✅ Complete KMS setup deployed successfully!
+- AppAuth implementation: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+- KmsAuth proxy: 0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
+🚀 Ready for factory app deployments!
 ```
 
 ## Deploy KMS into CVM
@@ -292,6 +299,7 @@ The on-chain registration process includes two steps:
 
 The Dstack repository provides scripts to complete these two steps:
 
+**Option 1: Traditional deployment (2 transactions)**
 ```bash
 git clone https://github.com/Dstack-TEE/dstack
 cd dstack/kms/auth-eth
@@ -302,20 +310,37 @@ export KMS_CONTRACT_ADDRESS=0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
 npx hardhat app:deploy --allow-any-device --network phala
 ```
 
+**Option 2: Factory deployment (1 transaction, recommended)**
+```bash
+npx hardhat kms:create-app --allow-any-device --network phala
+```
+
 Command output:
 ```
+Deploying with account: 0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199
+Account balance: 9999.995278992293365404
+App ID: 0xA35b434eE853fdf9c2Bf48Fa1583Ac1332d50255
+Starting AppAuth deployment process...
 Deploying proxy...
 Waiting for deployment...
-AppAuth Proxy deployed to: 0xD4a546B1C7e63CD4CeD314b2C90108e49191A915
+AppAuth deployed to: 0xD4a546B1C7e63CD4CeD314b2C90108e49191A915
 Implementation deployed to: 0x5aC1671E1Df54994D023F0B05806821d6D84e086
 Deployment completed successfully
 Transaction hash: 0xceac2ac6d56a40fef903b947d3a05df42ccce66da7f356c5d54afda68277f9a9
 Waiting for transaction 0xe144e9007208079e5e82c04f727d2383c58184e74d4f860e62557b5f330ab832 to be confirmed...
-App registered in KMS successfully
-Registered AppId: 0xA35b434eE853fdf9c2Bf48Fa1583Ac1332d50255
+✅ App deployed and registered successfully!
+App ID: 0xA35b434eE853fdf9c2Bf48Fa1583Ac1332d50255
+Proxy Address: 0xD4a546B1C7e63CD4CeD314b2C90108e49191A915
+Owner: 0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199
+Transaction hash: 0xe144e9007208079e5e82c04f727d2383c58184e74d4f860e62557b5f330ab832
 ```
 
 Note the AppId, which needs to be filled in when deploying cvm.
+
+**Additional options:**
+- Add initial device ID: `--device 0x1234...`
+- Add initial compose hash: `--hash 0x5678...`
+- Both deployment methods support these optional parameters for pre-configuration during deployment.
 
 If you need to upgrade the contract in the future, please backup the `.openzeppelin/unknown-2035.json` file.
 

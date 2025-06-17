@@ -3,11 +3,12 @@
 /* eslint-disable */
 import type {
   BaseContract,
+  BigNumberish,
   BytesLike,
   FunctionFragment,
   Result,
   Interface,
-  AddressLike,
+  EventFragment,
   ContractRunner,
   ContractMethod,
   Listener,
@@ -16,75 +17,44 @@ import type {
   TypedContractEvent,
   TypedDeferredTopicFilter,
   TypedEventLog,
+  TypedLogDescription,
   TypedListener,
   TypedContractMethod,
-} from "../common";
+} from "../../../../common";
 
-export declare namespace IAppAuth {
-  export type AppBootInfoStruct = {
-    appId: AddressLike;
-    composeHash: BytesLike;
-    instanceId: AddressLike;
-    deviceId: BytesLike;
-    mrAggregated: BytesLike;
-    mrSystem: BytesLike;
-    osImageHash: BytesLike;
-    tcbStatus: string;
-    advisoryIds: string[];
-  };
+export interface ERC165UpgradeableInterface extends Interface {
+  getFunction(nameOrSignature: "supportsInterface"): FunctionFragment;
 
-  export type AppBootInfoStructOutput = [
-    appId: string,
-    composeHash: string,
-    instanceId: string,
-    deviceId: string,
-    mrAggregated: string,
-    mrSystem: string,
-    osImageHash: string,
-    tcbStatus: string,
-    advisoryIds: string[]
-  ] & {
-    appId: string;
-    composeHash: string;
-    instanceId: string;
-    deviceId: string;
-    mrAggregated: string;
-    mrSystem: string;
-    osImageHash: string;
-    tcbStatus: string;
-    advisoryIds: string[];
-  };
-}
+  getEvent(nameOrSignatureOrTopic: "Initialized"): EventFragment;
 
-export interface IAppAuthInterface extends Interface {
-  getFunction(
-    nameOrSignature: "isAppAllowed" | "supportsInterface"
-  ): FunctionFragment;
-
-  encodeFunctionData(
-    functionFragment: "isAppAllowed",
-    values: [IAppAuth.AppBootInfoStruct]
-  ): string;
   encodeFunctionData(
     functionFragment: "supportsInterface",
     values: [BytesLike]
   ): string;
 
   decodeFunctionResult(
-    functionFragment: "isAppAllowed",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "supportsInterface",
     data: BytesLike
   ): Result;
 }
 
-export interface IAppAuth extends BaseContract {
-  connect(runner?: ContractRunner | null): IAppAuth;
+export namespace InitializedEvent {
+  export type InputTuple = [version: BigNumberish];
+  export type OutputTuple = [version: bigint];
+  export interface OutputObject {
+    version: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export interface ERC165Upgradeable extends BaseContract {
+  connect(runner?: ContractRunner | null): ERC165Upgradeable;
   waitForDeployment(): Promise<this>;
 
-  interface: IAppAuthInterface;
+  interface: ERC165UpgradeableInterface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
@@ -123,12 +93,6 @@ export interface IAppAuth extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
-  isAppAllowed: TypedContractMethod<
-    [bootInfo: IAppAuth.AppBootInfoStruct],
-    [[boolean, string] & { isAllowed: boolean; reason: string }],
-    "view"
-  >;
-
   supportsInterface: TypedContractMethod<
     [interfaceId: BytesLike],
     [boolean],
@@ -140,15 +104,27 @@ export interface IAppAuth extends BaseContract {
   ): T;
 
   getFunction(
-    nameOrSignature: "isAppAllowed"
-  ): TypedContractMethod<
-    [bootInfo: IAppAuth.AppBootInfoStruct],
-    [[boolean, string] & { isAllowed: boolean; reason: string }],
-    "view"
-  >;
-  getFunction(
     nameOrSignature: "supportsInterface"
   ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
 
-  filters: {};
+  getEvent(
+    key: "Initialized"
+  ): TypedContractEvent<
+    InitializedEvent.InputTuple,
+    InitializedEvent.OutputTuple,
+    InitializedEvent.OutputObject
+  >;
+
+  filters: {
+    "Initialized(uint64)": TypedContractEvent<
+      InitializedEvent.InputTuple,
+      InitializedEvent.OutputTuple,
+      InitializedEvent.OutputObject
+    >;
+    Initialized: TypedContractEvent<
+      InitializedEvent.InputTuple,
+      InitializedEvent.OutputTuple,
+      InitializedEvent.OutputObject
+    >;
+  };
 }

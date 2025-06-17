@@ -3,4 +3,5 @@
 /* eslint-disable */
 export { AppAuth__factory } from "./AppAuth__factory";
 export { IAppAuth__factory } from "./IAppAuth__factory";
+export { IAppAuthBasicManagement__factory } from "./IAppAuthBasicManagement__factory";
 export { KmsAuth__factory } from "./KmsAuth__factory";
