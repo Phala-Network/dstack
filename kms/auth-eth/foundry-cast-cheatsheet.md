@@ -24,7 +24,7 @@ alias mycast="cast --private-key $PRIVATE_KEY --rpc-url $RPC_URL"
 
 ```bash
 # Deploy AppAuth implementation and KmsAuth with implementation set in one command
-npx hardhat kms:deploy-complete --network test
+npx hardhat kms:deploy --with-app-impl --network test
 # This automatically:
 # 1. Deploys AppAuth implementation
 # 2. Deploys KmsAuth UUPS proxy with AppAuth implementation set during initialization
@@ -180,7 +180,7 @@ cast send $KMS_CONTRACT_ADDRESS "removeKmsDevice(bytes32)" \
 ### Factory Deployment (Recommended - Single Transaction)
 
 ```bash
-# app:deploy-factory - Deploy and register AppAuth in single transaction
+# kms:create-app - Deploy and register AppAuth in single transaction
 cast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,bytes32)" \
   "$DEPLOYER_ADDRESS" false true \
   "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" \
@@ -455,7 +455,7 @@ cast send $APP_AUTH_ADDRESS "addDevice(bytes32)" "0x1234..." \
 
 ```bash
 # 1. Complete Setup (Deploy AppAuth implementation and KMS in one command)
-npx hardhat kms:deploy-complete --network test
+npx hardhat kms:deploy --with-app-impl --network test
 export KMS_CONTRACT_ADDRESS="DEPLOYED_PROXY_ADDRESS"
 
 # 2. Configure KMS (add allowed MRs, devices, images)
@@ -516,7 +516,7 @@ cast call $KMS_CONTRACT_ADDRESS "owner()" --rpc-url $RPC_URL
 | Hardhat Task | Cast Equivalent | Notes |
 |--------------|-----------------|-------|
 | `kms:deploy` | Use hardhat (complex proxy deployment) | Creates UUPS proxy, optionally sets AppAuth impl |
-| `kms:deploy-complete` | Use hardhat | **⭐ Recommended**: Deploys both AppAuth impl & KMS in one go |
+| `kms:deploy --with-app-impl` | Use hardhat | **⭐ Recommended**: Deploys both AppAuth impl & KMS in one go |
 | `kms:deploy-impl` | `npx hardhat kms:deploy-impl` | Deploys implementation only |
 | `app:deploy-impl` | `npx hardhat app:deploy-impl` | Deploys AppAuth implementation |
 | `kms:upgrade` | `cast send ... upgradeTo` | Upgrades proxy to new impl |

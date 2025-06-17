@@ -14,7 +14,14 @@ describe("AppAuth", function () {
   beforeEach(async function () {
     [owner, user] = await ethers.getSigners();
     appId = ethers.Wallet.createRandom().address;
-    appAuth = await deployContract(hre, "AppAuth", [owner.address, appId, false, true], true) as AppAuth;
+    appAuth = await deployContract(hre, "AppAuth", [
+      owner.address, 
+      appId, 
+      false,  // _disableUpgrades
+      true,   // _allowAnyDevice
+      ethers.ZeroHash,  // initialDeviceId (empty)
+      ethers.ZeroHash   // initialComposeHash (empty)
+    ], true) as AppAuth;
   });
 
   describe("Basic functionality", function () {
@@ -154,8 +161,7 @@ describe("AppAuth", function () {
         contractFactory,
         [owner.address, appIdWithData, false, false, testDevice, testHash],
         { 
-          kind: 'uups',
-          initializer: 'initializeWithData'
+          kind: 'uups'
         }
       ) as AppAuth;
       
@@ -254,8 +260,7 @@ describe("AppAuth", function () {
         contractFactory,
         [owner.address, appIdWithData, false, false, ethers.ZeroHash, ethers.ZeroHash],
         { 
-          kind: 'uups',
-          initializer: 'initializeWithData'
+          kind: 'uups'
         }
       ) as AppAuth;
       

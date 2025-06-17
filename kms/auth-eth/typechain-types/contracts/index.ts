@@ -3,4 +3,5 @@
 /* eslint-disable */
 export type { AppAuth } from "./AppAuth";
 export type { IAppAuth } from "./IAppAuth";
+export type { IAppAuthBasicManagement } from "./IAppAuthBasicManagement";
 export type { KmsAuth } from "./KmsAuth";

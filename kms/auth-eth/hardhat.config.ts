@@ -88,6 +88,7 @@ async function getAppAuth(ethers: any, appId: string) {
 // KMS Contract Tasks
 task("kms:deploy", "Deploy the KmsAuth contract")
   .addOptionalParam("appImplementation", "AppAuth implementation address to set during initialization", "", types.string)
+  .addFlag("withAppImpl", "Deploy AppAuth implementation first and set it during KmsAuth initialization")
   .setAction(async (taskArgs, hre) => {
     const { ethers } = hre;
     const [deployer] = await ethers.getSigners();
@@ -95,41 +96,34 @@ task("kms:deploy", "Deploy the KmsAuth contract")
     console.log("Deploying with account:", deployerAddress);
     console.log("Account balance:", await accountBalance(ethers, deployerAddress));
     
-    const appImplementation = taskArgs.appImplementation || ethers.ZeroAddress;
+    let appImplementation = taskArgs.appImplementation || ethers.ZeroAddress;
+    
+    if (taskArgs.withAppImpl && appImplementation === ethers.ZeroAddress) {
+      // Deploy AppAuth implementation first
+      console.log("Step 1: Deploying AppAuth implementation...");
+      const AppAuth = await ethers.getContractFactory("AppAuth");
+      const appAuthImpl = await AppAuth.deploy();
+      await appAuthImpl.waitForDeployment();
+      appImplementation = await appAuthImpl.getAddress();
+      console.log("✅ AppAuth implementation deployed to:", appImplementation);
+    }
+    
     if (appImplementation !== ethers.ZeroAddress) {
       console.log("Setting AppAuth implementation during initialization:", appImplementation);
     }
     
-    await deployContract(hre, "KmsAuth", [deployerAddress, appImplementation]);
-  });
-
-task("kms:deploy-complete", "Deploy AppAuth implementation and KmsAuth in one go")
-  .setAction(async (_, hre) => {
-    const { ethers } = hre;
-    const [deployer] = await ethers.getSigners();
-    const deployerAddress = await deployer.getAddress();
-    console.log("Deploying complete KMS setup with account:", deployerAddress);
-    console.log("Account balance:", await accountBalance(ethers, deployerAddress));
+    console.log("Step 2: Deploying KmsAuth...");
+    const kmsAuth = await deployContract(hre, "KmsAuth", [deployerAddress, appImplementation]);
     
-    // 1. Deploy AppAuth implementation
-    console.log("Step 1: Deploying AppAuth implementation...");
-    const AppAuth = await ethers.getContractFactory("AppAuth");
-    const appAuthImpl = await AppAuth.deploy();
-    await appAuthImpl.waitForDeployment();
-    const appImplementationAddress = await appAuthImpl.getAddress();
-    console.log("✅ AppAuth implementation deployed to:", appImplementationAddress);
-    
-    // 2. Deploy KmsAuth with AppAuth implementation set
-    console.log("Step 2: Deploying KmsAuth with AppAuth implementation...");
-    const kmsAuth = await deployContract(hre, "KmsAuth", [deployerAddress, appImplementationAddress]);
-    
-    if (kmsAuth) {
+    if (kmsAuth && taskArgs.withAppImpl) {
       console.log("✅ Complete KMS setup deployed successfully!");
-      console.log("- AppAuth implementation:", appImplementationAddress);
+      console.log("- AppAuth implementation:", appImplementation);
       console.log("- KmsAuth proxy:", await kmsAuth.getAddress());
       console.log("🚀 Ready for factory app deployments!");
     }
   });
+
+
 
 task("kms:upgrade", "Upgrade the KmsAuth contract")
   .addParam("address", "The address of the contract to upgrade", undefined, types.string, false)
@@ -256,52 +250,6 @@ task("app:show-controller", "Show the controller of an AppAuth contract")
 
 task("app:deploy", "Deploy AppAuth with a UUPS proxy")
   .addFlag("allowAnyDevice", "Allow any device to boot this app")
-  .setAction(async (taskArgs, hre) => {
-    const { ethers } = hre;
-    const [deployer] = await ethers.getSigners();
-    const deployerAddress = await deployer.getAddress();
-    console.log("Deploying with account:", deployerAddress);
-    console.log("Account balance:", await accountBalance(ethers, deployerAddress));
-
-    const kmsContract = await getKmsAuth(ethers);
-    const appId = await kmsContract.nextAppId();
-    console.log("App ID:", appId);
-    const appAuth = await deployContract(hre, "AppAuth", [deployerAddress, appId, false, taskArgs.allowAnyDevice]);
-    if (!appAuth) {
-      return;
-    }
-    const proxyAddress = await appAuth.getAddress();
-    const tx = await kmsContract.registerApp(proxyAddress);
-    const receipt = await waitTx(tx);
-    
-    // Parse the AppRegistered event from the logs
-    let appRegisteredEvent = null;
-    for (const log of receipt.logs) {
-      try {
-        const parsedLog = kmsContract.interface.parseLog({
-          topics: log.topics,
-          data: log.data
-        });
-        
-        if (parsedLog?.name === 'AppRegistered') {
-          appRegisteredEvent = parsedLog.args;
-          break;
-        }
-      } catch (e) {
-        continue;
-      }
-    }
-
-    if (appRegisteredEvent) {
-      console.log("App registered in KMS successfully");
-      console.log("Registered AppId:", appRegisteredEvent.appId);
-    } else {
-      console.log("App registered in KMS successfully (event not parsed)");
-    }
-  });
-
-task("app:deploy-with-data", "Deploy AppAuth with initial device and compose hash")
-  .addFlag("allowAnyDevice", "Allow any device to boot this app")
   .addOptionalParam("device", "Initial device ID", "", types.string)
   .addOptionalParam("hash", "Initial compose hash", "", types.string)
   .setAction(async (taskArgs, hre) => {
@@ -319,19 +267,27 @@ task("app:deploy-with-data", "Deploy AppAuth with initial device and compose has
     const deviceId = taskArgs.device ? taskArgs.device.trim() : "0x0000000000000000000000000000000000000000000000000000000000000000";
     const composeHash = taskArgs.hash ? taskArgs.hash.trim() : "0x0000000000000000000000000000000000000000000000000000000000000000";
     
-    console.log("Initial device:", deviceId === "0x0000000000000000000000000000000000000000000000000000000000000000" ? "none" : deviceId);
-    console.log("Initial compose hash:", composeHash === "0x0000000000000000000000000000000000000000000000000000000000000000" ? "none" : composeHash);
+    const hasInitialData = deviceId !== "0x0000000000000000000000000000000000000000000000000000000000000000" || 
+                          composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-    // Use a custom deployment function for the new initializer
-    const contractFactory = await ethers.getContractFactory("AppAuth");
-    const appAuth = await hre.upgrades.deployProxy(
-      contractFactory,
-      [deployerAddress, appId, false, taskArgs.allowAnyDevice, deviceId, composeHash],
-      { 
-        kind: 'uups',
-        initializer: 'initializeWithData'
-      }
-    );
+    if (hasInitialData) {
+      console.log("Initial device:", deviceId === "0x0000000000000000000000000000000000000000000000000000000000000000" ? "none" : deviceId);
+      console.log("Initial compose hash:", composeHash === "0x0000000000000000000000000000000000000000000000000000000000000000" ? "none" : composeHash);
+    }
+
+    // Use standard deployment - all cases use the same 6-parameter initializer
+    const appAuth = await deployContract(hre, "AppAuth", [
+      deployerAddress, 
+      appId, 
+      false, 
+      taskArgs.allowAnyDevice,
+      deviceId,
+      composeHash
+    ]);
+    
+    if (!appAuth) {
+      return;
+    }
     
     await appAuth.waitForDeployment();
     const proxyAddress = await appAuth.getAddress();
@@ -359,18 +315,32 @@ task("app:deploy-with-data", "Deploy AppAuth with initial device and compose has
     }
 
     if (appRegisteredEvent) {
-      console.log("App registered in KMS successfully");
-      console.log("Registered AppId:", appRegisteredEvent.appId);
+      console.log("✅ App deployed and registered successfully!");
+      console.log("App ID:", appRegisteredEvent.appId);
+      console.log("Proxy Address:", proxyAddress);
+      console.log("Owner:", deployerAddress);
+      console.log("Transaction hash:", tx.hash);
       
-      const hasDevice = deviceId !== "0x0000000000000000000000000000000000000000000000000000000000000000";
-      const hasHash = composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
-      console.log(`Deployed with ${hasDevice ? "1" : "0"} initial device and ${hasHash ? "1" : "0"} initial compose hash`);
+      if (hasInitialData) {
+        const hasDevice = deviceId !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const hasHash = composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+        console.log(`Deployed with ${hasDevice ? "1" : "0"} initial device and ${hasHash ? "1" : "0"} initial compose hash`);
+      }
     } else {
-      console.log("App registered in KMS successfully (event not parsed)");
+      console.log("✅ App deployed and registered successfully!");
+      console.log("Proxy Address:", proxyAddress);
+      console.log("Transaction hash:", tx.hash);
+      
+      if (hasInitialData) {
+        const hasDevice = deviceId !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const hasHash = composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+        console.log(`Deployed with ${hasDevice ? "1" : "0"} initial device and ${hasHash ? "1" : "0"} initial compose hash`);
+      }
     }
   });
 
-task("app:deploy-factory", "Deploy AppAuth via KMS factory method (single transaction)")
+
+task("kms:create-app", "Create AppAuth via KMS factory method (single transaction)")
   .addFlag("allowAnyDevice", "Allow any device to boot this app")
   .addOptionalParam("device", "Initial device ID", "", types.string)
   .addOptionalParam("hash", "Initial compose hash", "", types.string)
@@ -424,7 +394,7 @@ task("app:deploy-factory", "Deploy AppAuth via KMS factory method (single transa
     }
     
     if (factoryEvent && registeredEvent) {
-      console.log("✅ App deployed and registered in single transaction!");
+      console.log("✅ App deployed and registered successfully!");
       console.log("App ID:", factoryEvent.appId);
       console.log("Proxy Address:", factoryEvent.proxyAddress);
       console.log("Owner:", factoryEvent.deployer);
@@ -434,20 +404,16 @@ task("app:deploy-factory", "Deploy AppAuth via KMS factory method (single transa
       const hasHash = composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
       console.log(`Deployed with ${hasDevice ? "1" : "0"} initial device and ${hasHash ? "1" : "0"} initial compose hash`);
     } else {
-      console.log("✅ App deployed successfully!");
+      console.log("✅ App deployed and registered successfully!");
       console.log("Transaction hash:", tx.hash);
       
-      // Try to get app ID from the transaction return values if events failed
-      try {
-        const result = await tx.wait();
-        console.log("Transaction confirmed in block:", result.blockNumber);
-        
-        // If we can't parse events, suggest manual verification
-        console.log("💡 To verify deployment, use:");
-        console.log(`cast call ${KMS_CONTRACT_ADDRESS} "nextAppSequence(address)" "${deployerAddress}" --rpc-url \${RPC_URL}`);
-      } catch (e) {
-        console.log("Could not parse transaction details");
-      }
+      const hasDevice = deviceId !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+      const hasHash = composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+      console.log(`Deployed with ${hasDevice ? "1" : "0"} initial device and ${hasHash ? "1" : "0"} initial compose hash`);
+      
+      // If we can't parse events, suggest manual verification
+      console.log("💡 To verify deployment, use:");
+      console.log(`cast call ${KMS_CONTRACT_ADDRESS} "nextAppSequence(address)" "${deployerAddress}" --rpc-url \${RPC_URL}`);
     }
   });
 
