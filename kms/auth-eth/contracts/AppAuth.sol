@@ -2,27 +2,11 @@
 pragma solidity ^0.8.22;
 
 import "./IAppAuth.sol";
+import "./IAppAuthBasicManagement.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
-
-/**
- * @title IAppAuthBasicManagement
- * @notice Basic management interface for App Authentication contracts  
- * @dev Interface ID: 0x8fd37527
- */
-interface IAppAuthBasicManagement is IERC165 {
-    event ComposeHashAdded(bytes32 composeHash);
-    event ComposeHashRemoved(bytes32 composeHash);
-    event DeviceAdded(bytes32 deviceId);
-    event DeviceRemoved(bytes32 deviceId);
-
-    function addComposeHash(bytes32 composeHash) external;
-    function removeComposeHash(bytes32 composeHash) external;
-    function addDevice(bytes32 deviceId) external;
-    function removeDevice(bytes32 deviceId) external;
-}
 
 contract AppAuth is
     Initializable,

@@ -74,10 +74,6 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.AppAuth__factory>;
     getContractFactory(
-      name: "IAppAuthBasicManagement",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IAppAuthBasicManagement__factory>;
-    getContractFactory(
       name: "IAppAuth",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IAppAuth__factory>;
@@ -166,11 +162,6 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.AppAuth>;
     getContractAt(
-      name: "IAppAuthBasicManagement",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IAppAuthBasicManagement>;
-    getContractAt(
       name: "IAppAuth",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -246,10 +237,6 @@ declare module "hardhat/types/runtime" {
       name: "AppAuth",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.AppAuth>;
-    deployContract(
-      name: "IAppAuthBasicManagement",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IAppAuthBasicManagement>;
     deployContract(
       name: "IAppAuth",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -338,11 +325,6 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.AppAuth>;
-    deployContract(
-      name: "IAppAuthBasicManagement",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IAppAuthBasicManagement>;
     deployContract(
       name: "IAppAuth",
       args: any[],

@@ -2,7 +2,7 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import hre from "hardhat";
 import { ethers } from "hardhat";
 import { KmsAuth } from "../typechain-types/contracts/KmsAuth";
-import { AppAuth } from "../typechain-types/contracts/AppAuth.sol/AppAuth";
+import { AppAuth } from "../typechain-types/contracts/AppAuth";
 import { deployContract } from "../scripts/deploy";
 import { BootInfo } from "src/types";
 
