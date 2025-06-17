@@ -148,14 +148,19 @@ if [ -n "$APP_COMPOSE_FILE" ]; then
 else
 
   EXPECTED_TOKEN_HASH=$(echo -n "$APP_LAUNCH_TOKEN" | sha256sum | cut -d' ' -f1)
-  cat >.prelaunch.sh <<EOF
-ACTUAL_TOKEN_HASH=\$(echo -n "\$APP_LAUNCH_TOKEN" | sha256sum | cut -d' ' -f1)
-if [ "$EXPECTED_TOKEN_HASH" != "\$ACTUAL_TOKEN_HASH" ]; then
-    echo "Error: Incorrect APP_LAUNCH_TOKEN, please make sure set the correct APP_LAUNCH_TOKEN in env"
-    reboot
-    exit 1
+  cat >.prelaunch.sh <<'EOF'
+EXPECTED_TOKEN_HASH=$(jq -j .launch_token_hash app-compose.json)
+if [ "$EXPECTED_TOKEN_HASH" == "null" ]; then
+    echo "Skipped APP_LAUNCH_TOKEN check"
 else
-    echo "APP_LAUNCH_TOKEN checked OK"
+  ACTUAL_TOKEN_HASH=$(echo -n "$APP_LAUNCH_TOKEN" | sha256sum | cut -d' ' -f1)
+  if [ "$EXPECTED_TOKEN_HASH" != "$ACTUAL_TOKEN_HASH" ]; then
+      echo "Error: Incorrect APP_LAUNCH_TOKEN, please make sure set the correct APP_LAUNCH_TOKEN in env"
+      reboot
+      exit 1
+  else
+      echo "APP_LAUNCH_TOKEN checked OK"
+  fi
 fi
 EOF
 
@@ -170,6 +175,13 @@ EOF
     --prelaunch-script .prelaunch.sh \
     --output .app-compose.json
 fi
+
+# Set launch_token_hash in app-compose.json
+mv .app-compose.json .app-compose.json.tmp
+jq \
+  --arg token_hash "$EXPECTED_TOKEN_HASH" \
+  '.launch_token_hash = $token_hash' \
+  .app-compose.json.tmp > .app-compose.json
 
 # Remove the temporary file as it is no longer needed
 rm "$COMPOSE_TMP"
