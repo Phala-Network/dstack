@@ -57,15 +57,25 @@ export declare namespace IAppAuth {
 }
 
 export interface IAppAuthInterface extends Interface {
-  getFunction(nameOrSignature: "isAppAllowed"): FunctionFragment;
+  getFunction(
+    nameOrSignature: "isAppAllowed" | "supportsInterface"
+  ): FunctionFragment;
 
   encodeFunctionData(
     functionFragment: "isAppAllowed",
     values: [IAppAuth.AppBootInfoStruct]
   ): string;
+  encodeFunctionData(
+    functionFragment: "supportsInterface",
+    values: [BytesLike]
+  ): string;
 
   decodeFunctionResult(
     functionFragment: "isAppAllowed",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "supportsInterface",
     data: BytesLike
   ): Result;
 }
@@ -119,6 +129,12 @@ export interface IAppAuth extends BaseContract {
     "view"
   >;
 
+  supportsInterface: TypedContractMethod<
+    [interfaceId: BytesLike],
+    [boolean],
+    "view"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -130,6 +146,9 @@ export interface IAppAuth extends BaseContract {
     [[boolean, string] & { isAllowed: boolean; reason: string }],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "supportsInterface"
+  ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
 
   filters: {};
 }
