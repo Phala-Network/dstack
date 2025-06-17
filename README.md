@@ -115,7 +115,7 @@ Now you can open 3 terminals to start the components:
 3. Run `./dstack-vmm -c vmm.toml`
 
 ⚠️ *Warning: this is for local development, and the kms is not secure, so you should not use it in production.*
-For production, you should follow the [deployment guide](./docs/deployment.md).
+For production, you should follow the [deployment guide](./docs/deployment.md) and read the [security guide](./docs/security-guide/security-guide.md).
 
 ## Deploy an App
 Open the dstack-vmm webpage [http://localhost:9080](http://localhost:9080)(change the port according to your configuration) on your local machine to deploy a `docker-compose.yaml` file:
