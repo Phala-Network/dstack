@@ -107,6 +107,8 @@ Or build guest image from source:
 ../build.sh guest
 ```
 
+> **Note on Reproducible Builds**: The build command above does not guarantee reproducibility. For reproducible builds across different build environments, please refer to the [reproducible build instructions](https://github.com/Dstack-TEE/meta-dstack?tab=readme-ov-file#reproducible-build-the-guest-image) in the meta-dstack repository.
+
 ### Run components
 Now you can open 3 terminals to start the components:
 
