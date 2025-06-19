@@ -133,8 +133,6 @@ service Gateway {
   rpc RegisterCvm(RegisterCvmRequest) returns (RegisterCvmResponse) {}
   // List all ACME account URIs and the public key history of the certificates for the Content Addressable HTTPS.
   rpc AcmeInfo(google.protobuf.Empty) returns (AcmeInfoResponse) {}
-  // Summary API for inspect.
-  rpc GetMeta(google.protobuf.Empty) returns (GetMetaResponse);
   // Merge state from other Gateway instances.
   rpc UpdateState(GatewayState) returns (google.protobuf.Empty) {}
 }
@@ -157,4 +155,6 @@ service Admin {
   rpc ReloadCert(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   // Set CAA records
   rpc SetCaa(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  // Summary API for inspect.
+  rpc GetMeta(google.protobuf.Empty) returns (GetMetaResponse) {}
 }
