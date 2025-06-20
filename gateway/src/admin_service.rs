@@ -1,9 +1,10 @@
 use std::sync::atomic::Ordering;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use dstack_gateway_rpc::{
     admin_server::{AdminRpc, AdminServer},
-    GetInfoRequest, GetInfoResponse, HostInfo, RenewCertResponse, StatusResponse,
+    GetInfoRequest, GetInfoResponse, GetMetaResponse, HostInfo, RenewCertResponse, StatusResponse,
 };
 use ra_rpc::{CallContext, RpcCall};
 
@@ -112,6 +113,34 @@ impl AdminRpc for AdminRpcHandler {
                 info: None,
             })
         }
+    }
+
+    async fn get_meta(self) -> Result<GetMetaResponse> {
+        let state = self.state.lock();
+        let handshakes = state.latest_handshakes(None)?;
+
+        // Total registered instances
+        let registered = state.state.instances.len();
+
+        // Get current timestamp
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .context("system time before Unix epoch")?
+            .as_secs();
+
+        // Count online instances (those with handshakes in last 5 minutes)
+        let online = handshakes
+            .values()
+            .filter(|(ts, _)| {
+                // Skip instances that never connected (ts == 0)
+                *ts != 0 && (now - *ts) < 300
+            })
+            .count();
+
+        Ok(GetMetaResponse {
+            registered: registered as u32,
+            online: online as u32,
+        })
     }
 }
 
