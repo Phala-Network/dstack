@@ -1,3 +1,4 @@
+import fs from 'fs'
 import crypto from 'crypto'
 import { send_rpc_request } from './send_rpc_request'
 
@@ -14,6 +15,10 @@ export interface GetKeyResponse {
 }
 
 export type Hex = `${string}`
+
+export type TdxQuoteHashAlgorithms =
+  'sha256' | 'sha384' | 'sha512' | 'sha3-256' | 'sha3-384' | 'sha3-512' |
+  'keccak256' | 'keccak384' | 'keccak512' | 'raw'
 
 export interface EventLog {
   imr: number
@@ -129,6 +134,9 @@ export class DstackClient {
       console.warn(`Using simulator endpoint: ${process.env.DSTACK_SIMULATOR_ENDPOINT}`)
       endpoint = process.env.DSTACK_SIMULATOR_ENDPOINT
     }
+    if (endpoint.startsWith('/') && !fs.existsSync(endpoint)) {
+      throw new Error(`Unix socket file ${endpoint} does not exist`);
+    }
     this.endpoint = endpoint
   }
 
@@ -199,6 +207,16 @@ export class DstackClient {
     })
   }
 
+  async isReachable(): Promise<boolean> {
+    try {
+      // Use info endpoint to test connectivity with 500ms timeout
+      await send_rpc_request(this.endpoint, '/prpc/Tappd.Info', '{}', 500)
+      return true
+    } catch (error) {
+      return false
+    }
+  }
+
   /**
    * Emit an event. This extends the event to RTMR3 on TDX platform.
    *
@@ -221,5 +239,33 @@ export class DstackClient {
         payload: hexPayload
       })
     )
+  }
+
+  //
+  // Legacy methods for backward compatibility with a warning to notify users about migrating to new methods.
+  // These methods don't mean fully compatible as past, but we keep them here until next major version.
+  //
+
+  /**
+   * @deprecated Use getKey instead.
+   * @param path The path to the key.
+   * @param subject The subject of the key.
+   * @param altNames The alternative names of the key.
+   * @returns The key.
+   */
+  async deriveKey(path?: string, subject?: string, altNames?: string[]): Promise<GetKeyResponse> {
+    console.warn('deriveKey is deprecated, please use getKey instead')
+    return this.getKey(path || '', subject || '')
+  }
+
+  /**
+   * @deprecated Use getQuote instead.
+   * @param report_data The report data.
+   * @param hash_algorithm The hash algorithm.
+   * @returns The quote.
+   */
+  async tdxQuote(report_data: string | Buffer | Uint8Array, hash_algorithm?: TdxQuoteHashAlgorithms): Promise<GetQuoteResponse> {
+    console.warn('tdxQuote is deprecated, please use getQuote instead')
+    return this.getQuote(report_data)
   }
 }
