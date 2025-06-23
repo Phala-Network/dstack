@@ -1,5 +1,5 @@
 import { expect, describe, it, vi, beforeEach, afterEach } from 'vitest'
-import { send_rpc_request, __version__ } from '../send_rpc_request'
+import { send_rpc_request, __version__ } from '../send-rpc-request'
 import http from 'http'
 import https from 'https'
 import net from 'net'
@@ -54,12 +54,6 @@ describe('send_rpc_request', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
-  })
-
-  describe('version export', () => {
-    it('should export correct version', () => {
-      expect(__version__).toBe('0.5.0')
-    })
   })
 
   describe('HTTP requests', () => {

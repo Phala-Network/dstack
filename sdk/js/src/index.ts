@@ -1,6 +1,6 @@
 import fs from 'fs'
 import crypto from 'crypto'
-import { send_rpc_request } from './send_rpc_request'
+import { send_rpc_request } from './send-rpc-request'
 
 export interface GetTlsKeyResponse {
   key: string

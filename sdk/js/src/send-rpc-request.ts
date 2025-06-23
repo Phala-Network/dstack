@@ -2,7 +2,7 @@ import http from 'http'
 import https from 'https'
 import net from 'net'
 
-export const __version__ = "0.5.0"
+export const __version__ = "0.5.0-beta.1"
 
 
 export function send_rpc_request<T = any>(endpoint: string, path: string, payload: string, timeoutMs?: number): Promise<T> {
