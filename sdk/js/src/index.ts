@@ -1,6 +1,8 @@
 import fs from 'fs'
 import crypto from 'crypto'
 import { send_rpc_request } from './send-rpc-request'
+export { getComposeHash } from './get-compose-hash'
+export { verifyEnvEncryptPublicKey } from './verify-env-encrypt-public-key'
 
 export interface GetTlsKeyResponse {
   key: string
