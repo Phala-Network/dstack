@@ -271,3 +271,10 @@ export class DstackClient {
     return this.getQuote(report_data)
   }
 }
+
+export class TappdClient extends DstackClient {
+  constructor(endpoint: string = '/var/run/tappd.sock') {
+    console.warn('TappdClient is deprecated, please use DstackClient instead')
+    super(endpoint)
+  }
+}
