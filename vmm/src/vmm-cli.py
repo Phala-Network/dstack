@@ -418,7 +418,7 @@ class VmmCLI:
                            kms_enabled: bool,
                            gateway_enabled: bool,
                            local_key_provider_enabled: bool,
-                           key_provider_id: str,
+                           key_provider_id: str | None,
                            public_logs: bool,
                            public_sysinfo: bool,
                            envs: Optional[Dict],
@@ -426,6 +426,7 @@ class VmmCLI:
                            output: str,
                            ) -> None:
         """Create a new app compose file"""
+        envs = envs or {}
         app_compose = {
             "manifest_version": 2,
             "name": name,
@@ -434,7 +435,7 @@ class VmmCLI:
             "kms_enabled": kms_enabled,
             "gateway_enabled": gateway_enabled,
             "local_key_provider_enabled": local_key_provider_enabled,
-            "key_provider_id": key_provider_id,
+            "key_provider_id": key_provider_id or "",
             "public_logs": public_logs,
             "public_sysinfo": public_sysinfo,
             "allowed_envs": [k for k in envs.keys()],
