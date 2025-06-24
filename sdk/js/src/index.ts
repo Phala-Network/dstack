@@ -256,8 +256,7 @@ export class DstackClient {
    * @returns The key.
    */
   async deriveKey(path?: string, subject?: string, altNames?: string[]): Promise<GetKeyResponse> {
-    console.warn('deriveKey is deprecated, please use getKey instead')
-    return this.getKey(path || '', subject || '')
+    throw new Error('deriveKey is deprecated, please use getKey instead.')
   }
 
   /**
@@ -268,6 +267,9 @@ export class DstackClient {
    */
   async tdxQuote(report_data: string | Buffer | Uint8Array, hash_algorithm?: TdxQuoteHashAlgorithms): Promise<GetQuoteResponse> {
     console.warn('tdxQuote is deprecated, please use getQuote instead')
+    if (hash_algorithm !== "raw") {
+      throw new Error('tdxQuote only supports raw hash algorithm.')
+    }
     return this.getQuote(report_data)
   }
 }
