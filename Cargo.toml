@@ -40,7 +40,8 @@ members = [
     "sdk/rust",
     "sodiumbox",
     "serde-duration",
-    "dstack-mr"
+    "dstack-mr",
+    "dstack-mr/cli",
 ]
 resolver = "2"
 
