@@ -393,7 +393,7 @@ impl VmConfig {
         let memory = self.manifest.memory;
 
         // Handle hugepages configuration
-        if hugepages && !gpus.gpus.is_empty() {
+        if hugepages {
             // Create a map of NUMA nodes to count of GPUs on that node
             let mut numa_nodes = HashMap::new();
 
