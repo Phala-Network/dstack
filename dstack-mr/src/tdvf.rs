@@ -3,6 +3,7 @@ use hex_literal::hex;
 use sha2::{Digest, Sha384};
 
 use crate::num::read_le;
+use crate::util::debug_print_log;
 use crate::{measure_log, measure_sha384, utf16_encode, Machine};
 
 const PAGE_SIZE: u64 = 0x1000;
@@ -252,6 +253,7 @@ impl<'a> Tdvf<'a> {
             measure_sha384(&[0x00, 0x00]), // BootOrder
             boot000_hash.to_vec(),
         ];
+        debug_print_log("RTMR0", &rtmr0_log);
         Ok(measure_log(&rtmr0_log))
     }
 

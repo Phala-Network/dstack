@@ -18,6 +18,8 @@ enum Commands {
     Measure(MachineConfig),
 }
 
+type Bool = bool;
+
 #[derive(Parser)]
 struct MachineConfig {
     /// Number of CPUs
@@ -33,18 +35,18 @@ struct MachineConfig {
 
     /// Enable two-pass add pages
     #[arg(long, default_value = "true")]
-    two_pass_add_pages: bool,
+    two_pass_add_pages: Bool,
 
     /// Enable PIC
     #[arg(long, default_value = "true")]
-    pic: bool,
+    pic: Bool,
 
     /// Enable SMM
     #[arg(long, default_value = "false")]
-    smm: bool,
+    smm: Bool,
 
-    /// PCI hole64 size
-    #[arg(long)]
+    /// PCI hole64 size (accepts decimal or hex with 0x prefix)
+    #[arg(long, value_parser = parse_memory_size)]
     pci_hole64_size: Option<u64>,
 
     /// Enable hugepages
@@ -61,18 +63,20 @@ struct MachineConfig {
 
     /// Disable hotplug
     #[arg(long, default_value = "false")]
-    hotplug_off: bool,
+    hotplug_off: Bool,
 
     /// Enable root verity
     #[arg(long, default_value = "true")]
-    root_verity: bool,
+    root_verity: Bool,
 
     /// Output JSON
-    #[arg(long, default_value = "false")]
+    #[arg(long)]
     json: bool,
 }
 
 fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
+
     let cli = Cli::parse();
     match &cli.command {
         Commands::Measure(config) => {
@@ -123,20 +127,22 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/// Parse a memory size value that can be decimal or hexadecimal (with 0x prefix)
 fn parse_memory_size(s: &str) -> Result<u64> {
     let s = s.trim();
 
-    // Check if the string is empty
     if s.is_empty() {
         return Err(anyhow!("Empty memory size"));
     }
+    if s.starts_with("0x") || s.starts_with("0X") {
+        let hex_str = &s[2..];
+        return u64::from_str_radix(hex_str, 16)
+            .map_err(|e| anyhow!("Invalid hexadecimal value: {}", e));
+    }
 
-    // Handle bare number (bytes)
     if s.chars().all(|c| c.is_ascii_digit()) {
         return Ok(s.parse::<u64>()?);
     }
-
-    // Handle suffixes
     let len = s.len();
     let (num_part, suffix) = match s.chars().last().unwrap() {
         'k' | 'K' => (&s[0..len - 1], 1024u64),

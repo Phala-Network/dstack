@@ -1,8 +1,10 @@
 use crate::tdvf::Tdvf;
+use crate::util::debug_print_log;
 use crate::{kernel, TdxMeasurements};
 use crate::{measure_log, measure_sha384};
 use anyhow::{Context, Result};
 use fs_err as fs;
+use log::debug;
 
 #[derive(Debug, bon::Builder)]
 pub struct Machine<'a> {
@@ -26,6 +28,7 @@ pub struct Machine<'a> {
 
 impl Machine<'_> {
     pub fn measure(&self) -> Result<TdxMeasurements> {
+        debug!("measuring machine: {self:#?}");
         let fw_data = fs::read(self.firmware)?;
         let kernel_data = fs::read(self.kernel)?;
         let initrd_data = fs::read(self.initrd)?;
@@ -43,6 +46,7 @@ impl Machine<'_> {
             kernel::measure_cmdline(self.kernel_cmdline),
             measure_sha384(&initrd_data),
         ];
+        debug_print_log("RTMR2", &rtmr2_log);
         let rtmr2 = measure_log(&rtmr2_log);
 
         Ok(TdxMeasurements {

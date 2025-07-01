@@ -18,3 +18,4 @@ object.workspace = true
 hex-literal.workspace = true
 fs-err.workspace = true
 bon.workspace = true
+log.workspace = true

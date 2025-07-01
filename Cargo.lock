@@ -2147,6 +2147,7 @@ dependencies = [
  "fs-err",
  "hex",
  "hex-literal 1.0.0",
+ "log",
  "object",
  "serde",
  "serde-human-bytes",
@@ -2166,6 +2167,7 @@ dependencies = [
  "fs-err",
  "hex",
  "serde_json",
+ "tracing-subscriber",
 ]
 
 [[package]]

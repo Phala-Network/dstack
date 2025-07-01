@@ -1,4 +1,4 @@
-use crate::{measure_log, measure_sha384, num::read_le, utf16_encode};
+use crate::{measure_log, measure_sha384, num::read_le, utf16_encode, util::debug_print_log};
 use anyhow::{bail, Context, Result};
 use object::pe;
 use sha2::{Digest, Sha384};
@@ -213,6 +213,7 @@ pub(crate) fn measure_kernel(
         measure_sha384(b"Exit Boot Services Invocation"),
         measure_sha384(b"Exit Boot Services Returned with Success"),
     ];
+    debug_print_log("RTMR1", &rtmr1_log);
     Ok(measure_log(&rtmr1_log))
 }
 

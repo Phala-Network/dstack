@@ -1,3 +1,4 @@
+use log::debug;
 use sha2::{Digest, Sha384};
 
 /// Computes a SHA384 hash of the given data.
@@ -12,6 +13,12 @@ pub(crate) fn utf16_encode(input: &str) -> Vec<u8> {
         .collect()
 }
 
+pub(crate) fn debug_print_log(name: &str, log: &[Vec<u8>]) {
+    debug!("{name} event log:");
+    for (i, entry) in log.iter().enumerate() {
+        debug!("[{i}] digest: {}", hex::encode(entry));
+    }
+}
 /// Computes a measurement of the given RTMR event log.
 pub(crate) fn measure_log(log: &[Vec<u8>]) -> Vec<u8> {
     let mut mr = [0u8; 48]; // SHA384 output size

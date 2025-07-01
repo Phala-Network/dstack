@@ -2,6 +2,7 @@
 //! translated from an original Go implementation.
 
 use anyhow::{bail, Context, Result};
+use log::debug;
 
 use crate::Machine;
 
@@ -140,6 +141,8 @@ impl Machine<'_> {
                 &format!("q35-pcihost.pci-hole64-size=0x{:x}", pci_hole64_size),
             ]);
         }
+
+        debug!("qemu command: {cmd:?}");
 
         // Execute the command and capture output
         let output = cmd
