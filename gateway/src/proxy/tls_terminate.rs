@@ -141,6 +141,57 @@ impl Proxy {
         Ok(())
     }
 
+    pub(crate) async fn handle_this_node(
+        &self,
+        inbound: TcpStream,
+        buffer: Vec<u8>,
+        port: u16,
+    ) -> Result<()> {
+        if port != 80 {
+            bail!("Only port 80 is supported for this node");
+        }
+        let stream = self.tls_accept(inbound, buffer).await?;
+        let io = TokioIo::new(stream);
+
+        let service = service_fn(|req: Request<Incoming>| async move {
+            // Only respond to GET / requests
+            if req.method() != hyper::Method::GET {
+                return Response::builder()
+                    .status(StatusCode::METHOD_NOT_ALLOWED)
+                    .body(String::new())
+                    .context("Failed to build response");
+            }
+            match req.uri().path() {
+                "/health" => Response::builder()
+                    .status(StatusCode::OK)
+                    .body(String::new())
+                    .context("Failed to build response"),
+                "/acme-info" => {
+                    let acme_info = self.acme_info().await.context("Failed to get acme info")?;
+                    let body = serde_json::to_string(&acme_info)
+                        .context("Failed to serialize acme info")?;
+                    Response::builder()
+                        .status(StatusCode::OK)
+                        .header("Content-Type", "application/json")
+                        .body(body)
+                        .context("Failed to build response")
+                }
+                _ => Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(String::new())
+                    .context("Failed to build response"),
+            }
+        });
+
+        http1::Builder::new()
+            .serve_connection(io, service)
+            .await
+            .context("Failed to serve HTTP connection")?;
+
+        Ok(())
+    }
+
+    /// Deprecated legacy endpoint
     pub(crate) async fn handle_health_check(
         &self,
         inbound: TcpStream,
@@ -158,17 +209,15 @@ impl Proxy {
         let service = service_fn(|req: Request<Incoming>| async move {
             // Only respond to GET / requests
             if req.method() != hyper::Method::GET || req.uri().path() != "/" {
-                return Ok::<_, anyhow::Error>(
-                    Response::builder()
-                        .status(StatusCode::METHOD_NOT_ALLOWED)
-                        .body(String::new())
-                        .unwrap(),
-                );
+                return Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(String::new())
+                    .context("Failed to build response");
             }
-            Ok(Response::builder()
+            Response::builder()
                 .status(StatusCode::OK)
                 .body(String::new())
-                .unwrap())
+                .context("Failed to build response")
         });
 
         http1::Builder::new()
@@ -213,6 +262,9 @@ impl Proxy {
     ) -> Result<()> {
         if app_id == "health" {
             return self.handle_health_check(inbound, buffer, port).await;
+        }
+        if app_id == "gateway" {
+            return self.handle_this_node(inbound, buffer, port).await;
         }
         let addresses = self
             .lock()

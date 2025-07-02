@@ -188,7 +188,7 @@ impl Proxy {
             workdir.acme_account_quote_path(),
         )
         .await
-        .context("Failed to get account quote")?;
+        .unwrap_or_default();
 
         let mut quoted_hist_keys = vec![];
         for cert_path in workdir.list_certs().unwrap_or_default() {
@@ -201,7 +201,7 @@ impl Proxy {
                 cert_path.display().to_string() + ".quote",
             )
             .await
-            .context("Failed to get key quote")?;
+            .unwrap_or_default();
             quoted_hist_keys.push(QuotedPublicKey {
                 public_key: pubkey,
                 quote,
