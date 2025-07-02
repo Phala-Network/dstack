@@ -216,6 +216,7 @@ impl Proxy {
             account_quote,
             quoted_hist_keys,
             active_cert,
+            base_domain: config.proxy.base_domain.clone(),
         })
     }
 }

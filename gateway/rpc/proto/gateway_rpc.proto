@@ -88,14 +88,16 @@ message QuotedPublicKey {
 message AcmeInfoResponse {
   // The ACME account URI.
   string account_uri = 1;
-  // The quote of the ACME account URI.
-  string account_quote = 2;
-  // Active certificate
-  string active_cert = 3;
   // The public key history of the certificate.
-  repeated bytes hist_keys = 4;
+  repeated bytes hist_keys = 2;
   // The quoted public key of the certificate.
-  repeated QuotedPublicKey quoted_hist_keys = 5;
+  repeated QuotedPublicKey quoted_hist_keys = 3;
+  // The quote of the ACME account URI.
+  string account_quote = 4;
+  // Active certificate
+  string active_cert = 5;
+  // The domain that serves ZT-HTTPS
+  string base_domain = 6;
 }
 
 // Get HostInfo for associated instance id.
