@@ -166,6 +166,17 @@ impl Proxy {
                     .status(StatusCode::OK)
                     .body(String::new())
                     .context("Failed to build response"),
+                "/app-info" => {
+                    let agent = crate::dstack_agent().context("Failed to get dstack agent")?;
+                    let app_info = agent.info().await.context("Failed to get app info")?;
+                    let body =
+                        serde_json::to_string(&app_info).context("Failed to serialize app info")?;
+                    Response::builder()
+                        .status(StatusCode::OK)
+                        .header("Content-Type", "application/json")
+                        .body(body)
+                        .context("Failed to build response")
+                }
                 "/acme-info" => {
                     let acme_info = self.acme_info().await.context("Failed to get acme info")?;
                     let body = serde_json::to_string(&acme_info)
