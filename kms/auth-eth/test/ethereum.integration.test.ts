@@ -101,8 +101,9 @@ describe('Integration Tests', () => {
           ...mockBootInfo,
           appId: ethers.Wallet.createRandom().address
         };
+
         const result = await backend.checkBoot(badBootInfo, false);
-        expect(result.reason).to.equal('App not registered');
+        expect(result.reason).to.equal('App not deployed or invalid address');
         expect(result.isAllowed).to.equal(false);
       });
     });

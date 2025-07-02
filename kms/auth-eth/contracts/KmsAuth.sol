@@ -30,15 +30,6 @@ contract KmsAuth is
     /// @custom:oz-renamed-from tproxyAppId
     string public gatewayAppId;
 
-    // Struct to store App configuration
-    struct AppConfig {
-        bool isRegistered;
-        address controller;
-    }
-
-    // Mapping of registered apps
-    mapping(address => AppConfig) public apps;
-
     // Mapping of allowed aggregated MR measurements for running KMS
     mapping(bytes32 => bool) public kmsAllowedAggregatedMrs;
 
@@ -48,14 +39,10 @@ contract KmsAuth is
     // Mapping of allowed image measurements
     mapping(bytes32 => bool) public allowedOsImages;
 
-    // Sequence number for app IDs - per user
-    mapping(address => uint256) public nextAppSequence;
-
     // AppAuth implementation contract address for factory deployment
     address public appAuthImplementation;
 
     // Events
-    event AppRegistered(address appId);
     event KmsInfoSet(bytes k256Pubkey);
     event KmsAggregatedMrAdded(bytes32 mrAggregated);
     event KmsAggregatedMrRemoved(bytes32 mrAggregated);
@@ -65,7 +52,7 @@ contract KmsAuth is
     event OsImageHashRemoved(bytes32 osImageHash);
     event GatewayAppIdSet(string gatewayAppId);
     event AppAuthImplementationSet(address implementation);
-    event AppDeployedViaFactory(address indexed appId, address indexed proxyAddress, address indexed deployer);
+    event AppDeployedViaFactory(address indexed appId, address indexed deployer);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -77,7 +64,7 @@ contract KmsAuth is
         __Ownable_init(initialOwner);
         __UUPSUpgradeable_init();
         __ERC165_init();
-        
+
         // Set AppAuth implementation if provided
         if (_appAuthImplementation != address(0)) {
             appAuthImplementation = _appAuthImplementation;
@@ -130,34 +117,6 @@ contract KmsAuth is
         emit GatewayAppIdSet(appId);
     }
 
-    // View next app id
-    function nextAppId() public view returns (address appId) {
-        bytes32 fullHash = keccak256(
-            abi.encodePacked(
-                address(this),
-                msg.sender,
-                nextAppSequence[msg.sender]
-            )
-        );
-        return address(uint160(uint256(fullHash)));
-    }
-
-    // Internal function to register an app with the given app ID and controller
-    function _registerAppInternal(address appId, address controller) private {
-        require(!apps[appId].isRegistered, "App already registered");
-        apps[appId].isRegistered = true;
-        apps[appId].controller = controller;
-        nextAppSequence[msg.sender]++;
-        emit AppRegistered(appId);
-    }
-
-    // Function to register an app
-    function registerApp(address controller) external {
-        require(controller != address(0), "Invalid controller address");
-        address appId = nextAppId();
-        _registerAppInternal(appId, controller);
-    }
-
     // Function to set AppAuth implementation contract address
     function setAppAuthImplementation(address _implementation) external onlyOwner {
         require(_implementation != address(0), "Invalid implementation address");
@@ -165,37 +124,31 @@ contract KmsAuth is
         emit AppAuthImplementationSet(_implementation);
     }
 
-    // Factory method: Deploy and register AppAuth in single transaction
-    function deployAndRegisterApp(
+    // Factory method: Deploy AppAuth in single transaction
+    function deployApp(
         address initialOwner,
         bool disableUpgrades,
         bool allowAnyDevice,
         bytes32 initialDeviceId,
         bytes32 initialComposeHash
-    ) external returns (address appId, address proxyAddress) {
+    ) external returns (address appId) {
         require(appAuthImplementation != address(0), "AppAuth implementation not set");
         require(initialOwner != address(0), "Invalid owner address");
-        
-        // Calculate app ID
-        appId = nextAppId();
-        
+
         // Prepare initialization data
         bytes memory initData = abi.encodeWithSelector(
-            bytes4(keccak256("initialize(address,address,bool,bool,bytes32,bytes32)")),
+            bytes4(keccak256("initialize(address,bool,bool,bytes32,bytes32)")),
             initialOwner,
-            appId,
             disableUpgrades,
             allowAnyDevice,
             initialDeviceId,
             initialComposeHash
         );
-        
+
         // Deploy proxy contract
-        proxyAddress = address(new ERC1967Proxy(appAuthImplementation, initData));
-        
-        // Register to KMS
-        _registerAppInternal(appId, proxyAddress);
-        emit AppDeployedViaFactory(appId, proxyAddress, msg.sender);
+        appId = address(new ERC1967Proxy(appAuthImplementation, initData));
+
+        emit AppDeployedViaFactory(appId, msg.sender);
     }
 
     // Function to register an aggregated MR measurement
@@ -268,24 +221,28 @@ contract KmsAuth is
     function isAppAllowed(
         AppBootInfo calldata bootInfo
     ) external view override returns (bool isAllowed, string memory reason) {
-        // Check if app is registered
-        if (!apps[bootInfo.appId].isRegistered) {
-            return (false, "App not registered");
-        }
-
-        // Check aggregated MR and image measurements
+        // Check if the OS image is allowed
         if (!allowedOsImages[bootInfo.osImageHash]) {
             return (false, "OS image is not allowed");
         }
 
-        // Ask the app controller if the app is allowed to boot
-        address controller = apps[bootInfo.appId].controller;
-        if (controller == address(0)) {
-            return (false, "App controller not set");
+        // Check if the contract exists at the appId address
+        if (!isContract(bootInfo.appId)) {
+            return (false, "App not deployed or invalid address");
         }
-        return IAppAuth(controller).isAppAllowed(bootInfo);
+
+        // Call the app's isAppAllowed function
+        return IAppAuth(bootInfo.appId).isAppAllowed(bootInfo);
     }
 
     // Add storage gap for upgradeable contracts
     uint256[50] private __gap;
+}
+
+function isContract(address addr) view returns (bool){
+    uint32 size;
+    assembly {
+        size := extcodesize(addr)
+    }
+    return (size > 0);
 }

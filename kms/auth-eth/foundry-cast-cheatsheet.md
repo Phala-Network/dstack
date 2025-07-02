@@ -181,17 +181,17 @@ cast send $KMS_CONTRACT_ADDRESS "removeKmsDevice(bytes32)" \
 
 ```bash
 # kms:create-app - Deploy and register AppAuth in single transaction
-cast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,bytes32)" \
+cast send $KMS_CONTRACT_ADDRESS "deployApp(address,bool,bool,bytes32,bytes32)" \
   "$DEPLOYER_ADDRESS" false true \
   "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" \
   "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321" \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 # Parameters: (owner, disableUpgrades, allowAnyDevice, initialDeviceId, initialComposeHash)
 # Use 0x0000...0000 for empty device/hash values
-# To decode return: cast abi-decode "deployAndRegisterApp(address,bool,bool,bytes32,bytes32)(address,address)" RETURN_DATA
+# To decode return: cast abi-decode "deployApp(address,bool,bool,bytes32,bytes32)(address,address)" RETURN_DATA
 
 # Example with no initial data:
-cast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,bytes32)" \
+cast send $KMS_CONTRACT_ADDRESS "deployApp(address,bool,bool,bytes32,bytes32)" \
   "$DEPLOYER_ADDRESS" false true \
   "0x0000000000000000000000000000000000000000000000000000000000000000" \
   "0x0000000000000000000000000000000000000000000000000000000000000000" \
@@ -259,10 +259,6 @@ cast call $KMS_CONTRACT_ADDRESS "isAppAllowed((address,bytes32,address,bytes32,b
 ### Query Operations
 
 ```bash
-# Get app ID
-cast call $APP_AUTH_ADDRESS "appId()" --rpc-url $RPC_URL
-# To decode: cast abi-decode "appId()(address)" RETURN_DATA
-
 # Get owner
 cast call $APP_AUTH_ADDRESS "owner()" --rpc-url $RPC_URL
 # To decode: cast abi-decode "owner()(address)" RETURN_DATA
@@ -383,7 +379,7 @@ cast abi-decode "kmsAllowedAggregatedMrs(bytes32)(bool)" RETURN_DATA
 cast abi-decode "isAppAllowed((address,bytes32,address,bytes32,bytes32,bytes32,bytes32,string,string[]))(bool,string)" RETURN_DATA
 
 # Decode factory deployment response
-cast abi-decode "deployAndRegisterApp(address,bool,bool,bytes32,bytes32)(address,address)" RETURN_DATA
+cast abi-decode "deployApp(address,bool,bool,bytes32,bytes32)(address,address)" RETURN_DATA
 ```
 
 ### Get Contract Information
@@ -463,7 +459,7 @@ cast send $KMS_CONTRACT_ADDRESS "addKmsAggregatedMr(bytes32)" "0x..." \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 
 # 3. Users can now deploy apps via factory immediately!
-cast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,bytes32)" \
+cast send $KMS_CONTRACT_ADDRESS "deployApp(address,bool,bool,bytes32,bytes32)" \
   "$USER_ADDRESS" false true "0x..." "0x..." \
   --private-key $USER_PRIVATE_KEY --rpc-url $RPC_URL
 ```
@@ -489,7 +485,7 @@ cast send $KMS_CONTRACT_ADDRESS "addKmsAggregatedMr(bytes32)" "0x..." \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 
 # 5. Users can now deploy apps via factory
-cast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,bytes32)" \
+cast send $KMS_CONTRACT_ADDRESS "deployApp(address,bool,bool,bytes32,bytes32)" \
   "$USER_ADDRESS" false true "0x..." "0x..." \
   --private-key $USER_PRIVATE_KEY --rpc-url $RPC_URL
 ```
@@ -525,7 +521,7 @@ cast call $KMS_CONTRACT_ADDRESS "owner()" --rpc-url $RPC_URL
 | `info:kms` | `cast call ... kmsInfo` | Returns struct |
 | `app:deploy` | Complex hardhat task | Multi-transaction deployment |
 | `app:deploy-with-data` | Complex hardhat task | Use initializeWithData |
-| `app:deploy-factory` | `cast send ... deployAndRegisterApp` | **Single transaction deployment** ⭐ |
+| `app:deploy-factory` | `cast send ... deployApp` | **Single transaction deployment** ⭐ |
 | `kms:set-app-implementation` | `cast send ... setAppAuthImplementation` | Manual setup (rarely needed now) |
 | `kms:get-app-implementation` | `cast call ... appAuthImplementation` | Query factory implementation |
 
@@ -551,7 +547,7 @@ mycast send $APP_AUTH_ADDRESS "addDevice(bytes32)" \
   "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
 
 # Example: Factory deployment
-mycast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,bytes32)" \
+mycast send $KMS_CONTRACT_ADDRESS "deployApp(address,bool,bool,bytes32,bytes32)" \
   "$DEPLOYER_ADDRESS" false true \
   "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" \
   "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321"
