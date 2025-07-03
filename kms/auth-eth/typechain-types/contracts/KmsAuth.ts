@@ -84,7 +84,7 @@ export interface KmsAuthInterface extends Interface {
       | "addOsImageHash"
       | "allowedOsImages"
       | "appAuthImplementation"
-      | "deployApp"
+      | "deployAndRegisterApp"
       | "gatewayAppId"
       | "initialize"
       | "isAppAllowed"
@@ -94,6 +94,8 @@ export interface KmsAuthInterface extends Interface {
       | "kmsInfo"
       | "owner"
       | "proxiableUUID"
+      | "registerApp"
+      | "registeredApps"
       | "removeKmsAggregatedMr"
       | "removeKmsDevice"
       | "removeOsImageHash"
@@ -112,6 +114,7 @@ export interface KmsAuthInterface extends Interface {
     nameOrSignatureOrTopic:
       | "AppAuthImplementationSet"
       | "AppDeployedViaFactory"
+      | "AppRegistered"
       | "GatewayAppIdSet"
       | "Initialized"
       | "KmsAggregatedMrAdded"
@@ -150,7 +153,7 @@ export interface KmsAuthInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "deployApp",
+    functionFragment: "deployAndRegisterApp",
     values: [AddressLike, boolean, boolean, BytesLike, BytesLike]
   ): string;
   encodeFunctionData(
@@ -182,6 +185,14 @@ export interface KmsAuthInterface extends Interface {
   encodeFunctionData(
     functionFragment: "proxiableUUID",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "registerApp",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "registeredApps",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "removeKmsAggregatedMr",
@@ -256,7 +267,10 @@ export interface KmsAuthInterface extends Interface {
     functionFragment: "appAuthImplementation",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "deployApp", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "deployAndRegisterApp",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "gatewayAppId",
     data: BytesLike
@@ -282,6 +296,14 @@ export interface KmsAuthInterface extends Interface {
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "proxiableUUID",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "registerApp",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "registeredApps",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -349,6 +371,18 @@ export namespace AppDeployedViaFactoryEvent {
   export interface OutputObject {
     appId: string;
     deployer: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace AppRegisteredEvent {
+  export type InputTuple = [appId: AddressLike];
+  export type OutputTuple = [appId: string];
+  export interface OutputObject {
+    appId: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -556,7 +590,7 @@ export interface KmsAuth extends BaseContract {
 
   appAuthImplementation: TypedContractMethod<[], [string], "view">;
 
-  deployApp: TypedContractMethod<
+  deployAndRegisterApp: TypedContractMethod<
     [
       initialOwner: AddressLike,
       disableUpgrades: boolean,
@@ -616,6 +650,10 @@ export interface KmsAuth extends BaseContract {
   owner: TypedContractMethod<[], [string], "view">;
 
   proxiableUUID: TypedContractMethod<[], [string], "view">;
+
+  registerApp: TypedContractMethod<[appId: AddressLike], [void], "nonpayable">;
+
+  registeredApps: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
   removeKmsAggregatedMr: TypedContractMethod<
     [mrAggregated: BytesLike],
@@ -700,7 +738,7 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "appAuthImplementation"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "deployApp"
+    nameOrSignature: "deployAndRegisterApp"
   ): TypedContractMethod<
     [
       initialOwner: AddressLike,
@@ -763,6 +801,12 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "proxiableUUID"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "registerApp"
+  ): TypedContractMethod<[appId: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "registeredApps"
+  ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
+  getFunction(
     nameOrSignature: "removeKmsAggregatedMr"
   ): TypedContractMethod<[mrAggregated: BytesLike], [void], "nonpayable">;
   getFunction(
@@ -816,6 +860,13 @@ export interface KmsAuth extends BaseContract {
     AppDeployedViaFactoryEvent.InputTuple,
     AppDeployedViaFactoryEvent.OutputTuple,
     AppDeployedViaFactoryEvent.OutputObject
+  >;
+  getEvent(
+    key: "AppRegistered"
+  ): TypedContractEvent<
+    AppRegisteredEvent.InputTuple,
+    AppRegisteredEvent.OutputTuple,
+    AppRegisteredEvent.OutputObject
   >;
   getEvent(
     key: "GatewayAppIdSet"
@@ -916,6 +967,17 @@ export interface KmsAuth extends BaseContract {
       AppDeployedViaFactoryEvent.InputTuple,
       AppDeployedViaFactoryEvent.OutputTuple,
       AppDeployedViaFactoryEvent.OutputObject
+    >;
+
+    "AppRegistered(address)": TypedContractEvent<
+      AppRegisteredEvent.InputTuple,
+      AppRegisteredEvent.OutputTuple,
+      AppRegisteredEvent.OutputObject
+    >;
+    AppRegistered: TypedContractEvent<
+      AppRegisteredEvent.InputTuple,
+      AppRegisteredEvent.OutputTuple,
+      AppRegisteredEvent.OutputObject
     >;
 
     "GatewayAppIdSet(string)": TypedContractEvent<

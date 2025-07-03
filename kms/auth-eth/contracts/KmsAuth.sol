@@ -30,6 +30,9 @@ contract KmsAuth is
     /// @custom:oz-renamed-from tproxyAppId
     string public gatewayAppId;
 
+    // Mapping of registered apps
+    mapping(address => bool) public registeredApps;
+
     // Mapping of allowed aggregated MR measurements for running KMS
     mapping(bytes32 => bool) public kmsAllowedAggregatedMrs;
 
@@ -43,6 +46,7 @@ contract KmsAuth is
     address public appAuthImplementation;
 
     // Events
+    event AppRegistered(address appId);
     event KmsInfoSet(bytes k256Pubkey);
     event KmsAggregatedMrAdded(bytes32 mrAggregated);
     event KmsAggregatedMrRemoved(bytes32 mrAggregated);
@@ -117,6 +121,13 @@ contract KmsAuth is
         emit GatewayAppIdSet(appId);
     }
 
+    // Function to register an app
+    function registerApp(address appId) public {
+        require(appId != address(0), "Invalid app ID");
+        registeredApps[appId] = true;
+        emit AppRegistered(appId);
+    }
+
     // Function to set AppAuth implementation contract address
     function setAppAuthImplementation(address _implementation) external onlyOwner {
         require(_implementation != address(0), "Invalid implementation address");
@@ -124,8 +135,8 @@ contract KmsAuth is
         emit AppAuthImplementationSet(_implementation);
     }
 
-    // Factory method: Deploy AppAuth in single transaction
-    function deployApp(
+    // Factory method: Deploy and register AppAuth in single transaction
+    function deployAndRegisterApp(
         address initialOwner,
         bool disableUpgrades,
         bool allowAnyDevice,
@@ -147,7 +158,8 @@ contract KmsAuth is
 
         // Deploy proxy contract
         appId = address(new ERC1967Proxy(appAuthImplementation, initData));
-
+        // Register to KMS
+        registerApp(appId);
         emit AppDeployedViaFactory(appId, msg.sender);
     }
 
@@ -221,6 +233,10 @@ contract KmsAuth is
     function isAppAllowed(
         AppBootInfo calldata bootInfo
     ) external view override returns (bool isAllowed, string memory reason) {
+        // Check if app is registered
+        if (!registeredApps[bootInfo.appId]) {
+            return (false, "App not registered");
+        }
         // Check if the OS image is allowed
         if (!allowedOsImages[bootInfo.osImageHash]) {
             return (false, "OS image is not allowed");

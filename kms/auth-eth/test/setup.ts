@@ -35,6 +35,7 @@ beforeAll(async () => {
   ], true) as AppAuth;
 
   const appId = await appAuth.getAddress();
+  await kmsAuth.registerApp(appId);
 
   // Set up KMS info with the generated app ID
   await kmsAuth.setKmsInfo({

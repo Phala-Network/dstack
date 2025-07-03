@@ -292,24 +292,26 @@ After the dstack-vmm is ready, you can deploy an app on it following the steps b
 
 ### 1. On-chain Registration
 
-In order to deploy an app on the dstack-vmm, you need to deploy an App's control contract AppAuth. Developers can develop their own or choose the reference contract from the Dstack repository. Custom contracts need to implement the IAppAuth interface.
+The on-chain registration process includes two steps:
 
-The Dstack repository provides scripts to complete the deployment:
+1. Deploy an App's control contract AppAuth. Developers can develop their own or choose the reference contract from the Dstack repository. Custom contracts need to implement the IAppAuth interface.
+2. Call KmsAuth.registerApp(appAuthAddress) to register the contract.
 
-**Option 1: Traditional deployment**
+The Dstack repository provides scripts to complete these two steps:
+
+**Option 1: Traditional deployment (2 transactions)**
 ```bash
 git clone https://github.com/Dstack-TEE/dstack
 cd dstack/kms/auth-eth
 npm install
 npx hardhat compile
 export PRIVATE_KEY=<your eth private key here>
+export KMS_CONTRACT_ADDRESS=0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
 npx hardhat app:deploy --allow-any-device --network phala
 ```
 
-**Option 2: Factory deployment (recommended)**
+**Option 2: Factory deployment (1 transaction, recommended)**
 ```bash
-export PRIVATE_KEY=<your eth private key here>
-export KMS_CONTRACT_ADDRESS=0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
 npx hardhat kms:create-app --allow-any-device --network phala
 ```
 

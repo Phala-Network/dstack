@@ -245,6 +245,8 @@ task("app:deploy", "Deploy AppAuth with a UUPS proxy")
     console.log("Deploying with account:", deployerAddress);
     console.log("Account balance:", await accountBalance(ethers, deployerAddress));
 
+    const kmsContract = await getKmsAuth(ethers);
+
     // Parse device and hash (convert to bytes32, use 0x0 if empty)
     const deviceId = taskArgs.device ? taskArgs.device.trim() : "0x0000000000000000000000000000000000000000000000000000000000000000";
     const composeHash = taskArgs.hash ? taskArgs.hash.trim() : "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -269,15 +271,54 @@ task("app:deploy", "Deploy AppAuth with a UUPS proxy")
     if (!appAuth) {
       return;
     }
+    
     await appAuth.waitForDeployment();
     const proxyAddress = await appAuth.getAddress();
-    console.log("✅ App deployed successfully!");
-    console.log("AppAuth deployed to (App Id):", proxyAddress);
+    console.log("AppAuth deployed to:", proxyAddress);
 
-    if (hasInitialData) {
-      const hasDevice = deviceId !== "0x0000000000000000000000000000000000000000000000000000000000000000";
-      const hasHash = composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
-      console.log(`Deployed with ${hasDevice ? "1" : "0"} initial device and ${hasHash ? "1" : "0"} initial compose hash`);
+    const tx = await kmsContract.registerApp(proxyAddress);
+    const receipt = await waitTx(tx);
+    
+    // Parse the AppRegistered event from the logs
+    let appRegisteredEvent = null;
+    for (const log of receipt.logs) {
+      try {
+        const parsedLog = kmsContract.interface.parseLog({
+          topics: log.topics,
+          data: log.data
+        });
+        
+        if (parsedLog?.name === 'AppRegistered') {
+          appRegisteredEvent = parsedLog.args;
+          break;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+
+    if (appRegisteredEvent) {
+      console.log("✅ App deployed and registered successfully!");
+      console.log("App ID:", appRegisteredEvent.appId);
+      console.log("Proxy Address:", proxyAddress);
+      console.log("Owner:", deployerAddress);
+      console.log("Transaction hash:", tx.hash);
+      
+      if (hasInitialData) {
+        const hasDevice = deviceId !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const hasHash = composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+        console.log(`Deployed with ${hasDevice ? "1" : "0"} initial device and ${hasHash ? "1" : "0"} initial compose hash`);
+      }
+    } else {
+      console.log("✅ App deployed and registered successfully!");
+      console.log("Proxy Address:", proxyAddress);
+      console.log("Transaction hash:", tx.hash);
+      
+      if (hasInitialData) {
+        const hasDevice = deviceId !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const hasHash = composeHash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+        console.log(`Deployed with ${hasDevice ? "1" : "0"} initial device and ${hasHash ? "1" : "0"} initial compose hash`);
+      }
     }
   });
 
@@ -303,7 +344,7 @@ task("kms:create-app", "Create AppAuth via KMS factory method (single transactio
     console.log("Using factory method for single-transaction deployment...");
     
     // Single transaction deployment via factory
-    const tx = await kmsAuth.deployApp(
+    const tx = await kmsAuth.deployAndRegisterApp(
       deployerAddress,  // deployer owns the contract
       false,           // disableUpgrades
       taskArgs.allowAnyDevice,
@@ -315,6 +356,7 @@ task("kms:create-app", "Create AppAuth via KMS factory method (single transactio
     
     // Parse events using contract interface
     let factoryEvent = null;
+    let registeredEvent = null;
     
     for (const log of receipt.logs) {
       try {
@@ -325,6 +367,8 @@ task("kms:create-app", "Create AppAuth via KMS factory method (single transactio
         
         if (parsedLog?.name === 'AppDeployedViaFactory') {
           factoryEvent = parsedLog.args;
+        } else if (parsedLog?.name === 'AppRegistered') {
+          registeredEvent = parsedLog.args;
         }
       } catch (e) {
         // Skip logs that can't be parsed by this contract
@@ -332,7 +376,7 @@ task("kms:create-app", "Create AppAuth via KMS factory method (single transactio
       }
     }
     
-    if (factoryEvent) {
+    if (factoryEvent && registeredEvent) {
       console.log("✅ App deployed and registered successfully!");
       console.log("Proxy Address (App Id):", factoryEvent.appId);
       console.log("Owner:", factoryEvent.deployer);

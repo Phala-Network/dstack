@@ -72,9 +72,8 @@ describe('EthereumBackend', () => {
         ...mockBootInfo,
         appId: ethers.Wallet.createRandom().address
       };
-      
       const result = await backend.checkBoot(badBootInfo, false);
-      expect(result.reason).toBe('App not deployed or invalid address');
+      expect(result.reason).toBe('App not registered');
       expect(result.isAllowed).toBe(false);
     });
   });

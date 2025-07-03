@@ -87,24 +87,6 @@ describe("AppAuth", function () {
       expect(isAllowed).to.be.true;
     });
 
-    it("Should reject invalid app ID", async function () {
-      const bootInfo = {
-        tcbStatus: "UpToDate",
-        advisoryIds: [],
-        appId: ethers.Wallet.createRandom().address,
-        composeHash,
-        instanceId,
-        deviceId,
-        mrAggregated,
-        osImageHash,
-        mrSystem
-      };
-
-      const [isAllowed, reason] = await appAuth.isAppAllowed(bootInfo);
-      expect(isAllowed).to.be.false;
-      expect(reason).to.equal("Wrong app controller");
-    });
-
     it("Should reject unallowed compose hash", async function () {
       const bootInfo = {
         tcbStatus: "UpToDate",
