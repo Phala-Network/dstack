@@ -782,7 +782,9 @@ async fn get_or_generate_quote(
         .get_quote(RawQuoteArgs { report_data })
         .await
         .context("Failed to get quote")?;
-    serde_json::to_string(&response).context("Failed to serialize quote")
+    let quote = serde_json::to_string(&response).context("Failed to serialize quote")?;
+    safe_write(quote_path, &quote).context("Failed to write quote")?;
+    Ok(quote)
 }
 
 impl RpcCall<Proxy> for RpcHandler {
