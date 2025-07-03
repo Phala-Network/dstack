@@ -6,6 +6,12 @@ interface SortableObject {
 }
 interface SortableArray extends Array<SortableValue> {}
 
+/**
+ * Recursively sorts object keys lexicographically.
+ * This is crucial for deterministic JSON.stringify in JavaScript.
+ * @param obj The object to sort.
+ * @returns A new object with sorted keys, or the original value if not an object.
+ */
 function sortObject(obj: SortableValue): SortableValue {
   if (obj === undefined || obj === null) {
     return obj;
@@ -44,15 +50,26 @@ function preprocessAppCompose(dic: AppCompose): AppCompose {
   return obj;
 }
 
-function dumpAppCompose(dic: AppCompose): string {
+/**
+ * Deterministic JSON serialization following cross-language standards.
+ * - Recursively sorts object keys lexicographically
+ * - Compact output (no spaces)
+ * - Handles special values (NaN, Infinity) by converting them to null
+ * - UTF-8 encoding (default in JavaScript)
+ */
+function toDeterministicJson(dic: AppCompose): string {
   const ordered = sortObject(dic);
-  let json = JSON.stringify(ordered, null, 4);
-  json = json.replace(/": /g, '":');
-  return json;
+  return JSON.stringify(ordered, (key, value) => {
+    // Convert NaN and Infinity to null for deterministic output
+    if (typeof value === 'number' && (isNaN(value) || !isFinite(value))) {
+      return null;
+    }
+    return value;
+  }); // Omit the 'space' argument for compact output
 }
 
 export function getComposeHash(app_compose: AppCompose): string {
   const preprocessed = preprocessAppCompose(app_compose);
-  const manifest_str = dumpAppCompose(preprocessed);
+  const manifest_str = toDeterministicJson(preprocessed);
   return crypto.createHash("sha256").update(manifest_str, "utf8").digest("hex");
 }
