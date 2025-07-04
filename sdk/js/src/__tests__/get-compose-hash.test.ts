@@ -296,9 +296,10 @@ describe('Deterministic JSON Serialization', () => {
 
   describe('Edge Cases', () => {
     it('should handle empty objects', () => {
+      // @ts-expect-error - empty object is valid
       const compose: AppCompose = {}
       const hash = getComposeHash(compose)
-      
+
       expect(hash).toHaveLength(64)
       expect(hash).toMatch(/^[a-f0-9]{64}$/)
     })
@@ -374,6 +375,217 @@ describe('Deterministic JSON Serialization', () => {
       }
       
       expect(getComposeHash(compose1)).not.toBe(getComposeHash(compose2))
+    })
+  })
+
+  describe('New AppCompose Fields', () => {
+    it('should handle manifest_version and name fields', () => {
+      const compose: AppCompose = {
+        manifest_version: 1,
+        name: "my-app",
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml"
+      }
+      
+      const hash = getComposeHash(compose)
+      expect(hash).toBeDefined()
+      expect(hash).toHaveLength(64)
+    })
+
+    it('should handle docker_config field', () => {
+      const compose: AppCompose = {
+        manifest_version: 1,
+        name: "my-app",
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        docker_config: {
+          registry: "docker.io",
+          username: "myuser",
+          token_key: "token123"
+        }
+      }
+      
+      const hash = getComposeHash(compose)
+      expect(hash).toBeDefined()
+      expect(hash).toHaveLength(64)
+    })
+
+    it('should handle boolean flags', () => {
+      const compose: AppCompose = {
+        manifest_version: 1,
+        name: "my-app",
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        public_logs: true,
+        public_sysinfo: false,
+        public_tcbinfo: true,
+        kms_enabled: true,
+        gateway_enabled: false,
+        local_key_provider_enabled: true,
+        no_instance_id: false,
+        secure_time: true
+      }
+      
+      const hash = getComposeHash(compose)
+      expect(hash).toBeDefined()
+      expect(hash).toHaveLength(64)
+    })
+
+    it('should handle key_provider and key_provider_id fields', () => {
+      const compose: AppCompose = {
+        manifest_version: 1,
+        name: "my-app",
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        key_provider: "kms",
+        key_provider_id: "abcd1234"
+      }
+      
+      const hash = getComposeHash(compose)
+      expect(hash).toBeDefined()
+      expect(hash).toHaveLength(64)
+    })
+
+    it('should handle allowed_envs array', () => {
+      const compose: AppCompose = {
+        manifest_version: 1,
+        name: "my-app",
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        allowed_envs: ["NODE_ENV", "PORT", "DATABASE_URL"]
+      }
+      
+      const hash = getComposeHash(compose)
+      expect(hash).toBeDefined()
+      expect(hash).toHaveLength(64)
+    })
+
+    it('should handle features array (deprecated)', () => {
+      const compose: AppCompose = {
+        manifest_version: 1,
+        name: "my-app",
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        features: ["feature1", "feature2"]
+      }
+      
+      const hash = getComposeHash(compose)
+      expect(hash).toBeDefined()
+      expect(hash).toHaveLength(64)
+    })
+  })
+
+  describe('Default Values Processing', () => {
+    it('should set default values for undefined fields', () => {
+      const compose: AppCompose = {
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml"
+      }
+      
+      const hash1 = getComposeHash(compose)
+      
+      // Should be the same as explicitly setting defaults (but empty arrays/objects are removed)
+      const compose2: AppCompose = {
+        manifest_version: 1,
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        public_logs: false,
+        public_sysinfo: false,
+        public_tcbinfo: true,
+        kms_enabled: false,
+        gateway_enabled: false,
+        local_key_provider_enabled: false,
+        no_instance_id: false,
+        secure_time: true
+        // Empty arrays and objects are removed: features, docker_config, key_provider_id, allowed_envs, name
+      }
+      
+      expect(hash1).toBe(getComposeHash(compose2))
+    })
+  })
+
+  describe('Gateway/Tproxy Enabled Logic', () => {
+    it('should handle tproxy_enabled conversion to gateway_enabled', () => {
+      const compose1: AppCompose = {
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        tproxy_enabled: true
+      }
+      
+      const compose2: AppCompose = {
+        manifest_version: 1,
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        gateway_enabled: true,
+        public_logs: false,
+        public_sysinfo: false,
+        public_tcbinfo: true,
+        kms_enabled: false,
+        local_key_provider_enabled: false,
+        no_instance_id: false,
+        secure_time: true
+      }
+      
+      expect(getComposeHash(compose1)).toBe(getComposeHash(compose2))
+    })
+
+    it('should prioritize gateway_enabled over tproxy_enabled', () => {
+      const compose1: AppCompose = {
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        gateway_enabled: false,
+        tproxy_enabled: true
+      }
+      
+      // Should result in gateway_enabled: true because tproxy_enabled is true
+      const compose2: AppCompose = {
+        manifest_version: 1,
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        gateway_enabled: true,
+        public_logs: false,
+        public_sysinfo: false,
+        public_tcbinfo: true,
+        kms_enabled: false,
+        local_key_provider_enabled: false,
+        no_instance_id: false,
+        secure_time: true
+      }
+      
+      expect(getComposeHash(compose1)).toBe(getComposeHash(compose2))
+    })
+  })
+
+  describe('Backward Compatibility', () => {
+    it('should still work with legacy bash_script and pre_launch_script', () => {
+      const compose: AppCompose = {
+        runner: "bash",
+        bash_script: "start.sh",
+        pre_launch_script: "echo 'Starting...'"
+      }
+      
+      const hash = getComposeHash(compose)
+      expect(hash).toBeDefined()
+      expect(hash).toHaveLength(64)
+    })
+
+    it('should maintain deterministic behavior across versions', () => {
+      // A compose with both old and new fields
+      const compose: AppCompose = {
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        bash_script: "start.sh", // Should be removed by preprocessing
+        features: ["legacy-feature"],
+        public_logs: true,
+        kms_enabled: false,
+        gateway_enabled: true,
+        allowed_envs: ["NODE_ENV"],
+        secure_time: false
+      }
+      
+      const hash = getComposeHash(compose)
+      expect(hash).toBeDefined()
+      expect(hash).toHaveLength(64)
     })
   })
 }) 

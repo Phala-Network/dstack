@@ -30,9 +30,36 @@ function sortObject(obj: SortableValue): SortableValue {
   return obj;
 }
 
+export type KeyProviderKind = "none" | "kms" | "local";
+
+export interface DockerConfig extends SortableObject {
+  registry?: string;
+  username?: string;
+  token_key?: string;
+}
+
 export interface AppCompose extends SortableObject {
-  runner?: string;
+  manifest_version?: number;
+  name?: string;
+  // Deprecated
+  features?: string[];
+  runner: string;
   docker_compose_file?: string;
+  docker_config?: DockerConfig;
+  public_logs?: boolean;
+  public_sysinfo?: boolean;
+  public_tcbinfo?: boolean;
+  kms_enabled?: boolean;
+  gateway_enabled?: boolean;
+  // For backward compatibility with tproxy_enabled
+  tproxy_enabled?: boolean;
+  local_key_provider_enabled?: boolean;
+  key_provider?: KeyProviderKind;
+  key_provider_id?: string; // hex string
+  allowed_envs?: string[];
+  no_instance_id?: boolean;
+  secure_time?: boolean;
+  // Legacy fields for backward compatibility
   bash_script?: string;
   pre_launch_script?: string;
 }
