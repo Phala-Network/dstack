@@ -95,8 +95,10 @@ function toDeterministicJson(dic: AppCompose): string {
   }); // Omit the 'space' argument for compact output
 }
 
-export function getComposeHash(app_compose: AppCompose): string {
-  const preprocessed = preprocessAppCompose(app_compose);
-  const manifest_str = toDeterministicJson(preprocessed);
+export function getComposeHash(app_compose: AppCompose, normalize: boolean = false): string {
+  if (normalize) {
+    app_compose = preprocessAppCompose(app_compose);
+  }
+  const manifest_str = toDeterministicJson(app_compose);
   return crypto.createHash("sha256").update(manifest_str, "utf8").digest("hex");
 }

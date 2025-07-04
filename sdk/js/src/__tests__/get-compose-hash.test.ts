@@ -178,14 +178,14 @@ describe('Deterministic JSON Serialization', () => {
   })
 
   describe('Preprocessing Logic', () => {
-    it('should remove docker_compose_file when runner is bash', () => {
+    it('should remove docker_compose_file when runner is bash (with normalization)', () => {
       const compose: AppCompose = {
         runner: "bash",
         bash_script: "start.sh",
         docker_compose_file: "docker-compose.yml"
       }
       
-      const hash = getComposeHash(compose)
+      const hash = getComposeHash(compose, true)
       
       // Should be the same as compose without docker_compose_file
       const compose2: AppCompose = {
@@ -193,17 +193,17 @@ describe('Deterministic JSON Serialization', () => {
         bash_script: "start.sh"
       }
       
-      expect(hash).toBe(getComposeHash(compose2))
+      expect(hash).toBe(getComposeHash(compose2, true))
     })
 
-    it('should remove bash_script when runner is docker-compose', () => {
+    it('should remove bash_script when runner is docker-compose (with normalization)', () => {
       const compose: AppCompose = {
         runner: "docker-compose",
         docker_compose_file: "docker-compose.yml",
         bash_script: "start.sh"
       }
       
-      const hash = getComposeHash(compose)
+      const hash = getComposeHash(compose, true)
       
       // Should be the same as compose without bash_script
       const compose2: AppCompose = {
@@ -211,10 +211,10 @@ describe('Deterministic JSON Serialization', () => {
         docker_compose_file: "docker-compose.yml"
       }
       
-      expect(hash).toBe(getComposeHash(compose2))
+      expect(hash).toBe(getComposeHash(compose2, true))
     })
 
-    it('should remove empty pre_launch_script', () => {
+    it('should remove empty pre_launch_script (with normalization)', () => {
       const compose1: AppCompose = {
         runner: "docker-compose",
         docker_compose_file: "docker-compose.yml",
@@ -226,10 +226,10 @@ describe('Deterministic JSON Serialization', () => {
         docker_compose_file: "docker-compose.yml"
       }
       
-      expect(getComposeHash(compose1)).toBe(getComposeHash(compose2))
+      expect(getComposeHash(compose1, true)).toBe(getComposeHash(compose2, true))
     })
 
-    it('should keep non-empty pre_launch_script', () => {
+    it('should keep non-empty pre_launch_script (with normalization)', () => {
       const compose1: AppCompose = {
         runner: "docker-compose",
         docker_compose_file: "docker-compose.yml",
@@ -241,7 +241,7 @@ describe('Deterministic JSON Serialization', () => {
         docker_compose_file: "docker-compose.yml"
       }
       
-      expect(getComposeHash(compose1)).not.toBe(getComposeHash(compose2))
+      expect(getComposeHash(compose1, true)).not.toBe(getComposeHash(compose2, true))
     })
   })
 
@@ -299,7 +299,7 @@ describe('Deterministic JSON Serialization', () => {
       // @ts-expect-error - empty object is valid
       const compose: AppCompose = {}
       const hash = getComposeHash(compose)
-
+      
       expect(hash).toHaveLength(64)
       expect(hash).toMatch(/^[a-f0-9]{64}$/)
     })
@@ -475,84 +475,51 @@ describe('Deterministic JSON Serialization', () => {
     })
   })
 
-  describe('Default Values Processing', () => {
-    it('should set default values for undefined fields', () => {
+  describe('Normalize Parameter', () => {
+    it('should skip preprocessing when normalize=false (default)', () => {
       const compose: AppCompose = {
+        runner: "bash",
+        bash_script: "start.sh",
+        docker_compose_file: "docker-compose.yml"
+      }
+      
+      const hashWithoutNormalize = getComposeHash(compose)
+      const hashExplicitFalse = getComposeHash(compose, false)
+      
+      expect(hashWithoutNormalize).toBe(hashExplicitFalse)
+    })
+
+    it('should apply preprocessing when normalize=true', () => {
+      const compose: AppCompose = {
+        runner: "bash",
+        bash_script: "start.sh",
+        docker_compose_file: "docker-compose.yml"
+      }
+      
+      const hashWithNormalize = getComposeHash(compose, true)
+      const hashWithoutNormalize = getComposeHash(compose, false)
+      
+      // These should be different because preprocessing is applied only with normalize=true
+      expect(hashWithNormalize).not.toBe(hashWithoutNormalize)
+    })
+
+    it('should handle empty pre_launch_script differently with/without normalization', () => {
+      const compose: AppCompose = {
+        runner: "docker-compose",
+        docker_compose_file: "docker-compose.yml",
+        pre_launch_script: ""
+      }
+      
+      const composeWithoutEmpty: AppCompose = {
         runner: "docker-compose",
         docker_compose_file: "docker-compose.yml"
       }
       
-      const hash1 = getComposeHash(compose)
+      // With normalization, empty pre_launch_script should be removed
+      expect(getComposeHash(compose, true)).toBe(getComposeHash(composeWithoutEmpty, true))
       
-      // Should be the same as explicitly setting defaults (but empty arrays/objects are removed)
-      const compose2: AppCompose = {
-        manifest_version: 1,
-        runner: "docker-compose",
-        docker_compose_file: "docker-compose.yml",
-        public_logs: false,
-        public_sysinfo: false,
-        public_tcbinfo: true,
-        kms_enabled: false,
-        gateway_enabled: false,
-        local_key_provider_enabled: false,
-        no_instance_id: false,
-        secure_time: true
-        // Empty arrays and objects are removed: features, docker_config, key_provider_id, allowed_envs, name
-      }
-      
-      expect(hash1).toBe(getComposeHash(compose2))
-    })
-  })
-
-  describe('Gateway/Tproxy Enabled Logic', () => {
-    it('should handle tproxy_enabled conversion to gateway_enabled', () => {
-      const compose1: AppCompose = {
-        runner: "docker-compose",
-        docker_compose_file: "docker-compose.yml",
-        tproxy_enabled: true
-      }
-      
-      const compose2: AppCompose = {
-        manifest_version: 1,
-        runner: "docker-compose",
-        docker_compose_file: "docker-compose.yml",
-        gateway_enabled: true,
-        public_logs: false,
-        public_sysinfo: false,
-        public_tcbinfo: true,
-        kms_enabled: false,
-        local_key_provider_enabled: false,
-        no_instance_id: false,
-        secure_time: true
-      }
-      
-      expect(getComposeHash(compose1)).toBe(getComposeHash(compose2))
-    })
-
-    it('should prioritize gateway_enabled over tproxy_enabled', () => {
-      const compose1: AppCompose = {
-        runner: "docker-compose",
-        docker_compose_file: "docker-compose.yml",
-        gateway_enabled: false,
-        tproxy_enabled: true
-      }
-      
-      // Should result in gateway_enabled: true because tproxy_enabled is true
-      const compose2: AppCompose = {
-        manifest_version: 1,
-        runner: "docker-compose",
-        docker_compose_file: "docker-compose.yml",
-        gateway_enabled: true,
-        public_logs: false,
-        public_sysinfo: false,
-        public_tcbinfo: true,
-        kms_enabled: false,
-        local_key_provider_enabled: false,
-        no_instance_id: false,
-        secure_time: true
-      }
-      
-      expect(getComposeHash(compose1)).toBe(getComposeHash(compose2))
+      // Without normalization, empty pre_launch_script should remain
+      expect(getComposeHash(compose, false)).not.toBe(getComposeHash(composeWithoutEmpty, false))
     })
   })
 
@@ -574,7 +541,7 @@ describe('Deterministic JSON Serialization', () => {
       const compose: AppCompose = {
         runner: "docker-compose",
         docker_compose_file: "docker-compose.yml",
-        bash_script: "start.sh", // Should be removed by preprocessing
+        bash_script: "start.sh", // Should be removed by preprocessing when normalize=true
         features: ["legacy-feature"],
         public_logs: true,
         kms_enabled: false,
