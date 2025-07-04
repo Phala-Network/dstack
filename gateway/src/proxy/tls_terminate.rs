@@ -13,6 +13,7 @@ use hyper_util::rt::tokio::TokioIo;
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::version::{TLS12, TLS13};
+use serde::Serialize;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
@@ -124,6 +125,22 @@ pub(crate) fn create_acceptor(config: &ProxyConfig) -> Result<TlsAcceptor> {
     Ok(acceptor)
 }
 
+fn json_response(body: &impl Serialize) -> Result<Response<String>> {
+    let body = serde_json::to_string(body).context("Failed to serialize response")?;
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "application/json")
+        .body(body)
+        .context("Failed to build response")
+}
+
+fn empty_response(status: StatusCode) -> Result<Response<String>> {
+    Response::builder()
+        .status(status)
+        .body(String::new())
+        .context("Failed to build response")
+}
+
 impl Proxy {
     /// Reload the TLS acceptor with fresh certificates
     pub fn reload_certificates(&self) -> Result<()> {
@@ -156,41 +173,34 @@ impl Proxy {
         let service = service_fn(|req: Request<Incoming>| async move {
             // Only respond to GET / requests
             if req.method() != hyper::Method::GET {
-                return Response::builder()
-                    .status(StatusCode::METHOD_NOT_ALLOWED)
-                    .body(String::new())
-                    .context("Failed to build response");
+                return empty_response(StatusCode::METHOD_NOT_ALLOWED);
             }
-            match req.uri().path() {
-                "/health" => Response::builder()
-                    .status(StatusCode::OK)
-                    .body(String::new())
-                    .context("Failed to build response"),
+            if req.uri().path() == "/health" {
+                return empty_response(StatusCode::OK);
+            }
+            let path = req.uri().path().trim_start_matches("/.dstack");
+            match path {
+                "/index" => {
+                    let body = serde_json::json!({
+                        "type": "dstack gateway",
+                        "paths": [
+                            "/index",
+                            "/app-info",
+                            "/acme-info",
+                        ],
+                    });
+                    json_response(&body)
+                }
                 "/app-info" => {
                     let agent = crate::dstack_agent().context("Failed to get dstack agent")?;
                     let app_info = agent.info().await.context("Failed to get app info")?;
-                    let body =
-                        serde_json::to_string(&app_info).context("Failed to serialize app info")?;
-                    Response::builder()
-                        .status(StatusCode::OK)
-                        .header("Content-Type", "application/json")
-                        .body(body)
-                        .context("Failed to build response")
+                    json_response(&app_info)
                 }
                 "/acme-info" => {
                     let acme_info = self.acme_info().await.context("Failed to get acme info")?;
-                    let body = serde_json::to_string(&acme_info)
-                        .context("Failed to serialize acme info")?;
-                    Response::builder()
-                        .status(StatusCode::OK)
-                        .header("Content-Type", "application/json")
-                        .body(body)
-                        .context("Failed to build response")
+                    json_response(&acme_info)
                 }
-                _ => Response::builder()
-                    .status(StatusCode::NOT_FOUND)
-                    .body(String::new())
-                    .context("Failed to build response"),
+                _ => empty_response(StatusCode::NOT_FOUND),
             }
         });
 
