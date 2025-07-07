@@ -24,7 +24,7 @@ use scale::Decode;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use tokio::{io::AsyncWriteExt, process::Command};
-use tracing::info;
+use tracing::{debug, info};
 use upgrade_authority::BootInfo;
 
 use crate::{
@@ -429,6 +429,7 @@ impl RpcHandler {
             .as_td10()
             .context("Failed to decode TD report")?;
         let app_info = att.decode_app_info(use_boottime_mr)?;
+        debug!("vm_config: {vm_config}");
         let vm_config: VmConfig =
             serde_json::from_str(vm_config).context("Failed to decode VM config")?;
         let os_image_hash = vm_config.os_image_hash.clone();
