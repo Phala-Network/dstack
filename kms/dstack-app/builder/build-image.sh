@@ -46,7 +46,8 @@ fi
 
 touch shared/kms-pinned-packages.txt
 touch shared/qemu-pinned-packages.txt
-GIT_REV=$(git rev-parse HEAD)
+GIT_REV=${GIT_REV:-HEAD}
+GIT_REV=$(git rev-parse $GIT_REV)
 echo $GIT_REV > .GIT_REV
 
 # First build the qemu-builder stage and extract package list

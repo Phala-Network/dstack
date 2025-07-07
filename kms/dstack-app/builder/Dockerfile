@@ -53,8 +53,5 @@ RUN git clone https://github.com/kvinwang/qemu-tdx.git --depth 1 --branch passth
     install -m 644 pc-bios/linuxboot_dma.bin /usr/local/share/qemu/ && \
     cd .. && rm -rf qemu-tdx
 COPY --from=kms-builder /build/dstack/target/x86_64-unknown-linux-musl/release/dstack-kms /usr/local/bin/dstack-kms
-COPY entrypoint.sh /entrypoint.sh
 COPY .GIT_REV /etc/.GIT_REV
-RUN chmod +x /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
 CMD ["dstack-kms"]
