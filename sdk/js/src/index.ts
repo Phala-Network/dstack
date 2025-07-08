@@ -28,7 +28,6 @@ export interface EventLog {
 
 export interface TcbInfo {
   mrtd: string
-  rootfs_hash: string
   rtmr0: string
   rtmr1: string
   rtmr2: string

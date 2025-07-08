@@ -48,13 +48,12 @@ type EventLog struct {
 
 // Represents the TCB information
 type TcbInfo struct {
-	Mrtd       string     `json:"mrtd"`
-	RootfsHash string     `json:"rootfs_hash"`
-	Rtmr0      string     `json:"rtmr0"`
-	Rtmr1      string     `json:"rtmr1"`
-	Rtmr2      string     `json:"rtmr2"`
-	Rtmr3      string     `json:"rtmr3"`
-	EventLog   []EventLog `json:"event_log"`
+	Mrtd     string     `json:"mrtd"`
+	Rtmr0    string     `json:"rtmr0"`
+	Rtmr1    string     `json:"rtmr1"`
+	Rtmr2    string     `json:"rtmr2"`
+	Rtmr3    string     `json:"rtmr3"`
+	EventLog []EventLog `json:"event_log"`
 }
 
 // Represents the response from an info request

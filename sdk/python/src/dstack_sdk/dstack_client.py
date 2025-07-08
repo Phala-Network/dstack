@@ -91,7 +91,6 @@ class EventLog(BaseModel):
 
 class TcbInfo(BaseModel):
     mrtd: str
-    rootfs_hash: str
     rtmr0: str
     rtmr1: str
     rtmr2: str
