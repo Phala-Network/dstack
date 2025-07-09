@@ -66,3 +66,9 @@ async fn test_report_data() {
     };
     assert_eq!(&quote_report.report_data[..], &expected[..]);
 }
+
+#[tokio::test]
+async fn test_info() {
+    let client = AsyncDstackClient::new(None);
+    let _info = client.info().await.unwrap();
+}

@@ -41,10 +41,7 @@ export interface InfoResponse {
   app_cert: string
   tcb_info: TcbInfo
   app_name: string
-  public_logs: boolean
-  public_sysinfo: boolean
   device_id: string
-  mr_aggregated: string
   os_image_hash: string
   key_provider_info: string
   compose_hash: string

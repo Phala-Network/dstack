@@ -88,13 +88,11 @@ type TcbInfo struct {
 
 // Represents the response from an info request
 type TappdInfoResponse struct {
-	AppID         string  `json:"app_id"`
-	InstanceID    string  `json:"instance_id"`
-	AppCert       string  `json:"app_cert"`
-	TcbInfo       TcbInfo `json:"tcb_info"`
-	AppName       string  `json:"app_name"`
-	PublicLogs    bool    `json:"public_logs"`
-	PublicSysinfo bool    `json:"public_sysinfo"`
+	AppID      string  `json:"app_id"`
+	InstanceID string  `json:"instance_id"`
+	AppCert    string  `json:"app_cert"`
+	TcbInfo    TcbInfo `json:"tcb_info"`
+	AppName    string  `json:"app_name"`
 }
 
 const INIT_MR = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
@@ -339,13 +337,11 @@ func (c *TappdClient) Info(ctx context.Context) (*TappdInfoResponse, error) {
 	}
 
 	var response struct {
-		TcbInfo       string `json:"tcb_info"`
-		AppID         string `json:"app_id"`
-		InstanceID    string `json:"instance_id"`
-		AppCert       string `json:"app_cert"`
-		AppName       string `json:"app_name"`
-		PublicLogs    bool   `json:"public_logs"`
-		PublicSysinfo bool   `json:"public_sysinfo"`
+		TcbInfo    string `json:"tcb_info"`
+		AppID      string `json:"app_id"`
+		InstanceID string `json:"instance_id"`
+		AppCert    string `json:"app_cert"`
+		AppName    string `json:"app_name"`
 	}
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, err
@@ -357,12 +353,10 @@ func (c *TappdClient) Info(ctx context.Context) (*TappdInfoResponse, error) {
 	}
 
 	return &TappdInfoResponse{
-		AppID:         response.AppID,
-		InstanceID:    response.InstanceID,
-		AppCert:       response.AppCert,
-		TcbInfo:       tcbInfo,
-		AppName:       response.AppName,
-		PublicLogs:    response.PublicLogs,
-		PublicSysinfo: response.PublicSysinfo,
+		AppID:      response.AppID,
+		InstanceID: response.InstanceID,
+		AppCert:    response.AppCert,
+		TcbInfo:    tcbInfo,
+		AppName:    response.AppName,
 	}, nil
 }

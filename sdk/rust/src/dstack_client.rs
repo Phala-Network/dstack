@@ -143,14 +143,8 @@ pub struct InfoResponse {
     pub tcb_info: TcbInfo,
     /// The name of the application
     pub app_name: String,
-    /// Whether public logs are enabled
-    pub public_logs: bool,
-    /// Whether public system information is enabled
-    pub public_sysinfo: bool,
     /// The device identifier
     pub device_id: String,
-    /// The aggregated measurement register value
-    pub mr_aggregated: String,
     /// The hash of the OS image
     pub os_image_hash: String,
     /// Information about the key provider
