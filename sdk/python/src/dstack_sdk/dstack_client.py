@@ -104,10 +104,7 @@ class InfoResponse(BaseModel):
     app_cert: str
     tcb_info: TcbInfo
     app_name: str
-    public_logs: bool
-    public_sysinfo: bool
     device_id: str
-    mr_aggregated: str
     os_image_hash: str
     key_provider_info: str
     compose_hash: str

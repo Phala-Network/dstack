@@ -63,10 +63,7 @@ type InfoResponse struct {
 	AppCert         string `json:"app_cert"`
 	TcbInfo         string `json:"tcb_info"`
 	AppName         string `json:"app_name"`
-	PublicLogs      bool   `json:"public_logs"`
-	PublicSysinfo   bool   `json:"public_sysinfo"`
 	DeviceID        string `json:"device_id"`
-	MrAggregated    string `json:"mr_aggregated"`
 	KeyProviderInfo string `json:"key_provider_info"`
 	OsImageHash     string `json:"os_image_hash"`
 	ComposeHash     string `json:"compose_hash"`
