@@ -174,8 +174,6 @@ impl InfoResponse {
 pub struct TcbInfo {
     /// The measurement root of trust
     pub mrtd: String,
-    /// The hash of the root filesystem
-    pub rootfs_hash: String,
     /// The value of RTMR0 (Runtime Measurement Register 0)
     pub rtmr0: String,
     /// The value of RTMR1 (Runtime Measurement Register 1)
