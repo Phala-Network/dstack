@@ -1,4 +1,4 @@
-# Deterministic Compose Hash
+# Normalized App Compose
 
 In the dstack project, the `app-compose.json` file defines application composition and deployment settings. To track changes and ensure data integrity across different environments, dstack needs to generate a deterministic SHA256 compose hash from this file.
 
