@@ -70,9 +70,13 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC165__factory>;
     getContractFactory(
-      name: "AppAuth",
+      name: "DstackApp",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.AppAuth__factory>;
+    ): Promise<Contracts.DstackApp__factory>;
+    getContractFactory(
+      name: "DstackKms",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.DstackKms__factory>;
     getContractFactory(
       name: "IAppAuth",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -81,10 +85,6 @@ declare module "hardhat/types/runtime" {
       name: "IAppAuthBasicManagement",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IAppAuthBasicManagement__factory>;
-    getContractFactory(
-      name: "KmsAuth",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.KmsAuth__factory>;
 
     getContractAt(
       name: "OwnableUpgradeable",
@@ -157,10 +157,15 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IERC165>;
     getContractAt(
-      name: "AppAuth",
+      name: "DstackApp",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.AppAuth>;
+    ): Promise<Contracts.DstackApp>;
+    getContractAt(
+      name: "DstackKms",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.DstackKms>;
     getContractAt(
       name: "IAppAuth",
       address: string | ethers.Addressable,
@@ -171,11 +176,6 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.IAppAuthBasicManagement>;
-    getContractAt(
-      name: "KmsAuth",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.KmsAuth>;
 
     deployContract(
       name: "OwnableUpgradeable",
@@ -234,9 +234,13 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC165>;
     deployContract(
-      name: "AppAuth",
+      name: "DstackApp",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.AppAuth>;
+    ): Promise<Contracts.DstackApp>;
+    deployContract(
+      name: "DstackKms",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.DstackKms>;
     deployContract(
       name: "IAppAuth",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -245,10 +249,6 @@ declare module "hardhat/types/runtime" {
       name: "IAppAuthBasicManagement",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IAppAuthBasicManagement>;
-    deployContract(
-      name: "KmsAuth",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.KmsAuth>;
 
     deployContract(
       name: "OwnableUpgradeable",
@@ -321,10 +321,15 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC165>;
     deployContract(
-      name: "AppAuth",
+      name: "DstackApp",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.AppAuth>;
+    ): Promise<Contracts.DstackApp>;
+    deployContract(
+      name: "DstackKms",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.DstackKms>;
     deployContract(
       name: "IAppAuth",
       args: any[],
@@ -335,11 +340,6 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IAppAuthBasicManagement>;
-    deployContract(
-      name: "KmsAuth",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.KmsAuth>;
 
     // default types
     getContractFactory(

@@ -7,7 +7,7 @@ This document provides Foundry Cast equivalents for all Hardhat tasks defined in
 ```bash
 # Contract addresses - set these to your deployed addresses
 export KMS_CONTRACT_ADDRESS="0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"  # Your deployed KMS proxy
-export APP_AUTH_ADDRESS="YOUR_APP_AUTH_ADDRESS"  # Specific AppAuth instance address
+export APP_AUTH_ADDRESS="YOUR_APP_AUTH_ADDRESS"  # Specific DstackApp instance address
 export PRIVATE_KEY="your_private_key_here"
 export RPC_URL="http://kms2.phatfn.xyz:8545"  # or your network RPC URL
 export DEPLOYER_ADDRESS="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"  # Your deployer address
@@ -23,36 +23,36 @@ alias mycast="cast --private-key $PRIVATE_KEY --rpc-url $RPC_URL"
 #### Option 1: Complete Setup (Recommended)
 
 ```bash
-# Deploy AppAuth implementation and KmsAuth with implementation set in one command
+# Deploy DstackApp implementation and DstackKms with implementation set in one command
 npx hardhat kms:deploy --with-app-impl --network test
 # This automatically:
-# 1. Deploys AppAuth implementation
-# 2. Deploys KmsAuth UUPS proxy with AppAuth implementation set during initialization
+# 1. Deploys DstackApp implementation
+# 2. Deploys DstackKms UUPS proxy with DstackApp implementation set during initialization
 # 3. Ready for factory app deployments immediately!
 ```
 
 #### Option 2: Step-by-step Setup
 
 ```bash
-# 1. Deploy AppAuth implementation first (equivalent to app:deploy-impl)
+# 1. Deploy DstackApp implementation first (equivalent to app:deploy-impl)
 npx hardhat app:deploy-impl --network test
 # Note the implementation address: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
 
-# 2. Deploy KmsAuth UUPS proxy with AppAuth implementation set during initialization
+# 2. Deploy DstackKms UUPS proxy with DstackApp implementation set during initialization
 npx hardhat kms:deploy --network test --app-implementation 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
 ```
 
 #### Option 3: Legacy Setup (Manual)
 
 ```bash
-# 1. Deploy KmsAuth UUPS proxy without AppAuth implementation
+# 1. Deploy DstackKms UUPS proxy without DstackApp implementation
 npx hardhat kms:deploy --network test
 
-# 2. Deploy AppAuth implementation separately
+# 2. Deploy DstackApp implementation separately
 npx hardhat app:deploy-impl --network test
 
-# 3. Set AppAuth implementation in KMS manually (equivalent to kms:set-app-implementation)
-cast send $KMS_CONTRACT_ADDRESS "setAppAuthImplementation(address)" \
+# 3. Set DstackApp implementation in KMS manually (equivalent to kms:set-app-implementation)
+cast send $KMS_CONTRACT_ADDRESS "setAppImplementation(address)" \
   "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0" \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 ```
@@ -76,9 +76,9 @@ cast call 0x5FbDB2315678afecb367f032d93F642f64180aa3 "proxiableUUID()" --rpc-url
 ### Upgrade Operations
 
 ```bash
-# Deploy new KmsAuth implementation (equivalent to kms:deploy-impl)
+# Deploy new DstackKms implementation (equivalent to kms:deploy-impl)
 npx hardhat kms:deploy-impl --network test
-# Output: ✅ KmsAuth implementation deployed to: NEW_IMPL_ADDRESS
+# Output: ✅ DstackKms implementation deployed to: NEW_IMPL_ADDRESS
 
 # Upgrade the proxy to new implementation (equivalent to kms:upgrade)
 cast send $KMS_CONTRACT_ADDRESS "upgradeTo(address)" "NEW_IMPL_ADDRESS" \
@@ -105,9 +105,9 @@ cast call $KMS_CONTRACT_ADDRESS "kmsInfo()" --rpc-url $RPC_URL
 cast call $KMS_CONTRACT_ADDRESS "gatewayAppId()" --rpc-url $RPC_URL
 # To decode: cast abi-decode "gatewayAppId()(string)" RETURN_DATA
 
-# Get AppAuth implementation address for factory deployment
-cast call $KMS_CONTRACT_ADDRESS "appAuthImplementation()" --rpc-url $RPC_URL
-# To decode: cast abi-decode "appAuthImplementation()(address)" RETURN_DATA
+# Get DstackApp implementation address for factory deployment
+cast call $KMS_CONTRACT_ADDRESS "appImplementation()" --rpc-url $RPC_URL
+# To decode: cast abi-decode "appImplementation()(address)" RETURN_DATA
 # Should return: 0x0000000000000000000000009fe46736679d2d9a65f0992f2272de9f3c7fa6e0
 
 # Get contract owner
@@ -127,9 +127,9 @@ cast send $KMS_CONTRACT_ADDRESS "setKmsInfo((bytes,bytes,bytes,bytes))" \
   "(0xk256_pubkey,0xca_pubkey,0xquote,0xeventlog)" \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 
-# Set AppAuth implementation for factory deployment (owner only)
-cast send $KMS_CONTRACT_ADDRESS "setAppAuthImplementation(address)" \
-  "APPAUTH_IMPL_ADDRESS" \
+# Set DstackApp implementation for factory deployment (owner only)
+cast send $KMS_CONTRACT_ADDRESS "setAppImplementation(address)" \
+  "APP_IMPL_ADDRESS" \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 ```
 
@@ -180,7 +180,7 @@ cast send $KMS_CONTRACT_ADDRESS "removeKmsDevice(bytes32)" \
 ### Factory Deployment (Recommended - Single Transaction)
 
 ```bash
-# kms:create-app - Deploy and register AppAuth in single transaction
+# kms:create-app - Deploy and register DstackApp in single transaction
 cast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,bytes32)" \
   "$DEPLOYER_ADDRESS" false true \
   "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" \
@@ -201,7 +201,7 @@ cast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,
 ### Traditional App Registration
 
 ```bash
-# Register an existing AppAuth contract with KMS
+# Register an existing DstackApp contract with KMS
 cast send $KMS_CONTRACT_ADDRESS "registerApp(address)" \
   "$APP_AUTH_ADDRESS" \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
@@ -210,7 +210,7 @@ cast send $KMS_CONTRACT_ADDRESS "registerApp(address)" \
 cast call $KMS_CONTRACT_ADDRESS "nextAppId()" --rpc-url $RPC_URL
 # To decode: cast abi-decode "nextAppId()(address)" RETURN_DATA
 
-# app:show-controller - Get AppAuth controller for an app
+# app:show-controller - Get DstackApp controller for an app
 cast call $KMS_CONTRACT_ADDRESS "apps(address)" "APP_ID_HERE" --rpc-url $RPC_URL
 # To decode: cast abi-decode "apps(address)((bool,address))" RETURN_DATA
 ```
@@ -254,7 +254,7 @@ cast call $KMS_CONTRACT_ADDRESS "isAppAllowed((address,bytes32,address,bytes32,b
 # To decode: cast abi-decode "isAppAllowed((address,bytes32,address,bytes32,bytes32,bytes32,bytes32,string,string[]))(bool,string)" RETURN_DATA
 ```
 
-## AppAuth Contract Operations
+## DstackApp Contract Operations
 
 ### Query Operations
 
@@ -328,8 +328,8 @@ cast call $APP_AUTH_ADDRESS "isAppAllowed((address,bytes32,address,bytes32,bytes
 ### Upgrade Management
 
 ```bash
-# AppAuth upgrade (if not disabled)
-cast send $APP_AUTH_ADDRESS "upgradeTo(address)" "NEW_APPAUTH_IMPL_ADDRESS" \
+# DstackApp upgrade (if not disabled)
+cast send $APP_AUTH_ADDRESS "upgradeTo(address)" "NEW_APP_IMPL_ADDRESS" \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 
 # Disable upgrades permanently
@@ -450,7 +450,7 @@ cast send $APP_AUTH_ADDRESS "addDevice(bytes32)" "0x1234..." \
 #### Streamlined Deployment (Recommended)
 
 ```bash
-# 1. Complete Setup (Deploy AppAuth implementation and KMS in one command)
+# 1. Complete Setup (Deploy DstackApp implementation and KMS in one command)
 npx hardhat kms:deploy --with-app-impl --network test
 export KMS_CONTRACT_ADDRESS="DEPLOYED_PROXY_ADDRESS"
 
@@ -471,13 +471,13 @@ cast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,
 npx hardhat kms:deploy --network test
 export KMS_CONTRACT_ADDRESS="DEPLOYED_PROXY_ADDRESS"
 
-# 2. Deploy AppAuth implementation
+# 2. Deploy DstackApp implementation
 npx hardhat app:deploy-impl --network test
 # Note the implementation address
 
-# 3. Set AppAuth implementation in KMS
-cast send $KMS_CONTRACT_ADDRESS "setAppAuthImplementation(address)" \
-  "APPAUTH_IMPL_ADDRESS" \
+# 3. Set DstackApp implementation in KMS
+cast send $KMS_CONTRACT_ADDRESS "setAppImplementation(address)" \
+  "APP_IMPL_ADDRESS" \
   --private-key $PRIVATE_KEY --rpc-url $RPC_URL
 
 # 4. Configure KMS (add allowed MRs, devices, images)
@@ -493,7 +493,7 @@ cast send $KMS_CONTRACT_ADDRESS "deployAndRegisterApp(address,bool,bool,bytes32,
 ### Upgrade Process
 
 ```bash
-# 1. Deploy new KmsAuth implementation
+# 1. Deploy new DstackKms implementation
 npx hardhat kms:deploy-impl --network test
 
 # 2. Upgrade proxy (requires owner)
@@ -511,19 +511,19 @@ cast call $KMS_CONTRACT_ADDRESS "owner()" --rpc-url $RPC_URL
 
 | Hardhat Task | Cast Equivalent | Notes |
 |--------------|-----------------|-------|
-| `kms:deploy` | Use hardhat (complex proxy deployment) | Creates UUPS proxy, optionally sets AppAuth impl |
-| `kms:deploy --with-app-impl` | Use hardhat | **⭐ Recommended**: Deploys both AppAuth impl & KMS in one go |
+| `kms:deploy` | Use hardhat (complex proxy deployment) | Creates UUPS proxy, optionally sets DstackApp impl |
+| `kms:deploy --with-app-impl` | Use hardhat | **⭐ Recommended**: Deploys both DstackApp impl & KMS in one go |
 | `kms:deploy-impl` | `npx hardhat kms:deploy-impl` | Deploys implementation only |
-| `app:deploy-impl` | `npx hardhat app:deploy-impl` | Deploys AppAuth implementation |
+| `app:deploy-impl` | `npx hardhat app:deploy-impl` | Deploys DstackApp implementation |
 | `kms:upgrade` | `cast send ... upgradeTo` | Upgrades proxy to new impl |
 | `kms:add` | `cast send ... addKmsAggregatedMr` | Direct mapping |
-| `app:add-hash` | `cast send ... addComposeHash` | Need AppAuth address |
+| `app:add-hash` | `cast send ... addComposeHash` | Need DstackApp address |
 | `info:kms` | `cast call ... kmsInfo` | Returns struct |
 | `app:deploy` | Complex hardhat task | Multi-transaction deployment |
 | `app:deploy-with-data` | Complex hardhat task | Use initializeWithData |
 | `app:deploy-factory` | `cast send ... deployAndRegisterApp` | **Single transaction deployment** ⭐ |
-| `kms:set-app-implementation` | `cast send ... setAppAuthImplementation` | Manual setup (rarely needed now) |
-| `kms:get-app-implementation` | `cast call ... appAuthImplementation` | Query factory implementation |
+| `kms:set-app-implementation` | `cast send ... setAppImplementation` | Manual setup (rarely needed now) |
+| `kms:get-app-implementation` | `cast call ... appImplementation` | Query factory implementation |
 
 ## Important Notes
 

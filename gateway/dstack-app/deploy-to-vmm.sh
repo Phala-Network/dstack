@@ -52,7 +52,7 @@ else
 # Public IP address
 PUBLIC_IP=$(curl -s4 ifconfig.me)
 
-# The dstack-gateway application ID. Register the app in KmsAuth first to get the app ID.
+# The dstack-gateway application ID. Register the app in DstackKms first to get the app ID.
 # GATEWAY_APP_ID=31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
 
 # Whether to use ACME staging (yes/no)

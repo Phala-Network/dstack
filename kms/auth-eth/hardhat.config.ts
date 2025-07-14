@@ -71,18 +71,18 @@ async function waitTx(tx: any) {
   return await tx.wait();
 }
 
-async function getKmsAuth(ethers: any) {
-  return await ethers.getContractAt("KmsAuth", KMS_CONTRACT_ADDRESS);
+async function getKmsContract(ethers: any) {
+  return await ethers.getContractAt("DstackKms", KMS_CONTRACT_ADDRESS);
 }
 
-async function getAppAuth(ethers: any, appId: string) {
-  return await ethers.getContractAt("AppAuth", appId);
+async function getAppContract(ethers: any, appId: string) {
+  return await ethers.getContractAt("DstackApp", appId);
 }
 
 // KMS Contract Tasks
-task("kms:deploy", "Deploy the KmsAuth contract")
-  .addOptionalParam("appImplementation", "AppAuth implementation address to set during initialization", "", types.string)
-  .addFlag("withAppImpl", "Deploy AppAuth implementation first and set it during KmsAuth initialization")
+task("kms:deploy", "Deploy the DstackKms contract")
+  .addOptionalParam("appImplementation", "DstackApp implementation address to set during initialization", "", types.string)
+  .addFlag("withAppImpl", "Deploy DstackApp implementation first and set it during DstackKms initialization")
   .setAction(async (taskArgs, hre) => {
     const { ethers } = hre;
     const [deployer] = await ethers.getSigners();
@@ -93,43 +93,43 @@ task("kms:deploy", "Deploy the KmsAuth contract")
     let appImplementation = taskArgs.appImplementation || ethers.ZeroAddress;
     
     if (taskArgs.withAppImpl && appImplementation === ethers.ZeroAddress) {
-      // Deploy AppAuth implementation first
-      console.log("Step 1: Deploying AppAuth implementation...");
-      const AppAuth = await ethers.getContractFactory("AppAuth");
-      const appAuthImpl = await AppAuth.deploy();
-      await appAuthImpl.waitForDeployment();
-      appImplementation = await appAuthImpl.getAddress();
-      console.log("✅ AppAuth implementation deployed to:", appImplementation);
+      // Deploy DstackApp implementation first
+      console.log("Step 1: Deploying DstackApp implementation...");
+      const DstackApp = await ethers.getContractFactory("DstackApp");
+      const appContractImpl = await DstackApp.deploy();
+      await appContractImpl.waitForDeployment();
+      appImplementation = await appContractImpl.getAddress();
+      console.log("✅ DstackApp implementation deployed to:", appImplementation);
     }
     
     if (appImplementation !== ethers.ZeroAddress) {
-      console.log("Setting AppAuth implementation during initialization:", appImplementation);
+      console.log("Setting DstackApp implementation during initialization:", appImplementation);
     }
     
-    console.log("Step 2: Deploying KmsAuth...");
-    const kmsAuth = await deployContract(hre, "KmsAuth", [deployerAddress, appImplementation]);
+    console.log("Step 2: Deploying DstackKms...");
+    const kmsContract = await deployContract(hre, "DstackKms", [deployerAddress, appImplementation]);
     
-    if (kmsAuth && taskArgs.withAppImpl) {
+    if (kmsContract && taskArgs.withAppImpl) {
       console.log("✅ Complete KMS setup deployed successfully!");
-      console.log("- AppAuth implementation:", appImplementation);
-      console.log("- KmsAuth proxy:", await kmsAuth.getAddress());
+      console.log("- DstackApp implementation:", appImplementation);
+      console.log("- DstackKms proxy:", await kmsContract.getAddress());
       console.log("🚀 Ready for factory app deployments!");
     }
   });
 
 
 
-task("kms:upgrade", "Upgrade the KmsAuth contract")
+task("kms:upgrade", "Upgrade the DstackKms contract")
   .addParam("address", "The address of the contract to upgrade", undefined, types.string, false)
   .addFlag("dryRun", "Simulate the upgrade without executing it")
   .setAction(async (taskArgs, hre) => {
-    await upgradeContract(hre, "KmsAuth", taskArgs.address, taskArgs.dryRun);
+    await upgradeContract(hre, "DstackKms", taskArgs.address, taskArgs.dryRun);
   });
 
 task("kms:set-info", "Set KMS information from file")
   .addPositionalParam("file", "File path")
   .setAction(async ({ file }, { ethers }) => {
-    const contract = await getKmsAuth(ethers);
+    const contract = await getKmsContract(ethers);
     const fileContent = fs.readFileSync(file, 'utf8');
     const tx = await contract.setKmsInfo(JSON.parse(fileContent));
     await waitTx(tx);
@@ -139,7 +139,7 @@ task("kms:set-info", "Set KMS information from file")
 task("kms:set-gateway", "Set the allowed Gateway App ID")
   .addPositionalParam("appId", "Gateway App ID")
   .setAction(async ({ appId }, { ethers }) => {
-    const contract = await getKmsAuth(ethers);
+    const contract = await getKmsContract(ethers);
     const tx = await contract.setGatewayAppId(appId);
     await waitTx(tx);
     console.log("Gateway App ID set successfully");
@@ -148,8 +148,8 @@ task("kms:set-gateway", "Set the allowed Gateway App ID")
 task("kms:add", "Add a Aggregated MR of an KMS instance")
   .addPositionalParam("mr", "Aggregated MR to add")
   .setAction(async ({ mr }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.addKmsAggregatedMr(mr);
+    const kmsContract = await getKmsContract(ethers);
+    const tx = await kmsContract.addKmsAggregatedMr(mr);
     await waitTx(tx);
     console.log("KMS aggregated MR added successfully");
   });
@@ -157,8 +157,8 @@ task("kms:add", "Add a Aggregated MR of an KMS instance")
 task("kms:remove", "Remove a Aggregated MR of an KMS instance")
   .addPositionalParam("mr", "Aggregated MR to remove")
   .setAction(async ({ mr }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.removeKmsAggregatedMr(mr);
+    const kmsContract = await getKmsContract(ethers);
+    const tx = await kmsContract.removeKmsAggregatedMr(mr);
     await waitTx(tx);
     console.log("KMS aggregated MR removed successfully");
   });
@@ -167,8 +167,8 @@ task("kms:remove", "Remove a Aggregated MR of an KMS instance")
 task("kms:add-image", "Add an image measurement")
   .addPositionalParam("osImageHash", "Image measurement")
   .setAction(async ({ osImageHash }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.addOsImageHash(osImageHash);
+    const kmsContract = await getKmsContract(ethers);
+    const tx = await kmsContract.addOsImageHash(osImageHash);
     await waitTx(tx);
     console.log("Image added successfully");
   });
@@ -176,8 +176,8 @@ task("kms:add-image", "Add an image measurement")
 task("kms:remove-image", "Remove an image measurement")
   .addPositionalParam("osImageHash", "Image measurement")
   .setAction(async ({ osImageHash }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.removeOsImageHash(osImageHash);
+    const kmsContract = await getKmsContract(ethers);
+    const tx = await kmsContract.removeOsImageHash(osImageHash);
     await waitTx(tx);
     console.log("Image removed successfully");
   });
@@ -185,8 +185,8 @@ task("kms:remove-image", "Remove an image measurement")
 task("kms:add-device", "Add a device ID of an KMS instance")
   .addPositionalParam("deviceId", "Device ID")
   .setAction(async ({ deviceId }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.addKmsDevice(deviceId);
+    const kmsContract = await getKmsContract(ethers);
+    const tx = await kmsContract.addKmsDevice(deviceId);
     await waitTx(tx);
     console.log("Device compose hash added successfully");
   });
@@ -194,16 +194,16 @@ task("kms:add-device", "Add a device ID of an KMS instance")
 task("kms:remove-device", "Remove a device ID")
   .addPositionalParam("deviceId", "Device ID to remove")
   .setAction(async ({ deviceId }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.removeKmsDevice(deviceId);
+    const kmsContract = await getKmsContract(ethers);
+    const tx = await kmsContract.removeKmsDevice(deviceId);
     await waitTx(tx);
     console.log("Device ID removed successfully");
   });
 
 task("info:kms", "Get current KMS information")
   .setAction(async (_, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const kmsInfo = await kmsAuth.kmsInfo();
+    const kmsContract = await getKmsContract(ethers);
+    const kmsInfo = await kmsContract.kmsInfo();
     console.log("KMS Info:", {
       k256Pubkey: kmsInfo.k256Pubkey,
       caPubkey: kmsInfo.caPubkey,
@@ -213,28 +213,28 @@ task("info:kms", "Get current KMS information")
 
 task("info:gateway", "Get current Gateway App ID")
   .setAction(async (_, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const appId = await kmsAuth.gatewayAppId();
+    const kmsContract = await getKmsContract(ethers);
+    const appId = await kmsContract.gatewayAppId();
     console.log("Gateway App ID:", appId);
   });
 
-task("kms:set-app-implementation", "Set AppAuth implementation for factory deployment")
-  .addPositionalParam("implementation", "AppAuth implementation address")
+task("kms:set-app-implementation", "Set DstackApp implementation for factory deployment")
+  .addPositionalParam("implementation", "DstackApp implementation address")
   .setAction(async ({ implementation }, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const tx = await kmsAuth.setAppAuthImplementation(implementation);
+    const kmsContract = await getKmsContract(ethers);
+    const tx = await kmsContract.setAppImplementation(implementation);
     await waitTx(tx);
-    console.log("AppAuth implementation set successfully");
+    console.log("DstackApp implementation set successfully");
   });
 
-task("kms:get-app-implementation", "Get current AppAuth implementation address")
+task("kms:get-app-implementation", "Get current DstackApp implementation address")
   .setAction(async (_, { ethers }) => {
-    const kmsAuth = await getKmsAuth(ethers);
-    const impl = await kmsAuth.appAuthImplementation();
-    console.log("AppAuth implementation:", impl);
+    const kmsContract = await getKmsContract(ethers);
+    const impl = await kmsContract.appImplementation();
+    console.log("DstackApp implementation:", impl);
   });
 
-task("app:deploy", "Deploy AppAuth with a UUPS proxy")
+task("app:deploy", "Deploy DstackApp with a UUPS proxy")
   .addFlag("allowAnyDevice", "Allow any device to boot this app")
   .addOptionalParam("device", "Initial device ID", "", types.string)
   .addOptionalParam("hash", "Initial compose hash", "", types.string)
@@ -245,7 +245,7 @@ task("app:deploy", "Deploy AppAuth with a UUPS proxy")
     console.log("Deploying with account:", deployerAddress);
     console.log("Account balance:", await accountBalance(ethers, deployerAddress));
 
-    const kmsContract = await getKmsAuth(ethers);
+    const kmsContract = await getKmsContract(ethers);
 
     // Parse device and hash (convert to bytes32, use 0x0 if empty)
     const deviceId = taskArgs.device ? taskArgs.device.trim() : "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -260,7 +260,7 @@ task("app:deploy", "Deploy AppAuth with a UUPS proxy")
     }
 
     // Use standard deployment - all cases use the same 6-parameter initializer
-    const appAuth = await deployContract(hre, "AppAuth", [
+    const appContract = await deployContract(hre, "DstackApp", [
       deployerAddress, 
       false, 
       taskArgs.allowAnyDevice,
@@ -268,13 +268,13 @@ task("app:deploy", "Deploy AppAuth with a UUPS proxy")
       composeHash
     ]);
     
-    if (!appAuth) {
+    if (!appContract) {
       return;
     }
     
-    await appAuth.waitForDeployment();
-    const proxyAddress = await appAuth.getAddress();
-    console.log("AppAuth deployed to:", proxyAddress);
+    await appContract.waitForDeployment();
+    const proxyAddress = await appContract.getAddress();
+    console.log("DstackApp deployed to:", proxyAddress);
 
     const tx = await kmsContract.registerApp(proxyAddress);
     const receipt = await waitTx(tx);
@@ -323,7 +323,7 @@ task("app:deploy", "Deploy AppAuth with a UUPS proxy")
   });
 
 
-task("kms:create-app", "Create AppAuth via KMS factory method (single transaction)")
+task("kms:create-app", "Create DstackApp via KMS factory method (single transaction)")
   .addFlag("allowAnyDevice", "Allow any device to boot this app")
   .addOptionalParam("device", "Initial device ID", "", types.string)
   .addOptionalParam("hash", "Initial compose hash", "", types.string)
@@ -334,7 +334,7 @@ task("kms:create-app", "Create AppAuth via KMS factory method (single transactio
     console.log("Deploying with account:", deployerAddress);
     console.log("Account balance:", await accountBalance(ethers, deployerAddress));
 
-    const kmsAuth = await getKmsAuth(ethers);
+    const kmsContract = await getKmsContract(ethers);
     
     const deviceId = taskArgs.device ? taskArgs.device.trim() : "0x0000000000000000000000000000000000000000000000000000000000000000";
     const composeHash = taskArgs.hash ? taskArgs.hash.trim() : "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -344,7 +344,7 @@ task("kms:create-app", "Create AppAuth via KMS factory method (single transactio
     console.log("Using factory method for single-transaction deployment...");
     
     // Single transaction deployment via factory
-    const tx = await kmsAuth.deployAndRegisterApp(
+    const tx = await kmsContract.deployAndRegisterApp(
       deployerAddress,  // deployer owns the contract
       false,           // disableUpgrades
       taskArgs.allowAnyDevice,
@@ -360,7 +360,7 @@ task("kms:create-app", "Create AppAuth via KMS factory method (single transactio
     
     for (const log of receipt.logs) {
       try {
-        const parsedLog = kmsAuth.interface.parseLog({
+        const parsedLog = kmsContract.interface.parseLog({
           topics: log.topics,
           data: log.data
         });
@@ -399,49 +399,49 @@ task("kms:create-app", "Create AppAuth via KMS factory method (single transactio
     }
   });
 
-task("app:upgrade", "Upgrade the AppAuth contract")
+task("app:upgrade", "Upgrade the DstackApp contract")
   .addParam("address", "The address of the contract to upgrade", undefined, types.string, false)
   .addFlag("dryRun", "Simulate the upgrade without executing it")
   .setAction(async (taskArgs, hre) => {
-    await upgradeContract(hre, "AppAuth", taskArgs.address, taskArgs.dryRun);
+    await upgradeContract(hre, "DstackApp", taskArgs.address, taskArgs.dryRun);
   });
 
-task("app:add-hash", "Add a compose hash to the AppAuth contract")
+task("app:add-hash", "Add a compose hash to the DstackApp contract")
   .addParam("appId", "App ID")
   .addPositionalParam("hash", "Compose hash to add")
   .setAction(async ({ appId, hash }, { ethers }) => {
-    const appAuth = await getAppAuth(ethers, appId);
-    const tx = await appAuth.addComposeHash(hash);
+    const appContract = await getAppContract(ethers, appId);
+    const tx = await appContract.addComposeHash(hash);
     await waitTx(tx);
     console.log("Compose hash added successfully");
   });
 
-task("app:remove-hash", "Remove a compose hash from the AppAuth contract")
+task("app:remove-hash", "Remove a compose hash from the DstackApp contract")
   .addParam("appId", "App ID")
   .addPositionalParam("hash", "Compose hash to remove")
   .setAction(async ({ appId, hash }, { ethers }) => {
-    const appAuth = await getAppAuth(ethers, appId);
-    const tx = await appAuth.removeComposeHash(hash);
+    const appContract = await getAppContract(ethers, appId);
+    const tx = await appContract.removeComposeHash(hash);
     await waitTx(tx);
     console.log("Compose hash removed successfully");
   });
 
-task("app:add-device", "Add a device ID to the AppAuth contract")
+task("app:add-device", "Add a device ID to the DstackApp contract")
   .addParam("appId", "App ID")
   .addPositionalParam("deviceId", "Device ID to add")
   .setAction(async ({ appId, deviceId }, { ethers }) => {
-    const appAuth = await getAppAuth(ethers, appId);
-    const tx = await appAuth.addDevice(deviceId);
+    const appContract = await getAppContract(ethers, appId);
+    const tx = await appContract.addDevice(deviceId);
     await waitTx(tx);
     console.log("Device ID added successfully");
   });
 
-task("app:remove-device", "Remove a device ID from the AppAuth contract")
+task("app:remove-device", "Remove a device ID from the DstackApp contract")
   .addParam("appId", "App ID")
   .addPositionalParam("deviceId", "Device ID to remove")
   .setAction(async ({ appId, deviceId }, { ethers }) => {
-    const appAuth = await getAppAuth(ethers, appId);
-    const tx = await appAuth.removeDevice(deviceId);
+    const appContract = await getAppContract(ethers, appId);
+    const tx = await appContract.removeDevice(deviceId);
     await waitTx(tx);
     console.log("Device ID removed successfully");
   });
@@ -450,44 +450,44 @@ task("app:set-allow-any-device", "Set whether any device is allowed to boot this
   .addParam("appId", "App ID")
   .addFlag("allowAnyDevice", "Allow any device to boot this app")
   .setAction(async ({ appId, allowAnyDevice }, { ethers }) => {
-    const appAuth = await getAppAuth(ethers, appId);
-    const tx = await appAuth.setAllowAnyDevice(allowAnyDevice);
+    const appContract = await getAppContract(ethers, appId);
+    const tx = await appContract.setAllowAnyDevice(allowAnyDevice);
     await waitTx(tx);
     console.log("Allow any device set successfully");
   });
 
-task("kms:deploy-impl", "Deploy KmsAuth implementation contract")
+task("kms:deploy-impl", "Deploy DstackKms implementation contract")
   .setAction(async (_, hre) => {
     const { ethers } = hre;
     const [deployer] = await ethers.getSigners();
     const deployerAddress = await deployer.getAddress();
-    console.log("deploying KmsAuth implementation with account:", deployerAddress);
+    console.log("deploying DstackKms implementation with account:", deployerAddress);
     console.log("account balance:", await accountBalance(ethers, deployerAddress));
 
-    const KmsAuth = await ethers.getContractFactory("KmsAuth");
-    console.log("deploying KmsAuth implementation...");
-    const kmsAuthImpl = await KmsAuth.deploy();
-    await kmsAuthImpl.waitForDeployment();
+    const DstackKms = await ethers.getContractFactory("DstackKms");
+    console.log("deploying DstackKms implementation...");
+    const kmsContractImpl = await DstackKms.deploy();
+    await kmsContractImpl.waitForDeployment();
     
-    const address = await kmsAuthImpl.getAddress();
-    console.log("✅ KmsAuth implementation deployed to:", address);
+    const address = await kmsContractImpl.getAddress();
+    console.log("✅ DstackKms implementation deployed to:", address);
     return address;
   });
 
-task("app:deploy-impl", "Deploy AppAuth implementation contract")
+task("app:deploy-impl", "Deploy DstackApp implementation contract")
   .setAction(async (_, hre) => {
     const { ethers } = hre;
     const [deployer] = await ethers.getSigners();
     const deployerAddress = await deployer.getAddress();
-    console.log("deploying AppAuth implementation with account:", deployerAddress);
+    console.log("deploying DstackApp implementation with account:", deployerAddress);
     console.log("account balance:", await accountBalance(ethers, deployerAddress));
 
-    const AppAuth = await ethers.getContractFactory("AppAuth");
-    console.log("deploying AppAuth implementation...");
-    const appAuthImpl = await AppAuth.deploy();
-    await appAuthImpl.waitForDeployment();
+    const DstackApp = await ethers.getContractFactory("DstackApp");
+    console.log("deploying DstackApp implementation...");
+    const appContractImpl = await DstackApp.deploy();
+    await appContractImpl.waitForDeployment();
     
-    const address = await appAuthImpl.getAddress();
-    console.log("✅ AppAuth implementation deployed to:", address);
+    const address = await appContractImpl.getAddress();
+    console.log("✅ DstackApp implementation deployed to:", address);
     return address;
   });

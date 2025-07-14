@@ -50,14 +50,14 @@ export async function build(): Promise<FastifyInstance> {
     const batch = await Promise.all([
       server.ethereum.getGatewayAppId(),
       server.ethereum.getChainId(),
-      server.ethereum.getAppAuthImplementation(),
+      server.ethereum.getAppImplementation(),
     ]);
     return {
       status: 'ok',
       kmsContractAddr: kmsContractAddr,
       gatewayAppId: batch[0],
       chainId: batch[1],
-      appAuthImplementation: batch[2],
+      appImplementation: batch[2],
     };
   });
 

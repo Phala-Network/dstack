@@ -1,15 +1,15 @@
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import hre from "hardhat";
 import { ethers } from "hardhat";
-import { KmsAuth } from "../typechain-types/contracts/KmsAuth";
-import { AppAuth } from "../typechain-types/contracts/AppAuth";
+import { DstackKms } from "../typechain-types/contracts/DstackKms";
+import { DstackApp } from "../typechain-types/contracts/DstackApp";
 import { deployContract } from "../scripts/deploy";
 import { BootInfo } from "src/types";
 
 declare global {
   var testContracts: {
-    kmsAuth: KmsAuth;
-    appAuth: AppAuth;
+    kmsContract: DstackKms;
+    appAuth: DstackApp;
     appId: string;
     owner: SignerWithAddress;
   };
@@ -21,24 +21,24 @@ beforeAll(async () => {
   const [owner] = await ethers.getSigners();
 
   // Deploy contracts
-  const kmsAuth = await deployContract(hre, "KmsAuth", [
+  const kmsContract = await deployContract(hre, "DstackKms", [
     owner.address, 
-    ethers.ZeroAddress  // _appAuthImplementation (can be set to zero for tests)
-  ], true) as KmsAuth;
+    ethers.ZeroAddress  // _appImplementation (can be set to zero for tests)
+  ], true) as DstackKms;
 
-  const appAuth = await deployContract(hre, "AppAuth", [
+  const appAuth = await deployContract(hre, "DstackApp", [
     owner.address, 
     false,  // _disableUpgrades
     true,   // _allowAnyDevice
     ethers.ZeroHash,  // initialDeviceId (empty)
     ethers.ZeroHash   // initialComposeHash (empty)
-  ], true) as AppAuth;
+  ], true) as DstackApp;
 
   const appId = await appAuth.getAddress();
-  await kmsAuth.registerApp(appId);
+  await kmsContract.registerApp(appId);
 
   // Set up KMS info with the generated app ID
-  await kmsAuth.setKmsInfo({
+  await kmsContract.setKmsInfo({
     quote: ethers.encodeBytes32String("1234"),
     caPubkey: ethers.encodeBytes32String("test-ca-pubkey"),
     k256Pubkey: ethers.encodeBytes32String("test-k256-pubkey"),
@@ -57,13 +57,13 @@ beforeAll(async () => {
     advisoryIds: []
   };
   // Register some test enclaves and images
-  await kmsAuth.addKmsAggregatedMr(ethers.encodeBytes32String("11"));
-  await kmsAuth.addOsImageHash(ethers.encodeBytes32String("22"));
+  await kmsContract.addKmsAggregatedMr(ethers.encodeBytes32String("11"));
+  await kmsContract.addOsImageHash(ethers.encodeBytes32String("22"));
   await appAuth.addComposeHash(ethers.encodeBytes32String("33"));
 
   // Set up global test contracts
   global.testContracts = {
-    kmsAuth,
+    kmsContract,
     appAuth,
     appId,
     owner

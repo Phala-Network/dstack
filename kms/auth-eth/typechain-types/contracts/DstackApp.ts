@@ -59,7 +59,7 @@ export declare namespace IAppAuth {
   };
 }
 
-export interface AppAuthInterface extends Interface {
+export interface DstackAppInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "UPGRADE_INTERFACE_VERSION"
@@ -337,11 +337,11 @@ export namespace UpgradesDisabledEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export interface AppAuth extends BaseContract {
-  connect(runner?: ContractRunner | null): AppAuth;
+export interface DstackApp extends BaseContract {
+  connect(runner?: ContractRunner | null): DstackApp;
   waitForDeployment(): Promise<this>;
 
-  interface: AppAuthInterface;
+  interface: DstackAppInterface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,

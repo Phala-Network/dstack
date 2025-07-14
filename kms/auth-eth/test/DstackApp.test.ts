@@ -1,25 +1,25 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { AppAuth } from "../typechain-types";
+import { DstackApp } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { deployContract } from "../scripts/deploy";
 import hre from "hardhat";
 
-describe("AppAuth", function () {
-  let appAuth: AppAuth;
+describe("DstackApp", function () {
+  let appAuth: DstackApp;
   let owner: SignerWithAddress;
   let user: SignerWithAddress;
   let appId: string;
 
   beforeEach(async function () {
     [owner, user] = await ethers.getSigners();
-    appAuth = await deployContract(hre, "AppAuth", [
+    appAuth = await deployContract(hre, "DstackApp", [
       owner.address, 
       false,  // _disableUpgrades
       true,   // _allowAnyDevice
       ethers.ZeroHash,  // initialDeviceId (empty)
       ethers.ZeroHash   // initialComposeHash (empty)
-    ], true) as AppAuth;
+    ], true) as DstackApp;
     appId = await appAuth.getAddress();
   });
 
@@ -124,21 +124,21 @@ describe("AppAuth", function () {
   });
 
   describe("Initialize with device and hash", function () {
-    let appAuthWithData: AppAuth;
+    let appAuthWithData: DstackApp;
     const testDevice = ethers.randomBytes(32);
     const testHash = ethers.randomBytes(32);
     let appIdWithData: string;
 
     beforeEach(async function () {
       // Deploy using the new initializer
-      const contractFactory = await ethers.getContractFactory("AppAuth");
+      const contractFactory = await ethers.getContractFactory("DstackApp");
       appAuthWithData = await hre.upgrades.deployProxy(
         contractFactory,
         [owner.address, false, false, testDevice, testHash],
         { 
           kind: 'uups'
         }
-      ) as AppAuth;
+      ) as DstackApp;
       
       await appAuthWithData.waitForDeployment();
       appIdWithData = await appAuthWithData.getAddress();
@@ -230,14 +230,14 @@ describe("AppAuth", function () {
     });
 
     it("Should handle empty initialization (no device, no hash)", async function () {
-      const contractFactory = await ethers.getContractFactory("AppAuth");
+      const contractFactory = await ethers.getContractFactory("DstackApp");
       const appAuthEmpty = await hre.upgrades.deployProxy(
         contractFactory,
         [owner.address, false, false, ethers.ZeroHash, ethers.ZeroHash],
         {
           kind: 'uups'
         }
-      ) as AppAuth;
+      ) as DstackApp;
 
       await appAuthEmpty.waitForDeployment();
 
