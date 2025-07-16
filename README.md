@@ -36,13 +36,12 @@ dstack is community driven. Open sourced and built by [Kevin Wang](https://githu
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Architecture](#Architecture)
-- [Getting Started](#getting-started)
+- [Architecture](#%EF%B8%8F-architecture)
+- [Getting Started](#-getting-started)
   - [Prerequisites](#prerequisites)
   - [Install Dependencies](#install-dependencies)
   - [Build and Run](#build-and-run)
-- [Usage](#usage)
+- [Usage](#-usage)
   - [Deploy an App](#deploy-an-app)
   - [Pass Secrets to Apps](#pass-secrets-to-apps)
   - [Access the App](#access-the-app)
@@ -50,12 +49,11 @@ dstack is community driven. Open sourced and built by [Kevin Wang](https://githu
   - [Container Logs](#container-logs)
   - [TLS Passthrough](#tls-passthrough-with-custom-domain)
   - [Upgrade an App](#upgrade-an-app)
-- [Advanced Features](#advanced-features)
+- [Advanced Features](#-advanced-features)
   - [Zero Trust HTTPS](#zero-trust-https)
   - [Certificate Transparency Log Monitor](#certificate-transparency-log-monitor)
-- [Troubleshooting](#troubleshooting)
-- [Contributors](#contributors)
-- [License](#license)
+- [Troubleshooting](#-troubleshooting)
+- [License](#-license)
 
 ---
 
