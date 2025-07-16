@@ -61,7 +61,7 @@ dstack is community driven. Open sourced and built by [Kevin Wang](https://githu
 
 <div align="center">
 
-![Architecture Diagram](./docs/assets/arch.png)
+<img src="./docs/assets/arch.png" alt="Architecture Diagram" height="300">
 
 </div>
 
@@ -172,7 +172,7 @@ Open the dstack-vmm webpage [http://localhost:9080](http://localhost:9080) (chan
 
 <div align="center">
 
-![VMM Interface](./docs/assets/vmm.png)
+<img src="./docs/assets/vmm.png" alt="VMM Interface" height="400">
 
 </div>
 
@@ -183,7 +183,7 @@ After the container deployed, it should need some time to start the CVM and the 
 
 <div align="center">
 
-![Guest Agent Dashboard](./docs/assets/guest-agent.png)
+<img src="./docs/assets/guest-agent.png" alt="Guest Agent Dashboard" height="300">
 
 </div>
 
@@ -191,7 +191,7 @@ After the container deployed, it should need some time to start the CVM and the 
 
 <div align="center">
 
-![Gateway Dashboard](./docs/assets/gateway.png)
+<img src="./docs/assets/gateway.png" alt="Gateway Dashboard" height="150">
 
 </div>
 
@@ -201,7 +201,7 @@ When deploying a new App, you can pass private data via Encrypted Environment Va
 
 <div align="center">
 
-![Secret Management](./docs/assets/secret.png)
+<img src="./docs/assets/secret.png" alt="Secret Management" height="300">
 
 </div>
 
@@ -369,7 +369,7 @@ $ RUST_LOG=info,certbot=debug ./certbot renew -c certbot.toml
 
 <div align="center">
 
-![Certbot CAA](./docs/assets/certbot-caa.png)
+<img src="./docs/assets/certbot-caa.png" alt="Certbot CAA" height="300">
 
 </div>
 
@@ -381,7 +381,7 @@ Execute dstack-gateway with `sudo ./dstack-gateway -c gateway.toml`, then access
 
 <div align="center">
 
-![Gateway Account ID](./docs/assets/gateway-accountid.png)
+<img src="./docs/assets/gateway-accountid.png" alt="Gateway Account ID" height="300">
 
 </div>
 
