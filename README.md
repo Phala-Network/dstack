@@ -1,6 +1,6 @@
 <div align="center">
 
-# dstack
+![dstack](./dstack-logo.svg)
 
 **Deploy containerized apps to TEE with end-to-end security in minutes.**
 
