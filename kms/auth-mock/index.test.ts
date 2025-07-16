@@ -36,10 +36,10 @@ describe('Mock Backend Tests', () => {
         note: 'this is a mock backend - all authentications will succeed'
       });
 
-      // Verify mock values
-      expect(data.gatewayAppId).toBe('0xmockgateway1234567890123456789012345678');
-      expect(data.chainId).toBe(1337);
-      expect(data.appImplementation).toBe('0xmockapp9876543210987654321098765432109');
+      // Verify mock values (using same defaults as implementation)
+      expect(data.gatewayAppId).toBe(process.env.MOCK_GATEWAY_APP_ID || '0xmockgateway1234567890123456789012345678');
+      expect(data.chainId).toBe(parseInt(process.env.MOCK_CHAIN_ID || '1337'));
+      expect(data.appImplementation).toBe(process.env.MOCK_APP_IMPLEMENTATION || '0xmockapp9876543210987654321098765432109');
       
       // Verify response structure matches OpenAPI spec
       const systemInfoSchema = openApiSpec.components.schemas.MockSystemInfo;
@@ -76,7 +76,7 @@ describe('Mock Backend Tests', () => {
       expect(data).toMatchObject({
         isAllowed: true,
         reason: 'mock app always allowed',
-        gatewayAppId: '0xmockgateway1234567890123456789012345678',
+        gatewayAppId: process.env.MOCK_GATEWAY_APP_ID || '0xmockgateway1234567890123456789012345678',
       });
 
       // Verify console log was called
@@ -181,7 +181,7 @@ describe('Mock Backend Tests', () => {
       expect(data).toMatchObject({
         isAllowed: true,
         reason: 'mock KMS always allowed',
-        gatewayAppId: '0xmockgateway1234567890123456789012345678',
+        gatewayAppId: process.env.MOCK_GATEWAY_APP_ID || '0xmockgateway1234567890123456789012345678',
       });
 
       // Verify console log was called

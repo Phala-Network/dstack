@@ -33,10 +33,10 @@ class MockBackend {
   private mockAppImplementation: string;
 
   constructor() {
-    // mock values for consistent responses
-    this.mockGatewayAppId = '0xmockgateway1234567890123456789012345678';
-    this.mockChainId = 1337; // mock chain ID
-    this.mockAppImplementation = '0xmockapp9876543210987654321098765432109';
+    // mock values - configurable via environment variables
+    this.mockGatewayAppId = process.env.MOCK_GATEWAY_APP_ID || '0xmockgateway1234567890123456789012345678';
+    this.mockChainId = parseInt(process.env.MOCK_CHAIN_ID || '1337');
+    this.mockAppImplementation = process.env.MOCK_APP_IMPLEMENTATION || '0xmockapp9876543210987654321098765432109';
   }
 
   async checkBoot(bootInfo: BootInfo, isKms: boolean): Promise<BootResponse> {
