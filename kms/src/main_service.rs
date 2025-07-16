@@ -581,7 +581,7 @@ impl KmsRpc for RpcHandler {
             kms_contract_address: info.kms_contract_address,
             chain_id: info.chain_id,
             gateway_app_id: info.gateway_app_id,
-            app_auth_implementation: info.app_auth_implementation,
+            app_auth_implementation: info.app_implementation,
         })
     }
 
