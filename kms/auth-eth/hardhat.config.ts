@@ -32,6 +32,10 @@ const config: HardhatUserConfig = {
       url: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
       accounts: [PRIVATE_KEY],
     },
+    base: {
+      url: 'https://mainnet.base.org',
+      accounts: [PRIVATE_KEY],
+    },
     test: {
       url: process.env.RPC_URL || 'http://127.0.0.1:8545/',
       accounts: [PRIVATE_KEY],
