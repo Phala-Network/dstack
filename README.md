@@ -1,6 +1,27 @@
-# Dstack
+<h1 align='center'>
+  dstack
+</h1>
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Dstack-TEE/dstack)
+<p align='center'>
+  Deploy containerized apps to TEE with end-to-end security in minutes.
+</p>
+
+<p align='center'>
+  <a href="#">
+    <img alt="Stars" src="https://img.shields.io/github/stars/dstack-tee/dstack" />
+  </a>
+  &nbsp;
+  <a href="https://github.com/Dstack-TEE/dstack?tab=Apache-2.0-1-ov-file">
+    <img alt="License" src="https://img.shields.io/github/license/dstack-tee/dstack" />
+  </a>
+  &nbsp;
+  <a href="https://t.me/+UO4bS4jflr45YmUx">
+    <img alt="Telegram" src="https://img.shields.io/badge/Community-blue?logo=telegram&logoColor=fff" />
+  </a>
+  &nbsp;
+  <a href="https://deepwiki.com/Dstack-TEE/dstack"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
+</p>
+<br />
 
 Dstack is a **developer friendly** and **security first** SDK to simplify the deployment of arbitrary containerized apps into TEE.
 
