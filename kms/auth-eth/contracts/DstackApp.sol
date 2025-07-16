@@ -8,7 +8,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 
-contract AppAuth is
+contract DstackApp is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
@@ -28,7 +28,7 @@ contract AppAuth is
     // Mapping of allowed device IDs for this app
     mapping(bytes32 => bool) public allowedDeviceIds;
 
-    // Additional events specific to AppAuth
+    // Additional events specific to DstackApp
     event UpgradesDisabled();
     event AllowAnyDeviceSet(bool allowAny);
 

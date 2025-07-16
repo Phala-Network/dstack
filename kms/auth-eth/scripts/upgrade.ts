@@ -66,7 +66,7 @@ async function main() {
   try {
     const proxyAddress = process.env.PROXY_ADDRESS;
     const dryRun = process.env.DRY_RUN === "true";
-    const contractName = process.env.CONTRACT_NAME || "KmsAuth";
+    const contractName = process.env.CONTRACT_NAME || "DstackKmsms";
     await upgradeContract(hre, contractName, proxyAddress, dryRun);
   } catch (error) {
     console.error(error);

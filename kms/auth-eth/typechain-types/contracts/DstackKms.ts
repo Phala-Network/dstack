@@ -59,7 +59,7 @@ export declare namespace IAppAuth {
   };
 }
 
-export declare namespace KmsAuth {
+export declare namespace DstackKms {
   export type KmsInfoStruct = {
     k256Pubkey: BytesLike;
     caPubkey: BytesLike;
@@ -75,7 +75,7 @@ export declare namespace KmsAuth {
   ] & { k256Pubkey: string; caPubkey: string; quote: string; eventlog: string };
 }
 
-export interface KmsAuthInterface extends Interface {
+export interface DstackKmsInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "UPGRADE_INTERFACE_VERSION"
@@ -83,7 +83,7 @@ export interface KmsAuthInterface extends Interface {
       | "addKmsDevice"
       | "addOsImageHash"
       | "allowedOsImages"
-      | "appAuthImplementation"
+      | "appImplementation"
       | "deployAndRegisterApp"
       | "gatewayAppId"
       | "initialize"
@@ -100,7 +100,7 @@ export interface KmsAuthInterface extends Interface {
       | "removeKmsDevice"
       | "removeOsImageHash"
       | "renounceOwnership"
-      | "setAppAuthImplementation"
+      | "setAppImplementation"
       | "setGatewayAppId"
       | "setKmsEventlog"
       | "setKmsInfo"
@@ -112,8 +112,8 @@ export interface KmsAuthInterface extends Interface {
 
   getEvent(
     nameOrSignatureOrTopic:
-      | "AppAuthImplementationSet"
       | "AppDeployedViaFactory"
+      | "AppImplementationSet"
       | "AppRegistered"
       | "GatewayAppIdSet"
       | "Initialized"
@@ -149,7 +149,7 @@ export interface KmsAuthInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "appAuthImplementation",
+    functionFragment: "appImplementation",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -211,7 +211,7 @@ export interface KmsAuthInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "setAppAuthImplementation",
+    functionFragment: "setAppImplementation",
     values: [AddressLike]
   ): string;
   encodeFunctionData(
@@ -224,7 +224,7 @@ export interface KmsAuthInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "setKmsInfo",
-    values: [KmsAuth.KmsInfoStruct]
+    values: [DstackKms.KmsInfoStruct]
   ): string;
   encodeFunctionData(
     functionFragment: "setKmsQuote",
@@ -264,7 +264,7 @@ export interface KmsAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "appAuthImplementation",
+    functionFragment: "appImplementation",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -323,7 +323,7 @@ export interface KmsAuthInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "setAppAuthImplementation",
+    functionFragment: "setAppImplementation",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -353,11 +353,12 @@ export interface KmsAuthInterface extends Interface {
   ): Result;
 }
 
-export namespace AppAuthImplementationSetEvent {
-  export type InputTuple = [implementation: AddressLike];
-  export type OutputTuple = [implementation: string];
+export namespace AppDeployedViaFactoryEvent {
+  export type InputTuple = [appId: AddressLike, deployer: AddressLike];
+  export type OutputTuple = [appId: string, deployer: string];
   export interface OutputObject {
-    implementation: string;
+    appId: string;
+    deployer: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -365,12 +366,11 @@ export namespace AppAuthImplementationSetEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace AppDeployedViaFactoryEvent {
-  export type InputTuple = [appId: AddressLike, deployer: AddressLike];
-  export type OutputTuple = [appId: string, deployer: string];
+export namespace AppImplementationSetEvent {
+  export type InputTuple = [implementation: AddressLike];
+  export type OutputTuple = [implementation: string];
   export interface OutputObject {
-    appId: string;
-    deployer: string;
+    implementation: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -523,11 +523,11 @@ export namespace UpgradedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export interface KmsAuth extends BaseContract {
-  connect(runner?: ContractRunner | null): KmsAuth;
+export interface DstackKms extends BaseContract {
+  connect(runner?: ContractRunner | null): DstackKms;
   waitForDeployment(): Promise<this>;
 
-  interface: KmsAuthInterface;
+  interface: DstackKmsInterface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
@@ -588,7 +588,7 @@ export interface KmsAuth extends BaseContract {
 
   allowedOsImages: TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
 
-  appAuthImplementation: TypedContractMethod<[], [string], "view">;
+  appImplementation: TypedContractMethod<[], [string], "view">;
 
   deployAndRegisterApp: TypedContractMethod<
     [
@@ -605,7 +605,7 @@ export interface KmsAuth extends BaseContract {
   gatewayAppId: TypedContractMethod<[], [string], "view">;
 
   initialize: TypedContractMethod<
-    [initialOwner: AddressLike, _appAuthImplementation: AddressLike],
+    [initialOwner: AddressLike, _appImplementation: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -675,7 +675,7 @@ export interface KmsAuth extends BaseContract {
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
-  setAppAuthImplementation: TypedContractMethod<
+  setAppImplementation: TypedContractMethod<
     [_implementation: AddressLike],
     [void],
     "nonpayable"
@@ -690,7 +690,7 @@ export interface KmsAuth extends BaseContract {
   >;
 
   setKmsInfo: TypedContractMethod<
-    [info: KmsAuth.KmsInfoStruct],
+    [info: DstackKms.KmsInfoStruct],
     [void],
     "nonpayable"
   >;
@@ -735,7 +735,7 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "allowedOsImages"
   ): TypedContractMethod<[arg0: BytesLike], [boolean], "view">;
   getFunction(
-    nameOrSignature: "appAuthImplementation"
+    nameOrSignature: "appImplementation"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "deployAndRegisterApp"
@@ -756,7 +756,7 @@ export interface KmsAuth extends BaseContract {
   getFunction(
     nameOrSignature: "initialize"
   ): TypedContractMethod<
-    [initialOwner: AddressLike, _appAuthImplementation: AddressLike],
+    [initialOwner: AddressLike, _appImplementation: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -819,7 +819,7 @@ export interface KmsAuth extends BaseContract {
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "setAppAuthImplementation"
+    nameOrSignature: "setAppImplementation"
   ): TypedContractMethod<[_implementation: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setGatewayAppId"
@@ -829,7 +829,7 @@ export interface KmsAuth extends BaseContract {
   ): TypedContractMethod<[eventlog: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setKmsInfo"
-  ): TypedContractMethod<[info: KmsAuth.KmsInfoStruct], [void], "nonpayable">;
+  ): TypedContractMethod<[info: DstackKms.KmsInfoStruct], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setKmsQuote"
   ): TypedContractMethod<[quote: BytesLike], [void], "nonpayable">;
@@ -848,18 +848,18 @@ export interface KmsAuth extends BaseContract {
   >;
 
   getEvent(
-    key: "AppAuthImplementationSet"
-  ): TypedContractEvent<
-    AppAuthImplementationSetEvent.InputTuple,
-    AppAuthImplementationSetEvent.OutputTuple,
-    AppAuthImplementationSetEvent.OutputObject
-  >;
-  getEvent(
     key: "AppDeployedViaFactory"
   ): TypedContractEvent<
     AppDeployedViaFactoryEvent.InputTuple,
     AppDeployedViaFactoryEvent.OutputTuple,
     AppDeployedViaFactoryEvent.OutputObject
+  >;
+  getEvent(
+    key: "AppImplementationSet"
+  ): TypedContractEvent<
+    AppImplementationSetEvent.InputTuple,
+    AppImplementationSetEvent.OutputTuple,
+    AppImplementationSetEvent.OutputObject
   >;
   getEvent(
     key: "AppRegistered"
@@ -947,17 +947,6 @@ export interface KmsAuth extends BaseContract {
   >;
 
   filters: {
-    "AppAuthImplementationSet(address)": TypedContractEvent<
-      AppAuthImplementationSetEvent.InputTuple,
-      AppAuthImplementationSetEvent.OutputTuple,
-      AppAuthImplementationSetEvent.OutputObject
-    >;
-    AppAuthImplementationSet: TypedContractEvent<
-      AppAuthImplementationSetEvent.InputTuple,
-      AppAuthImplementationSetEvent.OutputTuple,
-      AppAuthImplementationSetEvent.OutputObject
-    >;
-
     "AppDeployedViaFactory(address,address)": TypedContractEvent<
       AppDeployedViaFactoryEvent.InputTuple,
       AppDeployedViaFactoryEvent.OutputTuple,
@@ -967,6 +956,17 @@ export interface KmsAuth extends BaseContract {
       AppDeployedViaFactoryEvent.InputTuple,
       AppDeployedViaFactoryEvent.OutputTuple,
       AppDeployedViaFactoryEvent.OutputObject
+    >;
+
+    "AppImplementationSet(address)": TypedContractEvent<
+      AppImplementationSetEvent.InputTuple,
+      AppImplementationSetEvent.OutputTuple,
+      AppImplementationSetEvent.OutputObject
+    >;
+    AppImplementationSet: TypedContractEvent<
+      AppImplementationSetEvent.InputTuple,
+      AppImplementationSetEvent.OutputTuple,
+      AppImplementationSetEvent.OutputObject
     >;
 
     "AppRegistered(address)": TypedContractEvent<

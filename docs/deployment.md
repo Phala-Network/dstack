@@ -57,9 +57,9 @@ rm -f dstack-${DSTACK_VERSION}.tar.gz
 ./dstack-vmm -c vmm.toml
 ```
 
-## Deploy the KmsAuth contract
+## Deploy the DstackKms contract
 
-A KMS node requires a KMSAuth contract to be deployed on the Ethereum-compatible network.
+A KMS node requires a DstackKms contract to be deployed on the Ethereum-compatible network.
 
 ```bash
 cd dstack/kms/auth-eth
@@ -67,21 +67,21 @@ npm install
 npx hardhat compile
 PRIVATE_KEY=<your-private-key> npx hardhat kms:deploy --with-app-impl --network phala
 ```
-It will deploy both the AppAuth implementation and KmsAuth contract to the Phala network and print the contract addresses:
+It will deploy both the DstackApp implementation and DstackKms contract to the Phala network and print the contract addresses:
 
 ```
-Step 1: Deploying AppAuth implementation...
-✅ AppAuth implementation deployed to: 0x5FbDB2315678afecb367f032d93F642f64180aa3
-Step 2: Deploying KmsAuth...
+Step 1: Deploying DstackApp implementation...
+✅ DstackApp implementation deployed to: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+Step 2: Deploying DstackKms...
 Deploying proxy...
 Waiting for deployment...
-KmsAuth Proxy deployed to: 0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
+DstackKms Proxy deployed to: 0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
 Implementation deployed to: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
 Deployment completed successfully
 Transaction hash: 0xd413d01a0640b6193048b0e98afb7c173abe58c74d9cf01f368166bc53f4fefe
 ✅ Complete KMS setup deployed successfully!
-- AppAuth implementation: 0x5FbDB2315678afecb367f032d93F642f64180aa3
-- KmsAuth proxy: 0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
+- DstackApp implementation: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+- DstackKms proxy: 0xFE6C45aE66344CAEF5E5D7e2cbD476286D651875
 🚀 Ready for factory app deployments!
 ```
 
@@ -93,7 +93,7 @@ cd dstack/kms/dstack-app/
 ./deploy-to-vmm.sh
 ```
 It will create a template `.env` file. Edit the `.env` file and set the required variables.
-Especially the `KMS_CONTRACT_ADDR` variable set to the address of the KmsAuth Proxy contract deployed in the previous step.
+Especially the `KMS_CONTRACT_ADDR` variable set to the address of the DstackKms Proxy contract deployed in the previous step.
 The `IMAGE_DOWNLOAD_URL` variable should be set to the URL of the dstack OS image used to verify the os_image_hash.
 ```
 # .env
@@ -169,25 +169,27 @@ npx hardhat kms:add-image --network phala --mr <os-image-hash>
 ```
 
 ### Register dstack-gateway in KMS
-As a normal dstack app, it requires the app to be registered in the KmsAuth contract first.
+As a normal dstack app, it requires the app to be registered in the DstackKms contract first.
 
 ```bash
 cd dstack/kms/auth-eth
-npx hardhat app:deploy --network phala
+npx hardhat kms:create-app --network phala --allow-any-device
 ```
 
-This will deploy an AppAuth contract in the KmsAuth contract and print the app ID:
+This will deploy an DstackApp contract in the DstackKms contract and print the app ID:
 
 ```
-Deploying proxy...
-Waiting for deployment...
-AppAuth Proxy deployed to: 0x539D0d59D1742780De41b85b2c3674b24369e292
-Implementation deployed to: 0x5aC1671E1Df54994D023F0B05806821d6D84e086
-Deployment completed successfully
-Transaction hash: 0xceac2ac6d56a40fef903b947d3a05df42ccce66da7f356c5d54afda68277f9a9
-Waiting for transaction 0xe144e9007208079e5e82c04f727d2383c58184e74d4f860e62557b5f330ab832 to be confirmed...
-App registered in KMS successfully
-Registered AppId: 0x31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
+Deploying with account: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+Account balance: 9999.988063729279315546
+Initial device: 0xda2d377e04b7133ec1287a18d465fa44ae9dbb08d929166c6bdb414f38a2acd3
+Initial compose hash: none
+Using factory method for single-transaction deployment...
+Waiting for transaction 0x46cf1959abf309fcde86bcab2518dcf28dd9eec70c74214f0562e7bf847c50de to be confirmed...
+✅ App deployed and registered successfully!
+Proxy Address (App Id): 0x32467b43BFa67273FC7dDda0999Ee9A12F2AaA08
+Owner: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+Transaction hash: 0x46cf1959abf309fcde86bcab2518dcf28dd9eec70c74214f0562e7bf847c50de
+Deployed with 1 initial device and 0 initial compose hash
 ```
 
 Now go to the `gateway/dstack-app/` directory and run the following command:
@@ -212,7 +214,7 @@ SRV_DOMAIN=test2.dstack.phala.network
 # Public IP address
 PUBLIC_IP=$(curl -s ifconfig.me)
 
-# Gateway application ID. Register the app in KmsAuth first to get the app ID.
+# Gateway application ID. Register the app in DstackKms first to get the app ID.
 GATEWAY_APP_ID=0x31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
 
 # Whether to use ACME staging (yes/no)
@@ -262,7 +264,7 @@ GUEST_AGENT_ADDR: 127.0.0.1:9206
 Continue? [y/N]
 ```
 
-Don't press `y` yet. We need to add the compose hash to the AppAuth contract first. Go back to the `kms/auth-eth` directory and run the following command:
+Don't press `y` yet. We need to add the compose hash to the DstackApp contract first. Go back to the `kms/auth-eth` directory and run the following command:
 
 ```bash
 npx hardhat app:add-hash --network phala --app-id 0x31884c4b7775affe4c99735f6c2aff7d7bc6cfcd 0x700a50336df7c07c82457b116e144f526c29f6d8f4a0946b3e88065c9beba0f4
@@ -294,8 +296,8 @@ After the dstack-vmm is ready, you can deploy an app on it following the steps b
 
 The on-chain registration process includes two steps:
 
-1. Deploy an App's control contract AppAuth. Developers can develop their own or choose the reference contract from the Dstack repository. Custom contracts need to implement the IAppAuth interface.
-2. Call KmsAuth.registerApp(appAuthAddress) to register the contract.
+1. Deploy an App's control contract DstackApp. Developers can develop their own or choose the reference contract from the Dstack repository. Custom contracts need to implement the IAppAuth interface.
+2. Call DstackKms.registerApp(appContractAddress) to register the contract.
 
 The Dstack repository provides scripts to complete these two steps:
 
@@ -320,10 +322,10 @@ Command output:
 Deploying with account: 0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199
 Account balance: 9999.995278992293365404
 App ID: 0xA35b434eE853fdf9c2Bf48Fa1583Ac1332d50255
-Starting AppAuth deployment process...
+Starting DstackApp deployment process...
 Deploying proxy...
 Waiting for deployment...
-AppAuth deployed to: 0xD4a546B1C7e63CD4CeD314b2C90108e49191A915
+DstackApp deployed to: 0xD4a546B1C7e63CD4CeD314b2C90108e49191A915
 Implementation deployed to: 0x5aC1671E1Df54994D023F0B05806821d6D84e086
 Deployment completed successfully
 Transaction hash: 0xceac2ac6d56a40fef903b947d3a05df42ccce66da7f356c5d54afda68277f9a9
@@ -348,7 +350,7 @@ If you need to upgrade the contract in the future, please backup the `.openzeppe
 
 Build app-compose.json and calculate its sha256 to get compose-hash. The compose hash can also be previewed in the dstack-vmm UI.
 
-Call the hardhat command to add it to the whitelist (using AppAuth as an example here; custom AppAuth follows its own custom permission control logic).
+Call the hardhat command to add it to the whitelist (using DstackApp as an example here; custom DstackApp follows its own custom permission control logic).
 
 ```bash
 export PRIVATE_KEY=<your eth private key here>
@@ -360,7 +362,7 @@ npx hardhat app:add-hash --network phala --app-id 0xA35b434eE853fdf9c2Bf48Fa1583
 ![app deploy](assets/app-deploy.png)
 - Select image `dstack-0.4.2`
 - Fill in the AppId applied in the contract during deployment
-- Currently, test KmsAuth has set a whitelist for Base image, requiring instance memory to be `≥ 3G` or exactly `= 2G`
+- Currently, test DstackKms has set a whitelist for Base image, requiring instance memory to be `≥ 3G` or exactly `= 2G`
 
 After the app starts normally, click [Board] to access.
 

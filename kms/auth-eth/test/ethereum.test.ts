@@ -2,25 +2,25 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers } from "hardhat";
 import { EthereumBackend } from '../src/ethereum';
 import { BootInfo } from '../src/types';
-import { KmsAuth } from "../typechain-types/contracts/KmsAuth";
-import { AppAuth } from "../typechain-types/contracts/AppAuth";
+import { DstackKms } from "../typechain-types/contracts/DstackKms";
+import { DstackApp } from "../typechain-types/contracts/DstackApp";
 
 describe('EthereumBackend', () => {
-  let kmsAuth: KmsAuth;
+  let kmsContract: DstackKms;
   let owner: SignerWithAddress;
   let backend: EthereumBackend;
   let mockBootInfo: BootInfo;
   let appId: string;
-  let appAuth: AppAuth;
+  let appAuth: DstackApp;
 
   beforeEach(async () => {
     // Get test contracts from global setup
-    ({ kmsAuth, owner, appAuth, appId } = global.testContracts);
+    ({ kmsContract, owner, appAuth, appId } = global.testContracts);
 
-    // Initialize backend with KmsAuth contract address
+    // Initialize backend with DstackKms contract address
     backend = new EthereumBackend(
       owner.provider,
-      await kmsAuth.getAddress()
+      await kmsContract.getAddress()
     );
 
     // Create mock boot info with valid addresses
@@ -37,7 +37,7 @@ describe('EthereumBackend', () => {
     };
 
     // Set up KMS info
-    await kmsAuth.setKmsInfo({
+    await kmsContract.setKmsInfo({
       k256Pubkey: "0x" + "1234".padEnd(66, '0'),
       caPubkey: "0x" + "5678".padEnd(192, '0'),
       quote: "0x" + "9012".padEnd(8192, '0'),
@@ -45,8 +45,8 @@ describe('EthereumBackend', () => {
     });
 
     // Register enclave and image
-    await kmsAuth.addKmsAggregatedMr(mockBootInfo.mrAggregated);
-    await kmsAuth.addOsImageHash(mockBootInfo.osImageHash);
+    await kmsContract.addKmsAggregatedMr(mockBootInfo.mrAggregated);
+    await kmsContract.addOsImageHash(mockBootInfo.osImageHash);
     await appAuth.addComposeHash(mockBootInfo.composeHash);
   });
 

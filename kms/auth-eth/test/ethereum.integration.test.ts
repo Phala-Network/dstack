@@ -2,19 +2,19 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers } from "hardhat";
 import { EthereumBackend } from '../src/ethereum';
 import { BootInfo } from '../src/types';
-import { KmsAuth } from "../typechain-types/contracts/KmsAuth";
+import { DstackKms } from "../typechain-types/contracts/DstackKms";
 import { IAppAuth } from "../typechain-types/contracts/IAppAuth";
 import { expect } from "chai";
 
 describe('Integration Tests', () => {
-  let kmsAuth: KmsAuth;
+  let kmsContract: DstackKms;
   let owner: SignerWithAddress;
   let backend: EthereumBackend;
   let appId: string;
 
   beforeAll(async () => {
     owner = global.testContracts.owner;
-    kmsAuth = global.testContracts.kmsAuth;
+    kmsContract = global.testContracts.kmsContract;
     appId = global.testContracts.appId;
 
     // Initialize backend with the same provider
@@ -22,11 +22,11 @@ describe('Integration Tests', () => {
     if (!provider) {
       throw new Error('Provider not found');
     }
-    const contractAddress = await kmsAuth.getAddress();
+    const contractAddress = await kmsContract.getAddress();
     backend = new EthereumBackend(provider, contractAddress);
   });
 
-  describe('KmsAuth Contract', () => {
+  describe('DstackKms Contract', () => {
     let mockBootInfo: IAppAuth.AppBootInfoStruct;
 
     beforeEach(async () => {
@@ -44,14 +44,14 @@ describe('Integration Tests', () => {
     });
 
     it('should return true when all checks pass', async () => {
-      const [isAllowed, reason] = await kmsAuth.isAppAllowed(mockBootInfo);
+      const [isAllowed, reason] = await kmsContract.isAppAllowed(mockBootInfo);
       expect(reason).to.equal('');
       expect(isAllowed).to.equal(true);
     });
 
     it('should return false when image is not registered', async () => {
       const badImage = ethers.encodeBytes32String('9999');
-      const [isAllowed, reason] = await kmsAuth.isAppAllowed({
+      const [isAllowed, reason] = await kmsContract.isAppAllowed({
         ...mockBootInfo,
         osImageHash: badImage
       });

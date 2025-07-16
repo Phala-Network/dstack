@@ -1,17 +1,17 @@
 import { ethers } from 'ethers';
 import { BootInfo, BootResponse } from './types';
-import { KmsAuth__factory } from '../typechain-types/factories/contracts/KmsAuth__factory';
-import { KmsAuth } from '../typechain-types/contracts/KmsAuth';
+import { DstackKms__factory } from '../typechain-types/factories/contracts/DstackKms__factory';
+import { DstackKms } from '../typechain-types/contracts/DstackKms';
 import { HardhatEthersProvider } from '@nomicfoundation/hardhat-ethers/internal/hardhat-ethers-provider';
 
 export class EthereumBackend {
   private provider: ethers.JsonRpcProvider | HardhatEthersProvider;
-  private kmsAuth: KmsAuth;
+  private kmsContract: DstackKms;
 
-  constructor(provider: ethers.JsonRpcProvider | HardhatEthersProvider, kmsAuthAddr: string) {
+  constructor(provider: ethers.JsonRpcProvider | HardhatEthersProvider, kmsContractAddr: string) {
     this.provider = provider;
-    this.kmsAuth = KmsAuth__factory.connect(
-      ethers.getAddress(kmsAuthAddr),
+    this.kmsContract = DstackKms__factory.connect(
+      ethers.getAddress(kmsContractAddr),
       this.provider
     );
   }
@@ -42,12 +42,12 @@ export class EthereumBackend {
     };
     let response;
     if (isKms) {
-      response = await this.kmsAuth.isKmsAllowed(bootInfoStruct);
+      response = await this.kmsContract.isKmsAllowed(bootInfoStruct);
     } else {
-      response = await this.kmsAuth.isAppAllowed(bootInfoStruct);
+      response = await this.kmsContract.isAppAllowed(bootInfoStruct);
     }
     const [isAllowed, reason] = response;
-    const gatewayAppId = await this.kmsAuth.gatewayAppId();
+    const gatewayAppId = await this.kmsContract.gatewayAppId();
     return {
       isAllowed,
       reason,
@@ -56,7 +56,7 @@ export class EthereumBackend {
   }
 
   async getGatewayAppId(): Promise<string> {
-    return await this.kmsAuth.gatewayAppId();
+    return await this.kmsContract.gatewayAppId();
   }
 
   async getChainId(): Promise<number> {
@@ -64,7 +64,7 @@ export class EthereumBackend {
     return Number(chainId);
   }
 
-  async getAppAuthImplementation(): Promise<string> {
-    return await this.kmsAuth.appAuthImplementation();
+  async getAppImplementation(): Promise<string> {
+    return await this.kmsContract.appImplementation();
   }
 }

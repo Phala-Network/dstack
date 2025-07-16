@@ -8,7 +8,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-contract KmsAuth is
+contract DstackKms is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
@@ -42,8 +42,8 @@ contract KmsAuth is
     // Mapping of allowed image measurements
     mapping(bytes32 => bool) public allowedOsImages;
 
-    // AppAuth implementation contract address for factory deployment
-    address public appAuthImplementation;
+    // DstackApp implementation contract address for factory deployment
+    address public appImplementation;
 
     // Events
     event AppRegistered(address appId);
@@ -55,7 +55,7 @@ contract KmsAuth is
     event OsImageHashAdded(bytes32 osImageHash);
     event OsImageHashRemoved(bytes32 osImageHash);
     event GatewayAppIdSet(string gatewayAppId);
-    event AppAuthImplementationSet(address implementation);
+    event AppImplementationSet(address implementation);
     event AppDeployedViaFactory(address indexed appId, address indexed deployer);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -63,16 +63,16 @@ contract KmsAuth is
         _disableInitializers();
     }
 
-    // Initialize the contract with the owner wallet address and optionally set AppAuth implementation
-    function initialize(address initialOwner, address _appAuthImplementation) public initializer {
+    // Initialize the contract with the owner wallet address and optionally set DstackApp implementation
+    function initialize(address initialOwner, address _appImplementation) public initializer {
         __Ownable_init(initialOwner);
         __UUPSUpgradeable_init();
         __ERC165_init();
 
-        // Set AppAuth implementation if provided
-        if (_appAuthImplementation != address(0)) {
-            appAuthImplementation = _appAuthImplementation;
-            emit AppAuthImplementationSet(_appAuthImplementation);
+        // Set DstackApp implementation if provided
+        if (_appImplementation != address(0)) {
+            appImplementation = _appImplementation;
+            emit AppImplementationSet(_appImplementation);
         }
     }
 
@@ -128,14 +128,14 @@ contract KmsAuth is
         emit AppRegistered(appId);
     }
 
-    // Function to set AppAuth implementation contract address
-    function setAppAuthImplementation(address _implementation) external onlyOwner {
+    // Function to set DstackApp implementation contract address
+    function setAppImplementation(address _implementation) external onlyOwner {
         require(_implementation != address(0), "Invalid implementation address");
-        appAuthImplementation = _implementation;
-        emit AppAuthImplementationSet(_implementation);
+        appImplementation = _implementation;
+        emit AppImplementationSet(_implementation);
     }
 
-    // Factory method: Deploy and register AppAuth in single transaction
+    // Factory method: Deploy and register DstackApp in single transaction
     function deployAndRegisterApp(
         address initialOwner,
         bool disableUpgrades,
@@ -143,7 +143,7 @@ contract KmsAuth is
         bytes32 initialDeviceId,
         bytes32 initialComposeHash
     ) external returns (address appId) {
-        require(appAuthImplementation != address(0), "AppAuth implementation not set");
+        require(appImplementation != address(0), "DstackApp implementation not set");
         require(initialOwner != address(0), "Invalid owner address");
 
         // Prepare initialization data
@@ -157,7 +157,7 @@ contract KmsAuth is
         );
 
         // Deploy proxy contract
-        appId = address(new ERC1967Proxy(appAuthImplementation, initData));
+        appId = address(new ERC1967Proxy(appImplementation, initData));
         // Register to KMS
         registerApp(appId);
         emit AppDeployedViaFactory(appId, msg.sender);

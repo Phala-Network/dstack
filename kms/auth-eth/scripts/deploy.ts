@@ -68,7 +68,7 @@ async function main() {
   const address = await deployer.getAddress();
   console.log("Deploying with account:", address);
   console.log("Account balance:", await helpers.accountBalance(hre.ethers, address));
-  await deployContract(hre, "KmsAuth", [address]);
+  await deployContract(hre, "DstackKms", [address]);
 }
 
 // Only execute if directly run

@@ -46,13 +46,13 @@ CVMs running in dstack support three boot modes:
      2. App control contract check
 
 3. **Authorization Contracts**
-   - `KmsAuth.sol`
+   - `DstackKms.sol`
       - Maintains a registry for all Applications
       - Maintains the allowed KMS Instance MRs
       - Maintains the allowed OS Images
       - Registers KMS root keys
-   - `AppAuth.sol`
-      - Apps can have either a dedicated `AppAuth` contract or share one with multiple apps
+   - `DstackApp.sol`
+      - Apps can have either a dedicated `DstackApp` contract or share one with multiple apps
       - Controls permissions for individual apps
       - Maintains the allowed compose hashes for each app
 
@@ -93,19 +93,19 @@ During bootstrapping, the KMS node generates two root keys:
 1. CA root key: Used to issue x509 certificates for Apps, enabling HTTPS traffic
 2. K256 root key: Used to derive Ethereum-compatible keys for Apps
 
-After generating the root keys, their public portions can be obtained along with the corresponding TDX quote and registered in the KmsAuth contract.
+After generating the root keys, their public portions can be obtained along with the corresponding TDX quote and registered in the DstackKms contract.
 
 #### KMS Self Replication
 When deploying a new KMS instance (`B`) using an existing instance (`A`), the process follows these steps:
 
 1. **Prerequisites**
-   - Register allowed MRs of instance `B` in the KmsAuth contract
+   - Register allowed MRs of instance `B` in the DstackKms contract
 
 2. **Replication Flow**
    - Configure instance `B` with the URL of existing instance `A`
    - Instance `B` sends replication request to instance `A` via RA-TLS based RPC
    - Instance `A` validates instance `B`'s TDX quote
-   - Instance `A` checks KmsAuth contract for permissions
+   - Instance `A` checks DstackKms contract for permissions
    - If approved, instance `A` transfers root keys to instance `B`
 
 After the replication is complete, the KMS node becomes a fully functional KMS node.
@@ -117,7 +117,7 @@ Once onboarded, the KMS node begins listening for app key provisioning requests.
 
 When a KMS node receives a key provisioning request, it:
 1. Validates the TDX quote of the requesting App
-2. Queries the KmsAuth contract for provisioning allowance
+2. Queries the DstackKms contract for provisioning allowance
 3. If allowed, generates and sends the keys to the App
 
 ### Attestation
@@ -134,7 +134,7 @@ As a simpler approach, an App can verify the signature chain using the KMS root 
 
 For example, given a message `M` signed by an App with signature `Sm`, the chain of trust works as follows:
 
-1. The KMS maintains the root key `sK0`, with its corresponding public key `pK0` registered in the KmsAuth contract
+1. The KMS maintains the root key `sK0`, with its corresponding public key `pK0` registered in the DstackKms contract
 2. The App receives an app-key `sK1` from the KMS, along with signature `S1` (signed by `sK0`)
 3. The App derives a purpose-specific key `sK2` from `sK1`, with signature `S2` (signed by `sK1`)
 4. The App uses `sK2` to sign message `M`, producing signature `Sm`
@@ -146,7 +146,7 @@ The verification process follows these steps:
 1. Recover `pK2` from `Sm` and `M`
 2. Recover `pK1` from `S2` and `pK2` + `<purpose-id>`
 3. Recover `pK0` from `S1` and `pK1` + `<app-id>`
-4. Compare the recovered `pK0` with the registered `pK0` in the KmsAuth contract
+4. Compare the recovered `pK0` with the registered `pK0` in the DstackKms contract
 
 ## The RPC Interface
 
