@@ -173,21 +173,23 @@ As a normal dstack app, it requires the app to be registered in the DstackKms co
 
 ```bash
 cd dstack/kms/auth-eth
-npx hardhat app:deploy --network phala
+npx hardhat kms:create-app --network phala --allow-any-device
 ```
 
 This will deploy an DstackApp contract in the DstackKms contract and print the app ID:
 
 ```
-Deploying proxy...
-Waiting for deployment...
-DstackApp Proxy deployed to: 0x539D0d59D1742780De41b85b2c3674b24369e292
-Implementation deployed to: 0x5aC1671E1Df54994D023F0B05806821d6D84e086
-Deployment completed successfully
-Transaction hash: 0xceac2ac6d56a40fef903b947d3a05df42ccce66da7f356c5d54afda68277f9a9
-Waiting for transaction 0xe144e9007208079e5e82c04f727d2383c58184e74d4f860e62557b5f330ab832 to be confirmed...
-App registered in KMS successfully
-Registered AppId: 0x31884c4b7775affe4c99735f6c2aff7d7bc6cfcd
+Deploying with account: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+Account balance: 9999.988063729279315546
+Initial device: 0xda2d377e04b7133ec1287a18d465fa44ae9dbb08d929166c6bdb414f38a2acd3
+Initial compose hash: none
+Using factory method for single-transaction deployment...
+Waiting for transaction 0x46cf1959abf309fcde86bcab2518dcf28dd9eec70c74214f0562e7bf847c50de to be confirmed...
+✅ App deployed and registered successfully!
+Proxy Address (App Id): 0x32467b43BFa67273FC7dDda0999Ee9A12F2AaA08
+Owner: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+Transaction hash: 0x46cf1959abf309fcde86bcab2518dcf28dd9eec70c74214f0562e7bf847c50de
+Deployed with 1 initial device and 0 initial compose hash
 ```
 
 Now go to the `gateway/dstack-app/` directory and run the following command:
