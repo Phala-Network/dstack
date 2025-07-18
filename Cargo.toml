@@ -121,7 +121,7 @@ ipnet = { version = "2.11.0", features = ["serde"] }
 reqwest = { version = "0.12.14", default-features = false, features = ["json", "rustls-tls", "charset", "hickory-dns"] }
 rocket = { git = "https://github.com/rwf2/Rocket", branch = "master", features = ["mtls"] }
 rocket-apitoken = { git = "https://github.com/kvinwang/rocket-apitoken", branch = "dev" }
-tokio = { version = "1.44.1" }
+tokio = { version = "1.46.1" }
 tokio-vsock = "0.7.0"
 sysinfo = "0.35.2"
 default-net = "0.22.0"
